@@ -2,15 +2,15 @@
 
 **Source visual truth**
 
-- `C:\Users\chanc\AppData\Local\Temp\codex-clipboard-178168db-3759-4802-afe9-e87a4cef8b18.png`
+- User-provided final mockup (not committed to the repository).
 - Source pixels: 1486 × 1059.
 - Normalization: resized with Lanczos to 1440 × 1024 so it matches the desktop CSS viewport at device scale factor 1.
 
 **Implementation evidence**
 
-- Desktop: `C:\Users\chanc\OneDrive\Documents\ChatGPT\Agentic AI Assistant SMS\qa\tempo-desktop-1440.png` — 1440 × 1024, default signup state.
-- Side-by-side comparison: `C:\Users\chanc\OneDrive\Documents\ChatGPT\Agentic AI Assistant SMS\qa\design-qa-comparison.png` — normalized source on the left and browser-rendered implementation on the right.
-- Success state: `C:\Users\chanc\OneDrive\Documents\ChatGPT\Agentic AI Assistant SMS\qa\tempo-success-1440.png`.
+- Desktop: `qa/tempo-desktop-1440.png` — 1440 × 1024, default signup state.
+- Side-by-side comparison: `qa/design-qa-comparison.png` — normalized source on the left and browser-rendered implementation on the right.
+- Success state: `qa/tempo-success-1440.png`.
 - Responsive evidence: 1280 × 800, 1024 × 768, 768 × 1024, 390 × 844, and 360 × 800 screenshots in `qa/`.
 - Browser: local Chromium render through headless Chrome because the Codex in-app browser connection failed before navigation. All captures use device scale factor 1.
 

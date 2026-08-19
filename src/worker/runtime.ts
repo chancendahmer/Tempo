@@ -1,5 +1,5 @@
 import { PgBoss } from "pg-boss";
-import { requireEnv } from "../server/config/env";
+import { getServerEnv, requireEnv, ServerEnvKey } from "../server/config/env";
 import { closeDatabase } from "../server/db/client";
 import { startActionDispatcher } from "../server/jobs/dispatcher";
 import { registerSendWelcomeHandler } from "../server/jobs/handlers/send-welcome";
@@ -15,19 +15,24 @@ import { logger } from "../server/observability/logger";
 import { OperationalRepository } from "../server/db/repositories/operational-repository";
 
 export async function runWorker() {
+  const messagingKeys: ServerEnvKey[] = getServerEnv().MESSAGING_PROVIDER === "linq"
+    ? ["LINQ_API_KEY"]
+    : [
+        "TWILIO_ACCOUNT_SID",
+        "TWILIO_API_KEY_SID",
+        "TWILIO_API_KEY_SECRET",
+        "TWILIO_MESSAGING_SERVICE_SID",
+      ];
   const env = requireEnv([
     "APP_BASE_URL",
     "DATABASE_URL",
-    "TWILIO_ACCOUNT_SID",
-    "TWILIO_API_KEY_SID",
-    "TWILIO_API_KEY_SECRET",
-    "TWILIO_MESSAGING_SERVICE_SID",
     "ANTHROPIC_API_KEY",
     "ANTHROPIC_MODEL",
     "FIELD_ENCRYPTION_KEY",
     "GOOGLE_CLIENT_ID",
     "GOOGLE_CLIENT_SECRET",
     "GOOGLE_REDIRECT_URI",
+    ...messagingKeys,
   ]);
   const boss = new PgBoss({
     connectionString: env.DATABASE_URL!,
