@@ -1,0 +1,2 @@
+ALTER TABLE "context_snapshots" ADD COLUMN "opportunity_key" text;--> statement-breakpoint
+CREATE UNIQUE INDEX "context_snapshots_opportunity_unique" ON "context_snapshots" USING btree ("opportunity_key");

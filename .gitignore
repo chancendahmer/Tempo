@@ -1,0 +1,25 @@
+# dependencies
+/node_modules
+/.pnpm-store
+
+# Next.js
+/.next
+/.next-*
+/out
+/dist-ops
+/dist-worker
+*.tsbuildinfo
+
+# local environment
+.env*
+!.env.example
+
+# local browser QA profiles
+/.chrome-qa-*
+
+# logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
