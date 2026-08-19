@@ -1,10 +1,11 @@
-export type MessagingProvider = "linq" | "twilio" | "test";
+export type MessagingProvider = "sendblue" | "linq" | "twilio" | "test";
 
 export type SendMessageInput = {
   to: string;
   body: string;
   idempotencyKey: string;
   statusCallbackUrl?: string;
+  mediaUrl?: string;
 };
 
 export type SendMessageResult = {

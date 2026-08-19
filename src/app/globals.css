@@ -322,7 +322,7 @@ select {
 }
 
 .signup-form {
-  width: min(662px, 100%);
+  width: min(720px, 100%);
   margin: 0 auto;
 }
 
@@ -330,7 +330,7 @@ select {
   min-height: 82px;
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   padding: 10px 12px 10px 21px;
   background: rgba(255, 255, 255, 0.76);
   border: 1.5px solid var(--teal);
@@ -378,12 +378,13 @@ select {
 .area-code-control {
   position: relative;
   flex: 0 0 auto;
+  min-width: 0;
 }
 
 .area-code-control .area-code-input {
-  width: 76px;
+  width: 96px;
   min-height: 44px;
-  padding: 0 8px;
+  padding: 0 9px;
   border: 0;
   border-left: 1px solid #d7dddb;
   outline: 0;
@@ -391,7 +392,15 @@ select {
   background: transparent;
   font-weight: 700;
   text-align: center;
-  flex: 0 0 76px;
+  font-size: 17px;
+  font-variant-numeric: tabular-nums;
+  flex: 0 0 96px;
+}
+
+.area-code-control .area-code-input::placeholder {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
 }
 
 .signup-control input {
@@ -405,13 +414,18 @@ select {
   font-size: 20px;
 }
 
+.signup-control .subscriber-number-input {
+  min-width: 130px;
+  font-variant-numeric: tabular-nums;
+}
+
 .signup-control input::placeholder {
   color: #7b8491;
   opacity: 1;
 }
 
 .signup-button {
-  min-width: 185px;
+  min-width: 176px;
   min-height: 58px;
   padding: 0 28px;
   font-size: 19px;
@@ -485,6 +499,17 @@ select {
 .signup-success-actions {
   flex-wrap: wrap;
   font-size: 15px;
+}
+
+.signup-verification-note {
+  width: 100%;
+  max-width: 560px;
+  margin: 0;
+  color: #52615e;
+  font-size: 14px;
+  font-weight: 550;
+  line-height: 1.45;
+  text-align: center;
 }
 
 .signup-success-actions .black-button,
@@ -1501,6 +1526,7 @@ select {
   }
 
   .signup-control {
+    width: 100%;
     gap: 9px;
     min-height: 72px;
     padding: 8px 9px 8px 14px;
@@ -1749,8 +1775,9 @@ select {
 
   .signup-control {
     display: grid;
-    grid-template-columns: auto auto 1fr;
+    grid-template-columns: auto auto minmax(100px, 1fr);
     row-gap: 8px;
+    overflow: hidden;
   }
 
   .area-code-control {
@@ -1759,11 +1786,14 @@ select {
 
   .area-code-control .area-code-input {
     width: 100%;
+    min-width: 0;
     grid-column: auto;
     border-top: 0;
+    border-left: 1px solid #d7dddb;
   }
 
-  .signup-control input {
+  .signup-control .subscriber-number-input {
+    min-width: 0;
     width: 100%;
     grid-column: 1 / -1;
     padding-inline: 7px;

@@ -4,14 +4,11 @@ import { getServerEnv } from "../../config/env";
 import { DrizzleOutboundMessageRepository } from "../../db/repositories/outbound-message-repository";
 import { SafeSmsSender } from "../../domain/outbound-messaging";
 import { logger } from "../../observability/logger";
-import { JOB_NAMES, SendWelcomeJob } from "../names";
+import { JOB_NAMES, SendComplianceJob } from "../names";
 import { ScheduledActionRepository } from "../scheduled-action-repository";
 
-const WELCOME_MESSAGE =
-  "Hi, it’s Tempo. Tap the contact card to add me and keep my photo with this conversation. I’ll text when it seems useful and help you take the next step. Msg frequency varies. Reply STOP to opt out or HELP for help. What’s one thing you want to get done?";
-
-export async function registerSendWelcomeHandler(boss: PgBoss) {
-  await boss.work<SendWelcomeJob>(JOB_NAMES.sendWelcome, { localConcurrency: 2 }, async (jobs) => {
+export async function registerSendComplianceHandler(boss: PgBoss) {
+  await boss.work<SendComplianceJob>(JOB_NAMES.sendCompliance, { localConcurrency: 2 }, async (jobs) => {
     for (const job of jobs) {
       const actions = new ScheduledActionRepository();
       if (!(await actions.markRunning(job.data.scheduledActionId))) continue;
@@ -21,12 +18,9 @@ export async function registerSendWelcomeHandler(boss: PgBoss) {
         const sender = new SafeSmsSender(new DrizzleOutboundMessageRepository(), createMessagingTransport());
         const result = await sender.send({
           userId: job.data.userId,
-          body: WELCOME_MESSAGE,
-          kind: "system",
+          body: `Tempo helps you plan and start tasks. Reply with what you want to get done. Support: ${env.APP_BASE_URL}. Reply STOP to opt out.`,
+          kind: "compliance",
           idempotencyKey: job.data.idempotencyKey,
-          ...(env.MESSAGING_PROVIDER === "sendblue"
-            ? { mediaUrl: new URL("/tempo.vcf", env.APP_BASE_URL).toString() }
-            : {}),
         });
 
         if (result.sent || result.reason === "duplicate") {
@@ -36,7 +30,7 @@ export async function registerSendWelcomeHandler(boss: PgBoss) {
         }
       } catch (error) {
         await actions.markFailed(job.data.scheduledActionId, error);
-        logger.error({ err: error, jobId: job.id }, "welcome SMS job failed");
+        logger.error({ err: error, jobId: job.id }, "compliance reply job failed");
         throw error;
       }
     }

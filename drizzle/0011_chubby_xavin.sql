@@ -1,0 +1,1 @@
+ALTER TYPE "public"."messaging_provider" ADD VALUE 'sendblue' BEFORE 'linq';

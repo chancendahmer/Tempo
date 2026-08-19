@@ -8,7 +8,7 @@ Tempo V1 tests whether context-aware SMS interventions increase task initiation.
 
 The repository produces two processes:
 
-1. **Web:** the existing Next.js application, marketing pages, consent endpoint, Linq/Twilio webhooks, Google OAuth, and health endpoints.
+1. **Web:** the existing Next.js application, marketing pages, consent endpoint, Sendblue/Linq/Twilio webhooks, Google OAuth, and health endpoints.
 2. **Worker:** a TypeScript process that consumes durable PostgreSQL jobs for message processing, calendar synchronization, context evaluation, follow-ups, and delivery retries.
 
 PostgreSQL is the only durable state system in V1. A Postgres-backed job queue avoids introducing Redis.
@@ -25,9 +25,9 @@ src/server/jobs         Durable job definitions and handlers
 src/worker              Worker process entrypoint
 ```
 
-Route handlers and job handlers may call domain services. Domain services must not import Next.js, Linq, Twilio, Google, or an LLM SDK.
+Route handlers and job handlers may call domain services. Domain services must not import Next.js, Sendblue, Linq, Twilio, Google, or an LLM SDK.
 
-Linq is the primary messaging adapter. It uses managed line selection and the best available service across iMessage, RCS, and SMS. Twilio remains an optional RCS/SMS adapter behind the same transport contract. Provider and provider-message ID are stored together so identifiers from different providers cannot collide.
+Sendblue is the active sandbox-demo adapter, using a configured shared line, REST delivery, contact preparation, and authenticated receive/status webhooks. Linq remains available for managed line selection, while Twilio remains an optional RCS/SMS adapter behind the same transport contract. Provider and provider-message ID are stored together so identifiers from different providers cannot collide.
 
 Task, goal, memory, and rescheduling changes cross a validated command boundary before repositories mutate data. Source-message identifiers make retries idempotent and preserve an audit trail. Ambiguous task or goal references are held as conversation state until the user chooses one. Rescheduling likewise stores a concrete calendar-derived proposal and changes the due date only after confirmation.
 

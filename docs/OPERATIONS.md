@@ -26,8 +26,8 @@ STOP/revoked consent is enforced again immediately before every provider send. A
 
 ## Provider failures
 
-- **Linq outage or unhealthy lines:** outbound jobs fail with bounded retries. Do not bulk replay ambiguous failures; provider idempotency and Tempo's message ledger intentionally favor no duplicate message. Linq retries webhook delivery, while Tempo deduplicates event IDs. Page on line `FLAGGED` or critical reputation transitions and pause autonomous sending if capacity is uncertain.
-- **Optional Twilio outage:** keep the fallback disabled unless its compliance, sender registration, and end-to-end matrix are current. Switching providers is an explicit operational decision, not an automatic retry of an ambiguous Linq send.
+- **Sendblue outage, blocked line, or exhausted sandbox contacts:** pause new signups and autonomous sending. Do not bulk replay ambiguous failures; Tempo's message ledger intentionally favors no duplicate message. Compare Tempo's masked message records with Sendblue message handles before retrying manually.
+- **Optional Linq or Twilio outage:** keep the fallback disabled unless its credentials, compliance, and end-to-end matrix are current. Switching providers is an explicit operational decision, not an automatic retry of an ambiguous send.
 - **Google outage or revoked token:** calendar jobs fail independently from inbound SMS. Mark persistent authentication failures `requires_reauth`; never infer that missing calendar data means free time.
 - **Anthropic outage:** intervention composition uses a deterministic, safety-validated fallback. Task-intent parsing retries and retains the inbound message for later processing.
 - **PostgreSQL outage:** web readiness fails, worker jobs stop durably, and the liveness endpoint remains available for diagnosis.

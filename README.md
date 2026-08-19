@@ -1,6 +1,6 @@
 # Tempo
 
-Tempo is a consent-first messaging executive-function coach. Linq is the primary transport, using iMessage when available with RCS/SMS fallback; Twilio is an optional secondary adapter. Tempo combines natural-language task and goal management, privacy-minimized Google Calendar free/busy awareness, confirmed rescheduling, deterministic intervention policy, randomized holdouts, feedback attribution, and structured user-correctable memory.
+Tempo is a consent-first messaging executive-function coach. Sendblue is the active transport for the controlled sandbox demo; Linq and Twilio remain optional adapters behind the same provider boundary. Tempo combines natural-language task and goal management, privacy-minimized Google Calendar free/busy awareness, confirmed rescheduling, deterministic intervention policy, randomized holdouts, feedback attribution, and structured user-correctable memory.
 
 The marketing site and HTTP endpoints run in Next.js. Durable work runs in a separate TypeScript worker backed by PostgreSQL and pg-boss. PostgreSQL is the only durable infrastructure dependency.
 
@@ -20,6 +20,7 @@ npm run db:generate       generate a migration from schema changes
 npm run db:migrate        apply pending migrations
 npm run context:report    inspect recent context decisions
 npm run beta:report       inspect masked beta outcome metrics
+npm run demo:report       inspect Sendblue demo contacts, activity, and worker readiness
 npm run smoke:staging     verify a configured staging deployment
 ```
 
@@ -33,3 +34,4 @@ Autonomous sending requires both `INTERVENTION_SHADOW_MODE=false` and `AUTONOMOU
 - `docs/DEPLOYMENT.md` — Railway staging setup
 - `docs/OPERATIONS.md` — incidents, provider failure, backups, and data requests
 - `docs/LAUNCH_CHECKLIST.md` — live provider and beta gates
+- `docs/SANDBOX_DEMO.md` — controlled 10-person Sendblue sandbox demo runbook

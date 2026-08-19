@@ -4,6 +4,9 @@ import { getServerEnv } from "../config/env";
 const REDACTED_PATHS = [
   "req.headers.authorization",
   "req.headers.cookie",
+  "req.headers.sb-api-key-id",
+  "req.headers.sb-api-secret-key",
+  "req.headers.sb-signing-secret",
   "phoneE164",
   "phone_number",
   "accessToken",

@@ -3,6 +3,7 @@ import { getServerEnv, requireEnv, ServerEnvKey } from "../server/config/env";
 import { closeDatabase } from "../server/db/client";
 import { startActionDispatcher } from "../server/jobs/dispatcher";
 import { registerSendWelcomeHandler } from "../server/jobs/handlers/send-welcome";
+import { registerSendComplianceHandler } from "../server/jobs/handlers/send-compliance";
 import { registerProcessInboundHandler } from "../server/jobs/handlers/process-inbound";
 import { registerSyncCalendarHandler } from "../server/jobs/handlers/sync-calendar";
 import { registerEvaluateContextHandler } from "../server/jobs/handlers/evaluate-context";
@@ -15,9 +16,12 @@ import { logger } from "../server/observability/logger";
 import { OperationalRepository } from "../server/db/repositories/operational-repository";
 
 export async function runWorker() {
-  const messagingKeys: ServerEnvKey[] = getServerEnv().MESSAGING_PROVIDER === "linq"
-    ? ["LINQ_API_KEY"]
-    : [
+  const messagingProvider = getServerEnv().MESSAGING_PROVIDER;
+  const messagingKeys: ServerEnvKey[] = messagingProvider === "sendblue"
+    ? ["SENDBLUE_API_KEY", "SENDBLUE_API_SECRET", "SENDBLUE_PHONE_NUMBER"]
+    : messagingProvider === "linq"
+      ? ["LINQ_API_KEY"]
+      : [
         "TWILIO_ACCOUNT_SID",
         "TWILIO_API_KEY_SID",
         "TWILIO_API_KEY_SECRET",
@@ -45,6 +49,15 @@ export async function runWorker() {
 
   await boss.start();
   await boss.createQueue(JOB_NAMES.sendWelcome, {
+    policy: "standard",
+    retryLimit: 2,
+    retryDelay: 30,
+    retryBackoff: true,
+    expireInSeconds: 90,
+    deleteAfterSeconds: 604_800,
+    notify: true,
+  });
+  await boss.createQueue(JOB_NAMES.sendCompliance, {
     policy: "standard",
     retryLimit: 2,
     retryDelay: 30,
@@ -108,6 +121,7 @@ export async function runWorker() {
     notify: true,
   });
   await registerSendWelcomeHandler(boss);
+  await registerSendComplianceHandler(boss);
   await registerProcessInboundHandler(boss);
   await registerSyncCalendarHandler(boss);
   await registerEvaluateContextHandler(boss);

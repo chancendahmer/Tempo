@@ -16,6 +16,7 @@
     "db:migrate": "tsx scripts/migrate.ts",
     "context:report": "tsx scripts/context-report.ts",
     "beta:report": "tsx scripts/beta-report.ts",
+    "demo:report": "tsx scripts/demo-report.ts",
     "smoke:staging": "tsx scripts/staging-smoke.ts",
     "worker:dev": "tsx watch src/worker/index.ts",
     "worker:start": "tsx src/worker/index.ts"

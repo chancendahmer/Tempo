@@ -156,7 +156,31 @@ describe("messaging repositories with migrated PostgreSQL", () => {
     expect(actions.map((action) => action.kind).sort()).toEqual(["evaluate_context", "send_welcome"]);
   });
 
-  it("waits for a Linq web signup to text START before scheduling the welcome", async () => {
+  it("queues one asynchronous compliance reply for HELP", async () => {
+    const repository = new DrizzleMessagingRepository(database);
+    await repository.ingestInbound({
+      provider: "sendblue", providerMessageId: "SENDBLUE_HELP_START",
+      from: "+12025550197", to: "+12025550111", body: "START", service: "iMessage",
+    });
+    expect(await repository.ingestInbound({
+      provider: "sendblue", providerMessageId: "SENDBLUE_HELP",
+      from: "+12025550197", to: "+12025550111", body: "HELP", service: "iMessage",
+    })).toEqual({ duplicate: false });
+    expect(await repository.ingestInbound({
+      provider: "sendblue", providerMessageId: "SENDBLUE_HELP",
+      from: "+12025550197", to: "+12025550111", body: "HELP", service: "iMessage",
+    })).toEqual({ duplicate: true });
+
+    const [user] = await database.select().from(users).where(eq(users.phoneE164, "+12025550197"));
+    const helpActions = await database.select().from(scheduledActions).where(and(
+      eq(scheduledActions.userId, user.id),
+      eq(scheduledActions.kind, "send_compliance"),
+    ));
+    expect(helpActions).toHaveLength(1);
+    expect(helpActions[0].idempotencyKey).toBe("help:sendblue:SENDBLUE_HELP");
+  });
+
+  it("waits for a Sendblue web signup to text START before scheduling the welcome", async () => {
     const consent = await recordWebConsent(
       new DrizzleConsentRepository(database),
       {
@@ -169,14 +193,37 @@ describe("messaging repositories with migrated PostgreSQL", () => {
       .toHaveLength(0);
 
     await new DrizzleMessagingRepository(database).ingestInbound({
-      provider: "linq", providerMessageId: "LINQ_WEB_START",
+      provider: "sendblue", providerMessageId: "SENDBLUE_WEB_START",
       from: "+16465550198", to: "+12025550111", body: "START", service: "iMessage",
     });
 
     const actions = await database.select().from(scheduledActions).where(eq(scheduledActions.userId, consent.userId));
+    const [user] = await database.select().from(users).where(eq(users.id, consent.userId));
     const [message] = await database.select().from(conversationMessages)
-      .where(eq(conversationMessages.providerMessageSid, "LINQ_WEB_START"));
-    expect(message).toMatchObject({ provider: "linq", providerService: "iMessage", kind: "compliance" });
+      .where(eq(conversationMessages.providerMessageSid, "SENDBLUE_WEB_START"));
+    expect(message).toMatchObject({ provider: "sendblue", providerService: "iMessage", kind: "compliance" });
+    expect(user.phoneVerifiedAt).toBeInstanceOf(Date);
+    expect(actions.map((action) => action.kind).sort()).toEqual(["evaluate_context", "send_welcome"]);
+  });
+
+  it("activates a web signup from its first verified non-keyword reply without treating it as a task", async () => {
+    const consent = await recordWebConsent(
+      new DrizzleConsentRepository(database),
+      {
+        countryCode: "US", callingCode: "+1", areaCode: "917",
+        subscriberNumber: "5550198", consent: true,
+      },
+      { auditKey: "audit-secret", onboardingFlow: "user_first" },
+    );
+
+    await new DrizzleMessagingRepository(database).ingestInbound({
+      provider: "sendblue", providerMessageId: "SENDBLUE_VERIFIED_REPLY",
+      from: "+19175550198", to: "+12025550111", body: "Verified", service: "iMessage",
+    });
+
+    const [user] = await database.select().from(users).where(eq(users.id, consent.userId));
+    const actions = await database.select().from(scheduledActions).where(eq(scheduledActions.userId, consent.userId));
+    expect(user.phoneVerifiedAt).toBeInstanceOf(Date);
     expect(actions.map((action) => action.kind).sort()).toEqual(["evaluate_context", "send_welcome"]);
   });
 
