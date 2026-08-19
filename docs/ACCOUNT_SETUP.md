@@ -6,27 +6,21 @@ This checklist separates founder-owned account work from implementation work. Ne
 
 The accounts below are the founder-owned critical path for live acceptance. Local development, migrations, policy tests, and the provider-free end-to-end journey do not require their secrets. Create development/staging credentials first; production credentials and approvals stay separate until the launch checklist is signed.
 
-### 1. Linq
+### 1. Sendblue
 
-Create a Linq sandbox account and a Tempo partner workspace. Use separate development/staging and production API tokens. The sandbox is sufficient to validate the API and signed-webhook contract; production traffic requires Linq onboarding, provisioned lines, and a commercial agreement.
-
-Create these resources:
-
-- A partner workspace dedicated to Tempo.
-- At least one development line and contact card.
-- A V3 API token.
-- A webhook subscription for `message.received`, `message.sent`, `message.delivered`, `message.read`, and `message.failed` pointed at `/api/linq/webhook`.
+Create a free Sendblue API account for the controlled 10-contact demo. The sandbox uses a shared Sendblue number and requires every recipient to be a verified account contact. Tempo creates or updates the contact during web signup and requests Sendblue's one-time verification message. The recipient replies to verify the phone; Tempo then sends its welcome and an embedded-photo contact card. A manual **Text START** action remains available if the verification message is delayed.
 
 Record these values privately:
 
-- `LINQ_API_KEY`
-- `LINQ_WEBHOOK_SECRET`
+- `SENDBLUE_API_KEY`
+- `SENDBLUE_API_SECRET`
+- `SENDBLUE_PHONE_NUMBER`
 
-Tempo uses Linq's default protocol selection (`iMessage → RCS → SMS`) and managed line selection. Signup calls `GET /v3/available_number` once to show a new user the best line and contact card; the user sends `START` first. Normal outbound messages use `POST /v3/messages` without a fixed `from`, allowing Linq to balance and fail over lines.
+Create strong per-webhook or global signing secret and store it as `SENDBLUE_WEBHOOK_SECRET`. Configure both `receive` and `outbound` webhook types to point at `/api/sendblue/webhook`.
 
-Before production, obtain written confirmation from Linq about commercial pricing, line capacity, supported launch countries, required business verification/registration, support escalation, data processing terms, and Apple-platform suspension/failover procedures. Do not assume sandbox deliverability represents production capacity.
+Tempo exposes the same open signup flow intended for production. For the free ten-contact test, control access by sharing the site URL only with trusted testers. The free sandbox is sufficient for a controlled product demonstration, not the 100-person beta.
 
-Twilio is optional fallback infrastructure. Only create/configure it if Tempo decides it needs an independent RCS/SMS route; it is not required for the Linq-first beta.
+Linq and Twilio remain optional provider adapters. Linq production access can be revisited after waitlist approval; Twilio can provide an independently registered SMS/RCS route if required. Do not enable either without current credentials and provider-specific end-to-end testing.
 
 ### 2. Google Cloud
 
@@ -70,10 +64,10 @@ Create or select a private GitHub repository for Tempo. Enable two-factor authen
 
 - A public domain for Tempo
 - A monitored support email
-- Legal business or sole-proprietor registration details requested by Linq or downstream carriers
+- Legal business or sole-proprietor registration details requested by the selected provider or downstream carriers
 - A final public opt-in flow
 - Reviewed Terms of Service and Privacy Policy
-- Any carrier registration required for Linq's SMS fallback or a separately enabled Twilio route
+- Any carrier registration required for the selected provider's SMS fallback or a separately enabled Twilio route
 - Production Google OAuth consent configuration and any required verification
 
 ## Not required for V1

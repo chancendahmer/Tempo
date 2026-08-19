@@ -7,6 +7,7 @@ import { hashAuditValue, recordWebConsent, webConsentInputSchema } from "@/serve
 import { logger } from "@/server/observability/logger";
 import { OperationalRepository } from "@/server/db/repositories/operational-repository";
 import { LinqOnboardingService } from "@/server/adapters/sms/linq-onboarding";
+import { SendblueOnboardingService } from "@/server/adapters/sms/sendblue-onboarding";
 
 export const dynamic = "force-dynamic";
 
@@ -43,16 +44,29 @@ export async function POST(request: NextRequest) {
     const body: unknown = await request.json();
     const parsedInput = webConsentInputSchema.parse(body);
     const phoneE164 = phonePartsToE164(parsedInput);
-    const onboarding = env.MESSAGING_PROVIDER === "linq"
-      ? await new LinqOnboardingService().assignLine(phoneE164)
-      : undefined;
+    const sendblueOnboarding = env.MESSAGING_PROVIDER === "sendblue" ? new SendblueOnboardingService() : undefined;
+    const onboarding = sendblueOnboarding
+      ? await sendblueOnboarding.prepareContact(phoneE164)
+      : env.MESSAGING_PROVIDER === "linq"
+        ? await new LinqOnboardingService().assignLine(phoneE164)
+        : undefined;
 
     await recordWebConsent(new DrizzleConsentRepository(), body, {
       ip: forwardedFor,
       userAgent: request.headers.get("user-agent") ?? undefined,
       auditKey: env.FIELD_ENCRYPTION_KEY!,
-      onboardingFlow: onboarding ? "user_first" : "tempo_first",
+      onboardingFlow: onboarding && !("verified" in onboarding && onboarding.verified) ? "user_first" : "tempo_first",
     });
+
+    let verificationSent = false;
+    if (sendblueOnboarding && onboarding && "verified" in onboarding && !onboarding.verified) {
+      try {
+        await sendblueOnboarding.requestVerification(phoneE164);
+        verificationSent = true;
+      } catch (error) {
+        logger.warn({ err: error }, "Sendblue verification message failed; returning manual-text fallback");
+      }
+    }
 
     return NextResponse.json({
       accepted: true,
@@ -60,7 +74,10 @@ export async function POST(request: NextRequest) {
         onboarding: {
           phoneNumber: onboarding.phoneNumber,
           messageHref: `sms:${onboarding.phoneNumber}?body=START`,
-          vcfUrl: onboarding.vcfUrl,
+          ...(env.MESSAGING_PROVIDER === "sendblue" && "verified" in onboarding
+            ? { verificationSent, alreadyVerified: onboarding.verified }
+            : {}),
+          ...(env.MESSAGING_PROVIDER === "linq" && "vcfUrl" in onboarding ? { vcfUrl: onboarding.vcfUrl } : {}),
         },
       } : {}),
     }, { status: 202 });

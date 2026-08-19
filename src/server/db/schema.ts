@@ -48,7 +48,7 @@ export const messageStatus = pgEnum("message_status", [
   "undelivered",
 ]);
 export const messageKind = pgEnum("message_kind", ["user", "coach", "system", "compliance"]);
-export const messagingProvider = pgEnum("messaging_provider", ["linq", "twilio", "test"]);
+export const messagingProvider = pgEnum("messaging_provider", ["sendblue", "linq", "twilio", "test"]);
 export const messagingService = pgEnum("messaging_service", ["iMessage", "RCS", "SMS"]);
 export const calendarConnectionStatus = pgEnum("calendar_connection_status", [
   "active",
@@ -115,6 +115,7 @@ export const users = pgTable(
     interventionCooldownMinutes: integer("intervention_cooldown_minutes").default(240).notNull(),
     pausedUntil: timestamp("paused_until", { withTimezone: true }),
     optedOutAt: timestamp("opted_out_at", { withTimezone: true }),
+    phoneVerifiedAt: timestamp("phone_verified_at", { withTimezone: true }),
     lastInboundAt: timestamp("last_inbound_at", { withTimezone: true }),
     lastOutboundAt: timestamp("last_outbound_at", { withTimezone: true }),
     responseStats: jsonb("response_stats").$type<Record<string, unknown>>().default(sql`'{}'::jsonb`).notNull(),

@@ -39,6 +39,7 @@ export type SendSafeSmsInput = {
   kind: "coach" | "system" | "compliance";
   idempotencyKey: string;
   statusCallbackUrl?: string;
+  mediaUrl?: string;
   relatedInterventionId?: string;
 };
 
@@ -86,6 +87,7 @@ export class SafeSmsSender {
         body: input.body,
         idempotencyKey: input.idempotencyKey,
         statusCallbackUrl: input.statusCallbackUrl,
+        ...(input.mediaUrl ? { mediaUrl: input.mediaUrl } : {}),
       });
       await this.repository.markSubmitted(reservation.messageId, result.provider, result.providerMessageSid, result.service);
       return {

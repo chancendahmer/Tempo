@@ -3,14 +3,14 @@ import { fromDrizzle, PgBoss } from "pg-boss";
 import { getDatabase, TempoDatabase } from "../db/client";
 import { scheduledActions } from "../db/schema";
 import { logger } from "../observability/logger";
-import { DeliverInterventionJob, EvaluateContextJob, FeedbackFollowupJob, FeedbackTimeoutJob, JOB_NAMES, ProcessInboundJob, SendWelcomeJob, SyncCalendarJob } from "./names";
+import { DeliverInterventionJob, EvaluateContextJob, FeedbackFollowupJob, FeedbackTimeoutJob, JOB_NAMES, ProcessInboundJob, SendComplianceJob, SendWelcomeJob, SyncCalendarJob } from "./names";
 
 type DispatchableAction = {
   id: string;
   userId: string;
   idempotencyKey: string;
   interventionId: string | null;
-  kind: "send_welcome" | "process_inbound_message" | "sync_calendar" | "evaluate_context" | "deliver_intervention" | "feedback_followup" | "feedback_timeout";
+  kind: "send_welcome" | "send_compliance" | "process_inbound_message" | "sync_calendar" | "evaluate_context" | "deliver_intervention" | "feedback_followup" | "feedback_timeout";
   payload: Record<string, unknown>;
 };
 
@@ -24,7 +24,7 @@ export async function dispatchDueActions(
       select id, user_id as "userId", intervention_id as "interventionId", idempotency_key as "idempotencyKey", kind, payload
       from ${scheduledActions}
       where status = 'scheduled'
-        and kind in ('send_welcome', 'process_inbound_message', 'sync_calendar', 'evaluate_context', 'deliver_intervention', 'feedback_followup', 'feedback_timeout')
+        and kind in ('send_welcome', 'send_compliance', 'process_inbound_message', 'sync_calendar', 'evaluate_context', 'deliver_intervention', 'feedback_followup', 'feedback_timeout')
         and run_at <= now()
       order by run_at asc
       for update skip locked
@@ -34,6 +34,8 @@ export async function dispatchDueActions(
     for (const action of result.rows) {
       const queueName = action.kind === "send_welcome"
         ? JOB_NAMES.sendWelcome
+        : action.kind === "send_compliance"
+          ? JOB_NAMES.sendCompliance
         : action.kind === "process_inbound_message"
           ? JOB_NAMES.processInbound
           : action.kind === "sync_calendar"
@@ -45,8 +47,8 @@ export async function dispatchDueActions(
                 : action.kind === "feedback_followup"
                   ? JOB_NAMES.feedbackFollowup
                   : JOB_NAMES.feedbackTimeout;
-      const data: SendWelcomeJob | ProcessInboundJob | SyncCalendarJob | EvaluateContextJob | DeliverInterventionJob | FeedbackFollowupJob | FeedbackTimeoutJob =
-        action.kind === "send_welcome"
+      const data: SendWelcomeJob | SendComplianceJob | ProcessInboundJob | SyncCalendarJob | EvaluateContextJob | DeliverInterventionJob | FeedbackFollowupJob | FeedbackTimeoutJob =
+        action.kind === "send_welcome" || action.kind === "send_compliance"
           ? {
               scheduledActionId: action.id,
               userId: action.userId,

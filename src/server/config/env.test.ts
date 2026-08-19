@@ -9,6 +9,7 @@ describe("server environment", () => {
 
     expect(env.APP_BASE_URL).toBe("http://localhost:3000");
     expect(env.INTERVENTION_SHADOW_MODE).toBe(true);
+    expect(env.MESSAGING_PROVIDER).toBe("sendblue");
     expect(env.DATABASE_URL).toBeUndefined();
   });
 

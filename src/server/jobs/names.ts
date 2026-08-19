@@ -1,5 +1,6 @@
 export const JOB_NAMES = {
   sendWelcome: "tempo.send-welcome",
+  sendCompliance: "tempo.send-compliance",
   processInbound: "tempo.process-inbound",
   syncCalendar: "tempo.sync-calendar",
   evaluateContext: "tempo.evaluate-context",
@@ -15,6 +16,8 @@ export type SendWelcomeJob = {
   userId: string;
   idempotencyKey: string;
 };
+
+export type SendComplianceJob = SendWelcomeJob;
 
 export type ProcessInboundJob = {
   scheduledActionId: string;

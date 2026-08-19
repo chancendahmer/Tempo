@@ -19,14 +19,15 @@ The web pre-deploy command applies database migrations. The worker never migrate
 
 ## Provider endpoints
 
-- Linq webhook subscription: `POST https://<staging-domain>/api/linq/webhook`
+- Sendblue receive and outbound webhooks: `POST https://<staging-domain>/api/sendblue/webhook`
+- Optional Linq webhook subscription: `POST https://<staging-domain>/api/linq/webhook`
 - Optional Twilio inbound webhook: `POST https://<staging-domain>/api/twilio/inbound`
 - Optional Twilio delivery callback: `POST https://<staging-domain>/api/twilio/status`
 - Google redirect URI: `https://<staging-domain>/api/auth/google/callback`
 - Web liveness: `GET /api/health`
 - Full readiness: `GET /api/ready`
 
-Linq must send webhook requests directly to the canonical public domain; the route verifies the Standard Webhooks signature over the raw request body and rejects replayed timestamps. If Twilio fallback is enabled, its signature is validated against `APP_BASE_URL`.
+Sendblue must send webhook requests directly to the canonical public domain with the configured `sb-signing-secret`. The route compares that secret before parsing or storing an event. Linq Standard Webhooks and Twilio signature validation remain available when those optional providers are selected.
 
 ## Deployment verification
 

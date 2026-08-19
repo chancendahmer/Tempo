@@ -22,14 +22,16 @@ function getSubmittedState() {
 type OnboardingAssignment = {
   phoneNumber: string;
   messageHref: string;
-  vcfUrl: string;
+  vcfUrl?: string;
+  verificationSent?: boolean;
+  alreadyVerified?: boolean;
 };
 
 function parseStoredAssignment(value: string | null): OnboardingAssignment | null {
   if (!value || value === "true") return null;
   try {
     const parsed = JSON.parse(value) as Partial<OnboardingAssignment>;
-    return parsed.phoneNumber && parsed.messageHref && parsed.vcfUrl
+    return parsed.phoneNumber && parsed.messageHref
       ? parsed as OnboardingAssignment
       : null;
   } catch {
@@ -72,7 +74,7 @@ const countries = [
 
 export function PhoneSignup() {
   const [countryCode, setCountryCode] = useState("US");
-  const [areaCode, setAreaCode] = useState("202");
+  const [areaCode, setAreaCode] = useState("");
   const [phone, setPhone] = useState("");
   const [consented, setConsented] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -134,16 +136,32 @@ export function PhoneSignup() {
       <div className="signup-success" role="status">
         <div className="signup-success-heading">
           <span className="success-check" aria-hidden="true"><FiCheck /></span>
-          <span>{onboarding ? "One last step: start the conversation." : "You’re in. Tempo will text you to start setup."}</span>
+          <span>
+            {onboarding?.verificationSent
+              ? "Check your messages to finish setup."
+              : onboarding?.alreadyVerified
+                ? "You’re in. Tempo is texting you now."
+                : onboarding
+                  ? "One last step: start the conversation."
+                  : "You’re in. Tempo will text you to start setup."}
+          </span>
         </div>
         {onboarding && (
           <div className="signup-success-actions">
+            {onboarding.verificationSent && (
+              <p className="signup-verification-note">
+                Reply to Sendblue’s one-time verification message. Tempo will then send its welcome and contact card.
+              </p>
+            )}
             <a className="black-button" href={onboarding.messageHref}>
-              <FiMessageCircle aria-hidden="true" /> Text START to Tempo
+              <FiMessageCircle aria-hidden="true" />
+              {onboarding.verificationSent ? "No message? Text START" : "Text START to Tempo"}
             </a>
-            <a className="signup-contact-link" href={onboarding.vcfUrl}>
-              <FiUserPlus aria-hidden="true" /> Save Tempo contact
-            </a>
+            {onboarding.vcfUrl && (
+              <a className="signup-contact-link" href={onboarding.vcfUrl}>
+                <FiUserPlus aria-hidden="true" /> Save Tempo contact
+              </a>
+            )}
           </div>
         )}
       </div>
@@ -164,7 +182,7 @@ export function PhoneSignup() {
             onChange={(event) => {
               const nextCountry = countries.find((item) => item.code === event.target.value) ?? countries[0];
               setCountryCode(nextCountry.code);
-              setAreaCode(nextCountry.areas[0].code);
+              setAreaCode("");
               setPhone("");
               setError("");
             }}
@@ -187,7 +205,8 @@ export function PhoneSignup() {
             id="area-code"
             inputMode="numeric"
             autoComplete="tel-area-code"
-            list={`area-code-suggestions-${country.code}`}
+            maxLength={country.areaMaxLength}
+            placeholder="Area code"
             value={areaCode}
             onChange={(event) => {
               setAreaCode(event.target.value.replace(/\D/g, "").slice(0, country.areaMaxLength));
@@ -195,11 +214,6 @@ export function PhoneSignup() {
             }}
             aria-label="Area code"
           />
-          <datalist id={`area-code-suggestions-${country.code}`}>
-            {country.areas.map((area) => (
-              <option key={area.code} value={area.code}>{area.label}</option>
-            ))}
-          </datalist>
         </div>
         <label className="sr-only" htmlFor="phone">
           Phone number
@@ -207,6 +221,7 @@ export function PhoneSignup() {
         <input
           id="phone"
           name="phone"
+          className="subscriber-number-input"
           type="tel"
           inputMode="tel"
           autoComplete="tel-national"

@@ -72,7 +72,11 @@ export class DrizzleMessagingRepository implements MessagingRepository {
 
       if (!message) return { duplicate: true };
 
-      await transaction.update(users).set({ lastInboundAt: now, updatedAt: now }).where(eq(users.id, user.id));
+      await transaction.update(users).set({
+        lastInboundAt: now,
+        ...(user.lastInboundAt === null ? { phoneVerifiedAt: now } : {}),
+        updatedAt: now,
+      }).where(eq(users.id, user.id));
 
       if (complianceKeyword === "STOP" || complianceKeyword === "START") {
         const granted = complianceKeyword === "START";
@@ -190,7 +194,35 @@ export class DrizzleMessagingRepository implements MessagingRepository {
         }).onConflictDoNothing({ target: scheduledActions.idempotencyKey });
       }
 
-      if (complianceKeyword !== "HELP") {
+      if (complianceKeyword === "HELP") {
+        await transaction
+          .insert(scheduledActions)
+          .values({
+            userId: user.id,
+            kind: "send_compliance",
+            idempotencyKey: `help:${input.provider}:${input.providerMessageId}`,
+            payload: {},
+            runAt: now,
+          })
+          .onConflictDoNothing({ target: scheduledActions.idempotencyKey });
+      } else if (user.lastInboundAt === null && user.onboardingState === "introduction") {
+        await transaction.insert(scheduledActions).values([
+          {
+            userId: user.id,
+            kind: "send_welcome",
+            idempotencyKey: `welcome:${user.id}:verified:${input.provider}:${input.providerMessageId}`,
+            payload: {},
+            runAt: now,
+          },
+          {
+            userId: user.id,
+            kind: "evaluate_context",
+            idempotencyKey: `context-evaluation:${user.id}:verified`,
+            payload: {},
+            runAt: now,
+          },
+        ]).onConflictDoNothing({ target: scheduledActions.idempotencyKey });
+      } else {
         await transaction
           .insert(scheduledActions)
           .values({

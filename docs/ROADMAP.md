@@ -2,7 +2,7 @@
 
 This file is the implementation contract. A phase is complete only when its acceptance criteria pass. Later phases may depend only on completed phases.
 
-**Current checkpoint:** Phases 0–6 and Phase 7's provider-free work are complete. Linq is now the primary messaging path with signed V3 webhooks, managed iMessage/RCS/SMS selection, provider-aware idempotency, and an inbound-first signup that assigns a healthy line and vCard. Twilio remains an optional fallback behind the same transport boundary. The acceptance journey verifies web consent → messaging onboarding → task creation → context scoring → one idempotent intervention → task initiation → helpfulness feedback against migrated embedded PostgreSQL. Railway deployment and live Linq/Google/Anthropic verification await founder-owned accounts, credentials, public identity, and legal review; autonomous sending remains doubly disabled.
+**Current checkpoint:** Phases 0–6 and Phase 7's provider-free work are complete. Sendblue is the active provider for the controlled 10-contact sandbox demo, with authenticated webhooks, provider-aware idempotency, website-triggered contact verification, first-reply phone activation, and an embedded-photo Tempo contact card. Linq and Twilio remain optional adapters behind the same transport boundary. The acceptance journey verifies web consent → messaging onboarding → task creation → context scoring → one idempotent intervention → task initiation → helpfulness feedback against migrated embedded PostgreSQL. Railway worker deployment and live Sendblue/Google/Anthropic verification await founder-owned credentials; autonomous sending remains doubly disabled.
 
 ## Phase 0 — Architecture and delivery contract
 
@@ -41,7 +41,7 @@ This file is the implementation contract. A phase is complete only when its acce
 **Deliverables**
 
 - Server-backed landing-page consent submission
-- Linq Standard Webhooks validation and optional Twilio signature validation
+- Sendblue webhook-secret validation, Linq Standard Webhooks validation, and optional Twilio signature validation
 - Idempotent inbound webhook ingestion
 - STOP, START, and HELP state transitions
 - Outbound adapter and delivery-status webhook
@@ -124,13 +124,14 @@ This file is the implementation contract. A phase is complete only when its acce
 **Deliverables**
 
 - Railway web, worker, and PostgreSQL services
-- Staging end-to-end tests with Linq and Google; optional Twilio fallback matrix
+- Staging end-to-end tests with the selected messaging provider and Google; optional fallback matrix
 - Backup, monitoring, rate-limit, and failure runbooks
 - Beta metrics query set
 - Production launch checklist and kill switch
 
 **Acceptance**
 
+- The system can support a controlled beta of at least 100 consented users, with invitation gating, production-capable messaging capacity, feedback capture, and founder-readable activation, retention, delivery, opt-out, and helpfulness metrics.
 - A real opt-in can complete onboarding, manage a task, connect a calendar, receive an approved intervention, and record an outcome.
 - Delivery failures and provider outages degrade safely.
 - Production sending remains disabled until founder sign-off.
