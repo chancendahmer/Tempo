@@ -1,0 +1,11 @@
+[build]
+builder = "RAILPACK"
+buildCommand = "npm run build"
+
+[deploy]
+preDeployCommand = ["node dist-ops/scripts/migrate.js"]
+startCommand = "npm run start"
+healthcheckPath = "/api/health"
+healthcheckTimeout = 180
+restartPolicyType = "ALWAYS"
+restartPolicyMaxRetries = 5

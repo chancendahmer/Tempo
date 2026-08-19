@@ -1,0 +1,1 @@
+ALTER TABLE "consent_records" RENAME COLUMN "source_ip" TO "source_ip_hash";
