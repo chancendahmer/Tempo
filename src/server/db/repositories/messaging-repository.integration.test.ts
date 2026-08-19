@@ -305,4 +305,3 @@ describe("messaging repositories with migrated PostgreSQL", () => {
     expect(stillOptedOut.status).toBe("opted_out");
   });
 });
-

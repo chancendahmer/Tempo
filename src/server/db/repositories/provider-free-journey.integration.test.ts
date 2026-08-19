@@ -219,4 +219,3 @@ describe("provider-free V1 journey", () => {
     expect(parser.parse).not.toHaveBeenCalled();
   });
 });
-

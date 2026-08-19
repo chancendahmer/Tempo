@@ -224,4 +224,3 @@ describe("intervention, outcome, and memory loop", () => {
     expect(storedIntervention.status).toBe("responded");
   });
 });
-
