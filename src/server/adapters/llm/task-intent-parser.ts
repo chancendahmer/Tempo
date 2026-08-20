@@ -16,6 +16,7 @@ export interface TaskIntentParser {
     openTasks: TaskSummary[];
     openGoals: GoalSummary[];
     memories: string[];
+    customInstructions?: string;
   }): Promise<TaskIntentResult>;
 }
 
@@ -202,7 +203,9 @@ export class AnthropicTaskIntentParser implements TaskIntentParser {
         `Open tasks: ${JSON.stringify(input.openTasks.map(({ id, title, status }) => ({ id, title, status })))}`,
         `Active goals: ${JSON.stringify(input.openGoals.map(({ id, title, status }) => ({ id, title, status })))}`,
         `Relevant user memory: ${JSON.stringify(input.memories.slice(0, 8))}`,
+        `User-authored coaching instructions: ${JSON.stringify(input.customInstructions ?? "None provided")}`,
         "For non-task conversation, answer in one short, supportive SMS without guilt or moralizing.",
+        "When a question can be answered with yes/no, done/not done, or another short set, end with explicit uppercase choices. Ask one open question only when you genuinely need more detail.",
       ].join("\n"),
       messages,
       tools: TASK_TOOLS,

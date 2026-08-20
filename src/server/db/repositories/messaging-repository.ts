@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, gt, inArray, isNull } from "drizzle-orm";
 import { PRIVACY_VERSION, SMS_DISCLOSURE_VERSION, TERMS_VERSION } from "../../domain/consent";
 import { MessagingRepository } from "../../domain/messaging";
 import { normalizeE164 } from "../../domain/phone";
@@ -10,6 +10,7 @@ import {
   memoryEntries,
   scheduledActions,
   users,
+  webSessions,
 } from "../schema";
 
 export class DrizzleMessagingRepository implements MessagingRepository {
@@ -77,6 +78,13 @@ export class DrizzleMessagingRepository implements MessagingRepository {
         ...(user.lastInboundAt === null ? { phoneVerifiedAt: now } : {}),
         updatedAt: now,
       }).where(eq(users.id, user.id));
+      await transaction.update(webSessions).set({ activatedAt: now, updatedAt: now }).where(and(
+        eq(webSessions.userId, user.id),
+        isNull(webSessions.activatedAt),
+        isNull(webSessions.revokedAt),
+        gt(webSessions.createdAt, new Date(now.getTime() - 30 * 60_000)),
+        gt(webSessions.expiresAt, now),
+      ));
 
       if (complianceKeyword === "STOP" || complianceKeyword === "START") {
         const granted = complianceKeyword === "START";

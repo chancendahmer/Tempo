@@ -1,7 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, useMemo, useState, useSyncExternalStore } from "react";
-import { FiCheck, FiMessageCircle, FiUserPlus } from "react-icons/fi";
+import { FiArrowRight, FiCheck, FiMessageCircle, FiUserPlus } from "react-icons/fi";
+import { ACCOUNT_EVENT, useAccountStatus } from "./account-state";
 
 const STORAGE_KEY = "tempo-early-access-submitted";
 const STORAGE_EVENT = "tempo-signup-change";
@@ -81,6 +83,7 @@ export function PhoneSignup() {
   const [error, setError] = useState("");
   const submittedState = useSyncExternalStore(subscribeToSubmittedState, getSubmittedState, () => null);
   const submitted = submittedState !== null;
+  const { account } = useAccountStatus(submitted ? 4_000 : 0);
   const onboarding = parseStoredAssignment(submittedState);
   const country = useMemo(
     () => countries.find((item) => item.code === countryCode) ?? countries[0],
@@ -124,11 +127,28 @@ export function PhoneSignup() {
 
       window.localStorage.setItem(STORAGE_KEY, payload.onboarding ? JSON.stringify(payload.onboarding) : "true");
       window.dispatchEvent(new Event(STORAGE_EVENT));
+      window.dispatchEvent(new Event(ACCOUNT_EVENT));
     } catch (submissionError) {
       setError(submissionError instanceof Error ? submissionError.message : "Could not complete signup.");
     } finally {
       setSubmitting(false);
     }
+  }
+
+  if (account?.phoneVerified) {
+    return (
+      <div className="signup-success signup-account-ready" role="status">
+        <div className="signup-success-heading">
+          <span className="success-check" aria-hidden="true"><FiCheck /></span>
+          <span>{account.onboardingState === "complete" ? "Your Tempo account is ready." : "Your phone is connected to Tempo."}</span>
+        </div>
+        <div className="signup-success-actions account-ready-actions">
+          <Link className="black-button" href={account.profileComplete ? "/extensions" : "/profile"}>
+            {account.profileComplete ? "Manage extensions" : "Customize your profile"} <FiArrowRight aria-hidden="true" />
+          </Link>
+        </div>
+      </div>
+    );
   }
 
   if (submitted) {

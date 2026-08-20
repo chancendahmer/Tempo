@@ -61,6 +61,7 @@ export class DrizzleInterventionRepository implements InterventionOpportunityPla
       dueAt: tasks.dueAt,
       estimatedMinutes: tasks.estimatedMinutes,
       coachingTone: users.coachingTone,
+      profileInstructions: users.profileInstructions,
       status: interventions.status,
       messageText: interventions.messageText,
     }).from(interventions)
@@ -84,7 +85,10 @@ export class DrizzleInterventionRepository implements InterventionOpportunityPla
       ...row,
       taskId: row.taskId,
       status: row.status as "candidate" | "queued",
-      memories: memories.map((memory) => memory.content),
+      memories: [
+        ...(row.profileInstructions ? [`User-authored coaching instructions: ${row.profileInstructions}`] : []),
+        ...memories.map((memory) => memory.content),
+      ].slice(0, 6),
     };
   }
 

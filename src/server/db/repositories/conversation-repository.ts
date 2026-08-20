@@ -91,6 +91,7 @@ export class DrizzleConversationRepository implements ConversationRepository {
         .select({
           timezone: users.timezone,
           onboardingState: users.onboardingState,
+          profileInstructions: users.profileInstructions,
         })
         .from(users)
         .where(eq(users.id, claimed.userId))

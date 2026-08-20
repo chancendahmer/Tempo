@@ -8,6 +8,7 @@ import { logger } from "@/server/observability/logger";
 import { OperationalRepository } from "@/server/db/repositories/operational-repository";
 import { LinqOnboardingService } from "@/server/adapters/sms/linq-onboarding";
 import { SendblueOnboardingService } from "@/server/adapters/sms/sendblue-onboarding";
+import { WEB_SESSION_COOKIE, WEB_SESSION_TTL_SECONDS, WebSessionService } from "@/server/security/web-session";
 
 export const dynamic = "force-dynamic";
 
@@ -51,7 +52,7 @@ export async function POST(request: NextRequest) {
         ? await new LinqOnboardingService().assignLine(phoneE164)
         : undefined;
 
-    await recordWebConsent(new DrizzleConsentRepository(), body, {
+    const consent = await recordWebConsent(new DrizzleConsentRepository(), body, {
       ip: forwardedFor,
       userAgent: request.headers.get("user-agent") ?? undefined,
       auditKey: env.FIELD_ENCRYPTION_KEY!,
@@ -68,7 +69,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({
+    const session = await new WebSessionService().create(consent.userId);
+    const response = NextResponse.json({
       accepted: true,
       ...(onboarding ? {
         onboarding: {
@@ -81,6 +83,15 @@ export async function POST(request: NextRequest) {
         },
       } : {}),
     }, { status: 202 });
+    response.cookies.set(WEB_SESSION_COOKIE, session.token, {
+      httpOnly: true,
+      secure: env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: WEB_SESSION_TTL_SECONDS,
+      expires: session.expiresAt,
+    });
+    return response;
   } catch (error) {
     if (error instanceof ZodError || error instanceof InvalidPhoneNumberError || error instanceof SyntaxError) {
       return NextResponse.json(

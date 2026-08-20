@@ -104,7 +104,28 @@ export function handleOnboardingMessage(state: OnboardingState, message: string)
   switch (state) {
     case "awaiting_consent":
       return { handled: true, nextState: state };
-    case "introduction":
+    case "introduction": {
+      const normalized = message.trim();
+      if (/^(done|added|saved|i added it|contact added)[.!✅\s]*$/i.test(normalized)) {
+        return {
+          handled: true,
+          nextState: "calendar",
+          reply: "Nice—you’ve added Tempo. One last setup step: connect Google Calendar so I can notice useful open windows. Tap the secure link below.",
+        };
+      }
+      if (/^(i )?(need|want) more help|help me|how do i add (it|you)|help[.!❓\s]*$/i.test(normalized)) {
+        return {
+          handled: true,
+          nextState: state,
+          reply: "Tap the Tempo contact card above, choose Create New Contact or Add to Existing Contact, then tap Done. When it’s saved, reply DONE. If the card won’t open, tell me what you see.",
+        };
+      }
+      return {
+        handled: true,
+        nextState: state,
+        reply: "Quick check—did you save Tempo as a contact? Reply with one choice: DONE or I NEED MORE HELP.",
+      };
+    }
     case "first_task": {
       const title = commitmentTitle(message);
       if (!title) {

@@ -39,8 +39,19 @@ describe("SMS onboarding", () => {
     expect(commitmentTitle("I need to finish the Q3 report.")).toBe("finish the Q3 report");
   });
 
-  it("moves through task, timezone, quiet-hours, and tone states", () => {
-    const task = handleOnboardingMessage("introduction", "I need to finish the Q3 report");
+  it("uses a quick contact choice before the calendar step", () => {
+    expect(handleOnboardingMessage("introduction", "I need more help")).toMatchObject({
+      nextState: "introduction",
+      reply: expect.stringContaining("reply DONE"),
+    });
+    expect(handleOnboardingMessage("introduction", "DONE")).toMatchObject({
+      nextState: "calendar",
+      reply: expect.stringContaining("One last setup step"),
+    });
+  });
+
+  it("retains the detailed preference flow for the legacy first-task state", () => {
+    const task = handleOnboardingMessage("first_task", "I need to finish the Q3 report");
     expect(task).toMatchObject({ nextState: "timezone", createTaskTitle: "finish the Q3 report" });
 
     const timezone = handleOnboardingMessage(task.nextState, "Eastern");

@@ -77,7 +77,7 @@ describe("inbound conversation orchestration", () => {
     );
   }
 
-  it("turns the first onboarding reply into a traced task and advances state", async () => {
+  it("accepts the quick contact choice and advances to calendar", async () => {
     const user = await consentedUser("+12025550198", "introduction");
     const [message] = await database
       .insert(conversationMessages)
@@ -86,7 +86,7 @@ describe("inbound conversation orchestration", () => {
         direction: "inbound",
         kind: "user",
         status: "received",
-        body: "I need to finish the Q3 report",
+        body: "DONE",
       })
       .returning();
     const transport = new TestSmsTransport("ONBOARD");
@@ -94,12 +94,10 @@ describe("inbound conversation orchestration", () => {
     expect(await orchestrator(transport).process(message.id)).toEqual({ processed: true });
 
     const [updatedUser] = await database.select().from(users).where(eq(users.id, user.id));
-    const [createdTask] = await database.select().from(tasks).where(eq(tasks.userId, user.id));
-    const [event] = await database.select().from(taskEvents).where(eq(taskEvents.taskId, createdTask.id));
-    expect(updatedUser.onboardingState).toBe("timezone");
-    expect(createdTask.title).toBe("finish the Q3 report");
-    expect(event.sourceMessageId).toBe(message.id);
-    expect(transport.sent[0].body).toContain("What time zone are you in?");
+    const createdTasks = await database.select().from(tasks).where(eq(tasks.userId, user.id));
+    expect(updatedUser.onboardingState).toBe("calendar");
+    expect(createdTasks).toHaveLength(0);
+    expect(transport.sent[0].body).toContain("One last setup step");
   });
 
   it("asks for clarification, applies the selected task, and ignores a job retry", async () => {

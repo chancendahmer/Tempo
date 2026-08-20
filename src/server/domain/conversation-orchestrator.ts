@@ -39,6 +39,7 @@ export type InboundConversationContext = {
   userId: string;
   body: string;
   timezone: string;
+  profileInstructions: string | null;
   onboardingState:
     | "awaiting_consent"
     | "introduction"
@@ -283,6 +284,7 @@ export class ConversationOrchestrator {
           openTasks,
           openGoals,
           memories: memories.map((memory) => memory.content),
+          customInstructions: context.profileInstructions ?? undefined,
         }));
 
     if (intent.kind === "conversation") return intent.reply;
