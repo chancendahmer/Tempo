@@ -17,7 +17,16 @@ const sendblueWebhookSchema = z.object({
   sendblue_number: z.string().nullish(),
   service: serviceSchema.nullish(),
   message_type: z.string().nullish(),
+  media_url: z.string().url().nullish(),
   group_id: z.string().nullish(),
+  reply_to: z.object({
+    message_handle: z.string().min(1),
+    part_index: z.number().int().min(0).optional(),
+  }).nullish(),
+  thread_originator: z.object({
+    message_handle: z.string().min(1),
+    part: z.string().optional(),
+  }).nullish(),
 }).passthrough();
 
 export type ParsedSendblueWebhook =
@@ -60,7 +69,7 @@ export function parseSendblueWebhook(raw: unknown): ParsedSendblueWebhook {
     if (event.message_type === "group" || event.group_id) {
       return { kind: "ignored", reason: "group_chat", eventId };
     }
-    const body = event.content?.trim();
+    const body = event.content?.trim() || (event.media_url ? "[Attachment]" : "");
     if (!body) return { kind: "ignored", reason: "unsupported_content", eventId };
     const from = event.from_number ?? event.number;
     const to = event.to_number ?? event.sendblue_number;
@@ -75,6 +84,20 @@ export function parseSendblueWebhook(raw: unknown): ParsedSendblueWebhook {
         to,
         body,
         service: event.service ?? undefined,
+        ...(event.thread_originator ? { providerThreadId: event.thread_originator.message_handle } : {}),
+        ...(event.reply_to ? { replyToProviderMessageId: event.reply_to.message_handle } : {}),
+        ...(event.media_url ? {
+          contentParts: [
+            ...(event.content?.trim() ? [{ type: "text", value: event.content.trim() }] : []),
+            { type: "media", source: "sendblue" },
+          ],
+        } : {}),
+        ...((event.thread_originator || event.reply_to) ? {
+          rawMetadata: {
+            threadOriginator: event.thread_originator ?? undefined,
+            replyTo: event.reply_to ?? undefined,
+          },
+        } : {}),
       },
     };
   }

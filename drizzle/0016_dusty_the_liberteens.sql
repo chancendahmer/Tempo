@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "conversation_participants_tempo_unique" ON "conversation_participants" USING btree ("conversation_id") WHERE "conversation_participants"."role" = 'tempo';

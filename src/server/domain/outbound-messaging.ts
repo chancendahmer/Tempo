@@ -29,6 +29,9 @@ export interface OutboundMessageRepository {
     provider: MessagingProvider,
     providerMessageSid: string,
     service?: SendMessageResult["service"],
+    providerConversationId?: string,
+    providerThreadId?: string,
+    providerLineAddress?: string,
   ): Promise<void>;
   markFailed(messageId: string, error: unknown): Promise<void>;
 }
@@ -89,7 +92,24 @@ export class SafeSmsSender {
         statusCallbackUrl: input.statusCallbackUrl,
         ...(input.mediaUrl ? { mediaUrl: input.mediaUrl } : {}),
       });
-      await this.repository.markSubmitted(reservation.messageId, result.provider, result.providerMessageSid, result.service);
+      if (result.providerConversationId || result.providerThreadId || result.providerLineAddress) {
+        await this.repository.markSubmitted(
+          reservation.messageId,
+          result.provider,
+          result.providerMessageSid,
+          result.service,
+          result.providerConversationId,
+          result.providerThreadId,
+          result.providerLineAddress,
+        );
+      } else {
+        await this.repository.markSubmitted(
+          reservation.messageId,
+          result.provider,
+          result.providerMessageSid,
+          result.service,
+        );
+      }
       return {
         sent: true,
         messageId: reservation.messageId,

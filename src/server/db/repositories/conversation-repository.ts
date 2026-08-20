@@ -4,7 +4,7 @@ import { taskCommandSchema } from "../../domain/task-commands";
 import { goalCommandSchema } from "../../domain/goal-commands";
 import { rescheduleCommandSchema } from "../../domain/reschedule-service";
 import { getDatabase, TempoDatabase } from "../client";
-import { conversationMessages, conversationStates, users } from "../schema";
+import { conversationMessages, conversationStates, conversations, users } from "../schema";
 
 function parsePending(value: Record<string, unknown> | null, expiresAt: Date | null): StoredPendingAction | null {
   if (!value || !expiresAt) return null;
@@ -83,6 +83,7 @@ export class DrizzleConversationRepository implements ConversationRepository {
         .returning({
           messageId: conversationMessages.id,
           userId: conversationMessages.userId,
+          conversationId: conversationMessages.conversationId,
           body: conversationMessages.body,
         });
       if (!claimed) return null;
@@ -115,9 +116,12 @@ export class DrizzleConversationRepository implements ConversationRepository {
         .update(conversationMessages)
         .set({ status: "processed", processingStartedAt: null, updatedAt: now })
         .where(eq(conversationMessages.id, messageId));
+      const [message] = await transaction.select({ conversationId: conversationMessages.conversationId })
+        .from(conversationMessages).where(eq(conversationMessages.id, messageId)).limit(1);
+      if (!message) throw new Error("Processed message conversation not found");
       await transaction
         .insert(conversationStates)
-        .values({ userId, lastProcessedMessageId: messageId })
+        .values({ userId, conversationId: message.conversationId, lastProcessedMessageId: messageId })
         .onConflictDoUpdate({
           target: conversationStates.userId,
           set: { lastProcessedMessageId: messageId, updatedAt: now },
@@ -149,9 +153,15 @@ export class DrizzleConversationRepository implements ConversationRepository {
           candidates: action.candidates,
           createdByMessageId: action.createdByMessageId,
         };
+    const [conversation] = await this.database.select({ id: conversations.id }).from(conversations).where(and(
+      eq(conversations.ownerUserId, userId),
+      eq(conversations.type, "direct"),
+      eq(conversations.isPrimary, true),
+    )).limit(1);
+    if (!conversation) throw new Error("Pending action conversation not found");
     await this.database
       .insert(conversationStates)
-      .values({ userId, pendingAction, pendingActionExpiresAt: action.expiresAt })
+      .values({ userId, conversationId: conversation.id, pendingAction, pendingActionExpiresAt: action.expiresAt })
       .onConflictDoUpdate({
         target: conversationStates.userId,
         set: { pendingAction, pendingActionExpiresAt: action.expiresAt, updatedAt: new Date() },

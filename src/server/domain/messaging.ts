@@ -1,4 +1,4 @@
-import { MessagingProvider } from "../adapters/sms/sms-transport";
+import { MessagingCapabilities, MessagingProvider, MessagingService } from "../adapters/sms/sms-transport";
 
 export type StoredMessageStatus = "queued" | "sent" | "delivered" | "undelivered" | "failed";
 
@@ -11,7 +11,13 @@ export type InboundProviderMessage = {
   to: string;
   body: string;
   complianceKeyword?: ComplianceKeyword;
-  service?: "iMessage" | "RCS" | "SMS";
+  service?: MessagingService;
+  providerConversationId?: string;
+  providerThreadId?: string;
+  replyToProviderMessageId?: string;
+  contentParts?: Array<Record<string, unknown>>;
+  capabilities?: MessagingCapabilities;
+  rawMetadata?: Record<string, unknown>;
 };
 
 export type DeliveryProviderMessage = {
@@ -20,7 +26,44 @@ export type DeliveryProviderMessage = {
   status: StoredMessageStatus;
   errorCode?: string;
   errorMessage?: string;
+  providerConversationId?: string;
+  providerThreadId?: string;
+  rawMetadata?: Record<string, unknown>;
 };
+
+export type ProviderMessagingEvent =
+  | { type: "message.received"; eventId: string; message: InboundProviderMessage }
+  | { type: "message.delivery_updated"; eventId: string; message: DeliveryProviderMessage }
+  | {
+    type: "reaction.added";
+    eventId: string;
+    provider: MessagingProvider;
+    providerConversationId: string;
+    providerMessageId: string;
+    reaction: string;
+    actorAddress?: string;
+    rawMetadata?: Record<string, unknown>;
+  }
+  | {
+    type: "poll.responded";
+    eventId: string;
+    provider: MessagingProvider;
+    providerConversationId: string;
+    providerPollId: string;
+    providerOptionIds: string[];
+    responderAddress?: string;
+    rawMetadata?: Record<string, unknown>;
+  }
+  | {
+    type: "conversation.updated";
+    eventId: string;
+    provider: MessagingProvider;
+    providerConversationId: string;
+    providerThreadId?: string;
+    service?: MessagingService;
+    capabilities?: MessagingCapabilities;
+    rawMetadata?: Record<string, unknown>;
+  };
 
 export interface MessagingRepository {
   ingestInbound(input: InboundProviderMessage): Promise<{ duplicate: boolean }>;

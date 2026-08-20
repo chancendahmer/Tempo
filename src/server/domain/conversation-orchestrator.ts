@@ -33,9 +33,11 @@ import {
   proposeResolvedTaskReschedule,
   proposeTaskReschedule,
 } from "./reschedule-service";
+import { ConversationHistoryRepository } from "./conversation-history";
 
 export type InboundConversationContext = {
   messageId: string;
+  conversationId: string;
   userId: string;
   body: string;
   timezone: string;
@@ -100,6 +102,7 @@ export class ConversationOrchestrator {
     private readonly outcomes?: OutcomeTracker,
     private readonly memories?: MemoryService,
     private readonly secureLinks?: SecureActionLinks,
+    private readonly history?: ConversationHistoryRepository,
   ) {}
 
   async process(messageId: string): Promise<{ processed: boolean }> {
@@ -277,7 +280,12 @@ export class ConversationOrchestrator {
           this.tasks.listForResolution(context.userId),
           this.goals.listForResolution(context.userId),
           this.memories?.retrieveRelevant(context.userId, now, 8) ?? Promise.resolve([]),
-        ]).then(([openTasks, openGoals, memories]) => this.intentParser.parse({
+          this.history?.getRecent({
+            conversationId: context.conversationId,
+            beforeMessageId: context.messageId,
+            limit: 12,
+          }) ?? Promise.resolve([]),
+        ]).then(([openTasks, openGoals, memories, history]) => this.intentParser.parse({
           message: context.body,
           timezone: context.timezone,
           now,
@@ -285,6 +293,7 @@ export class ConversationOrchestrator {
           openGoals,
           memories: memories.map((memory) => memory.content),
           customInstructions: context.profileInstructions ?? undefined,
+          history,
         }));
 
     if (intent.kind === "conversation") return intent.reply;

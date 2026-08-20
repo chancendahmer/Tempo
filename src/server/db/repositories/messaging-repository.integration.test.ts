@@ -10,9 +10,13 @@ import { recordWebConsent } from "../../domain/consent";
 import { TempoDatabase } from "../client";
 import {
   consentRecords,
+  conversations,
   conversationMessages,
   memoryEntries,
+  providerConversations,
+  providerMessageBindings,
   scheduledActions,
+  userIdentities,
   users,
 } from "../schema";
 import * as schema from "../schema";
@@ -69,6 +73,42 @@ describe("messaging repositories with migrated PostgreSQL", () => {
     const [actionCount] = await database.select({ value: count() }).from(scheduledActions);
     expect(messageCount.value).toBe(1);
     expect(actionCount.value).toBe(1);
+  });
+
+  it("keeps one Tempo identity and conversation while provider bindings change", async () => {
+    const repository = new DrizzleMessagingRepository(database);
+    const shared = {
+      from: "+12025550197",
+      to: "+14155550132",
+      body: "Keep this history with my Tempo account",
+    };
+    await repository.ingestInbound({
+      ...shared,
+      provider: "sendblue",
+      providerMessageId: "SENDBLUE_SWITCH_1",
+      service: "iMessage",
+    });
+    await repository.ingestInbound({
+      ...shared,
+      provider: "linq",
+      providerMessageId: "LINQ_SWITCH_1",
+      providerConversationId: "linq-chat-1",
+      service: "iMessage",
+    });
+
+    const [user] = await database.select().from(users).where(eq(users.phoneE164, shared.from));
+    expect(await database.select().from(userIdentities).where(eq(userIdentities.userId, user.id))).toHaveLength(1);
+    const tempoConversations = await database.select().from(conversations).where(eq(conversations.ownerUserId, user.id));
+    expect(tempoConversations).toHaveLength(1);
+    expect(await database.select().from(conversationMessages).where(eq(conversationMessages.conversationId, tempoConversations[0].id)))
+      .toHaveLength(2);
+    const providerBindings = await database.select().from(providerConversations)
+      .where(eq(providerConversations.conversationId, tempoConversations[0].id));
+    expect(providerBindings.map((binding) => binding.provider).sort()).toEqual(["linq", "sendblue"]);
+    expect(await database.select().from(providerMessageBindings)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ provider: "sendblue", externalMessageId: "SENDBLUE_SWITCH_1" }),
+      expect.objectContaining({ provider: "linq", externalMessageId: "LINQ_SWITCH_1" }),
+    ]));
   });
 
   it("records STOP and cancels pending application work", async () => {

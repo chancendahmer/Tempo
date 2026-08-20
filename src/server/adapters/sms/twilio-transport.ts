@@ -1,8 +1,12 @@
 import twilio from "twilio";
 import { requireEnv } from "../../config/env";
-import { SendSmsInput, SmsTransport } from "./sms-transport";
+import { SendSmsInput, SmsTransport, TEXT_ONLY_CAPABILITIES } from "./sms-transport";
 
 export class TwilioSmsTransport implements SmsTransport {
+  getCapabilities() {
+    return { ...TEXT_ONLY_CAPABILITIES, media: true };
+  }
+
   async send(input: SendSmsInput) {
     const env = requireEnv([
       "TWILIO_ACCOUNT_SID",

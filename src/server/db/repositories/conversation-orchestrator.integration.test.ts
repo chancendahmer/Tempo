@@ -24,8 +24,10 @@ import {
   users,
 } from "../schema";
 import { DrizzleConversationRepository } from "./conversation-repository";
+import { DrizzleConversationHistoryRepository } from "./conversation-history-repository";
 import { DrizzleGoalRepository } from "./goal-repository";
 import { DrizzleMemoryRepository } from "./memory-repository";
+import { ensureDirectConversation } from "./messaging-identity-repository";
 import { DrizzleSchedulingRepository } from "./scheduling-repository";
 import { DrizzleOutboundMessageRepository } from "./outbound-message-repository";
 import { DrizzleTaskRepository } from "./task-repository";
@@ -60,7 +62,8 @@ describe("inbound conversation orchestration", () => {
       termsVersion: "test",
       privacyVersion: "test",
     });
-    return user;
+    const identity = await ensureDirectConversation(database, { userId: user.id, phoneE164 });
+    return { ...user, conversationId: identity.conversationId };
   }
 
   function orchestrator(transport: TestSmsTransport, parser?: TaskIntentParser) {
@@ -74,6 +77,8 @@ describe("inbound conversation orchestration", () => {
       () => new Date("2026-08-18T12:00:00Z"),
       undefined,
       new MemoryService(new DrizzleMemoryRepository(database)),
+      undefined,
+      new DrizzleConversationHistoryRepository(database),
     );
   }
 
@@ -83,6 +88,7 @@ describe("inbound conversation orchestration", () => {
       .insert(conversationMessages)
       .values({
         userId: user.id,
+        conversationId: user.conversationId,
         direction: "inbound",
         kind: "user",
         status: "received",
@@ -105,8 +111,8 @@ describe("inbound conversation orchestration", () => {
     const setupMessages = await database
       .insert(conversationMessages)
       .values([
-        { userId: user.id, direction: "inbound", kind: "user", status: "processed", body: "Add report" },
-        { userId: user.id, direction: "inbound", kind: "user", status: "processed", body: "Add budget" },
+        { userId: user.id, conversationId: user.conversationId, direction: "inbound", kind: "user", status: "processed", body: "Add report" },
+        { userId: user.id, conversationId: user.conversationId, direction: "inbound", kind: "user", status: "processed", body: "Add budget" },
       ])
       .returning();
     const taskRepository = new DrizzleTaskRepository(database);
@@ -115,7 +121,7 @@ describe("inbound conversation orchestration", () => {
 
     const [ambiguousMessage] = await database
       .insert(conversationMessages)
-      .values({ userId: user.id, direction: "inbound", kind: "user", status: "received", body: "done with Q3" })
+      .values({ userId: user.id, conversationId: user.conversationId, direction: "inbound", kind: "user", status: "received", body: "done with Q3" })
       .returning();
     const transport = new TestSmsTransport("TASKFLOW");
     const intentParser: TaskIntentParser = {
@@ -129,7 +135,7 @@ describe("inbound conversation orchestration", () => {
 
     const [choiceMessage] = await database
       .insert(conversationMessages)
-      .values({ userId: user.id, direction: "inbound", kind: "user", status: "received", body: "budget" })
+      .values({ userId: user.id, conversationId: user.conversationId, direction: "inbound", kind: "user", status: "received", body: "budget" })
       .returning();
     expect(await coach.process(choiceMessage.id)).toEqual({ processed: true });
     expect(await coach.process(choiceMessage.id)).toEqual({ processed: false });
@@ -150,14 +156,14 @@ describe("inbound conversation orchestration", () => {
     const transport = new TestSmsTransport("GOALFLOW");
     const coach = orchestrator(transport);
     const [createMessage] = await database.insert(conversationMessages).values({
-      userId: user.id, direction: "inbound", kind: "user", status: "received", body: "My goal is to run a half marathon",
+      userId: user.id, conversationId: user.conversationId, direction: "inbound", kind: "user", status: "received", body: "My goal is to run a half marathon",
     }).returning();
     await coach.process(createMessage.id);
     const [goal] = await database.select().from(goals).where(eq(goals.userId, user.id));
     expect(goal).toMatchObject({ title: "run a half marathon", status: "active", sourceMessageId: createMessage.id });
 
     const [completeMessage] = await database.insert(conversationMessages).values({
-      userId: user.id, direction: "inbound", kind: "user", status: "received", body: "I achieved my goal run a half marathon",
+      userId: user.id, conversationId: user.conversationId, direction: "inbound", kind: "user", status: "received", body: "I achieved my goal run a half marathon",
     }).returning();
     await coach.process(completeMessage.id);
     const [completed] = await database.select().from(goals).where(eq(goals.id, goal.id));
@@ -188,7 +194,7 @@ describe("inbound conversation orchestration", () => {
       expiresAt: new Date("2026-08-17T12:00:00Z"),
     });
     const [message] = await database.insert(conversationMessages).values({
-      userId: user.id, direction: "inbound", kind: "user", status: "received", body: "What should I do next?",
+      userId: user.id, conversationId: user.conversationId, direction: "inbound", kind: "user", status: "received", body: "What should I do next?",
     }).returning();
     const parser: TaskIntentParser = {
       parse: vi.fn(async () => ({ kind: "conversation" as const, reply: "Choose one two-minute step." })),
@@ -202,10 +208,54 @@ describe("inbound conversation orchestration", () => {
     expect(referenced.lastReferencedAt).toEqual(new Date("2026-08-18T12:00:00Z"));
   });
 
+  it("loads recent Tempo history without depending on provider history APIs", async () => {
+    const user = await consentedUser("+14155550127", "complete");
+    await database.insert(conversationMessages).values([
+      {
+        userId: user.id,
+        conversationId: user.conversationId,
+        direction: "inbound",
+        kind: "user",
+        status: "processed",
+        body: "I need to finish the lab report",
+        createdAt: new Date("2026-08-18T11:55:00Z"),
+      },
+      {
+        userId: user.id,
+        conversationId: user.conversationId,
+        direction: "outbound",
+        kind: "coach",
+        status: "delivered",
+        body: "Want to start with the first paragraph?",
+        createdAt: new Date("2026-08-18T11:56:00Z"),
+      },
+    ]);
+    const [current] = await database.insert(conversationMessages).values({
+      userId: user.id,
+      conversationId: user.conversationId,
+      direction: "inbound",
+      kind: "user",
+      status: "received",
+      body: "What should I do next?",
+      createdAt: new Date("2026-08-18T12:00:00Z"),
+    }).returning();
+    const parser: TaskIntentParser = {
+      parse: vi.fn(async () => ({ kind: "conversation" as const, reply: "Open the document and type one sentence." })),
+    };
+    await orchestrator(new TestSmsTransport("HISTORY"), parser).process(current.id);
+    expect(parser.parse).toHaveBeenCalledWith(expect.objectContaining({
+      history: [
+        expect.objectContaining({ role: "user", content: "I need to finish the lab report" }),
+        expect.objectContaining({ role: "assistant", content: "Want to start with the first paragraph?" }),
+      ],
+    }));
+  });
+
   it("stores an explicit pattern memory once and traces it to the user's message", async () => {
     const user = await consentedUser("+14155550129", "complete");
     const [message] = await database.insert(conversationMessages).values({
       userId: user.id,
+      conversationId: user.conversationId,
       direction: "inbound",
       kind: "user",
       status: "received",
@@ -233,9 +283,9 @@ describe("inbound conversation orchestration", () => {
       quietHoursEnd: "07:00:00",
     }).where(eq(users.id, user.id));
     const setupMessages = await database.insert(conversationMessages).values([
-      { userId: user.id, direction: "inbound", kind: "user", status: "processed", body: "Add report" },
-      { userId: user.id, direction: "inbound", kind: "user", status: "received", body: "I can't do Write report today" },
-      { userId: user.id, direction: "inbound", kind: "user", status: "received", body: "YES" },
+      { userId: user.id, conversationId: user.conversationId, direction: "inbound", kind: "user", status: "processed", body: "Add report" },
+      { userId: user.id, conversationId: user.conversationId, direction: "inbound", kind: "user", status: "received", body: "I can't do Write report today" },
+      { userId: user.id, conversationId: user.conversationId, direction: "inbound", kind: "user", status: "received", body: "YES" },
     ]).returning();
     const task = await new DrizzleTaskRepository(database).create({
       userId: user.id,

@@ -4,6 +4,7 @@ import { requireEnv } from "../../config/env";
 import { TaskCommand, TaskSummary, taskCommandSchema } from "../../domain/task-commands";
 import { GoalCommand, GoalSummary, goalCommandSchema } from "../../domain/goal-commands";
 import { RescheduleCommand, rescheduleCommandSchema } from "../../domain/reschedule-service";
+import { ConversationHistoryMessage } from "../../domain/conversation-history";
 
 export type CoachingCommand = TaskCommand | GoalCommand | RescheduleCommand;
 export type TaskIntentResult = { kind: "command"; command: CoachingCommand } | { kind: "conversation"; reply: string };
@@ -17,6 +18,7 @@ export interface TaskIntentParser {
     openGoals: GoalSummary[];
     memories: string[];
     customInstructions?: string;
+    history?: ConversationHistoryMessage[];
   }): Promise<TaskIntentResult>;
 }
 
@@ -192,7 +194,13 @@ export class AnthropicTaskIntentParser implements TaskIntentParser {
   async parse(input: Parameters<TaskIntentParser["parse"]>[0]): Promise<TaskIntentResult> {
     const env = requireEnv(["ANTHROPIC_API_KEY", "ANTHROPIC_MODEL"]);
     this.client ??= new Anthropic({ apiKey: env.ANTHROPIC_API_KEY! });
-    const messages: MessageParam[] = [{ role: "user", content: input.message }];
+    const messages: MessageParam[] = [
+      ...(input.history ?? []).slice(-12).map((message): MessageParam => ({
+        role: message.role,
+        content: message.content,
+      })),
+      { role: "user", content: input.message },
+    ];
     const response = await this.client.messages.create({
       model: env.ANTHROPIC_MODEL!,
       max_tokens: 512,

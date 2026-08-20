@@ -31,6 +31,12 @@ Sendblue is the active sandbox-demo adapter, using a configured shared line, RES
 
 Task, goal, memory, and rescheduling changes cross a validated command boundary before repositories mutate data. Source-message identifiers make retries idempotent and preserve an audit trail. Ambiguous task or goal references are held as conversation state until the user chooses one. Rescheduling likewise stores a concrete calendar-derived proposal and changes the due date only after confirmation.
 
+## Identity and conversation ownership
+
+Tempo is the system of record for users, verified identities, conversations, participants, messages, relations, polls, and agent state. Provider accounts, lines, chats, threads, and message identifiers are stored as bindings to Tempo UUIDs. A provider change never changes task, calendar, memory, intervention, or account ownership.
+
+The AI receives a bounded window of Tempo conversation history. Provider thread metadata enriches that history through message relations when available; a provider transcript is never the canonical memory source. See `docs/MESSAGING_PROVIDERS.md` for the provider contract and cutover procedure.
+
 ## Decision pipeline
 
 Autonomous messaging uses three deterministic stages:

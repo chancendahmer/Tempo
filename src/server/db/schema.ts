@@ -50,6 +50,12 @@ export const messageStatus = pgEnum("message_status", [
 export const messageKind = pgEnum("message_kind", ["user", "coach", "system", "compliance"]);
 export const messagingProvider = pgEnum("messaging_provider", ["sendblue", "linq", "twilio", "test"]);
 export const messagingService = pgEnum("messaging_service", ["iMessage", "RCS", "SMS"]);
+export const userIdentityType = pgEnum("user_identity_type", ["phone", "email", "google"]);
+export const conversationType = pgEnum("conversation_type", ["direct", "group"]);
+export const conversationStatus = pgEnum("conversation_status", ["active", "archived", "closed"]);
+export const conversationParticipantRole = pgEnum("conversation_participant_role", ["user", "tempo", "external"]);
+export const providerResourceStatus = pgEnum("provider_resource_status", ["active", "disabled", "porting"]);
+export const messageRelationType = pgEnum("message_relation_type", ["reply", "thread", "quote", "reaction"]);
 export const calendarConnectionStatus = pgEnum("calendar_connection_status", [
   "active",
   "requires_reauth",
@@ -170,11 +176,139 @@ export const consentRecords = pgTable(
   (table) => [index("consent_records_user_created_idx").on(table.userId, table.createdAt)],
 );
 
+export const userIdentities = pgTable(
+  "user_identities",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    type: userIdentityType("type").notNull(),
+    value: text("value").notNull(),
+    normalizedValue: text("normalized_value").notNull(),
+    isPrimary: boolean("is_primary").default(false).notNull(),
+    verifiedAt: timestamp("verified_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().default(sql`'{}'::jsonb`).notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("user_identities_type_value_unique").on(table.type, table.normalizedValue),
+    uniqueIndex("user_identities_primary_type_unique").on(table.userId, table.type).where(sql`${table.isPrimary} = true`),
+    index("user_identities_user_idx").on(table.userId),
+  ],
+);
+
+export const providerAccounts = pgTable(
+  "provider_accounts",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    provider: messagingProvider("provider").notNull(),
+    accountKey: text("account_key").default("default").notNull(),
+    externalAccountId: text("external_account_id"),
+    label: text("label"),
+    status: providerResourceStatus("status").default("active").notNull(),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().default(sql`'{}'::jsonb`).notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("provider_accounts_provider_key_unique").on(table.provider, table.accountKey),
+    uniqueIndex("provider_accounts_external_unique").on(table.provider, table.externalAccountId),
+  ],
+);
+
+export const providerLines = pgTable(
+  "provider_lines",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    providerAccountId: uuid("provider_account_id").notNull().references(() => providerAccounts.id, { onDelete: "cascade" }),
+    provider: messagingProvider("provider").notNull(),
+    address: text("address").notNull(),
+    externalLineId: text("external_line_id"),
+    label: text("label"),
+    status: providerResourceStatus("status").default("active").notNull(),
+    capabilities: jsonb("capabilities").$type<Record<string, boolean>>().default(sql`'{}'::jsonb`).notNull(),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().default(sql`'{}'::jsonb`).notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("provider_lines_provider_address_unique").on(table.provider, table.address),
+    uniqueIndex("provider_lines_external_unique").on(table.provider, table.externalLineId),
+    index("provider_lines_account_idx").on(table.providerAccountId),
+  ],
+);
+
+export const conversations = pgTable(
+  "conversations",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    ownerUserId: uuid("owner_user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    type: conversationType("type").default("direct").notNull(),
+    status: conversationStatus("status").default("active").notNull(),
+    title: text("title"),
+    isPrimary: boolean("is_primary").default(false).notNull(),
+    agentState: jsonb("agent_state").$type<Record<string, unknown>>().default(sql`'{}'::jsonb`).notNull(),
+    lastMessageAt: timestamp("last_message_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("conversations_primary_direct_unique").on(table.ownerUserId).where(
+      sql`${table.type} = 'direct' and ${table.isPrimary} = true`,
+    ),
+    index("conversations_owner_status_idx").on(table.ownerUserId, table.status),
+  ],
+);
+
+export const conversationParticipants = pgTable(
+  "conversation_participants",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    conversationId: uuid("conversation_id").notNull().references(() => conversations.id, { onDelete: "cascade" }),
+    userIdentityId: uuid("user_identity_id").references(() => userIdentities.id, { onDelete: "set null" }),
+    role: conversationParticipantRole("role").notNull(),
+    displayName: text("display_name"),
+    address: text("address"),
+    normalizedAddress: text("normalized_address"),
+    joinedAt: timestamp("joined_at", { withTimezone: true }).defaultNow().notNull(),
+    leftAt: timestamp("left_at", { withTimezone: true }),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().default(sql`'{}'::jsonb`).notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("conversation_participants_identity_unique").on(table.conversationId, table.userIdentityId),
+    uniqueIndex("conversation_participants_tempo_unique").on(table.conversationId).where(sql`${table.role} = 'tempo'`),
+    index("conversation_participants_conversation_idx").on(table.conversationId),
+  ],
+);
+
+export const providerConversations = pgTable(
+  "provider_conversations",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    conversationId: uuid("conversation_id").notNull().references(() => conversations.id, { onDelete: "cascade" }),
+    providerLineId: uuid("provider_line_id").references(() => providerLines.id, { onDelete: "set null" }),
+    provider: messagingProvider("provider").notNull(),
+    externalKey: text("external_key").notNull(),
+    providerChatId: text("provider_chat_id"),
+    providerThreadId: text("provider_thread_id"),
+    service: messagingService("service"),
+    capabilities: jsonb("capabilities").$type<Record<string, boolean>>().default(sql`'{}'::jsonb`).notNull(),
+    active: boolean("active").default(true).notNull(),
+    lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().default(sql`'{}'::jsonb`).notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("provider_conversations_external_key_unique").on(table.provider, table.externalKey),
+    uniqueIndex("provider_conversations_chat_unique").on(table.provider, table.providerChatId),
+    index("provider_conversations_conversation_idx").on(table.conversationId),
+  ],
+);
+
 export const conversationMessages = pgTable(
   "conversation_messages",
   {
     id: uuid("id").defaultRandom().primaryKey(),
     userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    conversationId: uuid("conversation_id").notNull().references(() => conversations.id, { onDelete: "cascade" }),
     provider: messagingProvider("provider"),
     providerService: messagingService("provider_service"),
     providerMessageSid: text("provider_message_sid"),
@@ -183,6 +317,7 @@ export const conversationMessages = pgTable(
     kind: messageKind("kind").notNull(),
     status: messageStatus("status").notNull(),
     body: text("body").notNull(),
+    contentParts: jsonb("content_parts").$type<Array<Record<string, unknown>>>().default(sql`'[]'::jsonb`).notNull(),
     relatedInterventionId: uuid("related_intervention_id"),
     providerErrorCode: text("provider_error_code"),
     providerErrorMessage: text("provider_error_message"),
@@ -195,8 +330,96 @@ export const conversationMessages = pgTable(
   (table) => [
     uniqueIndex("conversation_messages_provider_message_unique").on(table.provider, table.providerMessageSid),
     uniqueIndex("conversation_messages_idempotency_key_unique").on(table.idempotencyKey),
+    index("conversation_messages_conversation_created_idx").on(table.conversationId, table.createdAt),
     index("conversation_messages_user_created_idx").on(table.userId, table.createdAt),
     index("conversation_messages_status_idx").on(table.status),
+  ],
+);
+
+export const providerMessageBindings = pgTable(
+  "provider_message_bindings",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    messageId: uuid("message_id").notNull().references(() => conversationMessages.id, { onDelete: "cascade" }),
+    providerConversationId: uuid("provider_conversation_id").references(() => providerConversations.id, { onDelete: "set null" }),
+    provider: messagingProvider("provider").notNull(),
+    externalMessageId: text("external_message_id").notNull(),
+    externalThreadId: text("external_thread_id"),
+    deliveryStatus: messageStatus("delivery_status").notNull(),
+    rawMetadata: jsonb("raw_metadata").$type<Record<string, unknown>>().default(sql`'{}'::jsonb`).notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("provider_message_bindings_external_unique").on(table.provider, table.externalMessageId),
+    uniqueIndex("provider_message_bindings_message_provider_unique").on(table.messageId, table.provider),
+    index("provider_message_bindings_conversation_idx").on(table.providerConversationId),
+  ],
+);
+
+export const messageRelations = pgTable(
+  "message_relations",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    conversationId: uuid("conversation_id").notNull().references(() => conversations.id, { onDelete: "cascade" }),
+    sourceMessageId: uuid("source_message_id").notNull().references(() => conversationMessages.id, { onDelete: "cascade" }),
+    targetMessageId: uuid("target_message_id").notNull().references(() => conversationMessages.id, { onDelete: "cascade" }),
+    type: messageRelationType("type").notNull(),
+    value: text("value"),
+    providerRelationId: text("provider_relation_id"),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().default(sql`'{}'::jsonb`).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("message_relations_source_target_type_unique").on(table.sourceMessageId, table.targetMessageId, table.type),
+    index("message_relations_conversation_idx").on(table.conversationId),
+  ],
+);
+
+export const conversationPolls = pgTable(
+  "conversation_polls",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    conversationId: uuid("conversation_id").notNull().references(() => conversations.id, { onDelete: "cascade" }),
+    messageId: uuid("message_id").references(() => conversationMessages.id, { onDelete: "set null" }),
+    question: text("question").notNull(),
+    allowsMultiple: boolean("allows_multiple").default(false).notNull(),
+    status: text("status").default("open").notNull(),
+    providerPollId: text("provider_poll_id"),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().default(sql`'{}'::jsonb`).notNull(),
+    ...timestamps,
+  },
+  (table) => [index("conversation_polls_conversation_idx").on(table.conversationId)],
+);
+
+export const conversationPollOptions = pgTable(
+  "conversation_poll_options",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    pollId: uuid("poll_id").notNull().references(() => conversationPolls.id, { onDelete: "cascade" }),
+    label: text("label").notNull(),
+    position: integer("position").notNull(),
+    providerOptionId: text("provider_option_id"),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("conversation_poll_options_position_unique").on(table.pollId, table.position),
+    check("conversation_poll_options_position_check", sql`${table.position} >= 0`),
+  ],
+);
+
+export const conversationPollResponses = pgTable(
+  "conversation_poll_responses",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    pollId: uuid("poll_id").notNull().references(() => conversationPolls.id, { onDelete: "cascade" }),
+    optionId: uuid("option_id").notNull().references(() => conversationPollOptions.id, { onDelete: "cascade" }),
+    responderKey: text("responder_key").notNull(),
+    providerResponseId: text("provider_response_id"),
+    respondedAt: timestamp("responded_at", { withTimezone: true }).defaultNow().notNull(),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().default(sql`'{}'::jsonb`).notNull(),
+  },
+  (table) => [
+    uniqueIndex("conversation_poll_responses_choice_unique").on(table.pollId, table.optionId, table.responderKey),
   ],
 );
 
@@ -287,11 +510,13 @@ export const conversationStates = pgTable(
   "conversation_states",
   {
     userId: uuid("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+    conversationId: uuid("conversation_id").notNull().references(() => conversations.id, { onDelete: "cascade" }),
     pendingAction: jsonb("pending_action").$type<Record<string, unknown>>(),
     pendingActionExpiresAt: timestamp("pending_action_expires_at", { withTimezone: true }),
     lastProcessedMessageId: uuid("last_processed_message_id").references(() => conversationMessages.id, { onDelete: "set null" }),
     ...timestamps,
   },
+  (table) => [uniqueIndex("conversation_states_conversation_unique").on(table.conversationId)],
 );
 
 export const calendarConnections = pgTable(
