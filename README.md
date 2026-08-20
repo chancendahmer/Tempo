@@ -1,6 +1,6 @@
 # Tempo
 
-Tempo is a consent-first messaging executive-function coach. Sendblue is the active transport for the controlled sandbox demo; Linq and Twilio remain optional adapters behind the same provider boundary. Tempo owns user identities, conversations, history, message relationships, tasks, and memory independently from those delivery providers. Tempo combines natural-language task and goal management, privacy-minimized Google Calendar free/busy awareness, confirmed rescheduling, deterministic intervention policy, randomized holdouts, feedback attribution, and structured user-correctable memory.
+Tempo is a consent-first messaging executive-function coach. Sendblue is the active transport for the controlled sandbox demo; Linq and Twilio remain optional adapters behind the same provider boundary. Tempo owns user identities, conversations, history, message relationships, tasks, reminders, and memory independently from those delivery providers. Tempo combines durable natural-language reminders, task and goal management, privacy-minimized Google Calendar free/busy awareness, confirmed rescheduling, hybrid deterministic-plus-AI intervention policy, randomized holdouts, accountability follow-ups, feedback attribution, and structured user-correctable memory.
 
 The marketing site and HTTP endpoints run in Next.js. Durable work runs in a separate TypeScript worker backed by PostgreSQL and pg-boss. PostgreSQL is the only durable infrastructure dependency.
 
@@ -25,11 +25,13 @@ npm run smoke:staging     verify a configured staging deployment
 ```
 
 Autonomous sending requires both `INTERVENTION_SHADOW_MODE=false` and `AUTONOMOUS_SENDING_ENABLED=true`. Both remain safe by default.
+`HYBRID_AI_REVIEW_ENABLED=true` lets AI veto a deterministically eligible proactive intervention; it cannot bypass consent, quiet hours, calendar-busy, cooldown, cap, or pending-response gates.
 
 ## Documentation
 
 - `docs/ARCHITECTURE.md` — runtime, boundaries, privacy, reliability, and experiment rules
 - `docs/MESSAGING_PROVIDERS.md` — Tempo-owned conversations, provider capabilities, and cutover procedure
+- `docs/HYBRID_INTERVENTION_SYSTEM.md` — durable reminders, proactive scoring, AI review, accountability, and extension signals
 - `docs/ROADMAP.md` — staged implementation contract and checkpoint
 - `docs/ACCOUNT_SETUP.md` — founder-owned accounts and credentials
 - `docs/DEPLOYMENT.md` — Railway staging setup

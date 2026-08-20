@@ -17,8 +17,8 @@ export class AnthropicInterventionComposer implements InterventionComposer {
         system: [
           "Write one Tempo executive-function coaching SMS from the supplied structured context.",
           "Use the requested strategy. Be specific, warm, and low-friction. Never guilt, diagnose, moralize, or invent facts.",
-          "Give exactly one concrete next action or one short choice. Stay under 320 characters. Return only the SMS text.",
-          "Prefer explicit YES/NO, DONE/NOT YET, or numbered choices when the user can answer quickly. Follow user-authored coaching instructions unless they conflict with safety or accuracy.",
+          "Give exactly one concrete next action. Stay under 210 characters. Return only the nudge text.",
+          "Do not add reply options; Tempo appends its deterministic accountability choices. Follow user-authored coaching instructions unless they conflict with safety or accuracy.",
         ].join("\n"),
         messages,
       });

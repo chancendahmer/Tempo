@@ -34,6 +34,8 @@ import {
   proposeTaskReschedule,
 } from "./reschedule-service";
 import { ConversationHistoryRepository } from "./conversation-history";
+import { ReminderCommand } from "./reminder-commands";
+import { ReminderRepository, executeReminderCommand } from "./reminder-service";
 
 export type InboundConversationContext = {
   messageId: string;
@@ -71,6 +73,10 @@ function isRescheduleCommand(command: CoachingCommand): command is RescheduleCom
   return command.type === "reschedule_task";
 }
 
+function isReminderCommand(command: CoachingCommand): command is ReminderCommand {
+  return command.type.endsWith("_reminder") || command.type === "list_reminders";
+}
+
 export interface ConversationRepository {
   claimInbound(messageId: string, now: Date): Promise<InboundConversationContext | null>;
   releaseInbound(messageId: string): Promise<void>;
@@ -103,6 +109,7 @@ export class ConversationOrchestrator {
     private readonly memories?: MemoryService,
     private readonly secureLinks?: SecureActionLinks,
     private readonly history?: ConversationHistoryRepository,
+    private readonly reminders?: ReminderRepository,
   ) {}
 
   async process(messageId: string): Promise<{ processed: boolean }> {
@@ -319,6 +326,15 @@ export class ConversationOrchestrator {
         now,
       });
       return this.handleRescheduleProposal(context, proposal, now, intent.command);
+    }
+    if (isReminderCommand(intent.command)) {
+      if (!this.reminders) return "Reminder scheduling is temporarily unavailable.";
+      return executeReminderCommand(this.reminders, intent.command, {
+        userId: context.userId,
+        sourceMessageId: context.messageId,
+        timezone: context.timezone,
+        now,
+      });
     }
     const result = await executeTaskCommand(this.tasks, intent.command, {
       userId: context.userId,

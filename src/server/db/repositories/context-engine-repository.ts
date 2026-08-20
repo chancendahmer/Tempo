@@ -7,6 +7,7 @@ import {
   calendarConnections,
   consentRecords,
   contextSnapshots,
+  extensionSignalSnapshots,
   interventionOutcomes,
   interventionPolicies,
   interventions,
@@ -44,7 +45,7 @@ export class DrizzleContextEngineRepository implements ContextEngineRepository {
   async loadSignals(userId: string, now: Date) {
     const [user] = await this.database.select().from(users).where(eq(users.id, userId)).limit(1);
     if (!user) return null;
-    const [latestConsent, openTasks, currentBusy, nextBusy, recentInterventions, pending, learningMemories, calendarConnection] = await Promise.all([
+    const [latestConsent, openTasks, currentBusy, nextBusy, recentInterventions, pending, learningMemories, calendarConnection, extensionSignals] = await Promise.all([
       this.database.select({ status: consentRecords.status }).from(consentRecords)
         .where(eq(consentRecords.userId, userId)).orderBy(desc(consentRecords.createdAt)).limit(1),
       this.database.select({
@@ -82,6 +83,15 @@ export class DrizzleContextEngineRepository implements ContextEngineRepository {
         eq(calendarConnections.userId, userId),
         eq(calendarConnections.status, "active"),
       )).limit(1),
+      this.database.select({
+        extensionKey: extensionSignalSnapshots.extensionKey,
+        signalType: extensionSignalSnapshots.signalType,
+        payload: extensionSignalSnapshots.payload,
+        confidence: extensionSignalSnapshots.confidence,
+      }).from(extensionSignalSnapshots).where(and(
+        eq(extensionSignalSnapshots.userId, userId),
+        gt(extensionSignalSnapshots.validUntil, now),
+      )),
     ]);
 
     const contactStatuses = new Set(["queued", "sent", "delivered", "responded", "expired"]);
@@ -126,6 +136,7 @@ export class DrizzleContextEngineRepository implements ContextEngineRepository {
       bodyDoublingAffinity: learningMemories.some((memory) =>
         memory.content.toLowerCase().startsWith("body doubling nudges have usually helped"),
       ),
+      extensionSignals,
       tasks: openTasks.map((task) => ({
         ...task,
         status: task.status as "not_started" | "in_progress",

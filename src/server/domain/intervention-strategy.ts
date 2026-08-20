@@ -32,10 +32,10 @@ export interface InterventionComposer {
 export function fallbackIntervention(input: Parameters<InterventionComposer["compose"]>[0]): string {
   const title = input.taskTitle;
   switch (input.style) {
-    case "micro_start": return `${title}: want to give it two minutes and do only the very first step? Text START when you begin.`;
+    case "micro_start": return `${title}: give it two minutes and do only the very first step.`;
     case "direct_nudge": return `${title} is getting close. You have a window now—will you start the first 10 minutes?`;
     case "task_breakdown": return `${title} looks big. Pick one: 1) open it, 2) outline three steps, or 3) do the first step. Which one?`;
-    case "body_doubling": return `Want company for ${title}? Give me 15 focused minutes, text START now, and I’ll check back.`;
+    case "body_doubling": return `Want company for ${title}? Start with one focused 15-minute block.`;
     case "reschedule": {
       const proposed = input.nextFreeAt
         ? input.nextFreeAt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: input.timezone ?? "UTC" })

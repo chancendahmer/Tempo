@@ -120,6 +120,20 @@
       "when": 1787237850473,
       "tag": "0016_dusty_the_liberteens",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1787240111361,
+      "tag": "0017_optimal_whizzer",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1787240537793,
+      "tag": "0018_overconfident_miss_america",
+      "breakpoints": true
     }
   ]
 }

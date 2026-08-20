@@ -35,6 +35,7 @@ export const consentStatus = pgEnum("consent_status", ["granted", "revoked"]);
 export const consentChannel = pgEnum("consent_channel", ["web", "sms", "admin"]);
 export const goalStatus = pgEnum("goal_status", ["active", "completed", "abandoned"]);
 export const taskStatus = pgEnum("task_status", ["not_started", "in_progress", "completed", "abandoned"]);
+export const reminderStatus = pgEnum("reminder_status", ["scheduled", "sending", "sent", "cancelled", "failed"]);
 export const messageDirection = pgEnum("message_direction", ["inbound", "outbound"]);
 export const messageStatus = pgEnum("message_status", [
   "received",
@@ -81,6 +82,15 @@ export const interventionStatus = pgEnum("intervention_status", [
   "cancelled",
   "expired",
 ]);
+export const accountabilityStatus = pgEnum("accountability_status", [
+  "awaiting_initial",
+  "snoozed",
+  "followup_due",
+  "followup_sent",
+  "started",
+  "declined",
+  "expired",
+]);
 export const outcomeSource = pgEnum("outcome_source", [
   "explicit_reply",
   "task_status_change",
@@ -121,7 +131,7 @@ export const users = pgTable(
     preferredCoachingStyle: interventionStyle("preferred_coaching_style"),
     coachingTone: coachingTone("coaching_tone").default("balanced").notNull(),
     dailyInterventionCap: integer("daily_intervention_cap").default(3).notNull(),
-    interventionCooldownMinutes: integer("intervention_cooldown_minutes").default(240).notNull(),
+    interventionCooldownMinutes: integer("intervention_cooldown_minutes").default(5).notNull(),
     pausedUntil: timestamp("paused_until", { withTimezone: true }),
     optedOutAt: timestamp("opted_out_at", { withTimezone: true }),
     phoneVerifiedAt: timestamp("phone_verified_at", { withTimezone: true }),
@@ -319,6 +329,7 @@ export const conversationMessages = pgTable(
     body: text("body").notNull(),
     contentParts: jsonb("content_parts").$type<Array<Record<string, unknown>>>().default(sql`'[]'::jsonb`).notNull(),
     relatedInterventionId: uuid("related_intervention_id"),
+    relatedReminderId: uuid("related_reminder_id"),
     providerErrorCode: text("provider_error_code"),
     providerErrorMessage: text("provider_error_message"),
     receivedAt: timestamp("received_at", { withTimezone: true }),
@@ -506,6 +517,32 @@ export const taskEvents = pgTable(
   ],
 );
 
+export const reminders = pgTable(
+  "reminders",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    taskId: uuid("task_id").references(() => tasks.id, { onDelete: "set null" }),
+    sourceMessageId: uuid("source_message_id").references(() => conversationMessages.id, { onDelete: "set null" }),
+    text: text("text").notNull(),
+    remindAt: timestamp("remind_at", { withTimezone: true }).notNull(),
+    timezone: text("timezone").notNull(),
+    status: reminderStatus("status").default("scheduled").notNull(),
+    idempotencyKey: text("idempotency_key").notNull(),
+    provider: messagingProvider("provider"),
+    providerMessageSid: text("provider_message_sid"),
+    sentAt: timestamp("sent_at", { withTimezone: true }),
+    cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+    lastError: text("last_error"),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("reminders_idempotency_key_unique").on(table.idempotencyKey),
+    uniqueIndex("reminders_source_message_unique").on(table.sourceMessageId),
+    index("reminders_user_status_time_idx").on(table.userId, table.status, table.remindAt),
+  ],
+);
+
 export const conversationStates = pgTable(
   "conversation_states",
   {
@@ -552,6 +589,27 @@ export const calendarBusyWindows = pgTable(
     uniqueIndex("calendar_busy_windows_source_unique").on(table.connectionId, table.sourceHash),
     index("calendar_busy_windows_user_range_idx").on(table.userId, table.startsAt, table.endsAt),
     check("calendar_busy_windows_range_check", sql`${table.endsAt} > ${table.startsAt}`),
+  ],
+);
+
+export const extensionSignalSnapshots = pgTable(
+  "extension_signal_snapshots",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    extensionKey: text("extension_key").notNull(),
+    signalType: text("signal_type").notNull(),
+    payload: jsonb("payload").$type<Record<string, unknown>>().default(sql`'{}'::jsonb`).notNull(),
+    confidence: doublePrecision("confidence"),
+    observedAt: timestamp("observed_at", { withTimezone: true }).notNull(),
+    validUntil: timestamp("valid_until", { withTimezone: true }).notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("extension_signal_latest_unique").on(table.userId, table.extensionKey, table.signalType),
+    index("extension_signal_user_valid_idx").on(table.userId, table.validUntil),
+    check("extension_signal_confidence_check", sql`${table.confidence} is null or ${table.confidence} between 0 and 1`),
+    check("extension_signal_validity_check", sql`${table.validUntil} > ${table.observedAt}`),
   ],
 );
 
@@ -661,6 +719,26 @@ export const interventionOutcomes = pgTable(
   (table) => [uniqueIndex("intervention_outcomes_intervention_unique").on(table.interventionId)],
 );
 
+export const interventionAccountability = pgTable(
+  "intervention_accountability",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    interventionId: uuid("intervention_id").notNull().references(() => interventions.id, { onDelete: "cascade" }),
+    status: accountabilityStatus("status").default("awaiting_initial").notNull(),
+    snoozedUntil: timestamp("snoozed_until", { withTimezone: true }),
+    initialResponseMessageId: uuid("initial_response_message_id").references(() => conversationMessages.id, { onDelete: "set null" }),
+    followupResponseMessageId: uuid("followup_response_message_id").references(() => conversationMessages.id, { onDelete: "set null" }),
+    initialResponseText: text("initial_response_text"),
+    followupResponseText: text("followup_response_text"),
+    lastPromptAt: timestamp("last_prompt_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("intervention_accountability_intervention_unique").on(table.interventionId),
+    index("intervention_accountability_status_snooze_idx").on(table.status, table.snoozedUntil),
+  ],
+);
+
 export const memoryEntries = pgTable(
   "memory_entries",
   {
@@ -692,6 +770,7 @@ export const scheduledActions = pgTable(
     id: uuid("id").defaultRandom().primaryKey(),
     userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
     interventionId: uuid("intervention_id").references(() => interventions.id, { onDelete: "cascade" }),
+    reminderId: uuid("reminder_id").references(() => reminders.id, { onDelete: "cascade" }),
     kind: text("kind").notNull(),
     payload: jsonb("payload").$type<Record<string, unknown>>().default(sql`'{}'::jsonb`).notNull(),
     idempotencyKey: text("idempotency_key").notNull(),

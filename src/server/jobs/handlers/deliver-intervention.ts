@@ -7,6 +7,8 @@ import { DrizzleInterventionRepository } from "../../db/repositories/interventio
 import { DrizzleOutboundMessageRepository } from "../../db/repositories/outbound-message-repository";
 import { evaluateContext } from "../../domain/context-engine";
 import { SafeSmsSender } from "../../domain/outbound-messaging";
+import { buildInitialAccountabilityPrompt } from "../../domain/accountability";
+import { validateInterventionMessage } from "../../domain/intervention-strategy";
 import { logger } from "../../observability/logger";
 import { DeliverInterventionJob, JOB_NAMES } from "../names";
 import { ScheduledActionRepository } from "../scheduled-action-repository";
@@ -21,12 +23,12 @@ export async function registerDeliverInterventionHandler(boss: PgBoss) {
         const env = getServerEnv();
         const recovered = await interventions.reconcileDelivery(job.data.interventionId);
         if (recovered?.kind === "submitted") {
-          const delayMinutes = recovered.style === "body_doubling" ? 15 : 45;
-          await actions.completeAndScheduleFeedback(
+          await interventions.startAccountability(job.data.interventionId);
+          await actions.completeAndScheduleFeedbackTimeout(
             job.data.scheduledActionId,
             recovered.userId,
             job.data.interventionId,
-            new Date(Date.now() + delayMinutes * 60_000),
+            new Date(Date.now() + 12 * 3_600_000),
           );
           continue;
         }
@@ -60,7 +62,14 @@ export async function registerDeliverInterventionHandler(boss: PgBoss) {
           continue;
         }
 
-        const message = context.messageText ?? await new AnthropicInterventionComposer().compose({
+        const claim = await interventions.claimDelivery(context.id);
+        if (!claim.claimed) {
+          await interventions.markCancelled(context.id);
+          await actions.markCancelled(job.data.scheduledActionId, claim.reason);
+          continue;
+        }
+
+        const nudge = context.messageText ?? await new AnthropicInterventionComposer().compose({
             style: context.style,
             taskTitle: context.taskTitle,
             dueAt: context.dueAt,
@@ -71,6 +80,7 @@ export async function registerDeliverInterventionHandler(boss: PgBoss) {
             tone: context.coachingTone,
             memories: context.memories,
           });
+        const message = validateInterventionMessage(buildInitialAccountabilityPrompt(nudge));
         await interventions.markQueued(context.id, message, "intervention-v1", env.ANTHROPIC_MODEL ?? "deterministic-fallback");
         const sent = await new SafeSmsSender(new DrizzleOutboundMessageRepository(), createMessagingTransport()).send({
           userId: context.userId,
@@ -89,12 +99,12 @@ export async function registerDeliverInterventionHandler(boss: PgBoss) {
           await actions.markCancelled(job.data.scheduledActionId, "provider_delivery_failed");
           continue;
         }
-        const delayMinutes = context.style === "body_doubling" ? 15 : 45;
-        await actions.completeAndScheduleFeedback(
+        await interventions.startAccountability(context.id);
+        await actions.completeAndScheduleFeedbackTimeout(
           job.data.scheduledActionId,
           context.userId,
           context.id,
-          new Date(Date.now() + delayMinutes * 60_000),
+          new Date(Date.now() + 12 * 3_600_000),
         );
       } catch (error) {
         await interventions.markFailed(job.data.interventionId);

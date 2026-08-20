@@ -80,6 +80,8 @@ describe("context engine", () => {
     });
     expect(evaluation.scoreBreakdown.freeTime).toBe(0);
     expect(evaluation.inputs.calendarAvailable).toBe(false);
+    expect(evaluation.reasonCodes).toContain("calendar_unavailable");
+    expect(evaluation.decision).toBe("blocked");
     expect(evaluation.reasonCodes).not.toContain("calendar_busy");
   });
 });

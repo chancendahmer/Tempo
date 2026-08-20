@@ -18,6 +18,10 @@ export const serverEnvSchema = z.object({
     .enum(["true", "false"])
     .default("false")
     .transform((value) => value === "true"),
+  HYBRID_AI_REVIEW_ENABLED: z
+    .enum(["true", "false"])
+    .default("true")
+    .transform((value) => value === "true"),
   DATABASE_URL: optionalSecret,
   FIELD_ENCRYPTION_KEY: optionalEncryptionKey,
   MESSAGING_PROVIDER: z.enum(["sendblue", "linq", "twilio"]).default("sendblue"),

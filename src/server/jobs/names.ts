@@ -2,9 +2,11 @@ export const JOB_NAMES = {
   sendWelcome: "tempo.send-welcome",
   sendCompliance: "tempo.send-compliance",
   processInbound: "tempo.process-inbound",
+  deliverReminder: "tempo.deliver-reminder",
   syncCalendar: "tempo.sync-calendar",
   evaluateContext: "tempo.evaluate-context",
   deliverIntervention: "tempo.deliver-intervention",
+  accountabilityFollowup: "tempo.accountability-followup",
   feedbackFollowup: "tempo.feedback-followup",
   feedbackTimeout: "tempo.feedback-timeout",
 } as const;
@@ -30,6 +32,12 @@ export type SyncCalendarJob = {
   userId: string;
 };
 
+export type DeliverReminderJob = {
+  scheduledActionId: string;
+  userId: string;
+  reminderId: string;
+};
+
 export type EvaluateContextJob = {
   scheduledActionId: string;
   userId: string;
@@ -43,3 +51,4 @@ export type DeliverInterventionJob = {
 
 export type FeedbackFollowupJob = DeliverInterventionJob;
 export type FeedbackTimeoutJob = DeliverInterventionJob;
+export type AccountabilityFollowupJob = DeliverInterventionJob;

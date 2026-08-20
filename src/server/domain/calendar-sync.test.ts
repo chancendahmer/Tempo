@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { CalendarAuthorizationError, CalendarDataProvider } from "../adapters/calendar/calendar-provider";
 import { encryptField } from "../security/field-encryption";
 import { CalendarSyncRepository, StoredCalendarConnection, busyWindowHash, syncCalendar } from "./calendar-sync";
+import { ExtensionSignalRepository } from "./extension-signals";
 
 const key = Buffer.alloc(32, 9).toString("base64");
 
@@ -36,11 +37,17 @@ describe("calendar synchronization", () => {
         };
       },
     };
+    let published: Parameters<ExtensionSignalRepository["publish"]> | undefined;
+    const signalRepository: ExtensionSignalRepository = {
+      publish: async (...input) => { published = input; },
+      getActive: async () => [],
+    };
 
     const result = await syncCalendar({
       userId: "user-1",
       repository,
       provider,
+      signalRepository,
       encryptionKey: key,
       now: new Date("2026-08-18T12:00:00Z"),
     });
@@ -54,6 +61,8 @@ describe("calendar synchronization", () => {
     expect(JSON.stringify(repository.replacement)).not.toContain("event");
     expect(repository.replacement?.encryptedAccessToken).not.toContain("new-access");
     expect(repository.replacement?.encryptedRefreshToken).not.toContain("old-refresh");
+    expect(published?.[1]).toMatchObject({ extensionKey: "google_calendar", signalType: "availability", confidence: 1 });
+    expect(published?.[1].payload).toEqual(expect.objectContaining({ available: true, windowCount: 1 }));
   });
 
   it("returns harmlessly when no calendar is connected", async () => {

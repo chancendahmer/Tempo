@@ -5,11 +5,13 @@ import { startActionDispatcher } from "../server/jobs/dispatcher";
 import { registerSendWelcomeHandler } from "../server/jobs/handlers/send-welcome";
 import { registerSendComplianceHandler } from "../server/jobs/handlers/send-compliance";
 import { registerProcessInboundHandler } from "../server/jobs/handlers/process-inbound";
+import { registerDeliverReminderHandler } from "../server/jobs/handlers/deliver-reminder";
 import { registerSyncCalendarHandler } from "../server/jobs/handlers/sync-calendar";
 import { registerEvaluateContextHandler } from "../server/jobs/handlers/evaluate-context";
 import { registerDeliverInterventionHandler } from "../server/jobs/handlers/deliver-intervention";
 import { registerFeedbackFollowupHandler } from "../server/jobs/handlers/feedback-followup";
 import { registerFeedbackTimeoutHandler } from "../server/jobs/handlers/feedback-timeout";
+import { registerAccountabilityFollowupHandler } from "../server/jobs/handlers/accountability-followup";
 import { ScheduledActionRepository } from "../server/jobs/scheduled-action-repository";
 import { JOB_NAMES } from "../server/jobs/names";
 import { logger } from "../server/observability/logger";
@@ -75,6 +77,15 @@ export async function runWorker() {
     deleteAfterSeconds: 604_800,
     notify: true,
   });
+  await boss.createQueue(JOB_NAMES.deliverReminder, {
+    policy: "standard",
+    retryLimit: 3,
+    retryDelay: 30,
+    retryBackoff: true,
+    expireInSeconds: 180,
+    deleteAfterSeconds: 604_800,
+    notify: true,
+  });
   await boss.createQueue(JOB_NAMES.syncCalendar, {
     policy: "standard",
     retryLimit: 3,
@@ -95,6 +106,15 @@ export async function runWorker() {
   });
   await boss.createQueue(JOB_NAMES.deliverIntervention, {
     policy: "standard",
+    retryLimit: 2,
+    retryDelay: 30,
+    retryBackoff: true,
+    expireInSeconds: 120,
+    deleteAfterSeconds: 604_800,
+    notify: true,
+  });
+  await boss.createQueue(JOB_NAMES.accountabilityFollowup, {
+    policy: "key_strict_fifo",
     retryLimit: 2,
     retryDelay: 30,
     retryBackoff: true,
@@ -123,9 +143,11 @@ export async function runWorker() {
   await registerSendWelcomeHandler(boss);
   await registerSendComplianceHandler(boss);
   await registerProcessInboundHandler(boss);
+  await registerDeliverReminderHandler(boss);
   await registerSyncCalendarHandler(boss);
   await registerEvaluateContextHandler(boss);
   await registerDeliverInterventionHandler(boss);
+  await registerAccountabilityFollowupHandler(boss);
   await registerFeedbackFollowupHandler(boss);
   await registerFeedbackTimeoutHandler(boss);
   const scheduledActionRepository = new ScheduledActionRepository();

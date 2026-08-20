@@ -10,6 +10,7 @@ import { DrizzleSchedulingRepository } from "../../db/repositories/scheduling-re
 import { DrizzleOutcomeRepository } from "../../db/repositories/outcome-repository";
 import { DrizzleMemoryRepository } from "../../db/repositories/memory-repository";
 import { DrizzleConversationHistoryRepository } from "../../db/repositories/conversation-history-repository";
+import { DrizzleReminderRepository } from "../../db/repositories/reminder-repository";
 import { ConversationOrchestrator } from "../../domain/conversation-orchestrator";
 import { SafeSmsSender } from "../../domain/outbound-messaging";
 import { OutcomeTracker } from "../../domain/outcome-tracker";
@@ -39,6 +40,7 @@ export async function registerProcessInboundHandler(boss: PgBoss) {
           new MemoryService(new DrizzleMemoryRepository()),
           env.FIELD_ENCRYPTION_KEY ? createSecureActionLinks(env.APP_BASE_URL, env.FIELD_ENCRYPTION_KEY) : undefined,
           new DrizzleConversationHistoryRepository(),
+          new DrizzleReminderRepository(),
         );
         await orchestrator.process(job.data.messageId);
         await actions.markCompleted(job.data.scheduledActionId);

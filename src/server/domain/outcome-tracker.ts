@@ -7,6 +7,20 @@ export type PendingInterventionOutcome = {
 };
 
 export interface OutcomeRepository {
+  findPendingAccountability?(userId: string, now: Date): Promise<{
+    interventionId: string;
+    taskId: string | null;
+    status: "awaiting_initial" | "snoozed" | "followup_due" | "followup_sent";
+  } | null>;
+  snoozeAccountability?(input: { interventionId: string; sourceMessageId: string; body: string; now: Date; minutes: number }): Promise<void>;
+  resolveAccountability?(input: {
+    interventionId: string;
+    sourceMessageId: string;
+    body: string;
+    stage: AccountabilityStage;
+    decision: "started" | "declined";
+    now: Date;
+  }): Promise<void>;
   findPending(userId: string, now: Date): Promise<PendingInterventionOutcome | null>;
   record(input: {
     interventionId: string;
@@ -48,6 +62,61 @@ export class OutcomeTracker {
   constructor(private readonly repository: OutcomeRepository) {}
 
   async tryHandleStandaloneReply(input: { userId: string; messageId: string; body: string; now: Date }) {
+    const accountability = await this.repository.findPendingAccountability?.(input.userId, input.now);
+    if (accountability) {
+      const stage: AccountabilityStage = accountability.status === "followup_sent" || accountability.status === "followup_due"
+        ? "followup"
+        : "initial";
+      const choice = classifyAccountabilityReply(input.body, stage);
+      if (choice === "snooze" && this.repository.snoozeAccountability) {
+        await this.repository.snoozeAccountability({
+          interventionId: accountability.interventionId,
+          sourceMessageId: input.messageId,
+          body: input.body,
+          now: input.now,
+          minutes: 15,
+        });
+        return "You have 15 minutes. I’ll check back, and then you’ll make the call.";
+      }
+      if (choice === "start" && this.repository.resolveAccountability) {
+        await this.repository.record({
+          interventionId: accountability.interventionId,
+          sourceMessageId: input.messageId,
+          source: "explicit_reply",
+          userResponse: input.body,
+          startedAt: input.now,
+          now: input.now,
+        });
+        await this.repository.resolveAccountability({
+          interventionId: accountability.interventionId,
+          sourceMessageId: input.messageId,
+          body: input.body,
+          stage,
+          decision: "started",
+          now: input.now,
+        });
+        return "That’s the commitment. Start with the first two minutes—message me when you’re moving.";
+      }
+      if (choice === "decline" && this.repository.resolveAccountability) {
+        await this.repository.record({
+          interventionId: accountability.interventionId,
+          sourceMessageId: input.messageId,
+          source: "explicit_reply",
+          userResponse: input.body,
+          helpful: false,
+          now: input.now,
+        });
+        await this.repository.resolveAccountability({
+          interventionId: accountability.interventionId,
+          sourceMessageId: input.messageId,
+          body: input.body,
+          stage,
+          decision: "declined",
+          now: input.now,
+        });
+        return "Understood—not today. I’ll use that feedback and won’t keep pushing this right now.";
+      }
+    }
     const pending = await this.repository.findPending(input.userId, input.now);
     if (!pending) return null;
     if (
@@ -102,3 +171,4 @@ export class OutcomeTracker {
     return true;
   }
 }
+import { AccountabilityStage, classifyAccountabilityReply } from "./accountability";

@@ -59,6 +59,7 @@ export class DrizzleOutboundMessageRepository implements OutboundMessageReposito
         body: input.body,
         contentParts: [{ type: "text", value: input.body }],
         relatedInterventionId: input.relatedInterventionId,
+        relatedReminderId: input.relatedReminderId,
       })
       .onConflictDoNothing({ target: conversationMessages.idempotencyKey })
       .returning({ id: conversationMessages.id });
