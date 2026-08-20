@@ -1,0 +1,1 @@
+ALTER TABLE "web_sessions" ADD COLUMN "activated_at" timestamp with time zone;

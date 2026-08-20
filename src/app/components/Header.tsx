@@ -5,10 +5,12 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { FiMenu, FiX } from "react-icons/fi";
 import { TempoMark } from "./TempoMark";
+import { AccountNav } from "./AccountNav";
 
 const links = [
   { href: "/how-it-works", label: "How it works" },
   { href: "/pricing", label: "Pricing" },
+  { href: "/extensions", label: "Extensions" },
 ];
 
 export function Header() {
@@ -31,9 +33,7 @@ export function Header() {
               {link.label}
             </Link>
           ))}
-          <Link className="black-button nav-login" href="/login">
-            Log in
-          </Link>
+          <AccountNav />
         </div>
         <button
           className="menu-button"
@@ -57,9 +57,7 @@ export function Header() {
                 {link.label}
               </Link>
             ))}
-            <Link className="black-button" href="/login" onClick={() => setOpen(false)}>
-              Log in
-            </Link>
+            <AccountNav mobile onNavigate={() => setOpen(false)} />
           </div>
         )}
       </nav>

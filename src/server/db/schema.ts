@@ -103,6 +103,9 @@ export const users = pgTable(
   {
     id: uuid("id").defaultRandom().primaryKey(),
     phoneE164: text("phone_e164").notNull(),
+    displayName: text("display_name"),
+    profileInstructions: text("profile_instructions"),
+    profileCompletedAt: timestamp("profile_completed_at", { withTimezone: true }),
     locale: text("locale").default("en-US").notNull(),
     timezone: text("timezone").default("UTC").notNull(),
     status: userStatus("status").default("active").notNull(),
@@ -127,6 +130,25 @@ export const users = pgTable(
     check("users_phone_e164_check", sql`${table.phoneE164} ~ '^\\+[1-9][0-9]{7,14}$'`),
     check("users_daily_intervention_cap_check", sql`${table.dailyInterventionCap} between 0 and 10`),
     check("users_cooldown_minutes_check", sql`${table.interventionCooldownMinutes} >= 0`),
+  ],
+);
+
+export const webSessions = pgTable(
+  "web_sessions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    tokenHash: text("token_hash").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    activatedAt: timestamp("activated_at", { withTimezone: true }),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).defaultNow().notNull(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("web_sessions_token_hash_unique").on(table.tokenHash),
+    index("web_sessions_user_idx").on(table.userId),
+    index("web_sessions_expiry_idx").on(table.expiresAt),
   ],
 );
 

@@ -3,6 +3,7 @@ import { ConversationStage } from "./components/ConversationStage";
 import { EarlyAccessCounter } from "./components/EarlyAccessCounter";
 import { Header } from "./components/Header";
 import { PhoneSignup } from "./components/PhoneSignup";
+import { ProfileReminder } from "./components/ProfileReminder";
 
 export default function Home() {
   return (
@@ -23,6 +24,7 @@ export default function Home() {
         </div>
 
         <div className="conversion-area" id="early-access">
+          <ProfileReminder />
           <PhoneSignup />
           <p className="signup-note" id="signup-note">
             Tempo will text you to start setup. Reply STOP anytime.

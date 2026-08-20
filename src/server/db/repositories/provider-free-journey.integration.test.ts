@@ -105,23 +105,19 @@ describe("provider-free V1 journey", () => {
       return message;
     }
 
-    await reply("I need to submit my lab report");
-    now = new Date("2026-08-18T16:01:00Z");
-    await reply("Eastern");
-    now = new Date("2026-08-18T16:02:00Z");
-    await reply("11pm to 7am");
-    now = new Date("2026-08-18T16:03:00Z");
-    await reply("direct");
+    await reply("DONE");
     expect(transport.sent.at(-1)?.body).toContain("/api/auth/google/start?token=");
-    now = new Date("2026-08-18T16:04:00Z");
+    now = new Date("2026-08-18T16:01:00Z");
     await reply("not now");
+    now = new Date("2026-08-18T16:02:00Z");
+    await reply("I need to submit my lab report");
 
     const [onboardedUser] = await database.select().from(users).where(eq(users.id, consent.userId));
     const [task] = await database.select().from(tasks).where(eq(tasks.userId, consent.userId));
     expect(onboardedUser).toMatchObject({
       onboardingState: "complete",
-      timezone: "America/New_York",
-      coachingTone: "direct",
+      timezone: "UTC",
+      coachingTone: "balanced",
     });
     expect(task.title).toBe("submit my lab report");
 
