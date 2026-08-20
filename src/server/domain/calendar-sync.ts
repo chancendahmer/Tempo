@@ -1,6 +1,11 @@
 import { createHash } from "node:crypto";
 import { CalendarAuthorizationError, CalendarDataProvider } from "../adapters/calendar/calendar-provider";
 import { decryptField, encryptField } from "../security/field-encryption";
+import {
+  CALENDAR_AVAILABILITY_SIGNAL,
+  ExtensionSignalRepository,
+  GOOGLE_CALENDAR_EXTENSION_KEY,
+} from "./extension-signals";
 
 export type StoredCalendarConnection = {
   id: string;
@@ -34,6 +39,7 @@ export async function syncCalendar(input: {
   userId: string;
   repository: CalendarSyncRepository;
   provider: CalendarDataProvider;
+  signalRepository?: ExtensionSignalRepository;
   encryptionKey: string;
   now?: Date;
   horizonDays?: number;
@@ -78,6 +84,18 @@ export async function syncCalendar(input: {
     tokenExpiresAt: result.tokens.expiresAt ?? undefined,
     scopes: result.tokens.scopes.length > 0 ? result.tokens.scopes : connection.scopes,
     syncedAt: now,
+  });
+  await input.signalRepository?.publish(input.userId, {
+    extensionKey: GOOGLE_CALENDAR_EXTENSION_KEY,
+    signalType: CALENDAR_AVAILABILITY_SIGNAL,
+    payload: {
+      available: true,
+      windowCount: windows.length,
+      horizonEndsAt: timeMax.toISOString(),
+    },
+    confidence: 1,
+    observedAt: now,
+    validUntil: new Date(now.getTime() + 45 * 60_000),
   });
   return { synced: true as const, windowCount: windows.length, timeMin: now, timeMax };
 }

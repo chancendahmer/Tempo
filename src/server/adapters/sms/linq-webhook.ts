@@ -7,6 +7,21 @@ const handleSchema = z.object({ handle: z.string().min(1) }).passthrough();
 const textPartSchema = z.object({ type: z.literal("text"), value: z.string() }).passthrough();
 const anyPartSchema = z.object({ type: z.string() }).passthrough();
 
+function safeContentParts(parts: Array<z.infer<typeof anyPartSchema>>): Array<Record<string, unknown>> {
+  return parts.map((part) => {
+    if (part.type === "text" && typeof part.value === "string") {
+      return { type: "text", value: part.value.trim() };
+    }
+    return {
+      type: part.type,
+      ...(typeof part.id === "string" ? { id: part.id } : {}),
+      ...(typeof part.filename === "string" ? { filename: part.filename } : {}),
+      ...(typeof part.mime_type === "string" ? { mimeType: part.mime_type } : {}),
+      ...(typeof part.size_bytes === "number" ? { sizeBytes: part.size_bytes } : {}),
+    };
+  });
+}
+
 const messageDataSchema = z.object({
   id: z.string().min(1).optional(),
   message_id: z.string().min(1).optional(),
@@ -14,10 +29,15 @@ const messageDataSchema = z.object({
   service: serviceSchema.optional(),
   sender_handle: handleSchema.optional(),
   chat: z.object({
+    id: z.string().min(1).optional(),
     is_group: z.boolean().default(false),
     owner_handle: handleSchema,
   }).passthrough().optional(),
   parts: z.array(z.union([textPartSchema, anyPartSchema])).optional(),
+  reply_to: z.object({
+    message_id: z.string().min(1),
+    part_index: z.number().int().min(0).optional(),
+  }).nullish(),
   code: z.union([z.number(), z.string()]).optional(),
   reason: z.string().optional(),
 }).passthrough();
@@ -98,7 +118,8 @@ export function parseLinqWebhook(raw: unknown): ParsedLinqWebhook {
       .map((part) => part.value.trim())
       .filter(Boolean)
       .join("\n");
-    if (!text) return { kind: "ignored", reason: "unsupported_content", eventId: event.event_id };
+    const contentParts = safeContentParts(data.parts ?? []);
+    if (!text && contentParts.length === 0) return { kind: "ignored", reason: "unsupported_content", eventId: event.event_id };
     return {
       kind: "inbound",
       eventId: event.event_id,
@@ -107,8 +128,15 @@ export function parseLinqWebhook(raw: unknown): ParsedLinqWebhook {
         providerMessageId,
         from: data.sender_handle.handle,
         to: data.chat.owner_handle.handle,
-        body: text,
+        body: text || "[Attachment]",
         service: data.service,
+        ...(data.chat.id ? { providerConversationId: data.chat.id } : {}),
+        ...(data.reply_to ? {
+          providerThreadId: data.reply_to.message_id,
+          replyToProviderMessageId: data.reply_to.message_id,
+        } : {}),
+        contentParts,
+        rawMetadata: { traceId: event.trace_id, partnerId: event.partner_id },
       },
     };
   }
@@ -127,6 +155,8 @@ export function parseLinqWebhook(raw: unknown): ParsedLinqWebhook {
       status,
       errorCode: data.code === undefined ? undefined : String(data.code),
       errorMessage: data.reason,
+      ...(data.chat?.id ? { providerConversationId: data.chat.id } : {}),
+      rawMetadata: { traceId: event.trace_id, partnerId: event.partner_id },
     },
   };
 }

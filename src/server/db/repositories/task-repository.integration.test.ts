@@ -9,6 +9,7 @@ import { TempoDatabase } from "../client";
 import * as schema from "../schema";
 import { conversationMessages, goals, taskEvents, tasks, users } from "../schema";
 import { DrizzleTaskRepository } from "./task-repository";
+import { ensureDirectConversation } from "./messaging-identity-repository";
 
 describe("task repository audit trail", () => {
   let client: PGlite;
@@ -32,11 +33,15 @@ describe("task repository audit trail", () => {
       .values({ phoneE164: "+12025550198" })
       .returning({ id: users.id });
     userId = createdUser.id;
+    const conversationId = (await ensureDirectConversation(database, {
+      userId,
+      phoneE164: "+12025550198",
+    })).conversationId;
     const messages = await database
       .insert(conversationMessages)
       .values([
-        { userId, direction: "inbound", kind: "user", status: "received", body: "Add the report" },
-        { userId, direction: "inbound", kind: "user", status: "received", body: "Done with the report" },
+        { userId, conversationId, direction: "inbound", kind: "user", status: "received", body: "Add the report" },
+        { userId, conversationId, direction: "inbound", kind: "user", status: "received", body: "Done with the report" },
       ])
       .returning({ id: conversationMessages.id });
     [createMessageId, completeMessageId] = messages.map((message) => message.id);
@@ -74,9 +79,13 @@ describe("task repository audit trail", () => {
     const [otherUser] = await database.insert(users).values({ phoneE164: "+12025550193" }).returning({ id: users.id });
     const [ownedGoal] = await database.insert(goals).values({ userId, title: "Finish my degree" }).returning({ id: goals.id });
     const [foreignGoal] = await database.insert(goals).values({ userId: otherUser.id, title: "Private goal" }).returning({ id: goals.id });
+    const conversationId = (await ensureDirectConversation(database, {
+      userId,
+      phoneE164: "+12025550198",
+    })).conversationId;
     const messages = await database.insert(conversationMessages).values([
-      { userId, direction: "inbound", kind: "user", status: "received", body: "Add thesis outline to my degree goal" },
-      { userId, direction: "inbound", kind: "user", status: "received", body: "Add a task to another user's goal" },
+      { userId, conversationId, direction: "inbound", kind: "user", status: "received", body: "Add thesis outline to my degree goal" },
+      { userId, conversationId, direction: "inbound", kind: "user", status: "received", body: "Add a task to another user's goal" },
     ]).returning({ id: conversationMessages.id });
     const repository = new DrizzleTaskRepository(database);
     const created = await executeTaskCommand(repository, {

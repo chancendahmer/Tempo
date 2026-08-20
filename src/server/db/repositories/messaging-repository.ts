@@ -5,13 +5,17 @@ import { normalizeE164 } from "../../domain/phone";
 import { getDatabase, TempoDatabase } from "../client";
 import {
   consentRecords,
+  conversations,
   conversationMessages,
   interventions,
   memoryEntries,
+  messageRelations,
+  providerMessageBindings,
   scheduledActions,
   users,
   webSessions,
 } from "../schema";
+import { ensureDirectConversation } from "./messaging-identity-repository";
 
 export class DrizzleMessagingRepository implements MessagingRepository {
   constructor(private readonly database: TempoDatabase = getDatabase()) {}
@@ -53,10 +57,23 @@ export class DrizzleMessagingRepository implements MessagingRepository {
         ? undefined
         : detectedKeyword;
 
+      const identity = await ensureDirectConversation(transaction as unknown as TempoDatabase, {
+        userId: user.id,
+        phoneE164,
+        phoneVerifiedAt: user.lastInboundAt === null ? now : undefined,
+        provider: input.provider,
+        providerLineAddress: normalizeE164(input.to),
+        providerConversationId: input.providerConversationId,
+        providerThreadId: input.providerThreadId,
+        service: input.service,
+        capabilities: input.capabilities,
+      });
+
       const [message] = await transaction
         .insert(conversationMessages)
         .values({
           userId: user.id,
+          conversationId: identity.conversationId,
           provider: input.provider,
           providerService: input.service,
           providerMessageSid: input.providerMessageId,
@@ -64,6 +81,7 @@ export class DrizzleMessagingRepository implements MessagingRepository {
           kind: complianceKeyword ? "compliance" : "user",
           status: "received",
           body: input.body,
+          contentParts: input.contentParts ?? [{ type: "text", value: input.body }],
           receivedAt: now,
         })
         .onConflictDoNothing({
@@ -72,6 +90,37 @@ export class DrizzleMessagingRepository implements MessagingRepository {
         .returning({ id: conversationMessages.id });
 
       if (!message) return { duplicate: true };
+
+      await transaction.insert(providerMessageBindings).values({
+        messageId: message.id,
+        providerConversationId: identity.providerConversationId,
+        provider: input.provider,
+        externalMessageId: input.providerMessageId,
+        externalThreadId: input.providerThreadId,
+        deliveryStatus: "received",
+        rawMetadata: input.rawMetadata ?? {},
+      }).onConflictDoNothing({
+        target: [providerMessageBindings.provider, providerMessageBindings.externalMessageId],
+      });
+      if (input.replyToProviderMessageId) {
+        const [target] = await transaction.select({ messageId: providerMessageBindings.messageId })
+          .from(providerMessageBindings)
+          .where(and(
+            eq(providerMessageBindings.provider, input.provider),
+            eq(providerMessageBindings.externalMessageId, input.replyToProviderMessageId),
+          ))
+          .limit(1);
+        if (target) {
+          await transaction.insert(messageRelations).values({
+            conversationId: identity.conversationId,
+            sourceMessageId: message.id,
+            targetMessageId: target.messageId,
+            type: "reply",
+          }).onConflictDoNothing();
+        }
+      }
+      await transaction.update(conversations).set({ lastMessageAt: now, updatedAt: now })
+        .where(eq(conversations.id, identity.conversationId));
 
       await transaction.update(users).set({
         lastInboundAt: now,
@@ -284,6 +333,18 @@ export class DrizzleMessagingRepository implements MessagingRepository {
           eq(conversationMessages.provider, input.provider),
           eq(conversationMessages.providerMessageSid, input.providerMessageId),
           inArray(conversationMessages.status, allowedMessageStatuses),
+        ));
+
+      await transaction
+        .update(providerMessageBindings)
+        .set({
+          deliveryStatus: input.status,
+          rawMetadata: input.rawMetadata ?? {},
+          updatedAt: now,
+        })
+        .where(and(
+          eq(providerMessageBindings.provider, input.provider),
+          eq(providerMessageBindings.externalMessageId, input.providerMessageId),
         ));
 
       await transaction

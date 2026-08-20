@@ -4,8 +4,10 @@ import { requireEnv } from "../../config/env";
 import { TaskCommand, TaskSummary, taskCommandSchema } from "../../domain/task-commands";
 import { GoalCommand, GoalSummary, goalCommandSchema } from "../../domain/goal-commands";
 import { RescheduleCommand, rescheduleCommandSchema } from "../../domain/reschedule-service";
+import { ConversationHistoryMessage } from "../../domain/conversation-history";
+import { ReminderCommand, reminderCommandSchema } from "../../domain/reminder-commands";
 
-export type CoachingCommand = TaskCommand | GoalCommand | RescheduleCommand;
+export type CoachingCommand = TaskCommand | GoalCommand | RescheduleCommand | ReminderCommand;
 export type TaskIntentResult = { kind: "command"; command: CoachingCommand } | { kind: "conversation"; reply: string };
 
 export interface TaskIntentParser {
@@ -17,6 +19,7 @@ export interface TaskIntentParser {
     openGoals: GoalSummary[];
     memories: string[];
     customInstructions?: string;
+    history?: ConversationHistoryMessage[];
   }): Promise<TaskIntentResult>;
 }
 
@@ -151,6 +154,37 @@ export const TASK_TOOLS: Tool[] = [
       additionalProperties: false,
     },
   },
+  {
+    name: "create_reminder",
+    description: "Schedule a one-time reminder at the exact date and time the user requested. Use this instead of create_task when the user explicitly says remind me, alert me, or text me at a time.",
+    input_schema: {
+      type: "object",
+      properties: {
+        text: { type: "string", description: "What Tempo should remind the user about." },
+        remindAt: { type: "string", format: "date-time", description: "Exact future ISO 8601 timestamp with an offset derived from the user's timezone." },
+        taskId: { type: "string", format: "uuid", description: "Optional exact related task ID when known." },
+      },
+      required: ["text", "remindAt"],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: "list_reminders",
+    description: "List the user's upcoming one-time reminders.",
+    input_schema: { type: "object", properties: {}, additionalProperties: false },
+  },
+  {
+    name: "cancel_reminder",
+    description: "Cancel an upcoming reminder by exact ID or a distinctive phrase from its description.",
+    input_schema: {
+      type: "object",
+      properties: {
+        reminderId: { type: "string", format: "uuid" },
+        reminderQuery: { type: "string" },
+      },
+      additionalProperties: false,
+    },
+  },
 ];
 
 type ResponseBlock =
@@ -164,10 +198,13 @@ export function parseTaskIntentResponse(blocks: ResponseBlock[]): TaskIntentResu
     const supportedNames = new Set(TASK_TOOLS.map((tool) => tool.name));
     if (!supportedNames.has(toolUse.name)) throw new Error(`Unsupported task tool: ${toolUse.name}`);
     const goalTool = toolUse.name.endsWith("_goal") || toolUse.name === "list_goals";
+    const reminderTool = toolUse.name.endsWith("_reminder") || toolUse.name === "list_reminders";
     return {
       kind: "command",
       command: toolUse.name === "reschedule_task"
         ? rescheduleCommandSchema.parse({ type: toolUse.name, ...(toolUse.input as object) })
+        : reminderTool
+        ? reminderCommandSchema.parse({ type: toolUse.name, ...(toolUse.input as object) })
         : goalTool
         ? goalCommandSchema.parse({ type: toolUse.name, ...(toolUse.input as object) })
         : taskCommandSchema.parse({ type: toolUse.name, ...(toolUse.input as object) }),
@@ -192,12 +229,19 @@ export class AnthropicTaskIntentParser implements TaskIntentParser {
   async parse(input: Parameters<TaskIntentParser["parse"]>[0]): Promise<TaskIntentResult> {
     const env = requireEnv(["ANTHROPIC_API_KEY", "ANTHROPIC_MODEL"]);
     this.client ??= new Anthropic({ apiKey: env.ANTHROPIC_API_KEY! });
-    const messages: MessageParam[] = [{ role: "user", content: input.message }];
+    const messages: MessageParam[] = [
+      ...(input.history ?? []).slice(-12).map((message): MessageParam => ({
+        role: message.role,
+        content: message.content,
+      })),
+      { role: "user", content: input.message },
+    ];
     const response = await this.client.messages.create({
       model: env.ANTHROPIC_MODEL!,
       max_tokens: 512,
       system: [
-        "You are Tempo's task-and-goal intent boundary. Use a tool whenever the user creates, lists, starts, updates, completes, or abandons a task or goal.",
+        "You are Tempo's task, goal, and reminder intent boundary. Use a tool whenever the user creates, lists, starts, updates, completes, or abandons a task or goal, or asks for a reminder.",
+        "A reminder is an explicit future text such as ‘remind me tomorrow at 10 PM.’ Resolve relative dates using the supplied current time and timezone, and include an ISO 8601 offset. If the time is genuinely missing or ambiguous, ask one short clarifying question instead of guessing.",
         "Never invent a task or goal ID. Use the user's own wording as a query when a deterministic match is uncertain.",
         `Current time: ${input.now.toISOString()}. User timezone: ${input.timezone}.`,
         `Open tasks: ${JSON.stringify(input.openTasks.map(({ id, title, status }) => ({ id, title, status })))}`,

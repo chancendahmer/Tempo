@@ -26,6 +26,7 @@ import {
 import { DrizzleInterventionRepository } from "./intervention-repository";
 import { DrizzleMessagingRepository } from "./messaging-repository";
 import { DrizzleMemoryRepository } from "./memory-repository";
+import { ensureDirectConversation } from "./messaging-identity-repository";
 import { DrizzleOutcomeRepository } from "./outcome-repository";
 import { DrizzleOutboundMessageRepository } from "./outbound-message-repository";
 
@@ -35,6 +36,7 @@ describe("intervention, outcome, and memory loop", () => {
   let userId: string;
   let taskId: string;
   let policyId: string;
+  let conversationId: string;
 
   beforeAll(async () => {
     client = new PGlite();
@@ -46,6 +48,10 @@ describe("intervention, outcome, and memory loop", () => {
       phoneE164: "+12025550175", onboardingState: "complete", timezone: "UTC",
     }).returning({ id: users.id });
     userId = user.id;
+    conversationId = (await ensureDirectConversation(database, {
+      userId,
+      phoneE164: "+12025550175",
+    })).conversationId;
     await database.insert(consentRecords).values({
       userId, status: "granted", channel: "web", disclosureVersion: "test", termsVersion: "test", privacyVersion: "test",
     });
@@ -143,7 +149,7 @@ describe("intervention, outcome, and memory loop", () => {
   it("attributes outcomes, learns only after repeated evidence, and supersedes old learning", async () => {
     const outcomes = new DrizzleOutcomeRepository(database);
     const messageRows = await database.insert(conversationMessages).values([1, 2, 3].map((index) => ({
-      userId, direction: "inbound" as const, kind: "user" as const, status: "processed" as const,
+      userId, conversationId, direction: "inbound" as const, kind: "user" as const, status: "processed" as const,
       body: index < 3 ? "That helped" : "Wrong nudge",
     }))).returning({ id: conversationMessages.id });
 
@@ -184,7 +190,7 @@ describe("intervention, outcome, and memory loop", () => {
 
   it("lets the user supersede and delete remembered preferences", async () => {
     const [source] = await database.insert(conversationMessages).values({
-      userId, direction: "inbound", kind: "user", status: "processed", body: "Actually, I prefer gentle reminders",
+      userId, conversationId, direction: "inbound", kind: "user", status: "processed", body: "Actually, I prefer gentle reminders",
     }).returning({ id: conversationMessages.id });
     const service = new MemoryService(new DrizzleMemoryRepository(database));
     expect(await service.tryHandleCorrection({
@@ -210,7 +216,7 @@ describe("intervention, outcome, and memory loop", () => {
       status: "sent", idempotencyKey: "reschedule-confirmation", sentAt: new Date("2026-08-18T16:00:00Z"),
     }).returning({ id: interventions.id });
     const [replyMessage] = await database.insert(conversationMessages).values({
-      userId, direction: "inbound", kind: "user", status: "processing", body: "YES",
+      userId, conversationId, direction: "inbound", kind: "user", status: "processing", body: "YES",
     }).returning({ id: conversationMessages.id });
     const reply = await new OutcomeTracker(new DrizzleOutcomeRepository(database)).tryHandleStandaloneReply({
       userId, messageId: replyMessage.id, body: "YES", now: new Date("2026-08-18T16:01:00Z"),

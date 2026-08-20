@@ -1,8 +1,10 @@
 import { z } from "zod";
 import { requireEnv } from "../../config/env";
-import { MessagingTransport, SendMessageInput } from "./sms-transport";
+import { MessagingTransport, SendMessageInput, TEXT_ONLY_CAPABILITIES } from "./sms-transport";
 
 const linqSendResponseSchema = z.object({
+  chat_id: z.string().min(1).optional(),
+  from: z.string().min(1).optional(),
   message: z.object({
     id: z.string().min(1),
     delivery_status: z.string().min(1),
@@ -33,19 +35,32 @@ export class LinqApiError extends Error {
 export class LinqMessagingTransport implements MessagingTransport {
   constructor(private readonly request: typeof fetch = fetch) {}
 
+  // Capabilities describe what this adapter implements today, not every feature
+  // the Linq platform may expose. Rich methods can be enabled independently.
+  getCapabilities() {
+    return { ...TEXT_ONLY_CAPABILITIES, media: true, contactCards: true, inlineReplies: true };
+  }
+
   async send(input: SendMessageInput) {
     const env = requireEnv(["LINQ_API_KEY"]);
-    const response = await this.request(`${env.LINQ_API_BASE_URL}/messages`, {
+    const response = await this.request(
+      input.providerConversationId
+        ? `${env.LINQ_API_BASE_URL}/chats/${encodeURIComponent(input.providerConversationId)}/messages`
+        : `${env.LINQ_API_BASE_URL}/messages`,
+      {
       method: "POST",
       headers: {
         Authorization: `Bearer ${env.LINQ_API_KEY!}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        to: [input.to],
+        ...(!input.providerConversationId ? { to: [input.to] } : {}),
         message: {
           parts: [{ type: "text", value: input.body }],
           idempotency_key: input.idempotencyKey,
+          ...(input.replyToProviderMessageId
+            ? { reply_to: { message_id: input.replyToProviderMessageId } }
+            : {}),
         },
       }),
     });
@@ -63,12 +78,16 @@ export class LinqMessagingTransport implements MessagingTransport {
       );
     }
 
-    const sent = linqSendResponseSchema.parse(payload).message;
+    const parsed = linqSendResponseSchema.parse(payload);
+    const sent = parsed.message;
     return {
       provider: "linq" as const,
       providerMessageSid: sent.id,
       status: sent.delivery_status,
       service: sent.service,
+      providerConversationId: parsed.chat_id ?? input.providerConversationId,
+      providerThreadId: input.providerThreadId,
+      ...(parsed.from ? { providerLineAddress: parsed.from } : {}),
     };
   }
 }

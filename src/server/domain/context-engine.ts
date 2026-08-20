@@ -57,6 +57,12 @@ export type ContextSignals = {
   preferredCoachingStyle?: "micro_start" | "direct_nudge" | "task_breakdown" | "body_doubling" | "reschedule" | null;
   repeatedNonStarts: number;
   bodyDoublingAffinity: boolean;
+  extensionSignals?: Array<{
+    extensionKey: string;
+    signalType: string;
+    payload: Record<string, unknown>;
+    confidence?: number | null;
+  }>;
   tasks: ContextTask[];
 };
 
@@ -161,6 +167,7 @@ export function evaluateContext(input: {
   const opportunityKey = `${signals.userId}|${policy.version}|${Math.floor(now.getTime() / 900_000)}|${task?.id ?? "none"}`;
   const randomizedBucket = interventionBucket(opportunityKey);
   const local = localTime(now, signals.timezone);
+  const effectiveCooldownMinutes = Math.max(5, signals.interventionCooldownMinutes);
   const reasonCodes: string[] = [];
 
   if (signals.status !== "active") reasonCodes.push(`user_${signals.status}`);
@@ -168,6 +175,7 @@ export function evaluateContext(input: {
   if (!signals.onboardingComplete) reasonCodes.push("onboarding_incomplete");
   if (signals.pausedUntil && signals.pausedUntil > now) reasonCodes.push("user_paused");
   if (isQuietTime(now, signals.timezone, signals.quietHoursStart, signals.quietHoursEnd)) reasonCodes.push("quiet_hours");
+  if (!signals.calendarAvailable) reasonCodes.push("calendar_unavailable");
   if (signals.calendarBusy) reasonCodes.push("calendar_busy");
   if (!task) reasonCodes.push("no_actionable_task");
   if (signals.dailyInterventionCount >= signals.dailyInterventionCap) reasonCodes.push("daily_cap_reached");
@@ -175,7 +183,7 @@ export function evaluateContext(input: {
   if (
     signals.minutesSinceLastIntervention !== null &&
     signals.minutesSinceLastIntervention !== undefined &&
-    signals.minutesSinceLastIntervention < signals.interventionCooldownMinutes
+    signals.minutesSinceLastIntervention < effectiveCooldownMinutes
   ) reasonCodes.push("cooldown_active");
 
   const urgencySignal = task ? urgency(task, now, policy.settings.dueHorizonHours) : 0;
@@ -189,7 +197,7 @@ export function evaluateContext(input: {
   const responseRateSignal = clamp01(signals.responseRate);
   const recentContactSignal = signals.minutesSinceLastIntervention == null
     ? 0
-    : clamp01(1 - signals.minutesSinceLastIntervention / Math.max(1, signals.interventionCooldownMinutes * 2));
+    : clamp01(1 - signals.minutesSinceLastIntervention / Math.max(1, effectiveCooldownMinutes * 2));
   const scoreBreakdown = {
     taskUrgency: urgencySignal * policy.weights.taskUrgency,
     freeTime: freeTimeSignal * policy.weights.freeTime,
@@ -215,6 +223,7 @@ export function evaluateContext(input: {
     scoreBreakdown,
     inputs: {
       policyVersion: policy.version,
+      scorePercent: Math.round(score * 100),
       localTimeBucket: local.bucket,
       localDate: local.date,
       freeMinutes: signals.freeMinutes,
@@ -223,10 +232,12 @@ export function evaluateContext(input: {
       dailyInterventionCount: signals.dailyInterventionCount,
       dailyInterventionCap: signals.dailyInterventionCap,
       minutesSinceLastIntervention: signals.minutesSinceLastIntervention ?? null,
+      effectiveCooldownMinutes,
       responseRate: signals.responseRate,
       selectedTaskStatus: task?.status ?? null,
       selectedTaskDueAt: task?.dueAt?.toISOString() ?? null,
       selectedTaskEstimatedMinutes: task?.estimatedMinutes ?? null,
+      extensionSignals: signals.extensionSignals ?? [],
       opportunityKey,
     },
     randomizedBucket,

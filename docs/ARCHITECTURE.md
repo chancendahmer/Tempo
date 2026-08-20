@@ -29,17 +29,27 @@ Route handlers and job handlers may call domain services. Domain services must n
 
 Sendblue is the active sandbox-demo adapter, using a configured shared line, REST delivery, contact preparation, and authenticated receive/status webhooks. Linq remains available for managed line selection, while Twilio remains an optional RCS/SMS adapter behind the same transport contract. Provider and provider-message ID are stored together so identifiers from different providers cannot collide.
 
-Task, goal, memory, and rescheduling changes cross a validated command boundary before repositories mutate data. Source-message identifiers make retries idempotent and preserve an audit trail. Ambiguous task or goal references are held as conversation state until the user chooses one. Rescheduling likewise stores a concrete calendar-derived proposal and changes the due date only after confirmation.
+Task, goal, reminder, memory, and rescheduling changes cross a validated command boundary before repositories mutate data. Source-message identifiers make retries idempotent and preserve an audit trail. Explicit reminders become durable scheduled actions with exact instants, independent from proactive scoring. Ambiguous task or goal references are held as conversation state until the user chooses one. Rescheduling likewise stores a concrete calendar-derived proposal and changes the due date only after confirmation.
+
+## Identity and conversation ownership
+
+Tempo is the system of record for users, verified identities, conversations, participants, messages, relations, polls, and agent state. Provider accounts, lines, chats, threads, and message identifiers are stored as bindings to Tempo UUIDs. A provider change never changes task, calendar, memory, intervention, or account ownership.
+
+The AI receives a bounded window of Tempo conversation history. Provider thread metadata enriches that history through message relations when available; a provider transcript is never the canonical memory source. See `docs/MESSAGING_PROVIDERS.md` for the provider contract and cutover procedure.
 
 ## Decision pipeline
 
-Autonomous messaging uses three deterministic stages:
+Autonomous messaging uses a hybrid pipeline:
 
 1. **Eligibility:** consent, active status, quiet hours, cooldown, daily cap, pending intervention, and calendar-busy checks.
 2. **Task selection:** choose the best actionable task from explicit user data.
 3. **Moment score:** compute a versioned score and reason breakdown.
 
-Only after all three stages authorize a send may the LLM draft a message. The model cannot override eligibility rules.
+4. **AI review:** a bounded reviewer may veto, but never override, deterministic eligibility.
+5. **Atomic claim:** lock the user and enforce the configured cooldown with a five-minute hard minimum.
+6. **Message composition:** draft one short nudge and append deterministic accountability choices.
+
+The recurring evaluation cadence is five minutes per active user. Calendar free/busy data refreshes independently and expires rather than being interpreted as free when stale. Future integrations publish typed, expiring records through the extension-signal boundary. See `docs/HYBRID_INTERVENTION_SYSTEM.md`.
 
 ## Reliability rules
 
@@ -65,7 +75,7 @@ Only after all three stages authorize a send may the LLM draft a message. The mo
 ## Model rules
 
 - Structured actions use validated tool calls.
-- Validated actions cover tasks, goals, and reschedule requests; repositories enforce user ownership independently of model output.
+- Validated actions cover tasks, goals, reminders, and reschedule requests; repositories enforce user ownership independently of model output.
 - Ambiguous destructive updates require confirmation.
 - Model output is untrusted input and is schema-validated.
 - Prompts and model names are versioned on generated interventions.

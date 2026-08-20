@@ -2,6 +2,7 @@ import { PgBoss } from "pg-boss";
 import { GoogleCalendarProvider } from "../../adapters/calendar/google-calendar-provider";
 import { requireEnv } from "../../config/env";
 import { DrizzleCalendarSyncRepository } from "../../db/repositories/calendar-sync-repository";
+import { DrizzleExtensionSignalRepository } from "../../db/repositories/extension-signal-repository";
 import { syncCalendar } from "../../domain/calendar-sync";
 import { logger } from "../../observability/logger";
 import { JOB_NAMES, SyncCalendarJob } from "../names";
@@ -17,6 +18,7 @@ export async function registerSyncCalendarHandler(boss: PgBoss) {
         const result = await syncCalendar({
           userId: job.data.userId,
           repository: new DrizzleCalendarSyncRepository(),
+          signalRepository: new DrizzleExtensionSignalRepository(),
           provider: new GoogleCalendarProvider(),
           encryptionKey: env.FIELD_ENCRYPTION_KEY!,
         });

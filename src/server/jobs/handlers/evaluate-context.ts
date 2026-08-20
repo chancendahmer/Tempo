@@ -2,12 +2,13 @@ import { PgBoss } from "pg-boss";
 import { getServerEnv } from "../../config/env";
 import { DrizzleContextEngineRepository } from "../../db/repositories/context-engine-repository";
 import { DrizzleInterventionRepository } from "../../db/repositories/intervention-repository";
+import { AnthropicInterventionDecisionReviewer } from "../../adapters/llm/intervention-decision-reviewer";
 import { evaluateUserContext } from "../../domain/context-evaluation-service";
 import { logger } from "../../observability/logger";
 import { EvaluateContextJob, JOB_NAMES } from "../names";
 import { ScheduledActionRepository } from "../scheduled-action-repository";
 
-const EVALUATION_INTERVAL_MS = 15 * 60_000;
+const EVALUATION_INTERVAL_MS = 5 * 60_000;
 
 export async function registerEvaluateContextHandler(boss: PgBoss) {
   await boss.work<EvaluateContextJob>(JOB_NAMES.evaluateContext, { localConcurrency: 4 }, async (jobs) => {
@@ -15,11 +16,14 @@ export async function registerEvaluateContextHandler(boss: PgBoss) {
       const actions = new ScheduledActionRepository();
       if (!(await actions.markRunning(job.data.scheduledActionId))) continue;
       try {
+        const env = getServerEnv();
+        const shadowMode = env.INTERVENTION_SHADOW_MODE || !env.AUTONOMOUS_SENDING_ENABLED;
         const result = await evaluateUserContext({
           userId: job.data.userId,
           repository: new DrizzleContextEngineRepository(),
-          shadowMode: getServerEnv().INTERVENTION_SHADOW_MODE || !getServerEnv().AUTONOMOUS_SENDING_ENABLED,
+          shadowMode,
           planner: new DrizzleInterventionRepository(),
+          reviewer: !shadowMode && env.HYBRID_AI_REVIEW_ENABLED ? new AnthropicInterventionDecisionReviewer() : undefined,
         });
         if (result.evaluated) {
           await actions.completeAndScheduleContextEvaluation(job.data.scheduledActionId, job.data.userId, new Date(Date.now() + EVALUATION_INTERVAL_MS));

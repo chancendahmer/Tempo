@@ -12,6 +12,15 @@ export interface InterventionOpportunityPlanner {
   }): Promise<string>;
 }
 
+export interface InterventionDecisionReviewer {
+  review(input: {
+    evaluation: ContextEvaluation;
+    signals: ContextSignals;
+    policy: ContextPolicy;
+    now: Date;
+  }): Promise<{ send: boolean; reason: string; model: string }>;
+}
+
 export interface ContextEngineRepository {
   getActivePolicy(): Promise<ContextPolicy>;
   loadSignals(userId: string, now: Date): Promise<ContextSignals | null>;
@@ -29,6 +38,7 @@ export async function evaluateUserContext(input: {
   repository: ContextEngineRepository;
   shadowMode: boolean;
   planner?: InterventionOpportunityPlanner;
+  reviewer?: InterventionDecisionReviewer;
   now?: Date;
 }) {
   const now = input.now ?? new Date();
@@ -37,7 +47,19 @@ export async function evaluateUserContext(input: {
     input.repository.loadSignals(input.userId, now),
   ]);
   if (!signals) return { evaluated: false as const, reason: "user_not_found" as const };
-  const evaluation = evaluateContext({ signals, policy, now, shadowMode: input.shadowMode });
+  let evaluation = evaluateContext({ signals, policy, now, shadowMode: input.shadowMode });
+  if (evaluation.decision === "send" && input.reviewer) {
+    const review = await input.reviewer.review({ evaluation, signals, policy, now });
+    evaluation = {
+      ...evaluation,
+      decision: review.send ? "send" : "blocked",
+      reasonCodes: [...evaluation.reasonCodes, review.send ? "ai_review_send" : "ai_review_skip"],
+      inputs: {
+        ...evaluation.inputs,
+        hybridReview: { send: review.send, reason: review.reason, model: review.model },
+      },
+    };
+  }
   const snapshot = await input.repository.saveSnapshot({
     userId: input.userId,
     taskId: evaluation.task?.id,

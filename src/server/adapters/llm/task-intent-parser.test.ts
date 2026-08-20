@@ -46,6 +46,17 @@ describe("Anthropic task tool boundary", () => {
     });
   });
 
+  it("validates an exact reminder instant through the same structured boundary", () => {
+    expect(parseTaskIntentResponse([{
+      type: "tool_use",
+      name: "create_reminder",
+      input: { text: "submit the report", remindAt: "2026-08-21T22:00:00-04:00" },
+    }])).toEqual({
+      kind: "command",
+      command: { type: "create_reminder", text: "submit the report", remindAt: "2026-08-21T22:00:00-04:00" },
+    });
+  });
+
   it("rejects an unknown tool name", () => {
     expect(() => parseTaskIntentResponse([{ type: "tool_use", name: "delete_everything", input: {} }])).toThrow(
       "Unsupported task tool",

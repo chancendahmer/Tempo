@@ -47,6 +47,7 @@ describe("Sendblue messaging transport", () => {
       providerMessageSid: "sendblue-message-1",
       status: "queued",
       service: "iMessage",
+      providerLineAddress: "+12025550111",
     });
     const [url, init] = request.mock.calls[0];
     expect(url).toBe("https://api.sendblue.com/api/send-message");

@@ -19,6 +19,7 @@ import { TempoDatabase } from "../client";
 import * as schema from "../schema";
 import {
   consentRecords,
+  calendarConnections,
   contextSnapshots,
   conversationMessages,
   interventionOutcomes,
@@ -122,6 +123,12 @@ describe("provider-free V1 journey", () => {
     expect(task.title).toBe("submit my lab report");
 
     const evaluationTime = new Date("2026-08-18T18:00:00Z");
+    await database.insert(calendarConnections).values({
+      userId: consent.userId,
+      encryptedRefreshToken: "test-only-encrypted-token",
+      status: "active",
+      lastSyncedAt: evaluationTime,
+    });
     await database.update(tasks).set({ dueAt: new Date("2026-08-18T17:00:00Z"), estimatedMinutes: 45 })
       .where(eq(tasks.id, task.id));
     const contextRepository = new DrizzleContextEngineRepository(database);

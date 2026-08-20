@@ -1,11 +1,80 @@
 import { and, desc, eq, gt, ilike, inArray, isNull } from "drizzle-orm";
 import { OutcomeRepository } from "../../domain/outcome-tracker";
 import { getDatabase, TempoDatabase } from "../client";
-import { contextSnapshots, interventionOutcomes, interventions, memoryEntries, scheduledActions, taskEvents, tasks, users } from "../schema";
+import { contextSnapshots, interventionAccountability, interventionOutcomes, interventions, memoryEntries, scheduledActions, taskEvents, tasks, users } from "../schema";
 import { localTime } from "../../domain/context-engine";
 
 export class DrizzleOutcomeRepository implements OutcomeRepository {
   constructor(private readonly database: TempoDatabase = getDatabase()) {}
+
+  async findPendingAccountability(userId: string, now: Date) {
+    const [row] = await this.database.select({
+      interventionId: interventions.id,
+      taskId: interventions.taskId,
+      status: interventionAccountability.status,
+    }).from(interventionAccountability)
+      .innerJoin(interventions, eq(interventions.id, interventionAccountability.interventionId))
+      .where(and(
+        eq(interventions.userId, userId),
+        inArray(interventions.status, ["sent", "delivered"]),
+        inArray(interventionAccountability.status, ["awaiting_initial", "snoozed", "followup_due", "followup_sent"]),
+        gt(interventions.createdAt, new Date(now.getTime() - 24 * 3_600_000)),
+      )).orderBy(desc(interventions.createdAt)).limit(1);
+    return row ? {
+      ...row,
+      status: row.status as "awaiting_initial" | "snoozed" | "followup_due" | "followup_sent",
+    } : null;
+  }
+
+  async snoozeAccountability(input: Parameters<NonNullable<OutcomeRepository["snoozeAccountability"]>>[0]) {
+    await this.database.transaction(async (transaction) => {
+      const snoozedUntil = new Date(input.now.getTime() + input.minutes * 60_000);
+      const [intervention] = await transaction.select({ userId: interventions.userId }).from(interventions)
+        .where(eq(interventions.id, input.interventionId)).limit(1);
+      if (!intervention) throw new Error("Intervention for accountability snooze was not found");
+      await transaction.update(interventionAccountability).set({
+        status: "snoozed",
+        snoozedUntil,
+        initialResponseMessageId: input.sourceMessageId,
+        initialResponseText: input.body,
+        updatedAt: input.now,
+      }).where(and(
+        eq(interventionAccountability.interventionId, input.interventionId),
+        eq(interventionAccountability.status, "awaiting_initial"),
+      ));
+      await transaction.insert(scheduledActions).values({
+        userId: intervention.userId,
+        interventionId: input.interventionId,
+        kind: "accountability_followup",
+        payload: { interventionId: input.interventionId },
+        idempotencyKey: `accountability-followup:${input.interventionId}`,
+        runAt: snoozedUntil,
+      }).onConflictDoNothing({ target: scheduledActions.idempotencyKey });
+    });
+  }
+
+  async resolveAccountability(input: Parameters<NonNullable<OutcomeRepository["resolveAccountability"]>>[0]) {
+    await this.database.transaction(async (transaction) => {
+      await transaction.update(interventionAccountability).set({
+        status: input.decision,
+        ...(input.stage === "initial" ? {
+          initialResponseMessageId: input.sourceMessageId,
+          initialResponseText: input.body,
+        } : {
+          followupResponseMessageId: input.sourceMessageId,
+          followupResponseText: input.body,
+        }),
+        updatedAt: input.now,
+      }).where(eq(interventionAccountability.interventionId, input.interventionId));
+      await transaction.update(scheduledActions).set({
+        status: "cancelled", completedAt: input.now, updatedAt: input.now,
+      }).where(and(
+        eq(scheduledActions.interventionId, input.interventionId),
+        eq(scheduledActions.kind, "accountability_followup"),
+        eq(scheduledActions.status, "scheduled"),
+      ));
+    });
+  }
 
   async findPending(userId: string, now: Date) {
     const [row] = await this.database.select({
@@ -125,6 +194,11 @@ export class DrizzleOutcomeRepository implements OutcomeRepository {
       }).onConflictDoNothing({ target: interventionOutcomes.interventionId });
       await transaction.update(interventions).set({ status: "expired", updatedAt: now })
         .where(and(eq(interventions.id, interventionId), inArray(interventions.status, ["sent", "delivered"])));
+      await transaction.update(interventionAccountability).set({ status: "expired", updatedAt: now })
+        .where(and(
+          eq(interventionAccountability.interventionId, interventionId),
+          inArray(interventionAccountability.status, ["awaiting_initial", "snoozed", "followup_due", "followup_sent"]),
+        ));
       await this.refreshResponseStats(transaction as unknown as TempoDatabase, intervention.userId, now);
     });
   }

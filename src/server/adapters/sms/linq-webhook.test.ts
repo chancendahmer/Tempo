@@ -44,20 +44,22 @@ describe("Linq webhook boundary", () => {
   });
 
   it("normalizes a direct inbound iMessage without retaining attachment URLs", () => {
-    expect(parseLinqWebhook({
+    const parsed = parseLinqWebhook({
       ...event("message.received"),
       data: {
         id: "message-1",
         direction: "inbound",
         service: "iMessage",
-        chat: { is_group: false, owner_handle: { handle: "+12025550132" } },
+        chat: { id: "chat-1", is_group: false, owner_handle: { handle: "+12025550132" } },
         sender_handle: { handle: "+12025550198" },
+        reply_to: { message_id: "message-parent", part_index: 0 },
         parts: [
           { type: "text", value: "  Start the report  " },
           { type: "media", url: "https://cdn.linqapp.com/private-file" },
         ],
       },
-    })).toEqual({
+    });
+    expect(parsed).toEqual({
       kind: "inbound",
       eventId: "event-1",
       input: {
@@ -67,8 +69,17 @@ describe("Linq webhook boundary", () => {
         to: "+12025550132",
         body: "Start the report",
         service: "iMessage",
+        providerConversationId: "chat-1",
+        providerThreadId: "message-parent",
+        replyToProviderMessageId: "message-parent",
+        contentParts: [
+          { type: "text", value: "Start the report" },
+          { type: "media" },
+        ],
+        rawMetadata: { traceId: "trace-1", partnerId: "partner-1" },
       },
     });
+    expect(JSON.stringify(parsed)).not.toContain("private-file");
   });
 
   it("maps delivery lifecycle events and safely ignores group chats", () => {
@@ -84,6 +95,7 @@ describe("Linq webhook boundary", () => {
         status: "failed",
         errorCode: "4001",
         errorMessage: "Delivery failed",
+        rawMetadata: { traceId: "trace-1", partnerId: "partner-1" },
       },
     });
     expect(parseLinqWebhook({

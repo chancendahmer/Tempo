@@ -33,9 +33,13 @@ import {
   proposeResolvedTaskReschedule,
   proposeTaskReschedule,
 } from "./reschedule-service";
+import { ConversationHistoryRepository } from "./conversation-history";
+import { ReminderCommand } from "./reminder-commands";
+import { ReminderRepository, executeReminderCommand } from "./reminder-service";
 
 export type InboundConversationContext = {
   messageId: string;
+  conversationId: string;
   userId: string;
   body: string;
   timezone: string;
@@ -69,6 +73,10 @@ function isRescheduleCommand(command: CoachingCommand): command is RescheduleCom
   return command.type === "reschedule_task";
 }
 
+function isReminderCommand(command: CoachingCommand): command is ReminderCommand {
+  return command.type.endsWith("_reminder") || command.type === "list_reminders";
+}
+
 export interface ConversationRepository {
   claimInbound(messageId: string, now: Date): Promise<InboundConversationContext | null>;
   releaseInbound(messageId: string): Promise<void>;
@@ -100,6 +108,8 @@ export class ConversationOrchestrator {
     private readonly outcomes?: OutcomeTracker,
     private readonly memories?: MemoryService,
     private readonly secureLinks?: SecureActionLinks,
+    private readonly history?: ConversationHistoryRepository,
+    private readonly reminders?: ReminderRepository,
   ) {}
 
   async process(messageId: string): Promise<{ processed: boolean }> {
@@ -277,7 +287,12 @@ export class ConversationOrchestrator {
           this.tasks.listForResolution(context.userId),
           this.goals.listForResolution(context.userId),
           this.memories?.retrieveRelevant(context.userId, now, 8) ?? Promise.resolve([]),
-        ]).then(([openTasks, openGoals, memories]) => this.intentParser.parse({
+          this.history?.getRecent({
+            conversationId: context.conversationId,
+            beforeMessageId: context.messageId,
+            limit: 12,
+          }) ?? Promise.resolve([]),
+        ]).then(([openTasks, openGoals, memories, history]) => this.intentParser.parse({
           message: context.body,
           timezone: context.timezone,
           now,
@@ -285,6 +300,7 @@ export class ConversationOrchestrator {
           openGoals,
           memories: memories.map((memory) => memory.content),
           customInstructions: context.profileInstructions ?? undefined,
+          history,
         }));
 
     if (intent.kind === "conversation") return intent.reply;
@@ -310,6 +326,15 @@ export class ConversationOrchestrator {
         now,
       });
       return this.handleRescheduleProposal(context, proposal, now, intent.command);
+    }
+    if (isReminderCommand(intent.command)) {
+      if (!this.reminders) return "Reminder scheduling is temporarily unavailable.";
+      return executeReminderCommand(this.reminders, intent.command, {
+        userId: context.userId,
+        sourceMessageId: context.messageId,
+        timezone: context.timezone,
+        now,
+      });
     }
     const result = await executeTaskCommand(this.tasks, intent.command, {
       userId: context.userId,

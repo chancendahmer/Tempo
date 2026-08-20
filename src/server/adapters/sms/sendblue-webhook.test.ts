@@ -60,4 +60,17 @@ describe("Sendblue webhook boundary", () => {
     expect(parseSendblueWebhook(webhook({ message_type: "group", group_id: "group-1" })))
       .toEqual({ kind: "ignored", reason: "group_chat", eventId: "sendblue-message-1:RECEIVED" });
   });
+
+  it("preserves Sendblue inline-reply relationships when the line exposes them", () => {
+    expect(parseSendblueWebhook(webhook({
+      reply_to: { message_handle: "sendblue-parent", part_index: 0 },
+      thread_originator: { message_handle: "sendblue-root", part: "0:0" },
+    }))).toEqual(expect.objectContaining({
+      kind: "inbound",
+      input: expect.objectContaining({
+        replyToProviderMessageId: "sendblue-parent",
+        providerThreadId: "sendblue-root",
+      }),
+    }));
+  });
 });

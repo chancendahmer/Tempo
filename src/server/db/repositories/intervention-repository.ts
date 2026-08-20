@@ -1,8 +1,8 @@
-import { and, desc, eq, gt, inArray, isNull, or } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, isNull, lte, ne, or, sql } from "drizzle-orm";
 import { MessagingProvider } from "../../adapters/sms/sms-transport";
 import { InterventionOpportunityPlanner } from "../../domain/context-evaluation-service";
 import { getDatabase, TempoDatabase } from "../client";
-import { conversationMessages, interventionOutcomes, interventions, memoryEntries, scheduledActions, tasks, users } from "../schema";
+import { conversationMessages, interventionAccountability, interventionOutcomes, interventions, memoryEntries, scheduledActions, tasks, users } from "../schema";
 
 export type InterventionDeliveryContext = {
   id: string;
@@ -92,10 +92,71 @@ export class DrizzleInterventionRepository implements InterventionOpportunityPla
     };
   }
 
+  async claimDelivery(interventionId: string, now = new Date()) {
+    return this.database.transaction(async (transaction) => {
+      const [current] = await transaction.select({
+        id: interventions.id,
+        userId: interventions.userId,
+        status: interventions.status,
+        configuredCooldown: users.interventionCooldownMinutes,
+      }).from(interventions).innerJoin(users, eq(users.id, interventions.userId))
+        .where(eq(interventions.id, interventionId)).limit(1);
+      if (!current || !["candidate", "queued"].includes(current.status)) return { claimed: false as const, reason: "not_candidate" };
+
+      await transaction.execute(sql`select id from ${users} where id = ${current.userId} for update`);
+      const cooldownMinutes = Math.max(5, current.configuredCooldown);
+      const [recent] = await transaction.select({ id: interventions.id }).from(interventions).where(and(
+        eq(interventions.userId, current.userId),
+        ne(interventions.id, current.id),
+        inArray(interventions.status, ["queued", "sent", "delivered", "responded", "expired"]),
+        gt(interventions.createdAt, new Date(now.getTime() - cooldownMinutes * 60_000)),
+      )).orderBy(desc(interventions.createdAt)).limit(1);
+      if (recent) return { claimed: false as const, reason: "cooldown_active" };
+
+      await transaction.update(interventions).set({ status: "queued", queuedAt: now, updatedAt: now })
+        .where(and(eq(interventions.id, current.id), inArray(interventions.status, ["candidate", "queued"])));
+      return { claimed: true as const, cooldownMinutes };
+    });
+  }
+
   async markQueued(interventionId: string, message: string, promptVersion: string, model: string) {
     await this.database.update(interventions).set({
       status: "queued", messageText: message, promptVersion, model, queuedAt: new Date(), updatedAt: new Date(),
-    }).where(and(eq(interventions.id, interventionId), eq(interventions.status, "candidate")));
+    }).where(and(eq(interventions.id, interventionId), inArray(interventions.status, ["candidate", "queued"])));
+  }
+
+  async startAccountability(interventionId: string, now = new Date()) {
+    await this.database.insert(interventionAccountability).values({
+      interventionId,
+      status: "awaiting_initial",
+      lastPromptAt: now,
+    }).onConflictDoNothing({ target: interventionAccountability.interventionId });
+  }
+
+  async getAccountabilityFollowupContext(interventionId: string, now = new Date()) {
+    const [row] = await this.database.select({
+      interventionId: interventions.id,
+      userId: interventions.userId,
+      taskTitle: tasks.title,
+      accountabilityStatus: interventionAccountability.status,
+    }).from(interventionAccountability)
+      .innerJoin(interventions, eq(interventions.id, interventionAccountability.interventionId))
+      .innerJoin(tasks, eq(tasks.id, interventions.taskId))
+      .where(and(
+        eq(interventionAccountability.interventionId, interventionId),
+        inArray(interventionAccountability.status, ["snoozed", "followup_due"]),
+        lte(interventionAccountability.snoozedUntil, now),
+      )).limit(1);
+    return row ?? null;
+  }
+
+  async markAccountabilityFollowupSent(interventionId: string, now = new Date()) {
+    await this.database.update(interventionAccountability).set({
+      status: "followup_sent", lastPromptAt: now, updatedAt: now,
+    }).where(and(
+      eq(interventionAccountability.interventionId, interventionId),
+      inArray(interventionAccountability.status, ["snoozed", "followup_due"]),
+    ));
   }
 
   async markSent(

@@ -1,12 +1,13 @@
 import { z } from "zod";
 import { requireEnv } from "../../config/env";
 import { normalizeE164 } from "../../domain/phone";
-import { MessagingTransport, SendMessageInput } from "./sms-transport";
+import { MessagingTransport, SendMessageInput, TEXT_ONLY_CAPABILITIES } from "./sms-transport";
 
 const sendblueSendResponseSchema = z.object({
   message_handle: z.string().min(1),
   status: z.string().min(1),
   service: z.enum(["iMessage", "RCS", "SMS"]).optional(),
+  from_number: z.string().optional(),
 }).passthrough();
 
 const sendblueErrorSchema = z.object({
@@ -30,6 +31,10 @@ export class SendblueApiError extends Error {
 export class SendblueMessagingTransport implements MessagingTransport {
   constructor(private readonly request: typeof fetch = fetch) {}
 
+  getCapabilities() {
+    return { ...TEXT_ONLY_CAPABILITIES, media: true, contactCards: true };
+  }
+
   async send(input: SendMessageInput) {
     const env = requireEnv([
       "SENDBLUE_API_KEY",
@@ -48,6 +53,9 @@ export class SendblueMessagingTransport implements MessagingTransport {
         number: normalizeE164(input.to),
         content: input.body,
         ...(input.mediaUrl ? { media_url: input.mediaUrl } : {}),
+        ...(input.replyToProviderMessageId
+          ? { reply_to: { message_handle: input.replyToProviderMessageId } }
+          : {}),
         ...(input.statusCallbackUrl ? { status_callback: input.statusCallbackUrl } : {}),
       }),
     });
@@ -71,6 +79,7 @@ export class SendblueMessagingTransport implements MessagingTransport {
       providerMessageSid: sent.message_handle,
       status: sent.status.toLowerCase(),
       service: sent.service,
+      providerLineAddress: sent.from_number ?? normalizeE164(env.SENDBLUE_PHONE_NUMBER!),
     };
   }
 }
