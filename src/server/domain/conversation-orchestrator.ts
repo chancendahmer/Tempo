@@ -11,7 +11,7 @@ import {
 } from "./task-service";
 import { TaskIntentParser } from "../adapters/llm/task-intent-parser";
 import { OutcomeTracker } from "./outcome-tracker";
-import { MemoryService } from "./memory-service";
+import { MemoryCommand, MemoryService } from "./memory-service";
 import { SecureActionLinks } from "../security/action-links";
 import { GoalCommand, parseGoalCommandHeuristically } from "./goal-commands";
 import {
@@ -34,7 +34,7 @@ import {
   proposeTaskReschedule,
 } from "./reschedule-service";
 import { ConversationHistoryRepository } from "./conversation-history";
-import { ReminderCommand } from "./reminder-commands";
+import { isExplicitReminderRequest, ReminderCommand } from "./reminder-commands";
 import { ReminderRepository, executeReminderCommand } from "./reminder-service";
 
 export type InboundConversationContext = {
@@ -75,6 +75,10 @@ function isRescheduleCommand(command: CoachingCommand): command is RescheduleCom
 
 function isReminderCommand(command: CoachingCommand): command is ReminderCommand {
   return command.type.endsWith("_reminder") || command.type === "list_reminders";
+}
+
+function isMemoryCommand(command: CoachingCommand): command is MemoryCommand {
+  return command.type === "remember_memory";
 }
 
 export interface ConversationRepository {
@@ -270,7 +274,7 @@ export class ConversationOrchestrator {
     if (memoryReply) return memoryReply;
 
     const heuristicCommand = parseRescheduleHeuristically(context.body)
-      ?? parseTaskCommandHeuristically(context.body, now)
+      ?? (isExplicitReminderRequest(context.body) ? null : parseTaskCommandHeuristically(context.body, now))
       ?? parseGoalCommandHeuristically(context.body);
     if (!heuristicCommand) {
       const feedbackReply = await this.outcomes?.tryHandleStandaloneReply({
@@ -286,7 +290,7 @@ export class ConversationOrchestrator {
       : await Promise.all([
           this.tasks.listForResolution(context.userId),
           this.goals.listForResolution(context.userId),
-          this.memories?.retrieveRelevant(context.userId, now, 8) ?? Promise.resolve([]),
+          this.memories?.retrieveRelevant(context.userId, now, 12) ?? Promise.resolve([]),
           this.history?.getRecent({
             conversationId: context.conversationId,
             beforeMessageId: context.messageId,
@@ -304,6 +308,15 @@ export class ConversationOrchestrator {
         }));
 
     if (intent.kind === "conversation") return intent.reply;
+    if (isMemoryCommand(intent.command)) {
+      if (!this.memories) return "Memory is temporarily unavailable.";
+      return this.memories.executeCommand({
+        userId: context.userId,
+        messageId: context.messageId,
+        command: intent.command,
+        now,
+      });
+    }
     if (isGoalCommand(intent.command)) {
       const result = await executeGoalCommand(this.goals, intent.command, {
         userId: context.userId,

@@ -527,6 +527,8 @@ export const reminders = pgTable(
     text: text("text").notNull(),
     remindAt: timestamp("remind_at", { withTimezone: true }).notNull(),
     timezone: text("timezone").notNull(),
+    recurrence: text("recurrence").$type<"daily" | "weekdays" | "weekly">(),
+    occurrenceCount: integer("occurrence_count").default(0).notNull(),
     status: reminderStatus("status").default("scheduled").notNull(),
     idempotencyKey: text("idempotency_key").notNull(),
     provider: messagingProvider("provider"),
@@ -540,6 +542,7 @@ export const reminders = pgTable(
     uniqueIndex("reminders_idempotency_key_unique").on(table.idempotencyKey),
     uniqueIndex("reminders_source_message_unique").on(table.sourceMessageId),
     index("reminders_user_status_time_idx").on(table.userId, table.status, table.remindAt),
+    check("reminders_recurrence_check", sql`${table.recurrence} is null or ${table.recurrence} in ('daily', 'weekdays', 'weekly')`),
   ],
 );
 

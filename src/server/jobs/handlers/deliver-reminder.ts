@@ -14,30 +14,34 @@ export async function registerDeliverReminderHandler(boss: PgBoss) {
       const reminders = new DrizzleReminderRepository();
       if (!(await actions.markRunning(job.data.scheduledActionId))) continue;
       try {
-        const reconciled = await reminders.reconcileDelivery(job.data.reminderId);
+        const occurrenceAt = new Date(job.data.occurrenceAt);
+        const reconciled = await reminders.reconcileDelivery(job.data.reminderId, occurrenceAt);
         if (reconciled === "sent" || reconciled === "missing") {
           await actions.markCompleted(job.data.scheduledActionId);
           continue;
         }
-        const reminder = await reminders.getDeliveryContext(job.data.reminderId);
+        const reminder = await reminders.getDeliveryContext(job.data.reminderId, occurrenceAt);
         if (!reminder) {
           await actions.markCompleted(job.data.scheduledActionId);
           continue;
         }
-        await reminders.markSending(reminder.id);
+        if (!(await reminders.markSending(reminder.id, occurrenceAt))) {
+          await actions.markCompleted(job.data.scheduledActionId);
+          continue;
+        }
         const result = await new SafeSmsSender(new DrizzleOutboundMessageRepository(), createMessagingTransport()).send({
           userId: reminder.userId,
           body: `Reminder: ${reminder.text}`,
           kind: "coach",
-          idempotencyKey: `reminder-sms:${reminder.id}`,
+          idempotencyKey: reminders.getOccurrenceIdempotencyKey(reminder.id, occurrenceAt),
           relatedReminderId: reminder.id,
         });
         if (result.sent) {
-          await reminders.markSent(reminder.id, result.provider, result.providerMessageSid);
+          await reminders.recordSuccessfulDelivery(reminder, occurrenceAt, result.provider, result.providerMessageSid);
           await actions.markCompleted(job.data.scheduledActionId);
           continue;
         }
-        if (result.reason === "duplicate" && await reminders.reconcileDelivery(reminder.id) === "sent") {
+        if (result.reason === "duplicate" && await reminders.reconcileDelivery(reminder.id, occurrenceAt) === "sent") {
           await actions.markCompleted(job.data.scheduledActionId);
           continue;
         }

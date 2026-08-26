@@ -36,6 +36,7 @@ export type DeliverReminderJob = {
   scheduledActionId: string;
   userId: string;
   reminderId: string;
+  occurrenceAt: string;
 };
 
 export type EvaluateContextJob = {

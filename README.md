@@ -29,6 +29,7 @@ Autonomous sending requires both `INTERVENTION_SHADOW_MODE=false` and `AUTONOMOU
 
 ## Documentation
 
+- `docs/AI_CONTEXT.md` — on-demand subsystem router and concise agent task brief
 - `docs/ARCHITECTURE.md` — runtime, boundaries, privacy, reliability, and experiment rules
 - `docs/MESSAGING_PROVIDERS.md` — Tempo-owned conversations, provider capabilities, and cutover procedure
 - `docs/HYBRID_INTERVENTION_SYSTEM.md` — durable reminders, proactive scoring, AI review, accountability, and extension signals

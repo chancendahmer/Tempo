@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parseTaskIntentResponse } from "./task-intent-parser";
+import { isExplicitReminderRequest } from "../../domain/reminder-commands";
 
 describe("Anthropic task tool boundary", () => {
   it("validates a tool-use block into a command", () => {
@@ -54,6 +55,24 @@ describe("Anthropic task tool boundary", () => {
     }])).toEqual({
       kind: "command",
       command: { type: "create_reminder", text: "submit the report", remindAt: "2026-08-21T22:00:00-04:00" },
+    });
+  });
+
+  it("recognizes explicit future outreach wording as reminder intent", () => {
+    expect(isExplicitReminderRequest("Remind me tomorrow at 10 PM to call Mom")).toBe(true);
+    expect(isExplicitReminderRequest("Text me Friday morning about the report")).toBe(true);
+    expect(isExplicitReminderRequest("Check in with me in 20 minutes")).toBe(true);
+    expect(isExplicitReminderRequest("I need to call Mom tomorrow")).toBe(false);
+  });
+
+  it("validates a structured durable memory action", () => {
+    expect(parseTaskIntentResponse([{
+      type: "tool_use",
+      name: "remember_memory",
+      input: { content: "Favorite food: pizza.", category: "preference" },
+    }])).toEqual({
+      kind: "command",
+      command: { type: "remember_memory", content: "Favorite food: pizza.", category: "preference" },
     });
   });
 

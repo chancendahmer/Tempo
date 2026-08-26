@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
-import { ReminderRepository, executeReminderCommand } from "./reminder-service";
+import { ReminderRepository, executeReminderCommand, nextRecurringOccurrence } from "./reminder-service";
 
 describe("reminder service", () => {
   it("persists an exact future instant and confirms it in the user's timezone", async () => {
     const create = vi.fn(async (input: Parameters<ReminderRepository["create"]>[0]) => ({
-      id: "r1", text: input.text, remindAt: input.remindAt, timezone: input.timezone, status: "scheduled" as const,
+      id: "r1", text: input.text, remindAt: input.remindAt, timezone: input.timezone,
+      recurrence: input.recurrence ?? null, occurrenceCount: 0, status: "scheduled" as const,
     }));
     const repository: ReminderRepository = {
       findBySourceMessage: async () => null,
@@ -21,6 +22,19 @@ describe("reminder service", () => {
     });
     expect(create).toHaveBeenCalledWith(expect.objectContaining({ remindAt: new Date("2026-08-22T02:00:00Z") }));
     expect(reply).toContain("10:00 PM EDT");
+  });
+
+  it("keeps recurring reminders at the same local time across DST and skips weekends", () => {
+    expect(nextRecurringOccurrence(
+      new Date("2027-03-13T14:00:00Z"),
+      "America/New_York",
+      "daily",
+    )).toEqual(new Date("2027-03-14T13:00:00Z"));
+    expect(nextRecurringOccurrence(
+      new Date("2026-08-21T13:00:00Z"),
+      "America/New_York",
+      "weekdays",
+    )).toEqual(new Date("2026-08-24T13:00:00Z"));
   });
 
   it("rejects a model-generated reminder instant that is already in the past", async () => {

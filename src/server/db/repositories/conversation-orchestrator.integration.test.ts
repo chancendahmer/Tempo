@@ -19,6 +19,8 @@ import {
   goalEvents,
   goals,
   memoryEntries,
+  reminders,
+  scheduledActions,
   taskEvents,
   tasks,
   users,
@@ -30,6 +32,7 @@ import { DrizzleMemoryRepository } from "./memory-repository";
 import { ensureDirectConversation } from "./messaging-identity-repository";
 import { DrizzleSchedulingRepository } from "./scheduling-repository";
 import { DrizzleOutboundMessageRepository } from "./outbound-message-repository";
+import { DrizzleReminderRepository } from "./reminder-repository";
 import { DrizzleTaskRepository } from "./task-repository";
 
 describe("inbound conversation orchestration", () => {
@@ -79,6 +82,7 @@ describe("inbound conversation orchestration", () => {
       new MemoryService(new DrizzleMemoryRepository(database)),
       undefined,
       new DrizzleConversationHistoryRepository(database),
+      new DrizzleReminderRepository(database),
     );
   }
 
@@ -273,6 +277,76 @@ describe("inbound conversation orchestration", () => {
       confidence: 1,
     });
     expect(transport.sent[0].body).toContain("remember that");
+  });
+
+  it("keeps favorite foods as durable preferences without creating tasks", async () => {
+    const user = await consentedUser("+14155550126", "complete");
+    const messages = await database.insert(conversationMessages).values([
+      {
+        userId: user.id, conversationId: user.conversationId, direction: "inbound", kind: "user", status: "received",
+        body: "I want you to keep a log of my favorite foods and help me choose meals",
+      },
+      {
+        userId: user.id, conversationId: user.conversationId, direction: "inbound", kind: "user", status: "received",
+        body: "Add chicken tikka masala to my favorite foods",
+      },
+      {
+        userId: user.id, conversationId: user.conversationId, direction: "inbound", kind: "user", status: "received",
+        body: "Pizza",
+      },
+    ]).returning();
+    const transport = new TestSmsTransport("FOODMEMORY");
+    const parser: TaskIntentParser = {
+      parse: vi.fn(async () => ({
+        kind: "command" as const,
+        command: { type: "remember_memory" as const, content: "Favorite food: pizza.", category: "preference" as const },
+      })),
+    };
+    const coach = orchestrator(transport, parser);
+
+    await coach.process(messages[0].id);
+    await coach.process(messages[1].id);
+    await coach.process(messages[2].id);
+
+    const stored = await database.select().from(memoryEntries).where(eq(memoryEntries.userId, user.id));
+    const createdTasks = await database.select().from(tasks).where(eq(tasks.userId, user.id));
+    expect(stored.map((memory) => memory.content)).toEqual([
+      "The user wants Tempo to maintain a running favorite-food list and use it for meal suggestions.",
+      "Favorite food: chicken tikka masala.",
+      "Favorite food: pizza.",
+    ]);
+    expect(createdTasks).toHaveLength(0);
+    expect(parser.parse).toHaveBeenCalledTimes(1);
+    expect(transport.sent.map((message) => message.body)).toEqual([
+      expect.stringContaining("favorite-food list"),
+      "Added to your favorite-food list: chicken tikka masala.",
+      "Added to your favorite-food list: pizza.",
+    ]);
+  });
+
+  it("stores an explicit outreach request as a durable reminder, not a task", async () => {
+    const user = await consentedUser("+14155550125", "complete");
+    const [message] = await database.insert(conversationMessages).values({
+      userId: user.id, conversationId: user.conversationId, direction: "inbound", kind: "user", status: "received",
+      body: "Text me tomorrow at 10 PM to take my medication",
+    }).returning();
+    const parser: TaskIntentParser = {
+      parse: vi.fn(async () => ({
+        kind: "command" as const,
+        command: { type: "create_reminder" as const, text: "take my medication", remindAt: "2026-08-19T22:00:00-04:00" },
+      })),
+    };
+    const transport = new TestSmsTransport("REMINDERFLOW");
+
+    await orchestrator(transport, parser).process(message.id);
+
+    const [stored] = await database.select().from(reminders).where(eq(reminders.sourceMessageId, message.id));
+    const [action] = await database.select().from(scheduledActions).where(eq(scheduledActions.reminderId, stored.id));
+    const createdTasks = await database.select().from(tasks).where(eq(tasks.userId, user.id));
+    expect(stored).toMatchObject({ text: "take my medication", status: "scheduled" });
+    expect(action).toMatchObject({ kind: "deliver_reminder", status: "scheduled", runAt: stored.remindAt });
+    expect(createdTasks).toHaveLength(0);
+    expect(transport.sent[0].body).toContain("Reminder set for");
   });
 
   it("proposes a concrete fresh-calendar slot and updates the task only after confirmation", async () => {
