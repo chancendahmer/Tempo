@@ -39,6 +39,23 @@ describe("Sendblue webhook boundary", () => {
     });
   });
 
+  it("treats Sendblue's blank optional media URL as absent", () => {
+    expect(parseSendblueWebhook(webhook({ media_url: "" }))).toEqual({
+      kind: "inbound",
+      eventId: "sendblue-message-1:RECEIVED",
+      input: {
+        provider: "sendblue",
+        providerMessageId: "sendblue-message-1",
+        from: "+12025550198",
+        to: "+12025550111",
+        body: "Start the report",
+        service: "iMessage",
+      },
+    });
+    expect(parseSendblueWebhook(webhook({ media_url: "   " }))).toEqual(expect.objectContaining({ kind: "inbound" }));
+    expect(() => parseSendblueWebhook(webhook({ media_url: "not-a-url" }))).toThrow("Invalid URL");
+  });
+
   it("maps delivery failures and ignores group conversations", () => {
     expect(parseSendblueWebhook(webhook({
       is_outbound: true,

@@ -3,6 +3,10 @@ import { z } from "zod";
 import { DeliveryProviderMessage, InboundProviderMessage, StoredMessageStatus } from "../../domain/messaging";
 
 const serviceSchema = z.enum(["iMessage", "RCS", "SMS"]);
+const optionalProviderUrl = z.preprocess(
+  (value) => typeof value === "string" && value.trim() === "" ? undefined : value,
+  z.string().trim().url().nullish(),
+);
 const sendblueWebhookSchema = z.object({
   content: z.string().nullish(),
   is_outbound: z.boolean(),
@@ -17,7 +21,7 @@ const sendblueWebhookSchema = z.object({
   sendblue_number: z.string().nullish(),
   service: serviceSchema.nullish(),
   message_type: z.string().nullish(),
-  media_url: z.string().url().nullish(),
+  media_url: optionalProviderUrl,
   group_id: z.string().nullish(),
   reply_to: z.object({
     message_handle: z.string().min(1),
