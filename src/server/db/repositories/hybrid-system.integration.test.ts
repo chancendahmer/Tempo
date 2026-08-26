@@ -86,6 +86,49 @@ describe("hybrid reminder and accountability infrastructure", () => {
     expect(action).toMatchObject({ kind: "deliver_reminder", status: "scheduled", runAt: stored.remindAt });
   });
 
+  it("advances a recurring reminder and durably schedules its next occurrence", async () => {
+    const { userId, conversationId } = await createUser("+12025550204");
+    const [source] = await database.insert(conversationMessages).values({
+      userId, conversationId, direction: "inbound", kind: "user", status: "processing",
+      body: "Text me every morning at 8 to take my medication",
+    }).returning({ id: conversationMessages.id });
+    const occurrenceAt = new Date("2026-08-21T12:00:00Z");
+    const repository = new DrizzleReminderRepository(database);
+    await executeReminderCommand(repository, {
+      type: "create_reminder",
+      text: "take my medication",
+      remindAt: "2026-08-21T08:00:00-04:00",
+      recurrence: "daily",
+    }, {
+      userId,
+      sourceMessageId: source.id,
+      timezone: "America/New_York",
+      now: new Date("2026-08-20T12:00:00Z"),
+    });
+    const [created] = await database.select().from(reminders).where(eq(reminders.sourceMessageId, source.id));
+    expect(await repository.markSending(created.id, occurrenceAt, occurrenceAt)).toBe(true);
+    const delivery = await repository.getDeliveryContext(created.id, occurrenceAt);
+    expect(delivery).not.toBeNull();
+    await repository.recordSuccessfulDelivery(
+      delivery!,
+      occurrenceAt,
+      "sendblue",
+      "recurring-provider-message",
+      new Date("2026-08-21T12:01:00Z"),
+    );
+
+    const [advanced] = await database.select().from(reminders).where(eq(reminders.id, created.id));
+    const actions = await database.select().from(scheduledActions).where(eq(scheduledActions.reminderId, created.id));
+    expect(advanced).toMatchObject({
+      status: "scheduled",
+      recurrence: "daily",
+      occurrenceCount: 1,
+      remindAt: new Date("2026-08-22T12:00:00Z"),
+    });
+    expect(actions).toHaveLength(2);
+    expect(actions.some((action) => action.runAt.getTime() === advanced.remindAt.getTime())).toBe(true);
+  });
+
   it("persists Give me 15 and resolves the second commitment into task progress", async () => {
     const { userId, conversationId } = await createUser("+12025550202");
     const [task] = await database.insert(tasks).values({ userId, title: "Finish report" }).returning({ id: tasks.id });

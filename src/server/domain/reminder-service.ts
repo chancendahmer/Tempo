@@ -5,6 +5,8 @@ export type ReminderRecord = {
   text: string;
   remindAt: Date;
   timezone: string;
+  recurrence: "daily" | "weekdays" | "weekly" | null;
+  occurrenceCount: number;
   status: "scheduled" | "sending" | "sent" | "cancelled" | "failed";
 };
 
@@ -16,6 +18,7 @@ export interface ReminderRepository {
     text: string;
     remindAt: Date;
     timezone: string;
+    recurrence?: "daily" | "weekdays" | "weekly";
     taskId?: string;
   }): Promise<ReminderRecord>;
   listUpcoming(userId: string, now: Date): Promise<ReminderRecord[]>;
@@ -38,6 +41,82 @@ export function formatReminderTime(date: Date, timezone: string): string {
   }).format(date);
 }
 
+type LocalDateTime = { year: number; month: number; day: number; hour: number; minute: number; second: number };
+
+function localParts(date: Date, timezone: string): LocalDateTime {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const value = (type: Intl.DateTimeFormatPartTypes) => Number(parts.find((part) => part.type === type)?.value);
+  return { year: value("year"), month: value("month"), day: value("day"), hour: value("hour"), minute: value("minute"), second: value("second") };
+}
+
+function localDateTimeToUtc(target: LocalDateTime, timezone: string): Date {
+  const targetEpoch = Date.UTC(target.year, target.month - 1, target.day, target.hour, target.minute, target.second);
+  let candidate = targetEpoch;
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const actual = localParts(new Date(candidate), timezone);
+    const actualEpoch = Date.UTC(actual.year, actual.month - 1, actual.day, actual.hour, actual.minute, actual.second);
+    const adjustment = targetEpoch - actualEpoch;
+    if (adjustment === 0) break;
+    candidate += adjustment;
+  }
+  return new Date(candidate);
+}
+
+function addLocalDays(date: Date, timezone: string, days: number): Date {
+  const current = localParts(date, timezone);
+  const shifted = new Date(Date.UTC(
+    current.year,
+    current.month - 1,
+    current.day + days,
+    current.hour,
+    current.minute,
+    current.second,
+  ));
+  return localDateTimeToUtc({
+    year: shifted.getUTCFullYear(),
+    month: shifted.getUTCMonth() + 1,
+    day: shifted.getUTCDate(),
+    hour: shifted.getUTCHours(),
+    minute: shifted.getUTCMinutes(),
+    second: shifted.getUTCSeconds(),
+  }, timezone);
+}
+
+export function nextRecurringOccurrence(
+  occurrence: Date,
+  timezone: string,
+  recurrence: NonNullable<ReminderRecord["recurrence"]>,
+  after = occurrence,
+): Date {
+  let next = occurrence;
+  do {
+    next = addLocalDays(next, timezone, recurrence === "weekly" ? 7 : 1);
+    if (recurrence === "weekdays") {
+      while ([0, 6].includes(new Date(Date.UTC(
+        localParts(next, timezone).year,
+        localParts(next, timezone).month - 1,
+        localParts(next, timezone).day,
+      )).getUTCDay())) {
+        next = addLocalDays(next, timezone, 1);
+      }
+    }
+  } while (next <= after);
+  return next;
+}
+
+function recurrenceLabel(recurrence: ReminderRecord["recurrence"]): string {
+  return recurrence === "daily" ? "Daily" : recurrence === "weekdays" ? "Weekdays" : recurrence === "weekly" ? "Weekly" : "";
+}
+
 export async function executeReminderCommand(
   repository: ReminderRepository,
   command: ReminderCommand,
@@ -54,16 +133,18 @@ export async function executeReminderCommand(
       text: command.text,
       remindAt,
       timezone: context.timezone,
+      recurrence: command.recurrence,
       taskId: command.taskId,
     });
-    return `Reminder set for ${formatReminderTime(reminder.remindAt, reminder.timezone)}: ${reminder.text}`;
+    const prefix = reminder.recurrence ? `${recurrenceLabel(reminder.recurrence)} reminder starts` : "Reminder set for";
+    return `${prefix} ${formatReminderTime(reminder.remindAt, reminder.timezone)}: ${reminder.text}`;
   }
 
   if (command.type === "list_reminders") {
     const reminders = await repository.listUpcoming(context.userId, context.now);
     if (reminders.length === 0) return "You don’t have any upcoming reminders.";
     return reminders.slice(0, 8).map((reminder, index) =>
-      `${index + 1}. ${formatReminderTime(reminder.remindAt, reminder.timezone)} — ${reminder.text}`,
+      `${index + 1}. ${reminder.recurrence ? `${recurrenceLabel(reminder.recurrence)}, next ` : ""}${formatReminderTime(reminder.remindAt, reminder.timezone)} — ${reminder.text}`,
     ).join("\n");
   }
 

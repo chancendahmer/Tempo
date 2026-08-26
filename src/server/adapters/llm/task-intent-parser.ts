@@ -5,9 +5,10 @@ import { TaskCommand, TaskSummary, taskCommandSchema } from "../../domain/task-c
 import { GoalCommand, GoalSummary, goalCommandSchema } from "../../domain/goal-commands";
 import { RescheduleCommand, rescheduleCommandSchema } from "../../domain/reschedule-service";
 import { ConversationHistoryMessage } from "../../domain/conversation-history";
-import { ReminderCommand, reminderCommandSchema } from "../../domain/reminder-commands";
+import { isExplicitReminderRequest, ReminderCommand, reminderCommandSchema } from "../../domain/reminder-commands";
+import { MemoryCommand, memoryCommandSchema } from "../../domain/memory-service";
 
-export type CoachingCommand = TaskCommand | GoalCommand | RescheduleCommand | ReminderCommand;
+export type CoachingCommand = TaskCommand | GoalCommand | RescheduleCommand | ReminderCommand | MemoryCommand;
 export type TaskIntentResult = { kind: "command"; command: CoachingCommand } | { kind: "conversation"; reply: string };
 
 export interface TaskIntentParser {
@@ -162,6 +163,11 @@ export const TASK_TOOLS: Tool[] = [
       properties: {
         text: { type: "string", description: "What Tempo should remind the user about." },
         remindAt: { type: "string", format: "date-time", description: "Exact future ISO 8601 timestamp with an offset derived from the user's timezone." },
+        recurrence: {
+          type: "string",
+          enum: ["daily", "weekdays", "weekly"],
+          description: "Only set when the user explicitly requests a repeating daily, weekday, or weekly reminder.",
+        },
         taskId: { type: "string", format: "uuid", description: "Optional exact related task ID when known." },
       },
       required: ["text", "remindAt"],
@@ -185,6 +191,22 @@ export const TASK_TOOLS: Tool[] = [
       additionalProperties: false,
     },
   },
+  {
+    name: "remember_memory",
+    description: "Persist a durable, non-sensitive fact, pattern, or preference only when the user explicitly asks Tempo to remember/log it, states a clear lasting preference for future help, or answers Tempo's direct question asking what to add to a memory list.",
+    input_schema: {
+      type: "object",
+      properties: {
+        content: {
+          type: "string",
+          description: "A concise standalone statement, such as ‘Favorite food: chicken tikka masala.’ or ‘The user prefers one choice at a time.’",
+        },
+        category: { type: "string", enum: ["preference", "fact", "pattern"] },
+      },
+      required: ["content", "category"],
+      additionalProperties: false,
+    },
+  },
 ];
 
 type ResponseBlock =
@@ -199,10 +221,13 @@ export function parseTaskIntentResponse(blocks: ResponseBlock[]): TaskIntentResu
     if (!supportedNames.has(toolUse.name)) throw new Error(`Unsupported task tool: ${toolUse.name}`);
     const goalTool = toolUse.name.endsWith("_goal") || toolUse.name === "list_goals";
     const reminderTool = toolUse.name.endsWith("_reminder") || toolUse.name === "list_reminders";
+    const memoryTool = toolUse.name === "remember_memory";
     return {
       kind: "command",
       command: toolUse.name === "reschedule_task"
         ? rescheduleCommandSchema.parse({ type: toolUse.name, ...(toolUse.input as object) })
+        : memoryTool
+        ? memoryCommandSchema.parse({ type: toolUse.name, ...(toolUse.input as object) })
         : reminderTool
         ? reminderCommandSchema.parse({ type: toolUse.name, ...(toolUse.input as object) })
         : goalTool
@@ -229,6 +254,10 @@ export class AnthropicTaskIntentParser implements TaskIntentParser {
   async parse(input: Parameters<TaskIntentParser["parse"]>[0]): Promise<TaskIntentResult> {
     const env = requireEnv(["ANTHROPIC_API_KEY", "ANTHROPIC_MODEL"]);
     this.client ??= new Anthropic({ apiKey: env.ANTHROPIC_API_KEY! });
+    const explicitReminder = isExplicitReminderRequest(input.message);
+    const tools = explicitReminder
+      ? TASK_TOOLS.filter((tool) => tool.name === "create_reminder")
+      : TASK_TOOLS;
     const messages: MessageParam[] = [
       ...(input.history ?? []).slice(-12).map((message): MessageParam => ({
         role: message.role,
@@ -240,19 +269,26 @@ export class AnthropicTaskIntentParser implements TaskIntentParser {
       model: env.ANTHROPIC_MODEL!,
       max_tokens: 512,
       system: [
-        "You are Tempo's task, goal, and reminder intent boundary. Use a tool whenever the user creates, lists, starts, updates, completes, or abandons a task or goal, or asks for a reminder.",
-        "A reminder is an explicit future text such as ‘remind me tomorrow at 10 PM.’ Resolve relative dates using the supplied current time and timezone, and include an ISO 8601 offset. If the time is genuinely missing or ambiguous, ask one short clarifying question instead of guessing.",
+        "You are Tempo, a warm, capable personal assistant with a special focus on ADHD, task paralysis, planning, and gentle follow-through.",
+        "Use a tool whenever the user creates, lists, starts, updates, completes, or abandons a task or goal, or asks Tempo to contact them at a future time.",
+        "A reminder is an explicit future outreach request such as ‘remind me tomorrow at 10 PM,’ ‘text me every morning at 8,’ or ‘check in with me in 20 minutes.’ Never turn an explicit outreach request into a to-do item. Resolve relative dates using the supplied current time and timezone and include an ISO 8601 offset. Use recurrence only when the user explicitly says daily/every day, weekdays, or weekly/every week. If the time is genuinely missing or ambiguous, ask one short clarifying question instead of guessing.",
         "Never invent a task or goal ID. Use the user's own wording as a query when a deterministic match is uncertain.",
         `Current time: ${input.now.toISOString()}. User timezone: ${input.timezone}.`,
         `Open tasks: ${JSON.stringify(input.openTasks.map(({ id, title, status }) => ({ id, title, status })))}`,
         `Active goals: ${JSON.stringify(input.openGoals.map(({ id, title, status }) => ({ id, title, status })))}`,
-        `Relevant user memory: ${JSON.stringify(input.memories.slice(0, 8))}`,
+        `Relevant user memory: ${JSON.stringify(input.memories.slice(0, 12))}`,
         `User-authored coaching instructions: ${JSON.stringify(input.customInstructions ?? "None provided")}`,
-        "For non-task conversation, answer in one short, supportive SMS without guilt or moralizing.",
+        "For non-task conversation, behave like a useful general personal assistant. You can brainstorm, explain, plan, compare options, suggest meals, and provide concise recipes from general knowledge. Do not falsely claim that Tempo is limited to tasks.",
+        "For meal indecision, use remembered favorite foods when available. If the user's preference is unclear, ask one easy choice such as SWEET or SAVORY, LIGHT or FILLING, or QUICK or COOKING; then make a concrete recommendation instead of creating a task.",
+        "Use remember_memory when the user explicitly asks you to remember, save, track, or log a durable preference/fact, or when they answer your direct question about what to add to a saved list. Favorite foods should use content like ‘Favorite food: pizza.’ and category preference. Never claim something was saved unless you used the tool.",
+        "Do not store passwords, authentication codes, financial account data, detailed medical information, or another person's private information as memory.",
+        "You do not currently have live web search. Be honest when genuinely current web information is required, but still help with relevant general knowledge or ask the user for a link.",
+        "Keep replies concise and energetic enough for SMS. Emojis are welcome when they add warmth, but usually use no more than one.",
+        "Never use guilt, shame, or moralizing.",
         "When a question can be answered with yes/no, done/not done, or another short set, end with explicit uppercase choices. Ask one open question only when you genuinely need more detail.",
       ].join("\n"),
       messages,
-      tools: TASK_TOOLS,
+      tools,
       tool_choice: { type: "auto" },
     });
 

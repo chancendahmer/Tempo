@@ -11,6 +11,7 @@ type DispatchableAction = {
   idempotencyKey: string;
   interventionId: string | null;
   reminderId: string | null;
+  runAt: Date;
   kind: "send_welcome" | "send_compliance" | "process_inbound_message" | "deliver_reminder" | "sync_calendar" | "evaluate_context" | "deliver_intervention" | "accountability_followup" | "feedback_followup" | "feedback_timeout";
   payload: Record<string, unknown>;
 };
@@ -22,7 +23,7 @@ export async function dispatchDueActions(
 ): Promise<number> {
   return database.transaction(async (transaction) => {
     const result = await transaction.execute<DispatchableAction>(sql`
-      select id, user_id as "userId", intervention_id as "interventionId", reminder_id as "reminderId", idempotency_key as "idempotencyKey", kind, payload
+      select id, user_id as "userId", intervention_id as "interventionId", reminder_id as "reminderId", idempotency_key as "idempotencyKey", kind, payload, run_at as "runAt"
       from ${scheduledActions}
       where status = 'scheduled'
         and kind in ('send_welcome', 'send_compliance', 'process_inbound_message', 'deliver_reminder', 'sync_calendar', 'evaluate_context', 'deliver_intervention', 'accountability_followup', 'feedback_followup', 'feedback_timeout')
@@ -67,6 +68,7 @@ export async function dispatchDueActions(
               scheduledActionId: action.id,
               userId: action.userId,
               reminderId: String(action.payload.reminderId ?? action.reminderId ?? ""),
+              occurrenceAt: String(action.payload.occurrenceAt ?? action.runAt.toISOString()),
             } : action.kind === "deliver_intervention" || action.kind === "accountability_followup" || action.kind === "feedback_followup" || action.kind === "feedback_timeout"
               ? { scheduledActionId: action.id, userId: action.userId, interventionId: String(action.payload.interventionId ?? action.interventionId ?? "") }
               : { scheduledActionId: action.id, userId: action.userId };

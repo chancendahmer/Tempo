@@ -21,4 +21,23 @@ describe("memory corrections", () => {
     });
     expect(parseMemoryCorrection("What should I do next?")).toBeNull();
   });
+
+  it("starts and updates a favorite-food list from natural requests", () => {
+    expect(parseMemoryCorrection("Keep a log of my favorite foods")).toEqual({
+      type: "start_favorite_food_log",
+      content: "The user wants Tempo to maintain a running favorite-food list and use it for meal suggestions.",
+    });
+    expect(parseMemoryCorrection("I want you to keep a log of my favorite foods and help me choose meals")).toEqual({
+      type: "start_favorite_food_log",
+      content: "The user wants Tempo to maintain a running favorite-food list and use it for meal suggestions.",
+    });
+    expect(parseMemoryCorrection("Add chicken tikka masala to my favorite foods")).toEqual({
+      type: "favorite_food",
+      content: "Favorite food: chicken tikka masala.",
+    });
+    expect(parseMemoryCorrection("My favorite foods are tacos and sushi.")).toEqual({
+      type: "favorite_food",
+      content: "Favorite food: tacos and sushi.",
+    });
+  });
 });

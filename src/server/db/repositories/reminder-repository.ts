@@ -1,6 +1,6 @@
-import { and, asc, eq, gt, ilike, inArray } from "drizzle-orm";
+import { and, asc, eq, gt, ilike, inArray, sql } from "drizzle-orm";
 import { MessagingProvider } from "../../adapters/sms/sms-transport";
-import { ReminderRepository, ReminderRecord } from "../../domain/reminder-service";
+import { nextRecurringOccurrence, ReminderRepository, ReminderRecord } from "../../domain/reminder-service";
 import { getDatabase, TempoDatabase } from "../client";
 import { conversationMessages, reminders, scheduledActions } from "../schema";
 
@@ -10,6 +10,8 @@ function asRecord(row: typeof reminders.$inferSelect): ReminderRecord {
     text: row.text,
     remindAt: row.remindAt,
     timezone: row.timezone,
+    recurrence: row.recurrence,
+    occurrenceCount: row.occurrenceCount,
     status: row.status,
   };
 }
@@ -33,6 +35,7 @@ export class DrizzleReminderRepository implements ReminderRepository {
         text: input.text,
         remindAt: input.remindAt,
         timezone: input.timezone,
+        recurrence: input.recurrence,
         idempotencyKey,
       }).onConflictDoNothing({ target: reminders.idempotencyKey }).returning();
       const reminder = created ?? (await transaction.select().from(reminders)
@@ -42,7 +45,7 @@ export class DrizzleReminderRepository implements ReminderRepository {
         userId: input.userId,
         reminderId: reminder.id,
         kind: "deliver_reminder",
-        payload: { reminderId: reminder.id },
+        payload: { reminderId: reminder.id, occurrenceAt: reminder.remindAt.toISOString() },
         idempotencyKey: `deliver-reminder:${reminder.id}`,
         runAt: reminder.remindAt,
       }).onConflictDoNothing({ target: scheduledActions.idempotencyKey });
@@ -77,17 +80,22 @@ export class DrizzleReminderRepository implements ReminderRepository {
     return cancelled ? { kind: "cancelled" as const, reminder: asRecord(cancelled) } : { kind: "not_found" as const };
   }
 
-  async getDeliveryContext(reminderId: string) {
+  async getDeliveryContext(reminderId: string, occurrenceAt: Date) {
     const [row] = await this.database.select().from(reminders).where(and(
       eq(reminders.id, reminderId),
+      eq(reminders.remindAt, occurrenceAt),
       inArray(reminders.status, ["scheduled", "sending", "failed"]),
     )).limit(1);
     return row ? { ...asRecord(row), userId: row.userId } : null;
   }
 
-  async markSending(reminderId: string, now = new Date()) {
+  async markSending(reminderId: string, occurrenceAt: Date, now = new Date()) {
     const changed = await this.database.update(reminders).set({ status: "sending", updatedAt: now })
-      .where(and(eq(reminders.id, reminderId), inArray(reminders.status, ["scheduled", "sending", "failed"]))).returning({ id: reminders.id });
+      .where(and(
+        eq(reminders.id, reminderId),
+        eq(reminders.remindAt, occurrenceAt),
+        inArray(reminders.status, ["scheduled", "sending", "failed"]),
+      )).returning({ id: reminders.id });
     return changed.length > 0;
   }
 
@@ -97,20 +105,75 @@ export class DrizzleReminderRepository implements ReminderRepository {
     }).where(eq(reminders.id, reminderId));
   }
 
-  async reconcileDelivery(reminderId: string) {
-    const [row] = await this.database.select({
-      status: reminders.status,
+  private occurrenceIdempotencyKey(reminderId: string, occurrenceAt: Date) {
+    return `reminder-sms:${reminderId}:${occurrenceAt.toISOString()}`;
+  }
+
+  async reconcileDelivery(reminderId: string, occurrenceAt: Date) {
+    const [reminder] = await this.database.select().from(reminders).where(eq(reminders.id, reminderId)).limit(1);
+    if (!reminder) return "missing" as const;
+    const [message] = await this.database.select({
       provider: conversationMessages.provider,
       providerMessageSid: conversationMessages.providerMessageSid,
-    }).from(reminders).leftJoin(conversationMessages, eq(conversationMessages.relatedReminderId, reminders.id))
-      .where(eq(reminders.id, reminderId)).limit(1);
-    if (!row) return "missing" as const;
-    if (row.status === "sent") return "sent" as const;
-    if (row.provider && row.providerMessageSid) {
-      await this.markSent(reminderId, row.provider, row.providerMessageSid);
+    }).from(conversationMessages).where(eq(
+      conversationMessages.idempotencyKey,
+      this.occurrenceIdempotencyKey(reminderId, occurrenceAt),
+    )).limit(1);
+    if (!reminder.recurrence && reminder.status === "sent") return "sent" as const;
+    if (message?.provider && message.providerMessageSid) {
+      await this.recordSuccessfulDelivery(
+        { ...asRecord(reminder), userId: reminder.userId },
+        occurrenceAt,
+        message.provider,
+        message.providerMessageSid,
+      );
       return "sent" as const;
     }
     return "pending" as const;
+  }
+
+  async recordSuccessfulDelivery(
+    reminder: ReminderRecord & { userId: string },
+    occurrenceAt: Date,
+    provider: MessagingProvider,
+    providerMessageSid: string,
+    now = new Date(),
+  ) {
+    if (!reminder.recurrence) {
+      await this.markSent(reminder.id, provider, providerMessageSid, now);
+      return null;
+    }
+    const next = nextRecurringOccurrence(occurrenceAt, reminder.timezone, reminder.recurrence, now);
+    return this.database.transaction(async (transaction) => {
+      const [advanced] = await transaction.update(reminders).set({
+        status: "scheduled",
+        remindAt: next,
+        occurrenceCount: sql`${reminders.occurrenceCount} + 1`,
+        provider,
+        providerMessageSid,
+        sentAt: now,
+        lastError: null,
+        updatedAt: now,
+      }).where(and(
+        eq(reminders.id, reminder.id),
+        eq(reminders.remindAt, occurrenceAt),
+        eq(reminders.status, "sending"),
+      )).returning({ id: reminders.id });
+      if (!advanced) return null;
+      await transaction.insert(scheduledActions).values({
+        userId: reminder.userId,
+        reminderId: reminder.id,
+        kind: "deliver_reminder",
+        payload: { reminderId: reminder.id, occurrenceAt: next.toISOString() },
+        idempotencyKey: `deliver-reminder:${reminder.id}:${next.toISOString()}`,
+        runAt: next,
+      }).onConflictDoNothing({ target: scheduledActions.idempotencyKey });
+      return next;
+    });
+  }
+
+  getOccurrenceIdempotencyKey(reminderId: string, occurrenceAt: Date) {
+    return this.occurrenceIdempotencyKey(reminderId, occurrenceAt);
   }
 
   async markFailed(reminderId: string, error: unknown, now = new Date()) {
