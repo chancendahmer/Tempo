@@ -53,7 +53,43 @@ describe("Sendblue webhook boundary", () => {
       },
     });
     expect(parseSendblueWebhook(webhook({ media_url: "   " }))).toEqual(expect.objectContaining({ kind: "inbound" }));
-    expect(() => parseSendblueWebhook(webhook({ media_url: "not-a-url" }))).toThrow("Invalid URL");
+  });
+
+  it.each(["not-a-url", "null", "undefined", "/attachment.jpg", "file:///attachment.jpg", "javascript:alert(1)", 123, false, {}, []])(
+    "preserves inbound text when optional media metadata is unusable: %j",
+    (mediaUrl) => {
+      expect(parseSendblueWebhook(webhook({ media_url: mediaUrl }))).toEqual(parseSendblueWebhook(webhook()));
+    },
+  );
+
+  it("accepts delivery receipts independently of optional media metadata", () => {
+    const receipt = webhook({ is_outbound: true, status: "DELIVERED" });
+    expect(parseSendblueWebhook({ ...receipt, media_url: "not-a-url" })).toEqual(parseSendblueWebhook(receipt));
+  });
+
+  it.each([undefined, null, "", "not-a-url"])("ignores an empty message without usable media: %j", (mediaUrl) => {
+    expect(parseSendblueWebhook(webhook({ content: "", media_url: mediaUrl }))).toEqual({
+      kind: "ignored",
+      reason: "unsupported_content",
+      eventId: "sendblue-message-1:RECEIVED",
+    });
+  });
+
+  it.each(["http://example.com/photo.jpg", " https://example.com/photo.jpg?token=example "])(
+    "recognizes valid media without retaining its URL: %s",
+    (mediaUrl) => {
+      const parsed = parseSendblueWebhook(webhook({ content: "", media_url: mediaUrl }));
+      expect(parsed).toMatchObject({
+        kind: "inbound",
+        input: { body: "[Attachment]", contentParts: [{ type: "media", source: "sendblue" }] },
+      });
+      expect(JSON.stringify(parsed)).not.toContain(mediaUrl.trim());
+    },
+  );
+
+  it("still rejects missing identifiers and invalid event direction", () => {
+    expect(() => parseSendblueWebhook(webhook({ message_handle: "", media_url: "not-a-url" }))).toThrow();
+    expect(() => parseSendblueWebhook(webhook({ is_outbound: "false" }))).toThrow();
   });
 
   it("maps delivery failures and ignores group conversations", () => {

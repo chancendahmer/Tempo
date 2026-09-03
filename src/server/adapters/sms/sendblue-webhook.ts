@@ -3,10 +3,13 @@ import { z } from "zod";
 import { DeliveryProviderMessage, InboundProviderMessage, StoredMessageStatus } from "../../domain/messaging";
 
 const serviceSchema = z.enum(["iMessage", "RCS", "SMS"]);
-const optionalProviderUrl = z.preprocess(
-  (value) => typeof value === "string" && value.trim() === "" ? undefined : value,
-  z.string().trim().url().nullish(),
-);
+// Media is optional metadata, never downloaded or retained here. Discard unusable
+// values without rejecting the authenticated text message or delivery receipt.
+// Keep this fallback scoped to media: required event fields still fail validation.
+const optionalProviderUrl = z.string().trim().url()
+  .refine((value) => /^https?:\/\//i.test(value))
+  .nullish()
+  .catch(undefined);
 const sendblueWebhookSchema = z.object({
   content: z.string().nullish(),
   is_outbound: z.boolean(),
