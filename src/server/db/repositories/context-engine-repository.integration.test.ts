@@ -30,6 +30,7 @@ describe("shadow context evaluation", () => {
       status: "active",
       onboardingState: "complete",
       timezone: "UTC",
+      proactiveOptIn: true,
     }).returning({ id: users.id });
     await database.insert(consentRecords).values({
       userId: user.id,
@@ -90,7 +91,7 @@ describe("shadow context evaluation", () => {
 
   it("persists a reproducible holdout without scheduling delivery", async () => {
     const [user] = await database.insert(users).values({
-      phoneE164: "+12025550176", status: "active", onboardingState: "complete", timezone: "UTC",
+      phoneE164: "+12025550176", status: "active", onboardingState: "complete", timezone: "UTC", proactiveOptIn: true,
     }).returning({ id: users.id });
     await database.insert(consentRecords).values({
       userId: user.id, status: "granted", channel: "web", disclosureVersion: "test", termsVersion: "test", privacyVersion: "test",

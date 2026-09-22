@@ -9,6 +9,9 @@ import { conversationMessages, conversationStates, conversations, users } from "
 function parsePending(value: Record<string, unknown> | null, expiresAt: Date | null): StoredPendingAction | null {
   if (!value || !expiresAt) return null;
   if (typeof value.createdByMessageId !== "string") return null;
+  if (value.entity === "calendar_confirmation" && typeof value.token === "string" && typeof value.summary === "string") {
+    return { entity: "calendar_confirmation", token: value.token, summary: value.summary, createdByMessageId: value.createdByMessageId, expiresAt };
+  }
   if (value.entity === "reschedule_confirmation") {
     const proposedAt = typeof value.proposedAt === "string" ? new Date(value.proposedAt) : null;
     if (
@@ -139,7 +142,9 @@ export class DrizzleConversationRepository implements ConversationRepository {
   }
 
   async savePendingAction(userId: string, action: StoredPendingAction) {
-    const pendingAction = action.entity === "reschedule_confirmation"
+    const pendingAction = action.entity === "calendar_confirmation"
+      ? { entity: action.entity, token: action.token, summary: action.summary, createdByMessageId: action.createdByMessageId }
+      : action.entity === "reschedule_confirmation"
       ? {
           entity: action.entity,
           taskId: action.taskId,

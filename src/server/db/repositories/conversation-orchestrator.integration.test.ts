@@ -255,6 +255,48 @@ describe("inbound conversation orchestration", () => {
     }));
   });
 
+  it("includes provider-accepted replies before delivery callbacks, but not unsent or failed texts", async () => {
+    const user = await consentedUser("+14155550120", "complete");
+    const other = await consentedUser("+14155550119", "complete");
+    const base = {
+      userId: user.id, conversationId: user.conversationId,
+      direction: "outbound" as const, kind: "coach" as const,
+      createdAt: new Date("2026-08-18T11:59:00Z"),
+    };
+    await database.insert(conversationMessages).values([
+      { ...base, status: "queued", providerMessageSid: "accepted-food-question", body: "What food should I add first?" },
+      { ...base, status: "queued", body: "Not submitted yet" },
+      { ...base, status: "failed", providerMessageSid: "failed-reply", body: "Failed reply" },
+      { ...base, status: "cancelled", body: "Cancelled reply" },
+      { ...base, status: "delivered", userId: other.id, conversationId: other.conversationId, body: "Another user's reply" },
+      { ...base, status: "delivered", createdAt: new Date("2026-08-18T12:01:00Z"), body: "Future reply" },
+    ]);
+    const [current] = await database.insert(conversationMessages).values({
+      userId: user.id, conversationId: user.conversationId,
+      direction: "inbound", kind: "user", status: "received", body: "Blueberries and yogurt",
+      createdAt: new Date("2026-08-18T12:00:00Z"),
+    }).returning();
+    const history = await new DrizzleConversationHistoryRepository(database).getRecent({
+      conversationId: user.conversationId, beforeMessageId: current.id, limit: 12,
+    });
+    expect(history).toEqual([
+      expect.objectContaining({ role: "assistant", content: "What food should I add first?" }),
+    ]);
+  });
+
+  it("asks for an actual food when the user asks about remembering favorites", async () => {
+    const user = await consentedUser("+14155550118", "complete");
+    const [message] = await database.insert(conversationMessages).values({
+      userId: user.id, conversationId: user.conversationId,
+      direction: "inbound", kind: "user", status: "received", body: "Can you remember my favorite foods?",
+    }).returning();
+    const transport = new TestSmsTransport("FOODQUESTION");
+    await orchestrator(transport).process(message.id);
+    expect(transport.sent[0].body).toContain("What’s one food");
+    expect(await database.select().from(memoryEntries).where(eq(memoryEntries.userId, user.id))).toHaveLength(0);
+    expect(await database.select().from(tasks).where(eq(tasks.userId, user.id))).toHaveLength(0);
+  });
+
   it("stores an explicit pattern memory once and traces it to the user's message", async () => {
     const user = await consentedUser("+14155550129", "complete");
     const [message] = await database.insert(conversationMessages).values({

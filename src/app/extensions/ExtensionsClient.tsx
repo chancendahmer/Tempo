@@ -53,7 +53,7 @@ export function ExtensionsClient() {
           <div>
             <p className="extension-provider">Google Workspace</p>
             <h2>Google Calendar</h2>
-            <p>Lets Tempo read busy and open windows so it can suggest realistic moments without changing your events.</p>
+            <p>Lets Tempo read your primary calendar and propose personal event additions, moves, and deletions. Every change needs your confirmation by text. Existing connections need to reconnect to grant event access.</p>
           </div>
           <div className="extension-actions">
             {data ? (

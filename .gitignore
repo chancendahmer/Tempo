@@ -20,6 +20,10 @@
 # logs
 *.log
 
+# Generated synthetic assistant transcripts; rerun with simulate:assistant.
+/qa/assistant-*-latest.json
+/qa/assistant-*-latest.md
+
 # OS files
 .DS_Store
 Thumbs.db

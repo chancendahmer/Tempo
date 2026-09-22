@@ -62,7 +62,42 @@ export class DrizzleReminderRepository implements ReminderRepository {
     return rows.map(asRecord);
   }
 
+  async update(input: Parameters<NonNullable<ReminderRepository["update"]>>[0]) {
+    if (!input.reminderId && !input.reminderQuery) return { kind: "not_found" as const };
+    return this.database.transaction(async (transaction) => {
+      const key = `reminder-update:${input.sourceMessageId}`;
+      const [prior] = await transaction.select({ reminderId: scheduledActions.reminderId }).from(scheduledActions)
+        .where(and(eq(scheduledActions.userId, input.userId), eq(scheduledActions.idempotencyKey, key))).limit(1);
+      if (prior?.reminderId) {
+        const [row] = await transaction.select().from(reminders).where(and(eq(reminders.id, prior.reminderId), eq(reminders.userId, input.userId))).limit(1);
+        if (row) return { kind: "updated" as const, reminder: asRecord(row) };
+      }
+      const matches = await transaction.select().from(reminders).where(and(
+        eq(reminders.userId, input.userId),
+        input.remindAt ? inArray(reminders.status, ["scheduled", "failed"]) : inArray(reminders.status, ["scheduled", "sent", "failed", "completed"]),
+        input.reminderId ? eq(reminders.id, input.reminderId) : ilike(reminders.text, `%${input.reminderQuery!.replaceAll("\\", "\\\\").replaceAll("%", "\\%").replaceAll("_", "\\_")}%`),
+      )).orderBy(asc(reminders.remindAt)).limit(6).for("update");
+      if (!matches.length) return { kind: "not_found" as const };
+      if (matches.length > 1) return { kind: "ambiguous" as const, reminders: matches.map(asRecord) };
+      const [changed] = await transaction.update(reminders).set(input.remindAt
+        ? { remindAt: input.remindAt, status: "scheduled", lastError: null, updatedAt: input.now }
+        : { status: "completed", updatedAt: input.now })
+        .where(and(eq(reminders.id, matches[0].id), eq(reminders.userId, input.userId))).returning();
+      await transaction.update(scheduledActions).set({ status: "cancelled", completedAt: input.now, updatedAt: input.now })
+        .where(and(eq(scheduledActions.reminderId, changed.id), inArray(scheduledActions.status, ["scheduled", "failed"])));
+      // The source-keyed action also records completed updates for retry recovery.
+      await transaction.insert(scheduledActions).values({
+        userId: input.userId, reminderId: changed.id, kind: "deliver_reminder",
+        payload: { reminderId: changed.id, occurrenceAt: changed.remindAt.toISOString() },
+        idempotencyKey: key, runAt: changed.remindAt,
+        status: input.remindAt ? "scheduled" : "cancelled", completedAt: input.remindAt ? null : input.now,
+      }).onConflictDoNothing({ target: scheduledActions.idempotencyKey });
+      return { kind: "updated" as const, reminder: asRecord(changed) };
+    });
+  }
+
   async cancel(input: Parameters<ReminderRepository["cancel"]>[0]) {
+    if (!input.reminderId && !input.reminderQuery) return { kind: "not_found" as const };
     const conditions = [eq(reminders.userId, input.userId), eq(reminders.status, "scheduled")];
     if (input.reminderId) conditions.push(eq(reminders.id, input.reminderId));
     else if (input.reminderQuery) conditions.push(ilike(reminders.text, `%${input.reminderQuery.replaceAll("%", "\\%").replaceAll("_", "\\_")}%`));
@@ -115,12 +150,13 @@ export class DrizzleReminderRepository implements ReminderRepository {
     const [message] = await this.database.select({
       provider: conversationMessages.provider,
       providerMessageSid: conversationMessages.providerMessageSid,
+      status: conversationMessages.status,
     }).from(conversationMessages).where(eq(
       conversationMessages.idempotencyKey,
       this.occurrenceIdempotencyKey(reminderId, occurrenceAt),
     )).limit(1);
     if (!reminder.recurrence && reminder.status === "sent") return "sent" as const;
-    if (message?.provider && message.providerMessageSid) {
+    if (message?.provider && message.providerMessageSid && ["queued", "sent", "delivered"].includes(message.status)) {
       await this.recordSuccessfulDelivery(
         { ...asRecord(reminder), userId: reminder.userId },
         occurrenceAt,

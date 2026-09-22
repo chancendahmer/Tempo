@@ -7,7 +7,7 @@ const baseSignals: ContextSignals = {
   userId: "user-1",
   status: "active",
   onboardingComplete: true,
-  hasConsent: true,
+  hasConsent: true, proactiveOptIn: true,
   timezone: "America/New_York",
   quietHoursStart: "22:00",
   quietHoursEnd: "07:00",
@@ -37,6 +37,9 @@ describe("context engine", () => {
   });
 
   it.each([
+    ["proactive_opt_in_missing", { proactiveOptIn: false }],
+    ["cooldown_active", { interventionCooldownMinutes: 5, minutesSinceLastIntervention: 119 }],
+    ["daily_cap_reached", { dailyInterventionCap: 10, dailyInterventionCount: 3 }],
     ["quiet_hours", { timezone: "UTC", quietHoursStart: "13:00", quietHoursEnd: "15:00" }],
     ["calendar_busy", { calendarBusy: true }],
     ["daily_cap_reached", { dailyInterventionCount: 3 }],

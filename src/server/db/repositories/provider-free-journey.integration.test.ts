@@ -123,6 +123,7 @@ describe("provider-free V1 journey", () => {
     expect(task.title).toBe("submit my lab report");
 
     const evaluationTime = new Date("2026-08-18T18:00:00Z");
+    await database.update(users).set({ proactiveOptIn: true }).where(eq(users.id, consent.userId));
     await database.insert(calendarConnections).values({
       userId: consent.userId,
       encryptedRefreshToken: "test-only-encrypted-token",

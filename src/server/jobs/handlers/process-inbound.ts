@@ -19,6 +19,7 @@ import { createSecureActionLinks } from "../../security/action-links";
 import { logger } from "../../observability/logger";
 import { JOB_NAMES, ProcessInboundJob } from "../names";
 import { ScheduledActionRepository } from "../scheduled-action-repository";
+import { CalendarAssistantIntegrations } from "../../adapters/calendar/calendar-assistant";
 
 export async function registerProcessInboundHandler(boss: PgBoss) {
   await boss.work<ProcessInboundJob>(JOB_NAMES.processInbound, { localConcurrency: 4 }, async (jobs) => {
@@ -41,6 +42,7 @@ export async function registerProcessInboundHandler(boss: PgBoss) {
           env.FIELD_ENCRYPTION_KEY ? createSecureActionLinks(env.APP_BASE_URL, env.FIELD_ENCRYPTION_KEY) : undefined,
           new DrizzleConversationHistoryRepository(),
           new DrizzleReminderRepository(),
+          new CalendarAssistantIntegrations(),
         );
         await orchestrator.process(job.data.messageId);
         await actions.markCompleted(job.data.scheduledActionId);

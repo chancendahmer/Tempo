@@ -6,7 +6,7 @@ describe("context evaluation idempotency", () => {
   it("never plans from a duplicate opportunity whose persisted snapshot is authoritative", async () => {
     const now = new Date("2026-08-18T12:00:00Z");
     const signals: ContextSignals = {
-      userId: "user-1", status: "active", onboardingComplete: true, hasConsent: true, timezone: "UTC",
+      userId: "user-1", status: "active", onboardingComplete: true, hasConsent: true, proactiveOptIn: true, timezone: "UTC",
       calendarBusy: false, calendarAvailable: true, freeMinutes: 120, dailyInterventionCount: 0, dailyInterventionCap: 3,
       interventionCooldownMinutes: 240, hasPendingResponse: false, responseRate: 0.8,
       coachingTone: "balanced", repeatedNonStarts: 0, bodyDoublingAffinity: false,
@@ -29,7 +29,7 @@ describe("context evaluation idempotency", () => {
   it("lets the bounded AI reviewer veto a deterministically eligible candidate and audits why", async () => {
     const now = new Date("2026-08-18T12:00:00Z");
     const signals: ContextSignals = {
-      userId: "user-2", status: "active", onboardingComplete: true, hasConsent: true, timezone: "UTC",
+      userId: "user-2", status: "active", onboardingComplete: true, hasConsent: true, proactiveOptIn: true, timezone: "UTC",
       calendarBusy: false, calendarAvailable: true, freeMinutes: 120, dailyInterventionCount: 0, dailyInterventionCap: 3,
       interventionCooldownMinutes: 5, hasPendingResponse: false, responseRate: 0.8,
       coachingTone: "balanced", repeatedNonStarts: 0, bodyDoublingAffinity: false,

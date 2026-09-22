@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, lte, ne } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, lte, ne, or } from "drizzle-orm";
 import { ConversationHistoryRepository } from "../../domain/conversation-history";
 import { getDatabase, TempoDatabase } from "../client";
 import { conversationMessages, messageRelations } from "../schema";
@@ -26,7 +26,16 @@ export class DrizzleConversationHistoryRepository implements ConversationHistory
       lte(conversationMessages.createdAt, boundary.createdAt),
       ne(conversationMessages.id, input.beforeMessageId),
       inArray(conversationMessages.kind, ["user", "coach"]),
-      inArray(conversationMessages.status, ["processed", "sent", "delivered"]),
+      or(
+        inArray(conversationMessages.status, ["processed", "sent", "delivered"]),
+        // Provider acceptance is enough for conversational context; delivery callbacks
+        // may arrive late or never. A reservation without a provider ID is not a reply.
+        and(
+          eq(conversationMessages.direction, "outbound"),
+          eq(conversationMessages.status, "queued"),
+          isNotNull(conversationMessages.providerMessageSid),
+        ),
+      ),
     )).orderBy(desc(conversationMessages.createdAt)).limit(Math.max(1, Math.min(input.limit, 30)));
 
     if (descending.length === 0) return [];

@@ -39,6 +39,7 @@ export type ContextSignals = {
   status: "active" | "paused" | "opted_out" | "deleted";
   onboardingComplete: boolean;
   hasConsent: boolean;
+  proactiveOptIn: boolean;
   timezone: string;
   quietHoursStart?: string | null;
   quietHoursEnd?: string | null;
@@ -167,18 +168,19 @@ export function evaluateContext(input: {
   const opportunityKey = `${signals.userId}|${policy.version}|${Math.floor(now.getTime() / 900_000)}|${task?.id ?? "none"}`;
   const randomizedBucket = interventionBucket(opportunityKey);
   const local = localTime(now, signals.timezone);
-  const effectiveCooldownMinutes = Math.max(5, signals.interventionCooldownMinutes);
+  const effectiveCooldownMinutes = Math.max(120, signals.interventionCooldownMinutes);
   const reasonCodes: string[] = [];
 
   if (signals.status !== "active") reasonCodes.push(`user_${signals.status}`);
   if (!signals.hasConsent) reasonCodes.push("consent_missing");
+  if (!signals.proactiveOptIn) reasonCodes.push("proactive_opt_in_missing");
   if (!signals.onboardingComplete) reasonCodes.push("onboarding_incomplete");
   if (signals.pausedUntil && signals.pausedUntil > now) reasonCodes.push("user_paused");
   if (isQuietTime(now, signals.timezone, signals.quietHoursStart, signals.quietHoursEnd)) reasonCodes.push("quiet_hours");
   if (!signals.calendarAvailable) reasonCodes.push("calendar_unavailable");
   if (signals.calendarBusy) reasonCodes.push("calendar_busy");
   if (!task) reasonCodes.push("no_actionable_task");
-  if (signals.dailyInterventionCount >= signals.dailyInterventionCap) reasonCodes.push("daily_cap_reached");
+  if (signals.dailyInterventionCount >= Math.min(3, signals.dailyInterventionCap)) reasonCodes.push("daily_cap_reached");
   if (signals.hasPendingResponse) reasonCodes.push("pending_response");
   if (
     signals.minutesSinceLastIntervention !== null &&

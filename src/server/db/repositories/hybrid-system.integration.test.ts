@@ -129,6 +129,22 @@ describe("hybrid reminder and accountability infrastructure", () => {
     expect(actions.some((action) => action.runAt.getTime() === advanced.remindAt.getTime())).toBe(true);
   });
 
+  it("does not treat a failed provider message as successful reminder delivery", async () => {
+    const { userId, conversationId } = await createUser("+12025550209");
+    const [source] = await database.insert(conversationMessages).values({
+      userId, conversationId, direction: "inbound", kind: "user", status: "processed", body: "Remind me to cook",
+    }).returning();
+    const repository = new DrizzleReminderRepository(database);
+    const reminder = await repository.create({ userId, sourceMessageId: source.id, text: "cook", remindAt: new Date("2027-01-15T16:00:00Z"), timezone: "UTC" });
+    await database.insert(conversationMessages).values({
+      userId, conversationId, direction: "outbound", kind: "coach", status: "failed", body: "Reminder: cook",
+      provider: "test", providerMessageSid: "failed-reminder-test",
+      idempotencyKey: repository.getOccurrenceIdempotencyKey(reminder.id, reminder.remindAt),
+    });
+    expect(await repository.reconcileDelivery(reminder.id, reminder.remindAt)).toBe("pending");
+    expect((await repository.findBySourceMessage(source.id))?.status).toBe("scheduled");
+  });
+
   it("persists Give me 15 and resolves the second commitment into task progress", async () => {
     const { userId, conversationId } = await createUser("+12025550202");
     const [task] = await database.insert(tasks).values({ userId, title: "Finish report" }).returning({ id: tasks.id });
@@ -168,13 +184,15 @@ describe("hybrid reminder and accountability infrastructure", () => {
     expect(storedIntervention.status).toBe("responded");
   });
 
-  it("atomically prevents a second proactive intervention inside the five-minute floor", async () => {
+  it("requires opt-in and atomically prevents a second proactive intervention inside the two-hour floor", async () => {
     const { userId } = await createUser("+12025550203");
     const [task] = await database.insert(tasks).values({ userId, title: "Review notes" }).returning({ id: tasks.id });
     const first = await createIntervention(userId, task.id, "cooldown-first");
     const second = await createIntervention(userId, task.id, "cooldown-second");
     const repository = new DrizzleInterventionRepository(database);
-    expect(await repository.claimDelivery(first)).toMatchObject({ claimed: true, cooldownMinutes: 5 });
+    expect(await repository.claimDelivery(first)).toEqual({ claimed: false, reason: "proactive_opt_in_missing" });
+    await database.update(users).set({ proactiveOptIn: true }).where(eq(users.id, userId));
+    expect(await repository.claimDelivery(first)).toMatchObject({ claimed: true, cooldownMinutes: 120 });
     expect(await repository.claimDelivery(second)).toEqual({ claimed: false, reason: "cooldown_active" });
   });
 });

@@ -35,7 +35,7 @@ export const consentStatus = pgEnum("consent_status", ["granted", "revoked"]);
 export const consentChannel = pgEnum("consent_channel", ["web", "sms", "admin"]);
 export const goalStatus = pgEnum("goal_status", ["active", "completed", "abandoned"]);
 export const taskStatus = pgEnum("task_status", ["not_started", "in_progress", "completed", "abandoned"]);
-export const reminderStatus = pgEnum("reminder_status", ["scheduled", "sending", "sent", "cancelled", "failed"]);
+export const reminderStatus = pgEnum("reminder_status", ["scheduled", "sending", "sent", "cancelled", "failed", "completed"]);
 export const messageDirection = pgEnum("message_direction", ["inbound", "outbound"]);
 export const messageStatus = pgEnum("message_status", [
   "received",
@@ -131,7 +131,8 @@ export const users = pgTable(
     preferredCoachingStyle: interventionStyle("preferred_coaching_style"),
     coachingTone: coachingTone("coaching_tone").default("balanced").notNull(),
     dailyInterventionCap: integer("daily_intervention_cap").default(3).notNull(),
-    interventionCooldownMinutes: integer("intervention_cooldown_minutes").default(5).notNull(),
+    proactiveOptIn: boolean("proactive_opt_in").default(false).notNull(),
+    interventionCooldownMinutes: integer("intervention_cooldown_minutes").default(120).notNull(),
     pausedUntil: timestamp("paused_until", { withTimezone: true }),
     optedOutAt: timestamp("opted_out_at", { withTimezone: true }),
     phoneVerifiedAt: timestamp("phone_verified_at", { withTimezone: true }),

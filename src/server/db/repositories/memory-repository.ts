@@ -26,12 +26,29 @@ export class DrizzleMemoryRepository implements MemoryRepository {
   }
 
   async forgetMatching(userId: string, query: string, now: Date) {
-    const deleted = await this.database.update(memoryEntries).set({ deletedAt: now, updatedAt: now }).where(and(
-      eq(memoryEntries.userId, userId),
-      isNull(memoryEntries.deletedAt),
-      ilike(memoryEntries.content, `%${query.replaceAll("%", "\\%").replaceAll("_", "\\_")}%`),
-    )).returning({ id: memoryEntries.id });
-    return deleted.length;
+    const normalized = query.trim().replace(/[.!]+$/, "").toLowerCase();
+    if (!normalized) return 0;
+    return this.database.transaction(async (transaction) => {
+      const matches = await transaction.select().from(memoryEntries).where(and(
+        eq(memoryEntries.userId, userId), isNull(memoryEntries.deletedAt),
+        ilike(memoryEntries.content, `%${normalized.replaceAll("\\", "\\\\").replaceAll("%", "\\%").replaceAll("_", "\\_")}%`),
+      )).for("update");
+      for (const memory of matches) {
+        // A food list can contain multiple independent preferences. Forget only
+        // the matching item, preserving the rest of that user-approved list.
+        const foods = /^favorite food:\s*/i.test(memory.content)
+          ? memory.content.replace(/^favorite food:\s*/i, "").replace(/\.$/, "").split(/\s+and\s+|,\s*/i)
+          : [];
+        const remaining = foods.filter((food) => !food.toLowerCase().includes(normalized));
+        const content = remaining.length && remaining.length < foods.length
+          ? `Favorite food: ${remaining.join(" and ")}.` : null;
+        await transaction.update(memoryEntries).set(content
+          ? { content, updatedAt: now }
+          : { deletedAt: now, updatedAt: now })
+          .where(and(eq(memoryEntries.id, memory.id), eq(memoryEntries.userId, userId)));
+      }
+      return matches.length;
+    });
   }
 
   async forgetMostRecent(userId: string, now: Date) {
