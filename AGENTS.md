@@ -75,6 +75,10 @@ PostgreSQL/pg-boss jobs. PostgreSQL is the only durable state system.
   changes.
 - Do not claim validation that was not run, and do not hide relevant failures
   by over-filtering command output.
+- For assistant behavior, use `npm run simulate:assistant -- --scripted` for
+  isolated code-path transcripts, or omit `--scripted` for configured live model
+  calls. Never present scripted responses as observed live AI output. See
+  `docs/DEMO_READINESS.md` for simulation limits and deployment gates.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

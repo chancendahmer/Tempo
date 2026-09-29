@@ -46,8 +46,12 @@ Do not read all architecture or operational documents as general orientation.
 - Provider events and outbound operations must remain idempotent.
 - User consent, carrier opt-outs, quiet hours, cooldowns, caps, calendar-busy
   status, and pending-response gates outrank model recommendations.
-- Calendar handling is privacy-minimized; V1 uses free/busy data and does not
-  retain event titles.
+- Calendar availability uses free/busy data. The assistant can also read event
+  details and propose individual personal event changes with a separate YES.
+  Proposal tokens are encrypted; SMS summaries can contain event titles.
+- Proactive outreach requires the separate `proactiveOptIn` flag, a hard cap of
+  three per local day, and at least a two-hour cooldown. SMS consent alone is
+  insufficient; explicit reminders use a separate path.
 - Sensitive stored fields are encrypted at the application boundary.
 
 ## Validation routing
@@ -58,6 +62,9 @@ Do not read all architecture or operational documents as general orientation.
   checks plus lint and typecheck.
 - Cross-cutting or release-bound change: run `npm run check` after targeted
   iteration.
+- Conversation QA: `npm run simulate:assistant -- --scripted` exercises isolated
+  code paths; omit `--scripted` for real Anthropic replies with configured process
+  credentials. See `docs/DEMO_READINESS.md` for scope and remaining release gates.
 - Documentation-only change: verify links, paths, commands, and consistency;
   application tests are not normally required.
 

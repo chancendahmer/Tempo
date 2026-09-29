@@ -1,0 +1,1 @@
+ALTER TYPE "public"."reminder_status" ADD VALUE 'completed';

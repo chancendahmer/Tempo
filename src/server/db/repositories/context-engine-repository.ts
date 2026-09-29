@@ -114,6 +114,7 @@ export class DrizzleContextEngineRepository implements ContextEngineRepository {
       status: user.status,
       onboardingComplete: user.onboardingState === "complete",
       hasConsent: latestConsent[0]?.status === "granted",
+      proactiveOptIn: user.proactiveOptIn,
       timezone: user.timezone,
       quietHoursStart: user.quietHoursStart,
       quietHoursEnd: user.quietHoursEnd,

@@ -1,4 +1,4 @@
-import { SafeSmsSender } from "./outbound-messaging";
+import type { SendSafeSmsInput } from "./outbound-messaging";
 import { handleOnboardingMessage } from "./onboarding";
 import { parseTaskCommandHeuristically, resolveTaskReference } from "./task-commands";
 import {
@@ -9,7 +9,8 @@ import {
   replyForTaskAction,
   resolvePendingTaskChoice,
 } from "./task-service";
-import { TaskIntentParser } from "../adapters/llm/task-intent-parser";
+import type { TaskIntentParser } from "../adapters/llm/task-intent-parser";
+import { isConversationOnlyMessage, isLifeWorkspaceRequest } from "./conversation-routing";
 import { OutcomeTracker } from "./outcome-tracker";
 import { MemoryCommand, MemoryService } from "./memory-service";
 import { SecureActionLinks } from "../security/action-links";
@@ -35,7 +36,8 @@ import {
 } from "./reschedule-service";
 import { ConversationHistoryRepository } from "./conversation-history";
 import { isExplicitReminderRequest, ReminderCommand } from "./reminder-commands";
-import { ReminderRepository, executeReminderCommand } from "./reminder-service";
+import { ReminderRepository, executeReminderCommand, requestedReminderTime } from "./reminder-service";
+import { AssistantCommand, AssistantIntegrations } from "./assistant-commands";
 
 export type InboundConversationContext = {
   messageId: string;
@@ -60,6 +62,7 @@ export type StoredPendingAction = (
   | ({ entity: "goal" } & PendingGoalAction)
   | { entity: "reschedule_choice"; command: RescheduleCommand; candidates: Array<{ id: string; title: string }> }
   | { entity: "reschedule_confirmation"; taskId: string; taskTitle: string; proposedAt: Date }
+  | { entity: "calendar_confirmation"; token: string; summary: string }
 ) & {
   createdByMessageId: string;
   expiresAt: Date;
@@ -107,13 +110,15 @@ export class ConversationOrchestrator {
     private readonly goals: GoalRepository,
     private readonly scheduling: SchedulingRepository,
     private readonly intentParser: TaskIntentParser,
-    private readonly sms: SafeSmsSender,
+    private readonly sms: { send(input: SendSafeSmsInput): Promise<unknown> },
     private readonly now: () => Date = () => new Date(),
     private readonly outcomes?: OutcomeTracker,
     private readonly memories?: MemoryService,
     private readonly secureLinks?: SecureActionLinks,
     private readonly history?: ConversationHistoryRepository,
     private readonly reminders?: ReminderRepository,
+    private readonly integrations?: AssistantIntegrations,
+    private readonly life?: { execute(userId: string, sourceMessageId: string, command: Extract<AssistantCommand, { type: "food_search" | "life_list" | "life_save" | "life_remove" }>): Promise<string> },
   ) {}
 
   async process(messageId: string): Promise<{ processed: boolean }> {
@@ -162,10 +167,36 @@ export class ConversationOrchestrator {
       }
     }
 
-    const pending = await this.conversations.getPendingAction(context.userId);
+    let pending = await this.conversations.getPendingAction(context.userId);
+    if (pending && pending.createdByMessageId !== context.messageId) {
+      if (/^(?:cancel|never mind|nevermind|nope|no)[.!\s]*$/i.test(context.body.trim())) {
+        await this.conversations.clearPendingAction(context.userId);
+        return "Okay—I dropped that pending change.";
+      }
+      if (isConversationOnlyMessage(context.body) || isExplicitReminderRequest(context.body)
+        || ((pending.entity === "calendar_confirmation" || pending.entity === "reschedule_confirmation")
+          && !/^(?:yes|yeah|yep|confirm|sounds good|do it)[.!\s]*$/i.test(context.body.trim()))
+        || /^(?:what|why|how|who|can you|could you|help me|tell me|i want|i need|i (?:really )?(?:like|love|enjoy)|remember|forget)\b/i.test(context.body.trim())) {
+        await this.conversations.clearPendingAction(context.userId);
+        pending = null;
+      }
+    }
     if (pending && pending.expiresAt <= now) {
       await this.conversations.clearPendingAction(context.userId);
     } else if (pending && pending.createdByMessageId !== context.messageId) {
+      if (pending.entity === "calendar_confirmation") {
+        if (/^yes[.!\s]*$/i.test(context.body.trim()) && this.integrations) {
+          try {
+            const result = await this.integrations.confirmCalendarChange(context.userId, pending.token, now);
+            await this.conversations.clearPendingAction(context.userId);
+            return result;
+          } catch {
+            await this.conversations.clearPendingAction(context.userId);
+            return "I couldn’t verify that calendar change. Please check Google Calendar before requesting it again.";
+          }
+        }
+        return "That calendar change is waiting for confirmation. Reply YES to apply it or NO to cancel.";
+      }
       if (pending.entity === "reschedule_confirmation") {
         if (/^(?:yes|yeah|yep|confirm|sounds good|do it)[.!\s]*$/i.test(context.body.trim())) {
           const task = await confirmTaskReschedule(this.tasks, {
@@ -265,7 +296,8 @@ export class ConversationOrchestrator {
       return `This permanently deletes your Tempo data. Confirm only if that’s what you want: ${this.secureLinks.accountDelete(context.userId)}`;
     }
 
-    const memoryReply = await this.memories?.tryHandleCorrection({
+    const lifeRequest = isLifeWorkspaceRequest(context.body);
+    const memoryReply = lifeRequest ? null : await this.memories?.tryHandleCorrection({
       userId: context.userId,
       messageId: context.messageId,
       body: context.body,
@@ -273,9 +305,12 @@ export class ConversationOrchestrator {
     });
     if (memoryReply) return memoryReply;
 
-    const heuristicCommand = parseRescheduleHeuristically(context.body)
-      ?? (isExplicitReminderRequest(context.body) ? null : parseTaskCommandHeuristically(context.body, now))
-      ?? parseGoalCommandHeuristically(context.body);
+    // Broad task heuristics ("move", "cancel", "completed") must not consume
+    // requests for a different entity before the assistant can resolve them.
+    const otherEntity = lifeRequest || isExplicitReminderRequest(context.body) || /\b(reminders?|calendar|appointments?|events?|breakfast|lunch|dinner|snack)\b/i.test(context.body);
+    const heuristicCommand = parseGoalCommandHeuristically(context.body)
+      ?? (otherEntity ? null : parseRescheduleHeuristically(context.body)
+        ?? parseTaskCommandHeuristically(context.body, now));
     if (!heuristicCommand) {
       const feedbackReply = await this.outcomes?.tryHandleStandaloneReply({
         userId: context.userId,
@@ -305,9 +340,39 @@ export class ConversationOrchestrator {
           memories: memories.map((memory) => memory.content),
           customInstructions: context.profileInstructions ?? undefined,
           history,
-        }));
+          execute: (command) => this.executeCommand(context, now, command),
+        })).catch(() => ({ kind: "conversation" as const, reply: "I’m having trouble reaching my AI service right now. Please try that message again in a moment." }));
 
     if (intent.kind === "conversation") return intent.reply;
+    return this.executeCommand(context, now, intent.command);
+  }
+
+  private async executeCommand(context: InboundConversationContext, now: Date, command: CoachingCommand): Promise<string> {
+    if (command.type === "food_search" || command.type === "life_list" || command.type === "life_save" || command.type === "life_remove") {
+      return this.life?.execute(context.userId, context.messageId, command) ?? "Your life workspace is not configured in this environment.";
+    }
+    if (command.type === "recall_memories") {
+      const memories = await this.memories?.retrieveRelevant(context.userId, now, 20) ?? [];
+      return memories.length ? JSON.stringify(memories.map(({ content }) => content)) : "No saved memories found.";
+    }
+    if (command.type === "forget_memory") {
+      return await this.memories?.tryHandleCorrection({ userId: context.userId, messageId: context.messageId, body: `forget ${command.query}`, now }) ?? "Memory is temporarily unavailable.";
+    }
+    if (command.type === "connection_status") return this.integrations?.status(context.userId) ?? "Account connections are not configured. Tasks, reminders, and memory are available.";
+    if (command.type === "set_checkins") return this.integrations?.setCheckins(context.userId, command.enabled, command.dailyCap) ?? "Check-in settings are temporarily unavailable.";
+    if (command.type === "calendar_agenda" || command.type === "calendar_change") {
+      if (!this.integrations) return "Calendar tools are not configured yet. You can still plan a schedule with me.";
+      try {
+        if (command.type === "calendar_agenda") return await this.integrations.agenda(context.userId, command.start, command.end);
+        const proposal = await this.integrations.proposeCalendarChange(context.userId, context.messageId, command.change, context.timezone, now);
+        await this.conversations.savePendingAction(context.userId, { entity: "calendar_confirmation", ...proposal, createdByMessageId: context.messageId, expiresAt: new Date(now.getTime() + 15 * 60_000) });
+        return proposal.summary;
+      } catch {
+        return "I couldn’t access or validate that calendar request. Reconnect Google Calendar on the Extensions page and use a specific personal event, date, and time. Shared, all-day, and recurring event edits aren’t supported in this demo.";
+      }
+    }
+    // Narrow before the existing task/goal/reminder handlers.
+    const intent = { command };
     if (isMemoryCommand(intent.command)) {
       if (!this.memories) return "Memory is temporarily unavailable.";
       return this.memories.executeCommand({
@@ -342,7 +407,10 @@ export class ConversationOrchestrator {
     }
     if (isReminderCommand(intent.command)) {
       if (!this.reminders) return "Reminder scheduling is temporarily unavailable.";
-      return executeReminderCommand(this.reminders, intent.command, {
+      const reminderCommand = intent.command.type === "create_reminder" || intent.command.type === "reschedule_reminder"
+        ? { ...intent.command, remindAt: requestedReminderTime(context.body, now, context.timezone) ?? intent.command.remindAt }
+        : intent.command;
+      return executeReminderCommand(this.reminders, reminderCommand, {
         userId: context.userId,
         sourceMessageId: context.messageId,
         timezone: context.timezone,

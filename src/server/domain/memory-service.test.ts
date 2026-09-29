@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { parseMemoryCorrection } from "./memory-service";
+import { isSensitiveMemory, parseMemoryCorrection } from "./memory-service";
 
 describe("memory corrections", () => {
+  it("recognizes a lasting dessert preference and punctuated deletion", () => {
+    expect(parseMemoryCorrection("I really like frozen blueberries and yogurt as a dessert.")).toEqual({ type: "favorite_food", content: "Favorite food: frozen blueberries and yogurt." });
+    expect(parseMemoryCorrection("Forget yogurt.")).toEqual({ type: "forget", query: "yogurt" });
+  });
+  it.each(["My password is demo-only", "API key: fake-test-value", "My SSN is 123-45-6789", "My medical record says something"])("blocks sensitive memory %s", (content) => {
+    expect(isSensitiveMemory(content)).toBe(true);
+    expect(isSensitiveMemory("Favorite food: yogurt.")).toBe(false);
+  });
   it("recognizes explicit deletion and preference corrections", () => {
     expect(parseMemoryCorrection("forget what you know about mornings")).toEqual({ type: "forget", query: "mornings" });
     expect(parseMemoryCorrection("that's not true")).toEqual({ type: "forget_recent" });

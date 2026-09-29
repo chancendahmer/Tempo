@@ -12,7 +12,7 @@ type DispatchableAction = {
   interventionId: string | null;
   reminderId: string | null;
   runAt: Date;
-  kind: "send_welcome" | "send_compliance" | "process_inbound_message" | "deliver_reminder" | "sync_calendar" | "evaluate_context" | "deliver_intervention" | "accountability_followup" | "feedback_followup" | "feedback_timeout";
+  kind: "send_signin" | "send_welcome" | "send_compliance" | "process_inbound_message" | "deliver_reminder" | "sync_calendar" | "evaluate_context" | "deliver_intervention" | "accountability_followup" | "feedback_followup" | "feedback_timeout";
   payload: Record<string, unknown>;
 };
 
@@ -26,7 +26,7 @@ export async function dispatchDueActions(
       select id, user_id as "userId", intervention_id as "interventionId", reminder_id as "reminderId", idempotency_key as "idempotencyKey", kind, payload, run_at as "runAt"
       from ${scheduledActions}
       where status = 'scheduled'
-        and kind in ('send_welcome', 'send_compliance', 'process_inbound_message', 'deliver_reminder', 'sync_calendar', 'evaluate_context', 'deliver_intervention', 'accountability_followup', 'feedback_followup', 'feedback_timeout')
+        and kind in ('send_signin', 'send_welcome', 'send_compliance', 'process_inbound_message', 'deliver_reminder', 'sync_calendar', 'evaluate_context', 'deliver_intervention', 'accountability_followup', 'feedback_followup', 'feedback_timeout')
         and run_at <= now()
       order by run_at asc
       for update skip locked
@@ -34,7 +34,7 @@ export async function dispatchDueActions(
     `);
 
     for (const action of result.rows) {
-      const queueName = action.kind === "send_welcome"
+      const queueName = action.kind === "send_signin" ? JOB_NAMES.sendSignIn : action.kind === "send_welcome"
         ? JOB_NAMES.sendWelcome
         : action.kind === "send_compliance"
           ? JOB_NAMES.sendCompliance
@@ -54,7 +54,7 @@ export async function dispatchDueActions(
                   ? JOB_NAMES.feedbackFollowup
                   : JOB_NAMES.feedbackTimeout;
       const data: SendWelcomeJob | SendComplianceJob | ProcessInboundJob | DeliverReminderJob | SyncCalendarJob | EvaluateContextJob | DeliverInterventionJob | AccountabilityFollowupJob | FeedbackFollowupJob | FeedbackTimeoutJob =
-        action.kind === "send_welcome" || action.kind === "send_compliance"
+        action.kind === "send_signin" || action.kind === "send_welcome" || action.kind === "send_compliance"
           ? {
               scheduledActionId: action.id,
               userId: action.userId,

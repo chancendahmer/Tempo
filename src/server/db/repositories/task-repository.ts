@@ -1,7 +1,7 @@
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, ne, sql } from "drizzle-orm";
 import { TaskMutation, TaskRecord, TaskRepository } from "../../domain/task-service";
 import { getDatabase, TempoDatabase } from "../client";
-import { goals, taskEvents, tasks } from "../schema";
+import { goals, lifeItems, taskEvents, tasks } from "../schema";
 
 function asTaskRecord(row: typeof tasks.$inferSelect): TaskRecord {
   return {
@@ -98,6 +98,13 @@ export class DrizzleTaskRepository implements TaskRepository {
 
   async mutate(input: Parameters<TaskRepository["mutate"]>[0]) {
     return this.database.transaction(async (transaction) => {
+      if (input.changes.status === "in_progress") {
+        await transaction.update(tasks).set({ status: "not_started", startedAt: null, updatedAt: new Date() }).where(and(eq(tasks.userId, input.userId), eq(tasks.status, "in_progress"), ne(tasks.id, input.taskId)));
+        await transaction.delete(lifeItems).where(and(eq(lifeItems.userId, input.userId), sql`${lifeItems.data}->>'kind' = 'focus'`, sql`coalesce(${lifeItems.data}->>'taskId', '') <> ${input.taskId}`));
+      }
+      if (input.changes.status === "completed" || input.changes.status === "abandoned") {
+        await transaction.delete(lifeItems).where(and(eq(lifeItems.userId, input.userId), sql`${lifeItems.data}->>'taskId' = ${input.taskId}`));
+      }
       const [updated] = await transaction
         .update(tasks)
         .set({ ...input.changes, updatedAt: new Date() })

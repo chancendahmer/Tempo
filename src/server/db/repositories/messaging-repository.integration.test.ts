@@ -23,6 +23,7 @@ import * as schema from "../schema";
 import { DrizzleMessagingRepository } from "./messaging-repository";
 import { DrizzleConsentRepository } from "./consent-repository";
 import { DrizzleOutboundMessageRepository } from "./outbound-message-repository";
+import { WebSessionService } from "../../security/web-session";
 
 async function migratedTestDatabase() {
   const client = new PGlite();
@@ -55,6 +56,48 @@ describe("messaging repositories with migrated PostgreSQL", () => {
 
   afterEach(async () => {
     await client.close();
+  });
+
+  it("handles returning-account START as sign-in, never as AI input or memory", async () => {
+    const [user] = await database.insert(users).values({
+      phoneE164: "+12025550165", status: "active", onboardingState: "complete",
+      lastInboundAt: new Date(), phoneVerifiedAt: new Date(),
+    }).returning();
+    const sessions = new WebSessionService(database);
+    const session = await sessions.create(user.id);
+    const repository = new DrizzleMessagingRepository(database);
+    const input = { provider: "sendblue" as const, providerMessageId: "SIGNIN_START",
+      from: user.phoneE164, to: "+12025550111", body: "START" };
+    await repository.ingestInbound(input);
+    expect(await repository.ingestInbound(input)).toEqual({ duplicate: true });
+    expect(await sessions.findAccount(session.token)).toMatchObject({ phoneVerified: true });
+    const messages = await database.select().from(conversationMessages).where(eq(conversationMessages.userId, user.id));
+    expect(messages).toHaveLength(1);
+    expect(messages[0]).toMatchObject({ kind: "compliance", status: "processed" });
+    const actions = await database.select().from(scheduledActions).where(eq(scheduledActions.userId, user.id));
+    expect(actions).toHaveLength(1);
+    expect(actions[0]).toMatchObject({ kind: "send_compliance", payload: { signInConfirmed: true } });
+    expect(await database.select().from(memoryEntries).where(eq(memoryEntries.userId, user.id))).toHaveLength(0);
+  });
+
+  it("does not let START approve a browser that requested a secure sign-in link", async () => {
+    const [user] = await database.insert(users).values({
+      phoneE164: "+12025550164", status: "active", onboardingState: "complete",
+      lastInboundAt: new Date(), phoneVerifiedAt: new Date(),
+    }).returning();
+    const sessions = new WebSessionService(database);
+    const session = await sessions.createSignInRequest(user.id);
+    await new DrizzleMessagingRepository(database).ingestInbound({
+      provider: "sendblue", providerMessageId: "SECURE_START", from: user.phoneE164, to: "+12025550111", body: "START",
+    });
+    expect(await sessions.findAccount(session.token)).toMatchObject({ phoneVerified: false });
+    const actions = await database.select().from(scheduledActions).where(eq(scheduledActions.userId, user.id));
+    expect(actions.map(action => action.kind).sort()).toEqual(["send_compliance", "send_signin"]);
+    expect(actions.find(action => action.kind === "send_compliance")?.payload).toMatchObject({ signInLinkRequired: true });
+    await new DrizzleMessagingRepository(database).ingestInbound({
+      provider: "sendblue", providerMessageId: "SECURE_NORMAL", from: user.phoneE164, to: "+12025550111", body: "Add laundry tomorrow",
+    });
+    expect(await sessions.findAccount(session.token)).toMatchObject({ phoneVerified: false });
   });
 
   it("stores one message and one action when Twilio retries an inbound webhook", async () => {

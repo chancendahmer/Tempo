@@ -1,6 +1,7 @@
 import { and, desc, eq, gt, inArray, isNull, lte, ne, or, sql } from "drizzle-orm";
 import { MessagingProvider } from "../../adapters/sms/sms-transport";
 import { InterventionOpportunityPlanner } from "../../domain/context-evaluation-service";
+import { localTime } from "../../domain/context-engine";
 import { getDatabase, TempoDatabase } from "../client";
 import { conversationMessages, interventionAccountability, interventionOutcomes, interventions, memoryEntries, scheduledActions, tasks, users } from "../schema";
 
@@ -104,7 +105,18 @@ export class DrizzleInterventionRepository implements InterventionOpportunityPla
       if (!current || !["candidate", "queued"].includes(current.status)) return { claimed: false as const, reason: "not_candidate" };
 
       await transaction.execute(sql`select id from ${users} where id = ${current.userId} for update`);
-      const cooldownMinutes = Math.max(5, current.configuredCooldown);
+      const [user] = await transaction.select().from(users).where(eq(users.id, current.userId)).limit(1);
+      if (!user?.proactiveOptIn) return { claimed: false as const, reason: "proactive_opt_in_missing" };
+      const cooldownMinutes = Math.max(120, user.interventionCooldownMinutes);
+      const today = localTime(now, user.timezone).date;
+      const contacts = await transaction.select({ at: interventions.queuedAt }).from(interventions).where(and(
+        eq(interventions.userId, current.userId), ne(interventions.id, current.id),
+        inArray(interventions.status, ["queued", "sent", "delivered", "responded", "expired"]),
+        gt(interventions.queuedAt, new Date(now.getTime() - 48 * 3_600_000)),
+      ));
+      if (contacts.filter(({ at }) => at && localTime(at, user.timezone).date === today).length >= Math.min(3, user.dailyInterventionCap)) {
+        return { claimed: false as const, reason: "daily_cap_reached" };
+      }
       const [recent] = await transaction.select({ id: interventions.id }).from(interventions).where(and(
         eq(interventions.userId, current.userId),
         ne(interventions.id, current.id),

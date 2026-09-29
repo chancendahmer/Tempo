@@ -43,6 +43,7 @@ export const serverEnvSchema = z.object({
   GOOGLE_REDIRECT_URI: z.url().optional(),
   ANTHROPIC_API_KEY: optionalSecret,
   ANTHROPIC_MODEL: optionalSecret,
+  ASSISTANT_WEB_SEARCH_ENABLED: z.enum(["true", "false"]).default("true").transform((value) => value === "true"),
   WORKER_ID: z.string().trim().min(1).default("tempo-local-worker"),
   WORKER_POLL_INTERVAL_MS: z.coerce.number().int().min(500).max(60_000).default(2_000),
 });

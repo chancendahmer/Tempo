@@ -20,6 +20,28 @@ const timestamps = {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 };
 
+export const lifeItems = pgTable("life_items", {
+  id: uuid("id").primaryKey(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  data: jsonb("data").$type<import("../domain/life-items").LifeItem>().notNull(),
+  version: integer("version").default(1).notNull(),
+  ...timestamps,
+}, table => [index("life_items_user_idx").on(table.userId), index("life_items_user_kind_idx").on(table.userId, sql`(${table.data}->>'kind')`), uniqueIndex("life_items_one_focus_idx").on(table.userId).where(sql`${table.data}->>'kind' = 'focus'`)]);
+
+export const foodLookupCache = pgTable("food_lookup_cache", {
+  key: text("key").primaryKey(),
+  products: jsonb("products").$type<import("../domain/food").FoodProduct[]>().notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+});
+
+export const lifeActionReceipts = pgTable("life_action_receipts", {
+  key: text("key").primaryKey(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  fingerprint: text("fingerprint").notNull(),
+  message: text("message").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
 export const userStatus = pgEnum("user_status", ["active", "paused", "opted_out", "deleted"]);
 export const onboardingState = pgEnum("onboarding_state", [
   "awaiting_consent",
@@ -35,7 +57,7 @@ export const consentStatus = pgEnum("consent_status", ["granted", "revoked"]);
 export const consentChannel = pgEnum("consent_channel", ["web", "sms", "admin"]);
 export const goalStatus = pgEnum("goal_status", ["active", "completed", "abandoned"]);
 export const taskStatus = pgEnum("task_status", ["not_started", "in_progress", "completed", "abandoned"]);
-export const reminderStatus = pgEnum("reminder_status", ["scheduled", "sending", "sent", "cancelled", "failed"]);
+export const reminderStatus = pgEnum("reminder_status", ["scheduled", "sending", "sent", "cancelled", "failed", "completed"]);
 export const messageDirection = pgEnum("message_direction", ["inbound", "outbound"]);
 export const messageStatus = pgEnum("message_status", [
   "received",
@@ -131,7 +153,8 @@ export const users = pgTable(
     preferredCoachingStyle: interventionStyle("preferred_coaching_style"),
     coachingTone: coachingTone("coaching_tone").default("balanced").notNull(),
     dailyInterventionCap: integer("daily_intervention_cap").default(3).notNull(),
-    interventionCooldownMinutes: integer("intervention_cooldown_minutes").default(5).notNull(),
+    proactiveOptIn: boolean("proactive_opt_in").default(false).notNull(),
+    interventionCooldownMinutes: integer("intervention_cooldown_minutes").default(120).notNull(),
     pausedUntil: timestamp("paused_until", { withTimezone: true }),
     optedOutAt: timestamp("opted_out_at", { withTimezone: true }),
     phoneVerifiedAt: timestamp("phone_verified_at", { withTimezone: true }),

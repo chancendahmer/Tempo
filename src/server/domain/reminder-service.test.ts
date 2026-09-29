@@ -1,7 +1,21 @@
 import { describe, expect, it, vi } from "vitest";
-import { ReminderRepository, executeReminderCommand, nextRecurringOccurrence } from "./reminder-service";
+import { ReminderRepository, executeReminderCommand, nextRecurringOccurrence, requestedReminderTime } from "./reminder-service";
+import { relativeReminderTime } from "./reminder-commands";
 
 describe("reminder service", () => {
+  it("resolves two minutes and tomorrow at 11 in the user's timezone, including DST", () => {
+    expect(requestedReminderTime("Remind me in two minutes to do the dishes", new Date("2026-09-15T14:00:00Z"), "America/New_York")).toBe("2026-09-15T14:02:00.000Z");
+    expect(requestedReminderTime("Remind me tomorrow at 11 AM to add Davis to get home", new Date("2026-09-15T02:00:00Z"), "America/New_York")).toBe("2026-09-15T15:00:00.000Z");
+    expect(requestedReminderTime("Remind me tomorrow at 11 AM to cook", new Date("2027-03-13T14:00:00Z"), "America/New_York")).toBe("2027-03-14T15:00:00.000Z");
+  });
+  it("resolves simple relative reminders from the inbound processing time", () => {
+    const now = new Date("2026-09-03T01:25:00Z");
+    expect(relativeReminderTime("Can you text me and remind me to do the dishes in 1 minute?", now))
+      .toBe("2026-09-03T01:26:00.000Z");
+    expect(relativeReminderTime("Remind me tomorrow at 11 AM to add Davis to get home", now)).toBeUndefined();
+    expect(relativeReminderTime("Cancel my reminder in 1 minute", now)).toBeUndefined();
+  });
+
   it("persists an exact future instant and confirms it in the user's timezone", async () => {
     const create = vi.fn(async (input: Parameters<ReminderRepository["create"]>[0]) => ({
       id: "r1", text: input.text, remindAt: input.remindAt, timezone: input.timezone,

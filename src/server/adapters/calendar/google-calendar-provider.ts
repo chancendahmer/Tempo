@@ -5,6 +5,7 @@ import { BusyWindow, CalendarAuthorizationError, CalendarDataProvider, CalendarO
 
 export const GOOGLE_CALENDAR_SCOPES = [
   "https://www.googleapis.com/auth/calendar.events.freebusy",
+  "https://www.googleapis.com/auth/calendar.events.owned",
 ] as const;
 
 function oauthClient() {
