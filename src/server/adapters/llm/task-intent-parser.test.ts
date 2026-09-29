@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AnthropicTaskIntentParser, parseTaskIntentResponse } from "./task-intent-parser";
 import { isExplicitReminderRequest } from "../../domain/reminder-commands";
+import { AssistantProviderFailure } from "../../domain/assistant-provider-failure";
 
 const { create, settings } = vi.hoisted(() => ({ create: vi.fn(), settings: { webSearch: false } }));
 vi.mock("@anthropic-ai/sdk", () => ({ default: class { messages = { create }; } }));
@@ -13,6 +14,19 @@ describe("current-message routing", () => {
     history: [{ id: "old", role: "user" as const, content: "Remind me tomorrow at 11 AM to add Davis to get home", createdAt: new Date("2026-08-19T12:00:00Z") }],
   };
   beforeEach(() => { create.mockReset(); settings.webSearch = false; });
+
+  it.each([
+    [400, "Your credit balance is too low", "billing"],
+    [401, "Unauthorized", "configuration"],
+    [503, "Service unavailable", "transient"],
+  ])("classifies provider status %s without executing an action", async (status, message, category) => {
+    create.mockRejectedValueOnce({ status, message });
+    const execute = vi.fn();
+    await expect(new AnthropicTaskIntentParser().parse({ ...input, execute }))
+      .rejects.toMatchObject({ name: "AssistantProviderFailure", category, status });
+    expect(execute).not.toHaveBeenCalled();
+    expect(create).toHaveBeenCalledTimes(1);
+  });
 
   it("accepts typographic quote differences in a current calendar lookup", async () => {
     create.mockResolvedValueOnce({ content: [{ type: "tool_use", id: "agenda", name: "calendar_agenda", input: {
@@ -122,7 +136,7 @@ describe("current-message routing", () => {
   it("preserves a verified action result when the follow-up model call fails", async () => {
     create.mockResolvedValueOnce({ content: [{ type: "tool_use", id: "memory", name: "remember_memory", input: {
       sourceQuote: "pizza", content: "Favorite food: pizza.", category: "preference",
-    } }] }).mockRejectedValueOnce(new Error("unavailable"));
+    } }] }).mockRejectedValueOnce(new AssistantProviderFailure("billing", 400));
     const execute = vi.fn(async () => "Added to your favorite-food list: pizza.");
     expect(await new AnthropicTaskIntentParser().parse({ ...input, message: "Remember pizza as my favorite food", execute }))
       .toEqual({ kind: "conversation", reply: "Added to your favorite-food list: pizza." });

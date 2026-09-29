@@ -11,6 +11,7 @@ import {
 } from "./task-service";
 import type { TaskIntentParser } from "../adapters/llm/task-intent-parser";
 import { isConversationOnlyMessage, isLifeWorkspaceRequest } from "./conversation-routing";
+import { assistantProviderFailureReply } from "./assistant-provider-failure";
 import { OutcomeTracker } from "./outcome-tracker";
 import { MemoryCommand, MemoryService } from "./memory-service";
 import { SecureActionLinks } from "../security/action-links";
@@ -341,7 +342,7 @@ export class ConversationOrchestrator {
           customInstructions: context.profileInstructions ?? undefined,
           history,
           execute: (command) => this.executeCommand(context, now, command),
-        })).catch(() => ({ kind: "conversation" as const, reply: "I’m having trouble reaching my AI service right now. Please try that message again in a moment." }));
+        })).catch((error: unknown) => ({ kind: "conversation" as const, reply: assistantProviderFailureReply(error) }));
 
     if (intent.kind === "conversation") return intent.reply;
     return this.executeCommand(context, now, intent.command);

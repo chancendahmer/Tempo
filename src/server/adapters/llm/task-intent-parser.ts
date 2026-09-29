@@ -11,6 +11,8 @@ import { AssistantCommand, assistantCommandSchema } from "../../domain/assistant
 import { ASSISTANT_TOOLS, isReadOnlyAssistantCommand } from "./assistant-tools";
 import { logger } from "../../observability/logger";
 import { isConversationOnlyMessage } from "../../domain/conversation-routing";
+import { AssistantProviderFailure } from "../../domain/assistant-provider-failure";
+import { normalizeProviderFailure } from "./provider-failure";
 
 export type CoachingCommand = TaskCommand | GoalCommand | RescheduleCommand | ReminderCommand | MemoryCommand | AssistantCommand;
 export type TaskIntentResult = { kind: "command"; command: CoachingCommand } | { kind: "conversation"; reply: string };
@@ -277,8 +279,17 @@ export class AnthropicTaskIntentParser implements TaskIntentParser {
   private client: Anthropic | undefined;
 
   async parse(input: Parameters<TaskIntentParser["parse"]>[0]): Promise<TaskIntentResult> {
-    const env = requireEnv(["ANTHROPIC_API_KEY", "ANTHROPIC_MODEL"]);
-    this.client ??= new Anthropic({ apiKey: env.ANTHROPIC_API_KEY!, timeout: 30_000, maxRetries: 1 });
+    let env: ReturnType<typeof requireEnv>;
+    try { env = requireEnv(["ANTHROPIC_API_KEY", "ANTHROPIC_MODEL"]); }
+    catch {
+      logger.error({ category: "configuration", operation: "assistant_response" }, "assistant provider configuration unavailable");
+      throw new AssistantProviderFailure("configuration");
+    }
+    try { this.client ??= new Anthropic({ apiKey: env.ANTHROPIC_API_KEY!, timeout: 30_000, maxRetries: 1 }); }
+    catch {
+      logger.error({ category: "configuration", operation: "assistant_response" }, "assistant provider configuration unavailable");
+      throw new AssistantProviderFailure("configuration");
+    }
     const explicitReminder = isExplicitReminderRequest(input.message);
     const conversationOnly = isConversationOnlyMessage(input.message);
     const tools = (explicitReminder
@@ -356,16 +367,16 @@ export class AnthropicTaskIntentParser implements TaskIntentParser {
       response = await this.client.messages.create(request);
     } catch (error) {
       // A completed write must still get its truthful confirmation if synthesis fails.
+      const failure = normalizeProviderFailure(error);
+      logger.error({ status: failure.status, category: failure.category, operation: "assistant_response" }, "assistant provider request failed");
       if (actionResult) return { kind: "conversation", reply: actionResult };
-      const failure = error as { status?: number; message?: string };
-      if (!searchFallbackUsed && failure.status === 400 && /web.?search/i.test(failure.message ?? "")) {
+      if (!searchFallbackUsed && failure.status === 400 && /web.?search/i.test(String((error as { message?: unknown } | null)?.message ?? ""))) {
         searchFallbackUsed = true;
         request.tools = tools;
         request.system += "\nWeb search failed or is unavailable for this provider account. Do not claim live verification. Answer from general knowledge when suitable and disclose the limitation.";
         continue;
       }
-      logger.error({ status: failure.status, operation: "assistant_response" }, "assistant provider request failed");
-      throw error;
+      throw failure;
     }
     const blocks = response.content as ResponseBlock[];
     searchesUsed += blocks.filter((block) => block.type === "server_tool_use"
