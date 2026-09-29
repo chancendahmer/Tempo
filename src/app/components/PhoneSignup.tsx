@@ -160,7 +160,7 @@ export function PhoneSignup() {
             {onboarding?.verificationSent
               ? "Check your messages to finish setup."
               : onboarding?.alreadyVerified
-                ? "You’re in. Tempo is texting you now."
+                ? "Welcome back. Text START to finish signing in."
                 : onboarding
                   ? "One last step: start the conversation."
                   : "You’re in. Tempo will text you to start setup."}
@@ -168,6 +168,11 @@ export function PhoneSignup() {
         </div>
         {onboarding && (
           <div className="signup-success-actions">
+            {onboarding.alreadyVerified && (
+              <p className="signup-verification-note">
+                Your number is already verified. Send START to Tempo within 30 minutes, then return to this browser to open your account. You don’t need to create a new account.
+              </p>
+            )}
             {onboarding.verificationSent && (
               <p className="signup-verification-note">
                 Reply to Sendblue’s one-time verification message. Tempo will then send its welcome and contact card.
