@@ -194,3 +194,45 @@ navigation, constrain capability claims, and return check-in tool outcomes
 without model embellishment. Smart-quote normalization addresses a reproducible
 calendar-lookup rejection path; the original model tool payload was not captured,
 so that specific failure's cause is not conclusively established.
+
+## Live iteration 2 — candidate e14c231
+
+Repeated the 14-turn workspace journey with real claude-sonnet-4-6 responses:
+14/14 passed, including unintended-change, replay and outsider-sentinel checks.
+Manual review confirmed My routines, Meal planner, Movement and Thought inbox
+navigation is now correct. Acknowledgments are shorter. Full second workspace
+snapshots and exact responses are retained locally in
+qa/workspace-live-iteration-2.json and .md.
+
+Repeated the broader 33-scenario assistant journey: zero automated issues.
+The Friday calendar lookup called calendar_agenda and answered instead of falling
+back. Email was correctly described as unavailable; enabling check-ins returned
+the fixture's disabled-delivery statement without a contradictory promise.
+Calendar remains a fixture, and these runs do not prove real OAuth or delivery.
+
+Score: 7/10 for the tested assistant paths. No 20-person release approval yet.
+Remaining gaps include persistent authenticated browser/worker execution,
+restart continuity, real calendar and carrier canaries, provider contact capacity,
+and multi-session load. Some read-only replies still append unnecessary questions;
+responses prepend the verified Saved/Removed outcome before model wording.
+
+Validation: npm run check passed 268 tests across 52 files, lint, typecheck,
+production Next.js build and operations compilation. Candidate PR #7 is draft
+and mergeable; no GitHub CI checks are configured on it. User approved iterative
+candidate-branch publication, but not merging or production deployment.
+
+### Concrete founder rollout proposed for approval
+
+1. Keep INTERVENTION_SHADOW_MODE=true and set AUTONOMOUS_SENDING_ENABLED=false
+   on both services for the canary. This prevents optional proactive sends while
+   explicit user messages/reminders continue through their existing consent gates.
+2. Merge PR #7, apply journaled migrations 0020–0022 through web pre-deploy, and
+   coordinate web/worker deployment to the same revision.
+3. Verify /api/health and /api/ready, then use normal account verification for
+   the selected founder/test account. Do not fabricate verified production users.
+4. Run web chat and inbound-message tests on that account, compare dashboard
+   changes, verify refresh/restart persistence and cancellation paths.
+5. Only invite testers after those checks and provider limits are confirmed.
+
+Rollback: disable autonomous delivery, roll web and worker back together, and
+retain additive migration data. Do not drop user data to roll back application code.
