@@ -133,3 +133,64 @@ without raw SQL, parameters or credentials. Full `npm run check` passed with
 
 Recovery checks do not establish live AI quality, external calendar behavior,
 or 20-user demo readiness. The live iteration gates above remain open.
+
+## Iteration 3 — stricter evaluation, September 29, 2026
+
+Candidate commit: 1c70f2c, branch codex/demo-readiness (local).
+Full npm run check passed: 266 tests across 52 files, lint, typecheck,
+production build and operations compilation.
+
+The 14-step scripted workspace journey now detects unintended record changes,
+requires edits to preserve record identity and unrelated fields, verifies that
+another account's seeded private note stays unchanged and absent from replies,
+and replays every inbound message to check for duplicate mutations/replies.
+All 14 turns and their replays passed. A regression deliberately corrupts a
+recipe while preserving the requested serving count; the new evaluator catches
+what the prior success predicate missed. Twenty-account isolation passed again.
+
+Browser sample review verified Save recipe -> Plan for dinner: the recipe was
+added to the dinner section. This closes the earlier unverified preview click.
+Sample state still resets on reload and is not an authenticated live AI result.
+
+Railway console presence checks confirmed ANTHROPIC_API_KEY and ANTHROPIC_MODEL
+exist in the running web container without revealing either value. Its older
+revision lacks the simulation scripts. The proposed live path is an isolated
+candidate checkout with temporary PGlite and captured SMS inside that runtime.
+No candidate code has been run there yet. Publication of the candidate branch
+was blocked by automatic approval review because the existing GitHub repository
+is public; explicit publication approval has been requested.
+
+AI quality: unrated, pending real model transcripts. Release-readiness remains
+4/10 under the earlier evaluation; this is a statement of incomplete evidence,
+not a claim that the observed live AI failed. Persistent demo account, real
+worker/browser journey and live provider gates remain open.
+
+## Live iteration 1 — real Anthropic evaluation
+
+Ran candidate 1c70f2c in an isolated temporary directory inside the existing
+Railway web container using its configured claude-sonnet-4-6 model. The evaluation
+process did not receive DATABASE_URL or provider sending secrets. It used a
+fresh temporary PGlite database, synthetic accounts, captured messaging transport
+and fixture calendar responses. Production application code was not replaced.
+
+Workspace journey: 14/14 state checks passed, including all replay checks and
+cross-account sentinel checks. Downloaded exact replies and state evidence to
+qa/workspace-live-iteration-1.md and .json. The browser sample separately verified
+recipe creation and planning it for dinner.
+
+Broader assistant journey: 33 scenario prompts plus replay/malformed-media and
+separate-user checks. One automated issue: the Friday calendar lookup returned
+a fallback without calling the agenda tool. Other manually observed defects:
+- Invented Recipes, Meal Plans, Food Log, Workouts, Groceries and Notes tabs.
+- Directed a saved routine to the Wake & Wind Down placeholder.
+- Repeated generic celebrations, extra questions and redundant confirmations.
+- Suggested enabling an unimplemented email integration in Extensions.
+- Promised proactive messages after a fixture explicitly said delivery was disabled.
+
+Score: 6/10 for the tested assistant/workspace paths. The state edits and shared
+context worked, but navigation and capability claims were misleading. This is
+not a release-readiness approval for 20 people. Subsequent code changes ground
+navigation, constrain capability claims, and return check-in tool outcomes
+without model embellishment. Smart-quote normalization addresses a reproducible
+calendar-lookup rejection path; the original model tool payload was not captured,
+so that specific failure's cause is not conclusively established.

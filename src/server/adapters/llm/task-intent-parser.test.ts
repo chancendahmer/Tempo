@@ -14,6 +14,25 @@ describe("current-message routing", () => {
   };
   beforeEach(() => { create.mockReset(); settings.webSearch = false; });
 
+  it("accepts typographic quote differences in a current calendar lookup", async () => {
+    create.mockResolvedValueOnce({ content: [{ type: "tool_use", id: "agenda", name: "calendar_agenda", input: {
+      sourceQuote: "What's on my calendar Friday?", start: "2026-09-04T00:00:00-04:00", end: "2026-09-05T00:00:00-04:00",
+    } }] }).mockResolvedValueOnce({ content: [{ type: "text", text: "Your Friday is clear." }] });
+    const execute = vi.fn().mockResolvedValue('{"events":[]}');
+    await new AnthropicTaskIntentParser().parse({ ...input, message: "What’s on my calendar Friday?", execute });
+    expect(execute).toHaveBeenCalledExactlyOnceWith({ type: "calendar_agenda", start: "2026-09-04T00:00:00-04:00", end: "2026-09-05T00:00:00-04:00" });
+  });
+
+  it("returns verified check-in delivery limits without a contradictory model promise", async () => {
+    create.mockResolvedValueOnce({ content: [{ type: "tool_use", id: "opt", name: "set_checkins", input: {
+      sourceQuote: "Please enable proactive check-ins", enabled: true, dailyCap: 2,
+    } }] }).mockResolvedValueOnce({ content: [{ type: "text", text: "I will text you twice a day." }] });
+    const reply = "Check-in preference saved. Proactive delivery is disabled in this simulation.";
+    const execute = vi.fn().mockResolvedValue(reply);
+    expect(await new AnthropicTaskIntentParser().parse({ ...input, message: "Please enable proactive check-ins twice a day.", execute })).toEqual({ kind: "conversation", reply });
+    expect(create).toHaveBeenCalledTimes(1);
+  });
+
   it("preserves reply relationships in the model context across channels", async () => {
     create.mockResolvedValue({ content: [{ type: "text", text: "Your recipe is saved." }] });
     await new AnthropicTaskIntentParser().parse({ ...input, history: [
