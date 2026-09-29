@@ -1,6 +1,12 @@
 import type { Tool } from "@anthropic-ai/sdk/resources/messages";
+import { z } from "zod";
+import { lifeItemSchema } from "../../domain/life-items";
 
 export const ASSISTANT_TOOLS: Tool[] = [
+  { name: "food_search", description: "Search Open Food Facts packaged foods by term OR barcode. Returns nutrients per 100g or 100ml, sometimes unknown. Confirm the specific product, amount and units before logging. Never assume missing nutrients are zero. Scale each known nutrient by amount/100; preserve null values. Search does not log food.", input_schema: { type: "object", properties: { term: { type: "string" }, barcode: { type: "string" } }, additionalProperties: false } },
+  { name: "life_list", description: "Read the user's Tempo routines, food logs, meal plans, workouts, notes or groceries. Read before edits; use returned IDs and versions. These are Tempo records, not third-party integrations.", input_schema: { type: "object", properties: { kind: { type: "string", enum: ["routine", "food", "meal", "recipe", "workout", "note", "grocery"] } }, required: ["kind"], additionalProperties: false } },
+  { name: "life_save", description: "Save an explicitly requested Tempo routine, food log, meal plan, favorite recipe, workout, note or grocery. Use recipe for remember this meal, recipes I like, or save for later: it has no date; ask for ingredients or steps if missing. Use meal only for a dated plan. Never confuse planning a meal with logging food eaten. For edits read first and preserve fields not changed; pass exact id and version. Omit id/version for new items. Never invent nutrition numbers or log suggested food as eaten. Ask for missing nutrition values. Routine steps need UUIDs and completedOn null until actually completed. Dates use the user's local date. Do not store medical diagnoses or secrets in notes.", input_schema: { type: "object", properties: { id: { type: "string", format: "uuid" }, version: { type: "integer", minimum: 1 }, data: z.toJSONSchema(lifeItemSchema) }, required: ["data"], additionalProperties: false } },
+  { name: "life_remove", description: "Remove a specific Tempo life item only when the user asks. Read life_list first for exact id and version.", input_schema: { type: "object", properties: { id: { type: "string", format: "uuid" }, version: { type: "integer", minimum: 1 } }, required: ["id", "version"], additionalProperties: false } },
   { name: "calendar_agenda", description: "Read events from the connected Google primary calendar within an explicit range of at most 31 days. Use before editing an event; use returned IDs only.", input_schema: {
     type: "object", properties: { start: { type: "string", format: "date-time" }, end: { type: "string", format: "date-time" } }, required: ["start", "end"], additionalProperties: false,
   } },
@@ -19,5 +25,5 @@ export const ASSISTANT_TOOLS: Tool[] = [
 ];
 
 export function isReadOnlyAssistantCommand(type: string): boolean {
-  return ["list_tasks", "list_goals", "list_reminders", "recall_memories", "connection_status", "calendar_agenda"].includes(type);
+  return ["food_search", "life_list", "list_tasks", "list_goals", "list_reminders", "recall_memories", "connection_status", "calendar_agenda"].includes(type);
 }

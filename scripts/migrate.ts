@@ -1,5 +1,6 @@
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { closeDatabase, getDatabase } from "../src/server/db/client";
+import { migrationFailureSummary } from "./lib/migration-error";
 
 async function main() {
   try {
@@ -11,6 +12,6 @@ async function main() {
 }
 
 main().catch((error: unknown) => {
-  process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
+  process.stderr.write(`${migrationFailureSummary(error)}\n`);
   process.exitCode = 1;
 });

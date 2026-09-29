@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { lifeItemSchema } from "./life-items";
 
 const instant = z.iso.datetime({ offset: true });
 export const calendarChangeSchema = z.discriminatedUnion("operation", [
@@ -8,6 +9,10 @@ export const calendarChangeSchema = z.discriminatedUnion("operation", [
 ]);
 export type CalendarChange = z.infer<typeof calendarChangeSchema>;
 export const assistantCommandSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("food_search"), term: z.string().trim().min(2).max(100).optional(), barcode: z.string().regex(/^\d{8,14}$/).optional() }),
+  z.object({ type: z.literal("life_list"), kind: z.enum(["routine", "food", "meal", "recipe", "workout", "note", "grocery"]) }),
+  z.object({ type: z.literal("life_save"), id: z.uuid().optional(), version: z.number().int().min(1).optional(), data: lifeItemSchema }),
+  z.object({ type: z.literal("life_remove"), id: z.uuid(), version: z.number().int().min(1) }),
   z.object({ type: z.literal("calendar_agenda"), start: instant, end: instant }),
   z.object({ type: z.literal("calendar_change"), change: calendarChangeSchema }),
   z.object({ type: z.literal("connection_status") }),

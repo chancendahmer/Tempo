@@ -54,6 +54,8 @@ export class CalendarAssistantIntegrations implements AssistantIntegrations {
       calendar: !connection ? "not connected" : connection.scopes.includes(CALENDAR_EVENTS_SCOPE) ? "agenda and confirmed personal event edits" : "free/busy only; reconnect for event access",
       webSearch: env.ASSISTANT_WEB_SEARCH_ENABLED ? "enabled; requires provider account access" : "disabled by operator",
       memory: "available", tasksAndReminders: "available",
+        workspace: "Tempo routines, recipes, meal plans, food logs, workouts, groceries and notes; edits appear after refresh",
+        wakeAndWindDown: "visual placeholder only; no wake alarms, sound scheduling or physical light control",
       proactiveCoaching: env.INTERVENTION_SHADOW_MODE || !env.AUTONOMOUS_SENDING_ENABLED ? "operator has not enabled delivery" : "available with user opt-in and calendar availability",
       otherAccounts: "not connected: email, Apple Calendar, Google Tasks, shopping, health, and other third-party apps",
       manageConnections: `${env.APP_BASE_URL}/extensions`,

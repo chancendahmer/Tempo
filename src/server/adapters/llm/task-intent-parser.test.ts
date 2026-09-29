@@ -14,6 +14,16 @@ describe("current-message routing", () => {
   };
   beforeEach(() => { create.mockReset(); settings.webSearch = false; });
 
+  it("preserves reply relationships in the model context across channels", async () => {
+    create.mockResolvedValue({ content: [{ type: "text", text: "Your recipe is saved." }] });
+    await new AnthropicTaskIntentParser().parse({ ...input, history: [
+      { id: "question", role: "user", content: "Save my recipe", createdAt: input.now },
+      { id: "answer", role: "assistant", content: "Saved your lemon rice.", replyToMessageId: "question", createdAt: input.now },
+    ] });
+    const context = JSON.parse(create.mock.calls[0][0].messages[0].content);
+    expect(context.backgroundHistory[1]).toMatchObject({ id: "answer", replyToMessageId: "question" });
+  });
+
   it.each(["Hello", "That’s not what I said to do", "Who are you? What can you do? Can you help me with anything?"])(
     "keeps %s conversational despite stale reminder history", async (message) => {
       create.mockResolvedValue({ content: [{ type: "text", text: "Hey! I’m Tempo. I can help with reminders, meals, and getting unstuck." }] });
@@ -55,6 +65,29 @@ describe("current-message routing", () => {
       sourceQuote: "Hello", content: "Favorite food: pizza.", category: "preference",
     } }] });
     expect((await new AnthropicTaskIntentParser().parse(input)).kind).toBe("conversation");
+  });
+
+  it("applies a pronoun-based recipe edit only after a current version lookup", async () => {
+    const id = "00000000-0000-4000-8000-000000000091";
+    const data = { kind: "recipe", title: "Lemon rice", ingredients: "Rice and lemon", instructions: "Cook rice.", servings: 3, prepMinutes: 20, favorite: true };
+    create.mockResolvedValueOnce({ content: [{ type: "tool_use", id: "read", name: "life_list", input: { kind: "recipe", sourceQuote: "Make it three servings" } }] })
+      .mockResolvedValueOnce({ content: [{ type: "tool_use", id: "edit", name: "life_save", input: { id, version: 2, data, sourceQuote: "Make it three servings" } }] })
+      .mockResolvedValueOnce({ content: [{ type: "text", text: "It now serves three; the ingredients are unchanged." }] });
+    const execute = vi.fn(async command => command.type === "life_list" ? JSON.stringify([{ id, version: 2, data: { ...data, servings: 2 } }]) : "Saved.");
+    const result = await new AnthropicTaskIntentParser().parse({ ...input, message: "Make it three servings", execute });
+    expect(execute).toHaveBeenCalledTimes(2);
+    expect(execute.mock.calls[1][0]).toMatchObject({ type: "life_save", id, version: 2, data: { servings: 3 } });
+    expect(result).toMatchObject({ reply: expect.stringContaining("Saved.") });
+  });
+
+  it.each(["life_save", "life_remove"])("blocks %s with an ID that was not read this turn", async type => {
+    create.mockResolvedValueOnce({ content: [{ type: "tool_use", id: "unread", name: type, input: {
+      id: "00000000-0000-4000-8000-000000000091", version: 2, sourceQuote: "Change it",
+      ...(type === "life_save" ? { data: { kind: "note", title: "Weekend", body: "Updated" } } : {}),
+    } }] }).mockResolvedValueOnce({ content: [{ type: "text", text: "Which note do you mean?" }] });
+    const execute = vi.fn();
+    await new AnthropicTaskIntentParser().parse({ ...input, message: "Change it", execute });
+    expect(execute).not.toHaveBeenCalled();
   });
 
   it("rejects stale action contents even when sourceQuote is a word from the current message", async () => {

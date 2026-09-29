@@ -711,43 +711,12 @@ select {
   background: var(--teal);
 }
 
-.placeholder-page {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  padding: 26px 42px;
-  background: var(--paper);
-}
-
-.placeholder-page section {
-  margin: auto;
-  padding: 40px 20px 120px;
-  text-align: center;
-}
-
-.placeholder-page h1 {
-  margin: 4px 0 12px;
-  font-size: clamp(48px, 7vw, 84px);
-  letter-spacing: -4px;
-}
-
-.placeholder-page section > p:not(.eyebrow) {
-  margin: 0 0 28px;
-  color: #566063;
-  font-size: 20px;
-}
-
 .eyebrow {
   margin: 0;
   color: var(--teal-dark);
   text-transform: uppercase;
   letter-spacing: 0.18em;
   font-weight: 800;
-}
-
-.placeholder-home {
-  min-width: 160px;
-  padding: 0 24px;
 }
 
 /* Inner product pages */
@@ -1983,10 +1952,6 @@ select {
 
   .legal-row > span:first-child {
     width: 100%;
-  }
-
-  .placeholder-page {
-    padding: 20px;
   }
 
   .section-shell {

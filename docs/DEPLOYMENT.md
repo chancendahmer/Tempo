@@ -17,6 +17,28 @@ Tempo deploys as three Railway services in one project environment: `tempo-web`,
 
 The web pre-deploy command applies database migrations. The worker never migrates, which avoids two services racing on deploy.
 
+## Migration startup failures
+
+`Failed query: CREATE SCHEMA IF NOT EXISTS "drizzle"` identifies the first
+migration bookkeeping query, not the underlying database failure. An empty
+`params:` line is normal for this statement. Check PostgreSQL service health
+and logs first, especially after an interrupted subscription or service restart.
+
+Confirm that both Tempo services reference the existing PostgreSQL service's
+`DATABASE_URL` in the same Railway environment. Do not replace or recreate the
+database to address a connection failure. Once PostgreSQL is accepting
+connections, retry the web deployment, then verify the worker and readiness.
+
+The migration runner reports recognized nested error codes with safe guidance:
+`ECONNREFUSED` (connection refused), `ENOTFOUND` (DNS), `ETIMEDOUT` (timeout),
+`28P01` (password), `42501` (permissions), and `57P03` (database starting up).
+It deliberately omits raw SQL, parameters, connection strings and provider
+messages. The diagnostic change must be deployed before it appears in Railway
+logs. An unknown cause still requires PostgreSQL logs to diagnose.
+
+Railway variables belong to the deployed services. Restoring a Railway service
+does not inject its credentials into a local shell or the local simulation.
+
 ## Provider endpoints
 
 - Sendblue receive and outbound webhooks: `POST https://<staging-domain>/api/sendblue/webhook`

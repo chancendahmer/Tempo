@@ -4,6 +4,71 @@ Status: a locally validated demo candidate, not a verified consumer release.
 Live model quality, real SMS delivery, and the founder canary remain release
 gates. Passing mocked tests does not prove those gates passed.
 
+September 29 evaluation: see [DEMO_ITERATIONS.md](DEMO_ITERATIONS.md) for the
+mixed SMS/web journey, 20-account context checks, fixes and readiness ratings.
+Run `npm run simulate:workspace -- --scripted` for state-path snapshots, or omit
+`--scripted` with configured model credentials for live synthetic conversations.
+
+## Workspace checkpoint — September 28, 2026
+
+`/workspace` and `/board` now render the authenticated workspace. `/workspace/preview`
+is an interactive, explicitly labeled sample with in-memory changes that reset
+on reload. It never pretends to invoke the live assistant or food service.
+
+The workspace includes tasks, goals, a Google event agenda, daily routine steps,
+a persistent focus timer, recipe library, dated meal plans, groceries, nutrition
+and food diary, workouts, thought inbox, shared conversation, and settings.
+The planner uses soft section-specific colors and the existing Tempo avatar.
+The visual refresh adds illustrated routine/meal cards, colored nutrient tiles,
+bordered event groups, note cards, concise chat shortcuts and expandable help.
+Desktop and mobile browser checks cover section navigation, ingredient disclosure
+and routine checkoffs; the focus interaction remains unchanged.
+Browser full screen and user-triggered spoken briefings depend on device support.
+Scheduled spoken announcements, kiosk recovery and display pairing remain gaps.
+
+All authenticated edits use the same PostgreSQL account as SMS. Web conversation
+messages enter the durable inbound job pipeline and use the same orchestrator
+and tools. Web replies are persisted without sending an extra carrier message.
+Workspace polling refreshes every 15 seconds; calendar events every 60 seconds.
+Failures clear private workspace content. Hide is visual privacy, not a device lock.
+Calendar edits retain the existing confirmation gates and supported-event limits.
+
+Migration 0022 adds versioned account-owned life items, replay receipts, a shared
+food cache and a unique active-focus index. Its generated snapshot is checked in.
+Apply `npm run db:migrate` before deploying the web and worker versions together.
+Task/goal mutations use their existing audited repositories. Recipe, routine,
+meal, food, workout, grocery and note tools support SMS and web assistant input.
+Routine completion uses the account timezone; stale edits fail instead of silently
+overwriting another device. Recipe storage is separate from generic AI memory.
+
+Food name and barcode search use Open Food Facts with attribution, explicit
+portion units, unknown nutrient values, cache and database-backed rate limits.
+Camera scanning requires a secure browser with BarcodeDetector support; typed or
+USB-scanner barcode entry and manual food entry remain available. This is Tempo's
+own food diary, not a MyFitnessPal account integration. Before public launch,
+review Open Food Facts usage requirements and bulk-data options for higher volume.
+The current bounded workspace reads are a prototype, not unlimited-history browsing:
+200 tasks, 100 goals, 1,000 life items and the latest 50 messages. Pagination and
+long-term archival need implementation before heavy multi-year use.
+
+`npm run check` passed lint, typecheck, 247 tests across 49 files, production
+build and operations compilation. The 33-turn scripted assistant simulation
+reported zero state-check issues. These are isolated code-path checks.
+
+Verification includes migrated PostgreSQL-compatible integration tests for account
+isolation, stale versions, retries, task completion, routine focus completion,
+web ingress/replies and scripted recipe tool routing. Browser checks cover task
+start/pause/done, food reuse, recipe creation, meal planning, calendar layout and
+a 390px mobile layout. Preview interactions are not live integration evidence.
+
+Live model simulation previously stopped before calls because ANTHROPIC_API_KEY
+and ANTHROPIC_MODEL were absent from the process environment. A direct public
+food-barcode lookup also failed to connect from this environment. Real Google
+OAuth, model replies, carrier delivery, worker recovery and whiteboard camera/audio
+still require a configured deployment canary. No production migration or deployment
+was performed. Existing recurring reminders and proactive opt-in gates remain in
+place; defining a routine alone does not schedule its own SMS or audio announcement.
+
 ## Required before inviting testers
 
 - Sendblue receive and outbound webhooks point to the public URL and use the

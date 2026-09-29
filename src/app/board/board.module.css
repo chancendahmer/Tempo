@@ -1,0 +1,17 @@
+.board { min-height: 100dvh; padding: clamp(24px, 4vw, 72px); background: #f1f4ee; color: #20362f; }
+.board header, .controls { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
+.board h1 { font-size: clamp(36px, 5vw, 76px); line-height: 1.1; margin: 20px 0; letter-spacing: -0.04em; }
+.board h2 { font-size: clamp(24px, 2vw, 34px); margin: 12px 0; }
+.board p, .board li { font-size: clamp(18px, 1.5vw, 24px); line-height: 1.6; }
+.board button, .board a { display: inline-flex; align-items: center; min-height: 48px; padding: 12px 20px; border: 1px solid #b2c5ba; border-radius: 14px; background: #fff; color: #20362f; cursor: pointer; font-size: 18px; }
+.board :focus-visible { outline: 3px solid #135e53; outline-offset: 4px; }
+.clock { font-size: clamp(24px, 3vw, 48px); font-variant-numeric: tabular-nums; }
+.grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 24px; margin-top: 30px; }
+.card { padding: clamp(20px, 3vw, 44px); border: 1px solid #cbd7ce; background: #fffefa; border-radius: 26px; overflow-wrap: anywhere; }
+.focus { background: #dcece1; }
+.label { font-size: 14px !important; text-transform: uppercase; letter-spacing: .12em; font-weight: 700; }
+.board ul { list-style: none; padding: 0; margin: 0; }
+.board li { padding: 16px 0; border-bottom: 1px solid #dce3dd; }
+.board small { display: block; color: #4e6458; font-size: 16px; }
+.notice { padding: 16px 20px; border-radius: 16px; background: #fff0cd; }
+@media (max-width: 850px) { .grid { grid-template-columns: 1fr; } }

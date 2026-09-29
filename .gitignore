@@ -23,6 +23,8 @@
 # Generated synthetic assistant transcripts; rerun with simulate:assistant.
 /qa/assistant-*-latest.json
 /qa/assistant-*-latest.md
+/qa/workspace-*-latest.json
+/qa/workspace-*-latest.md
 
 # OS files
 .DS_Store

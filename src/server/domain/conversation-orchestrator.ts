@@ -1,4 +1,4 @@
-import { SafeSmsSender } from "./outbound-messaging";
+import type { SendSafeSmsInput } from "./outbound-messaging";
 import { handleOnboardingMessage } from "./onboarding";
 import { parseTaskCommandHeuristically, resolveTaskReference } from "./task-commands";
 import {
@@ -10,7 +10,7 @@ import {
   resolvePendingTaskChoice,
 } from "./task-service";
 import type { TaskIntentParser } from "../adapters/llm/task-intent-parser";
-import { isConversationOnlyMessage } from "./conversation-routing";
+import { isConversationOnlyMessage, isLifeWorkspaceRequest } from "./conversation-routing";
 import { OutcomeTracker } from "./outcome-tracker";
 import { MemoryCommand, MemoryService } from "./memory-service";
 import { SecureActionLinks } from "../security/action-links";
@@ -37,7 +37,7 @@ import {
 import { ConversationHistoryRepository } from "./conversation-history";
 import { isExplicitReminderRequest, ReminderCommand } from "./reminder-commands";
 import { ReminderRepository, executeReminderCommand, requestedReminderTime } from "./reminder-service";
-import { AssistantIntegrations } from "./assistant-commands";
+import { AssistantCommand, AssistantIntegrations } from "./assistant-commands";
 
 export type InboundConversationContext = {
   messageId: string;
@@ -110,7 +110,7 @@ export class ConversationOrchestrator {
     private readonly goals: GoalRepository,
     private readonly scheduling: SchedulingRepository,
     private readonly intentParser: TaskIntentParser,
-    private readonly sms: SafeSmsSender,
+    private readonly sms: { send(input: SendSafeSmsInput): Promise<unknown> },
     private readonly now: () => Date = () => new Date(),
     private readonly outcomes?: OutcomeTracker,
     private readonly memories?: MemoryService,
@@ -118,6 +118,7 @@ export class ConversationOrchestrator {
     private readonly history?: ConversationHistoryRepository,
     private readonly reminders?: ReminderRepository,
     private readonly integrations?: AssistantIntegrations,
+    private readonly life?: { execute(userId: string, sourceMessageId: string, command: Extract<AssistantCommand, { type: "food_search" | "life_list" | "life_save" | "life_remove" }>): Promise<string> },
   ) {}
 
   async process(messageId: string): Promise<{ processed: boolean }> {
@@ -295,7 +296,8 @@ export class ConversationOrchestrator {
       return `This permanently deletes your Tempo data. Confirm only if that’s what you want: ${this.secureLinks.accountDelete(context.userId)}`;
     }
 
-    const memoryReply = await this.memories?.tryHandleCorrection({
+    const lifeRequest = isLifeWorkspaceRequest(context.body);
+    const memoryReply = lifeRequest ? null : await this.memories?.tryHandleCorrection({
       userId: context.userId,
       messageId: context.messageId,
       body: context.body,
@@ -305,7 +307,7 @@ export class ConversationOrchestrator {
 
     // Broad task heuristics ("move", "cancel", "completed") must not consume
     // requests for a different entity before the assistant can resolve them.
-    const otherEntity = isExplicitReminderRequest(context.body) || /\b(reminders?|calendar|appointments?|events?)\b/i.test(context.body);
+    const otherEntity = lifeRequest || isExplicitReminderRequest(context.body) || /\b(reminders?|calendar|appointments?|events?|breakfast|lunch|dinner|snack)\b/i.test(context.body);
     const heuristicCommand = parseGoalCommandHeuristically(context.body)
       ?? (otherEntity ? null : parseRescheduleHeuristically(context.body)
         ?? parseTaskCommandHeuristically(context.body, now));
@@ -346,6 +348,9 @@ export class ConversationOrchestrator {
   }
 
   private async executeCommand(context: InboundConversationContext, now: Date, command: CoachingCommand): Promise<string> {
+    if (command.type === "food_search" || command.type === "life_list" || command.type === "life_save" || command.type === "life_remove") {
+      return this.life?.execute(context.userId, context.messageId, command) ?? "Your life workspace is not configured in this environment.";
+    }
     if (command.type === "recall_memories") {
       const memories = await this.memories?.retrieveRelevant(context.userId, now, 20) ?? [];
       return memories.length ? JSON.stringify(memories.map(({ content }) => content)) : "No saved memories found.";

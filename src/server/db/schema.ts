@@ -20,6 +20,28 @@ const timestamps = {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 };
 
+export const lifeItems = pgTable("life_items", {
+  id: uuid("id").primaryKey(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  data: jsonb("data").$type<import("../domain/life-items").LifeItem>().notNull(),
+  version: integer("version").default(1).notNull(),
+  ...timestamps,
+}, table => [index("life_items_user_idx").on(table.userId), index("life_items_user_kind_idx").on(table.userId, sql`(${table.data}->>'kind')`), uniqueIndex("life_items_one_focus_idx").on(table.userId).where(sql`${table.data}->>'kind' = 'focus'`)]);
+
+export const foodLookupCache = pgTable("food_lookup_cache", {
+  key: text("key").primaryKey(),
+  products: jsonb("products").$type<import("../domain/food").FoodProduct[]>().notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+});
+
+export const lifeActionReceipts = pgTable("life_action_receipts", {
+  key: text("key").primaryKey(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  fingerprint: text("fingerprint").notNull(),
+  message: text("message").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
 export const userStatus = pgEnum("user_status", ["active", "paused", "opted_out", "deleted"]);
 export const onboardingState = pgEnum("onboarding_state", [
   "awaiting_consent",

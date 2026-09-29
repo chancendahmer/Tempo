@@ -23,10 +23,14 @@ import { DrizzleOutboundMessageRepository } from "../../src/server/db/repositori
 import { DrizzleMemoryRepository } from "../../src/server/db/repositories/memory-repository";
 import { DrizzleReminderRepository } from "../../src/server/db/repositories/reminder-repository";
 import { ensureDirectConversation } from "../../src/server/db/repositories/messaging-identity-repository";
+import { LifeAssistant } from "../../src/server/db/repositories/life-assistant";
+import { mutateWorkspace, readWorkspace } from "../../src/server/db/repositories/workspace-repository";
+import { WebReplySender } from "../../src/server/db/repositories/web-reply-repository";
 
 export type TranscriptTurn = {
   input: string; replies: string[]; providerId: string; duplicate: boolean;
   parserCalled: boolean; tools: string[]; elapsedMs: number;
+  channel?: "sms" | "web";
 };
 
 /** Test-only database and transport. No production connection or provider sender is constructed. */
@@ -75,19 +79,26 @@ export async function createAssistantSimulator(parser: TaskIntentParser) {
       const transcript: TranscriptTurn[] = [];
       return {
         id: user.id, transcript,
-        async send(body: string, options: { providerId?: string; mediaUrl?: unknown } = {}) {
+        workspace: () => readWorkspace(user.id, database),
+        async send(body: string, options: { providerId?: string; mediaUrl?: unknown; channel?: "sms" | "web" } = {}) {
           const start = performance.now();
           const providerId = options.providerId ?? randomUUID();
+          const channel = options.channel ?? "sms";
           const parsed = parseSendblueWebhook({ content: body, is_outbound: false, status: "RECEIVED", message_handle: providerId, from_number: phone, to_number: "+12025550100", media_url: options.mediaUrl });
           if (parsed.kind !== "inbound") throw new Error("Expected text input");
-          const receipt = await new DrizzleMessagingRepository(database).ingestInbound(parsed.input);
-          const [message] = await database.select().from(schema.conversationMessages).where(and(eq(schema.conversationMessages.userId, user.id), eq(schema.conversationMessages.providerMessageSid, providerId))).limit(1);
+          const webKey = `web-chat:${user.id}:${providerId}`;
+          const [prior] = channel === "web" ? await database.select().from(schema.conversationMessages).where(eq(schema.conversationMessages.idempotencyKey, webKey)).limit(1) : [];
+          const receipt = channel === "web"
+            ? (await mutateWorkspace(user.id, { action: "chat", requestId: providerId, text: body }, database), { duplicate: Boolean(prior) })
+            : await new DrizzleMessagingRepository(database).ingestInbound(parsed.input);
+          const [message] = await database.select().from(schema.conversationMessages).where(and(eq(schema.conversationMessages.userId, user.id), channel === "web" ? eq(schema.conversationMessages.idempotencyKey, webKey) : eq(schema.conversationMessages.providerMessageSid, providerId))).limit(1);
           const [job] = await database.select().from(schema.scheduledActions).where(and(
             eq(schema.scheduledActions.userId, user.id),
-            eq(schema.scheduledActions.idempotencyKey, `inbound:sendblue:${providerId}`),
+            eq(schema.scheduledActions.idempotencyKey, channel === "web" ? `web-process:${message.id}` : `inbound:sendblue:${providerId}`),
             eq(schema.scheduledActions.status, "scheduled"),
           )).limit(1);
-          const turn: TranscriptTurn = { input: body, replies: [], providerId, duplicate: receipt.duplicate, parserCalled: false, tools: [], elapsedMs: 0 };
+          const turn: TranscriptTurn = { input: body, replies: [], providerId, duplicate: receipt.duplicate, parserCalled: false, tools: [], elapsedMs: 0, channel };
+          const beforeWeb = channel === "web" ? (await readWorkspace(user.id, database)).messages.map(row => row.id) : [];
           const before = transport.sent.length;
           const observedParser: TaskIntentParser = { parse: async (input) => {
             turn.parserCalled = true;
@@ -101,27 +112,30 @@ export async function createAssistantSimulator(parser: TaskIntentParser) {
           const orchestrator = new ConversationOrchestrator(
             new DrizzleConversationRepository(database), new DrizzleTaskRepository(database),
             new DrizzleGoalRepository(database), new DrizzleSchedulingRepository(database), observedParser,
-            new SafeSmsSender(new DrizzleOutboundMessageRepository(database), transport), () => clock,
+            channel === "web" ? new WebReplySender(message.id, database) : new SafeSmsSender(new DrizzleOutboundMessageRepository(database), transport), () => clock,
             undefined, new MemoryService(new DrizzleMemoryRepository(database)), undefined,
-            new DrizzleConversationHistoryRepository(database), new DrizzleReminderRepository(database), integrations,
+            new DrizzleConversationHistoryRepository(database), new DrizzleReminderRepository(database), integrations, new LifeAssistant(database),
           );
           if (!receipt.duplicate && job && message.status === "received") {
             await orchestrator.process(message.id);
             await database.update(schema.scheduledActions).set({ status: "completed", completedAt: new Date() }).where(eq(schema.scheduledActions.id, job.id));
           }
-          turn.replies = transport.sent.slice(before).filter((item) => item.to === phone).map((item) => item.body);
+          turn.replies = channel === "web"
+            ? (await readWorkspace(user.id, database)).messages.filter(row => row.direction === "outbound" && !beforeWeb.includes(row.id)).map(row => row.body)
+            : transport.sent.slice(before).filter((item) => item.to === phone).map((item) => item.body);
           turn.elapsedMs = Math.round(performance.now() - start);
           transcript.push(turn);
           return turn;
         },
         async state() {
-          const [tasks, reminders, memories, userRows] = await Promise.all([
+          const [tasks, reminders, memories, userRows, lifeItems] = await Promise.all([
             database.select().from(schema.tasks).where(eq(schema.tasks.userId, user.id)),
             database.select().from(schema.reminders).where(eq(schema.reminders.userId, user.id)),
             new DrizzleMemoryRepository(database).retrieveRelevant(user.id, clock, 100),
             database.select().from(schema.users).where(eq(schema.users.id, user.id)),
+            database.select().from(schema.lifeItems).where(eq(schema.lifeItems.userId, user.id)),
           ]);
-          return { tasks, reminders, memories, user: userRows[0], calendarWrites: calendarWrites.filter((item) => item.userId === user.id) };
+          return { tasks, reminders, memories, lifeItems, user: userRows[0], calendarWrites: calendarWrites.filter((item) => item.userId === user.id) };
         },
       };
     },

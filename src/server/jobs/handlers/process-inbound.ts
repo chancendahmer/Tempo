@@ -20,6 +20,8 @@ import { logger } from "../../observability/logger";
 import { JOB_NAMES, ProcessInboundJob } from "../names";
 import { ScheduledActionRepository } from "../scheduled-action-repository";
 import { CalendarAssistantIntegrations } from "../../adapters/calendar/calendar-assistant";
+import { isWebMessage, WebReplySender } from "../../db/repositories/web-reply-repository";
+import { LifeAssistant } from "../../db/repositories/life-assistant";
 
 export async function registerProcessInboundHandler(boss: PgBoss) {
   await boss.work<ProcessInboundJob>(JOB_NAMES.processInbound, { localConcurrency: 4 }, async (jobs) => {
@@ -35,7 +37,7 @@ export async function registerProcessInboundHandler(boss: PgBoss) {
           new DrizzleGoalRepository(),
           new DrizzleSchedulingRepository(),
           new AnthropicTaskIntentParser(),
-          new SafeSmsSender(new DrizzleOutboundMessageRepository(), createMessagingTransport()),
+          await isWebMessage(job.data.messageId) ? new WebReplySender(job.data.messageId) : new SafeSmsSender(new DrizzleOutboundMessageRepository(), createMessagingTransport()),
           undefined,
           new OutcomeTracker(new DrizzleOutcomeRepository()),
           new MemoryService(new DrizzleMemoryRepository()),
@@ -43,6 +45,7 @@ export async function registerProcessInboundHandler(boss: PgBoss) {
           new DrizzleConversationHistoryRepository(),
           new DrizzleReminderRepository(),
           new CalendarAssistantIntegrations(),
+          new LifeAssistant(),
         );
         await orchestrator.process(job.data.messageId);
         await actions.markCompleted(job.data.scheduledActionId);
