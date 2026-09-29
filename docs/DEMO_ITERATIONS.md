@@ -236,3 +236,22 @@ candidate-branch publication, but not merging or production deployment.
 
 Rollback: disable autonomous delivery, roll web and worker back together, and
 retain additive migration data. Do not drop user data to roll back application code.
+
+### Local candidate maintenance after iteration 2
+
+Updated Next.js, @next/env and eslint-config-next to 16.3.6 and refreshed the
+compatible transitive dependency fixes identified by npm audit. Production-only
+audit now reports zero vulnerabilities. The full audit retains four moderate
+findings in the development-only drizzle-kit / esbuild dependency chain; npm's
+suggested forced fix downgrades drizzle-kit across breaking versions and was not
+applied. This is an outstanding development tooling issue, not a clean full audit.
+
+No new Anthropic key was required: local development and UI testing used the
+existing workflow, while the observed live model evaluations ran in isolated
+Railway test directories using its configured credentials. The tested assistant
+score remains 7/10; maintenance does not increase that score or certify release.
+
+Final local validation: npm run check passed lint, typecheck, all 268 tests in
+52 files, the Next.js production build and operations compilation after these
+dependency updates. An earlier check was interrupted during build; the complete
+rerun passed with exit code zero.
