@@ -1,7 +1,8 @@
 import { createHash, randomBytes } from "node:crypto";
 import { and, eq, gt, isNull } from "drizzle-orm";
 import { getDatabase, TempoDatabase } from "../db/client";
-import { calendarConnections, users, webSessions } from "../db/schema";
+import { calendarConnections, scheduledActions, users, webSessions } from "../db/schema";
+import { InvalidActionTokenError, verifyActionToken } from "./action-token";
 
 export const WEB_SESSION_COOKIE = "tempo_session";
 export const WEB_SESSION_TTL_SECONDS = 30 * 24 * 60 * 60;
@@ -27,14 +28,46 @@ export class WebSessionService {
   async create(userId: string, now = new Date(), activated = false) {
     const token = randomBytes(32).toString("base64url");
     const expiresAt = new Date(now.getTime() + WEB_SESSION_TTL_SECONDS * 1_000);
-    await this.database.insert(webSessions).values({
+    const [session] = await this.database.insert(webSessions).values({
       userId,
       tokenHash: hashToken(token),
       expiresAt,
       activatedAt: activated ? now : null,
       lastSeenAt: now,
+    }).returning({ id: webSessions.id });
+    return { token, expiresAt, id: session.id };
+  }
+
+  async queueSignIn(userId: string, sessionId: string, now = new Date()) {
+    await this.database.insert(scheduledActions).values({
+      userId, kind: "send_signin", payload: { sessionId },
+      idempotencyKey: `signin:${sessionId}`, runAt: now,
+    }).onConflictDoNothing({ target: scheduledActions.idempotencyKey });
+  }
+
+  async createSignInRequest(userId: string, now = new Date()) {
+    return this.database.transaction(async transaction => {
+      const sessions = new WebSessionService(transaction as unknown as TempoDatabase);
+      const session = await sessions.create(userId, now);
+      await sessions.queueSignIn(userId, session.id, now);
+      return session;
     });
-    return { token, expiresAt };
+  }
+
+  async redeemSignIn(token: string, key: string, now = new Date()) {
+    const action = verifyActionToken(token, "account:signin", key, now);
+    if (!action.sessionId) throw new InvalidActionTokenError();
+    return this.database.transaction(async transaction => {
+      const [claimed] = await transaction.update(webSessions).set({ activatedAt: now, updatedAt: now })
+        .where(and(eq(webSessions.id, action.sessionId!), eq(webSessions.userId, action.userId),
+          isNull(webSessions.activatedAt), isNull(webSessions.revokedAt), gt(webSessions.expiresAt, now),
+          gt(webSessions.createdAt, new Date(now.getTime() - 15 * 60_000))))
+        .returning({ id: webSessions.id });
+      if (!claimed) throw new InvalidActionTokenError();
+      await transaction.update(users).set({ phoneVerifiedAt: now, updatedAt: now }).where(eq(users.id, action.userId));
+      // The requesting browser keeps its own cookie; the phone gets a separate session.
+      return new WebSessionService(transaction as unknown as TempoDatabase).create(action.userId, now, true);
+    });
   }
 
   async findAccount(token: string | undefined, now = new Date()): Promise<WebAccount | null> {

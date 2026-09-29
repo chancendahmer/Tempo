@@ -1,4 +1,4 @@
-import { and, eq, gt, inArray, isNull } from "drizzle-orm";
+import { and, eq, gt, inArray, isNull, sql } from "drizzle-orm";
 import { PRIVACY_VERSION, SMS_DISCLOSURE_VERSION, TERMS_VERSION } from "../../domain/consent";
 import { MessagingRepository } from "../../domain/messaging";
 import { normalizeE164 } from "../../domain/phone";
@@ -49,7 +49,12 @@ export class DrizzleMessagingRepository implements MessagingRepository {
           lastInboundAt: users.lastInboundAt,
         })
           .from(users).where(eq(users.phoneE164, phoneE164)).limit(1))[0];
-      const complianceKeyword = detectedKeyword === "START" &&
+      const [pendingSession] = detectedKeyword === "START" ? await transaction.select({ id: webSessions.id })
+        .from(webSessions).where(and(eq(webSessions.userId, user.id), isNull(webSessions.activatedAt),
+          isNull(webSessions.revokedAt), gt(webSessions.createdAt, new Date(now.getTime() - 30 * 60_000)),
+          gt(webSessions.expiresAt, now))).limit(1) : [];
+      const signingIn = Boolean(pendingSession) && user.lastInboundAt !== null && user.status !== "opted_out";
+      const complianceKeyword = detectedKeyword === "START" && !signingIn &&
         input.complianceKeyword !== "START" &&
         user.status !== "opted_out" &&
         user.onboardingState !== "awaiting_consent" &&
@@ -127,13 +132,27 @@ export class DrizzleMessagingRepository implements MessagingRepository {
         ...(user.lastInboundAt === null ? { phoneVerifiedAt: now } : {}),
         updatedAt: now,
       }).where(eq(users.id, user.id));
-      await transaction.update(webSessions).set({ activatedAt: now, updatedAt: now }).where(and(
+      const activatedSessions = await transaction.update(webSessions).set({ activatedAt: now, updatedAt: now }).where(and(
         eq(webSessions.userId, user.id),
         isNull(webSessions.activatedAt),
         isNull(webSessions.revokedAt),
         gt(webSessions.createdAt, new Date(now.getTime() - 30 * 60_000)),
         gt(webSessions.expiresAt, now),
-      ));
+        // A normal text must never approve a browser awaiting an explicit sign-in link.
+        sql`not exists (select 1 from ${scheduledActions} where ${scheduledActions.kind} = 'send_signin'
+          and ${scheduledActions.userId} = ${user.id}
+          and ${scheduledActions.payload}->>'sessionId' = ${webSessions.id}::text)`,
+      )).returning({ id: webSessions.id });
+
+      if (signingIn) {
+        await transaction.update(conversationMessages).set({ status: "processed", updatedAt: now })
+          .where(eq(conversationMessages.id, message.id));
+        await transaction.insert(scheduledActions).values({
+          userId: user.id, kind: "send_compliance", payload: { signInConfirmed: activatedSessions.length > 0, signInLinkRequired: activatedSessions.length === 0 },
+          idempotencyKey: `signin-confirmed:${input.provider}:${input.providerMessageId}`, runAt: now,
+        }).onConflictDoNothing({ target: scheduledActions.idempotencyKey });
+        return { duplicate: false };
+      }
 
       if (complianceKeyword === "STOP" || complianceKeyword === "START") {
         const granted = complianceKeyword === "START";

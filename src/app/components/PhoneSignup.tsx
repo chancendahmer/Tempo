@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useMemo, useState, useSyncExternalStore } from "react";
+import { FormEvent, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useRouter } from "next/navigation";
 import { FiArrowRight, FiCheck, FiMessageCircle, FiUserPlus } from "react-icons/fi";
 import { ACCOUNT_EVENT, useAccountStatus } from "./account-state";
 
@@ -27,6 +28,7 @@ type OnboardingAssignment = {
   vcfUrl?: string;
   verificationSent?: boolean;
   alreadyVerified?: boolean;
+  signInLinkQueued?: boolean;
 };
 
 function parseStoredAssignment(value: string | null): OnboardingAssignment | null {
@@ -75,6 +77,7 @@ const countries = [
 ];
 
 export function PhoneSignup() {
+  const router = useRouter();
   const [countryCode, setCountryCode] = useState("US");
   const [areaCode, setAreaCode] = useState("");
   const [phone, setPhone] = useState("");
@@ -85,6 +88,9 @@ export function PhoneSignup() {
   const submitted = submittedState !== null;
   const { account } = useAccountStatus(submitted ? 4_000 : 0);
   const onboarding = parseStoredAssignment(submittedState);
+  useEffect(() => {
+    if (submitted && account?.phoneVerified) router.replace("/workspace");
+  }, [submitted, account?.phoneVerified, router]);
   const country = useMemo(
     () => countries.find((item) => item.code === countryCode) ?? countries[0],
     [countryCode],
@@ -143,8 +149,8 @@ export function PhoneSignup() {
           <span>{account.onboardingState === "complete" ? "Your Tempo account is ready." : "Your phone is connected to Tempo."}</span>
         </div>
         <div className="signup-success-actions account-ready-actions">
-          <Link className="black-button" href={account.profileComplete ? "/extensions" : "/profile"}>
-            {account.profileComplete ? "Manage extensions" : "Customize your profile"} <FiArrowRight aria-hidden="true" />
+          <Link className="black-button" href="/workspace">
+            Open my dashboard <FiArrowRight aria-hidden="true" />
           </Link>
         </div>
       </div>
@@ -157,7 +163,9 @@ export function PhoneSignup() {
         <div className="signup-success-heading">
           <span className="success-check" aria-hidden="true"><FiCheck /></span>
           <span>
-            {onboarding?.verificationSent
+            {onboarding?.signInLinkQueued
+              ? "Check your texts for your sign-in link."
+              : onboarding?.verificationSent
               ? "Check your messages to finish setup."
               : onboarding?.alreadyVerified
                 ? "Welcome back. Text START to finish signing in."
@@ -168,7 +176,11 @@ export function PhoneSignup() {
         </div>
         {onboarding && (
           <div className="signup-success-actions">
-            {onboarding.alreadyVerified && (
+            {onboarding.signInLinkQueued ? (
+              <p className="signup-verification-note">
+                Your sign-in text is queued. Open its link and confirm within 15 minutes. This page will take you to your dashboard automatically. If it expires, request another link below.
+              </p>
+            ) : onboarding.alreadyVerified && (
               <p className="signup-verification-note">
                 Your number is already verified. Send START to Tempo within 30 minutes, then return to this browser to open your account. You don’t need to create a new account.
               </p>
@@ -178,15 +190,19 @@ export function PhoneSignup() {
                 Reply to Sendblue’s one-time verification message. Tempo will then send its welcome and contact card.
               </p>
             )}
-            <a className="black-button" href={onboarding.messageHref}>
+            {!onboarding.signInLinkQueued && <a className="black-button" href={onboarding.messageHref}>
               <FiMessageCircle aria-hidden="true" />
               {onboarding.verificationSent ? "No message? Text START" : "Text START to Tempo"}
-            </a>
+            </a>}
             {onboarding.vcfUrl && (
               <a className="signup-contact-link" href={onboarding.vcfUrl}>
                 <FiUserPlus aria-hidden="true" /> Save Tempo contact
               </a>
             )}
+            <button type="button" className="signup-contact-link" onClick={() => {
+              window.localStorage.removeItem(STORAGE_KEY);
+              window.dispatchEvent(new Event(STORAGE_EVENT));
+            }}>Request another sign-in link</button>
           </div>
         )}
       </div>

@@ -8,6 +8,8 @@ import { TempoDatabase } from "../db/client";
 import * as schema from "../db/schema";
 import { users } from "../db/schema";
 import { WebSessionService } from "./web-session";
+import { randomBytes, randomUUID } from "node:crypto";
+import { issueActionToken } from "./action-token";
 
 describe("phone-linked web sessions", () => {
   let client: PGlite;
@@ -22,6 +24,41 @@ describe("phone-linked web sessions", () => {
   });
 
   afterAll(async () => client.close());
+
+  it("redeems once, activates only the requested browser, and signs in the phone separately", async () => {
+    const now = new Date();
+    const key = randomBytes(32).toString("base64");
+    const [user] = await database.insert(users).values({ phoneE164: "+12025550178" }).returning();
+    const [other] = await database.insert(users).values({ phoneE164: "+12025550179" }).returning();
+    const sessions = new WebSessionService(database);
+    const target = await sessions.create(user.id, now);
+    const unrelated = await sessions.create(user.id, now);
+    const outsider = await sessions.create(other.id, now);
+    const token = issueActionToken({ userId: user.id, scope: "account:signin", sessionId: target.id }, key, now);
+    const phone = await sessions.redeemSignIn(token, key, now);
+    expect(phone.token).not.toBe(target.token);
+    expect(await sessions.findAccount(target.token, now)).toMatchObject({ userId: user.id, phoneVerified: true });
+    expect(await sessions.findAccount(phone.token, now)).toMatchObject({ userId: user.id, phoneVerified: true });
+    expect(await sessions.findAccount(unrelated.token, now)).toMatchObject({ phoneVerified: false });
+    expect(await sessions.findAccount(outsider.token, now)).toMatchObject({ phoneVerified: false });
+    await expect(sessions.redeemSignIn(token, key, now)).rejects.toThrow("invalid or has expired");
+  });
+
+  it("rejects expired, revoked, mismatched and unbound links", async () => {
+    const now = new Date();
+    const key = randomBytes(32).toString("base64");
+    const [user] = await database.insert(users).values({ phoneE164: "+12025550180" }).returning();
+    const sessions = new WebSessionService(database);
+    const session = await sessions.create(user.id, now);
+    const token = issueActionToken({ userId: user.id, scope: "account:signin", sessionId: session.id }, key, now);
+    await expect(sessions.redeemSignIn(token, key, new Date(now.getTime() + 16 * 60_000))).rejects.toThrow();
+    const mismatch = issueActionToken({ userId: randomUUID(), scope: "account:signin", sessionId: session.id }, key, now);
+    await expect(sessions.redeemSignIn(mismatch, key, now)).rejects.toThrow();
+    const unbound = issueActionToken({ userId: user.id, scope: "account:signin" }, key, now);
+    await expect(sessions.redeemSignIn(unbound, key, now)).rejects.toThrow();
+    await sessions.revoke(session.token, now);
+    await expect(sessions.redeemSignIn(token, key, now)).rejects.toThrow();
+  });
 
   it("keeps a signup pending until the phone is verified, then supports profile data and revocation", async () => {
     const [user] = await database.insert(users).values({ phoneE164: "+12025550177", onboardingState: "introduction" }).returning();

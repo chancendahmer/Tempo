@@ -45,6 +45,14 @@ export async function POST(request: NextRequest) {
     const body: unknown = await request.json();
     const parsedInput = webConsentInputSchema.parse(body);
     const phoneE164 = phonePartsToE164(parsedInput);
+    const phoneLimit = await new OperationalRepository().consumeRateLimit({
+      key: `signin-phone:${hashAuditValue(phoneE164, env.FIELD_ENCRYPTION_KEY!)}`,
+      limit: 3, windowMs: 15 * 60_000,
+    });
+    if (!phoneLimit.allowed) {
+      return NextResponse.json({ error: "A sign-in request was already sent. Check your texts or try again shortly." },
+        { status: 429, headers: { "retry-after": String(phoneLimit.retryAfterSeconds) } });
+    }
     const sendblueOnboarding = env.MESSAGING_PROVIDER === "sendblue" ? new SendblueOnboardingService() : undefined;
     const onboarding = sendblueOnboarding
       ? await sendblueOnboarding.prepareContact(phoneE164)
@@ -56,7 +64,7 @@ export async function POST(request: NextRequest) {
       ip: forwardedFor,
       userAgent: request.headers.get("user-agent") ?? undefined,
       auditKey: env.FIELD_ENCRYPTION_KEY!,
-      onboardingFlow: onboarding && !("verified" in onboarding && onboarding.verified) ? "user_first" : "tempo_first",
+      onboardingFlow: onboarding ? "user_first" : "tempo_first",
     });
 
     let verificationSent = false;
@@ -69,12 +77,17 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const session = await new WebSessionService().create(consent.userId);
+    const signInLinkQueued = Boolean(onboarding && "verified" in onboarding && onboarding.verified);
+    const sessions = new WebSessionService();
+    const session = signInLinkQueued
+      ? await sessions.createSignInRequest(consent.userId)
+      : await sessions.create(consent.userId);
     const response = NextResponse.json({
       accepted: true,
       ...(onboarding ? {
         onboarding: {
           phoneNumber: onboarding.phoneNumber,
+          signInLinkQueued,
           messageHref: `sms:${onboarding.phoneNumber}?body=START`,
           ...(env.MESSAGING_PROVIDER === "sendblue" && "verified" in onboarding
             ? { verificationSent, alreadyVerified: onboarding.verified }

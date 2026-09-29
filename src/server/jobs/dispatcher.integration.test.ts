@@ -63,4 +63,17 @@ describe("scheduled-action queue handoff", () => {
       expect.objectContaining({ id: action.id, singletonKey: user.id }),
     );
   });
+
+  it("dispatches sign-in links to the dedicated worker queue", async () => {
+    const [user] = await database.insert(users).values({ phoneE164: "+12025550196" }).returning();
+    const [action] = await database.insert(scheduledActions).values({
+      userId: user.id, kind: "send_signin", payload: { sessionId: user.id },
+      idempotencyKey: `signin:${user.id}`, runAt: new Date("2026-08-18T12:00:00Z"),
+    }).returning();
+    expect(await dispatchDueActions(boss, 25, database)).toBe(1);
+    expect(send).toHaveBeenLastCalledWith(JOB_NAMES.sendSignIn,
+      { scheduledActionId: action.id, userId: user.id, idempotencyKey: action.idempotencyKey },
+      expect.objectContaining({ id: action.id }));
+    expect(await dispatchDueActions(boss, 25, database)).toBe(0);
+  });
 });

@@ -1,4 +1,5 @@
 export const JOB_NAMES = {
+  sendSignIn: "tempo.send-signin",
   sendWelcome: "tempo.send-welcome",
   sendCompliance: "tempo.send-compliance",
   processInbound: "tempo.process-inbound",

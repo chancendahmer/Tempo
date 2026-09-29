@@ -255,3 +255,34 @@ Final local validation: npm run check passed lint, typecheck, all 268 tests in
 52 files, the Next.js production build and operations compilation after these
 dependency updates. An earlier check was interrupted during build; the complete
 rerun passed with exit code zero.
+
+## Returning-user sign-in follow-up
+
+The founder reproduced a real sign-in defect: START activated the browser, but
+was then passed to the assistant and answered as a memory request. A pending
+returning-user sign-in now intercepts START before conversation/AI processing.
+Legacy pending sessions get a deterministic verification acknowledgment.
+
+For already-verified Sendblue contacts, signup now atomically creates a pending
+browser session and a durable send_signin action. The dedicated worker sends a
+15-minute, session-bound link through SafeSmsSender. The GET confirmation page
+does not consume it (SMS previews are safe); POST atomically consumes it, activates
+only its requesting browser and creates a separate phone session, then redirects
+to /workspace. The signup browser polls verification and redirects there too.
+Extensions remain accessible through dashboard Settings > Manage connections.
+
+Ordinary texts, including START, cannot approve sessions awaiting explicit link
+confirmation. Such START messages explain that the link must be confirmed and do
+not enter AI/memory processing. Signup requests are capped per phone as well as
+per IP. Queuing is not represented as confirmed carrier delivery. New unverified
+Sendblue contacts retain provider verification; this does not bypass that gate.
+
+Targeted tests cover link replay/expiry/revocation, account and session mismatch,
+separate phone/browser cookies, non-consuming GET previews, cross-origin POST,
+durable queue dispatch and START interception. One initial full-check attempt
+failed to resolve a route's path alias in Vitest; relative imports corrected it.
+These changes require both candidate web and worker deployment before live use;
+no real sign-in SMS has been sent by this local evaluation.
+
+Final validation passed: npm run check, including lint, typecheck, 276 tests
+across 53 files, Next.js production build and worker/operations compilation.

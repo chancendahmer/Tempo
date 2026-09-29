@@ -3,6 +3,7 @@ import { getServerEnv, requireEnv, ServerEnvKey } from "../server/config/env";
 import { closeDatabase } from "../server/db/client";
 import { startActionDispatcher } from "../server/jobs/dispatcher";
 import { registerSendWelcomeHandler } from "../server/jobs/handlers/send-welcome";
+import { registerSendSignInHandler } from "../server/jobs/handlers/send-signin";
 import { registerSendComplianceHandler } from "../server/jobs/handlers/send-compliance";
 import { registerProcessInboundHandler } from "../server/jobs/handlers/process-inbound";
 import { registerDeliverReminderHandler } from "../server/jobs/handlers/deliver-reminder";
@@ -50,6 +51,11 @@ export async function runWorker() {
   boss.on("warning", (warning) => logger.warn({ warning }, "job queue warning"));
 
   await boss.start();
+  await boss.createQueue(JOB_NAMES.sendSignIn, {
+    policy: "standard", retryLimit: 2, retryDelay: 30, retryBackoff: true,
+    expireInSeconds: 90, deleteAfterSeconds: 604_800, notify: true,
+  });
+  await registerSendSignInHandler(boss);
   await boss.createQueue(JOB_NAMES.sendWelcome, {
     policy: "standard",
     retryLimit: 2,

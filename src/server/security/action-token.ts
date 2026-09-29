@@ -4,7 +4,8 @@ import { z } from "zod";
 const actionTokenPayloadSchema = z.object({
   v: z.literal(1),
   userId: z.uuid(),
-  scope: z.enum(["calendar:connect", "calendar:disconnect", "account:delete"]),
+  scope: z.enum(["calendar:connect", "calendar:disconnect", "account:delete", "account:signin"]),
+  sessionId: z.uuid().optional(),
   exp: z.number().int().positive(),
   jti: z.uuid(),
 });
@@ -30,7 +31,7 @@ function signatureFor(encodedPayload: string, encodedKey: string): Buffer {
 }
 
 export function issueActionToken(
-  input: { userId: string; scope: ActionTokenScope; ttlSeconds?: number },
+  input: { userId: string; scope: ActionTokenScope; ttlSeconds?: number; sessionId?: string },
   encodedKey: string,
   now = new Date(),
 ): string {
@@ -40,6 +41,7 @@ export function issueActionToken(
     scope: input.scope,
     exp: Math.floor(now.getTime() / 1000) + (input.ttlSeconds ?? 15 * 60),
     jti: randomUUID(),
+    ...(input.sessionId ? { sessionId: input.sessionId } : {}),
   };
   const encodedPayload = Buffer.from(JSON.stringify(payload)).toString("base64url");
   return `${encodedPayload}.${signatureFor(encodedPayload, encodedKey).toString("base64url")}`;
