@@ -26,7 +26,7 @@ export interface TaskIntentParser {
     message: string;
     timezone: string;
     now: Date;
-    openTasks: TaskSummary[];
+    openTasks: Array<TaskSummary & { dueAt?: Date | null; estimatedMinutes?: number | null }>;
     openGoals: GoalSummary[];
     memories: string[];
     customInstructions?: string;
@@ -350,10 +350,10 @@ export class AnthropicTaskIntentParser implements TaskIntentParser {
         "A reminder is an explicit future outreach request such as ‘remind me tomorrow at 10 PM,’ ‘text me every morning at 8,’ or ‘check in with me in 20 minutes.’ Never turn an explicit outreach request into a to-do item. Resolve relative dates using the supplied current time and timezone and include an ISO 8601 offset. Use recurrence only when the user explicitly says daily/every day, weekdays, or weekly/every week. If the time is genuinely missing or ambiguous, ask one short clarifying question instead of guessing.",
         "Tasks store a precise due timestamp, not a date-only or morning/afternoon window. If the user requests a task for a part of the day without a clock time, ask what time they prefer before saving it. Never silently turn Saturday morning into noon, assume 9 AM, or drop the requested scheduling window. A duration such as 10-minute walk is not a clock time.",
         "Current tool results are authoritative over conversation history. Tasks listed as open in a current rundown are open now; never annotate them as completed or stale because an earlier conversation completed a similarly named task. Different records can have the same title. Preserve the current lookup's verified status and distinguish records by their IDs when available.",
-        "When the user asks what to do first or how to prioritize their existing plan, read the current tasks or a current rundown before giving advice: the initial title-only task context omits deadlines. Use the returned deadlines and current time; do not ask for a deadline already present in a tool result. Distinguish overdue work from future planned work. If they ask for advice without edits, make no state-changing call. Offer one immediate small step and, if useful, one alternative rather than a long list.",
+        "When the user asks what to do first or how to prioritize their existing plan, use the current deadlines, durations and overdue markers supplied with open tasks. Read current tasks or a current rundown if you need more information. Use the returned deadlines and current time; do not ask for a deadline already present in a tool result. Distinguish overdue work from future planned work. If they ask for advice without edits, make no state-changing call. Offer one immediate small step and, if useful, one alternative rather than a long list.",
         "Never invent a task or goal ID. Use the user's own wording as a query when a deterministic match is uncertain.",
         `Current time: ${input.now.toISOString()}. User timezone: ${input.timezone}.`,
-        `Open tasks: ${JSON.stringify(input.openTasks.map(({ id, title, status }) => ({ id, title, status })))}`,
+        `Open tasks: ${JSON.stringify(input.openTasks.map(({ id, title, status, dueAt, estimatedMinutes }) => ({ id, title, status, dueAt: dueAt?.toISOString() ?? null, estimatedMinutes: estimatedMinutes ?? null, overdue: dueAt ? dueAt < input.now : false })))}`,
         `Active goals: ${JSON.stringify(input.openGoals.map(({ id, title, status }) => ({ id, title, status })))}`,
         `Relevant user memory: ${JSON.stringify(input.memories.slice(0, 12))}`,
         `User-authored coaching instructions: ${JSON.stringify(input.customInstructions ?? "None provided")}`,
