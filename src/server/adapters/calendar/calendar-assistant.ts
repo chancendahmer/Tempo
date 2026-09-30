@@ -55,13 +55,22 @@ export class CalendarAssistantIntegrations implements AssistantIntegrations {
   async status(userId: string) {
     const env = getServerEnv();
     const connection = await new DrizzleCalendarSyncRepository(this.database).getActiveConnection(userId);
+    const [preferences] = await this.database.select({ proactiveOptIn: users.proactiveOptIn, dailyCap: users.dailyInterventionCap, cooldownMinutes: users.interventionCooldownMinutes, status: users.status, pausedUntil: users.pausedUntil }).from(users).where(eq(users.id, userId)).limit(1);
+    const deliveryEnabled = proactiveDeliveryEnabled(env, userId);
+    const accountActive = preferences ? preferences.status === "active" && !(preferences.pausedUntil && preferences.pausedUntil > new Date()) : null;
+    const coaching = !preferences ? "Account settings unavailable; current opt-in could not be verified"
+      : !preferences.proactiveOptIn ? "You have not opted into automatic check-ins; nothing was changed"
+      : !deliveryEnabled ? "You are opted in, but operator delivery is disabled for your account; nothing was changed"
+      : !accountActive ? "You are opted in, but your account is paused or inactive; automatic check-ins are withheld"
+      : `Automatic task check-ins are enabled for your account, up to ${Math.min(3, preferences.dailyCap)} per day and at least ${Math.max(120, preferences.cooldownMinutes)} minutes apart. Tempo evaluates opportunities in the background; falling behind does not guarantee a text. Consent, quiet hours, calendar availability, recent conversation, cooldown and daily caps must all pass. No settings were changed`;
     return JSON.stringify({
       calendar: !connection ? "not connected" : connection.scopes.includes(CALENDAR_EVENTS_SCOPE) ? "agenda and confirmed personal event edits" : "free/busy only; reconnect for event access",
       webSearch: env.ASSISTANT_WEB_SEARCH_ENABLED ? "enabled; requires provider account access" : "disabled by operator",
       memory: "available", tasksAndReminders: "available",
         workspace: "Tempo routines, recipes, meal plans, food logs, workouts, groceries and notes; edits appear after refresh",
         wakeAndWindDown: "manual sunrise/sunset screen sessions with optional synthesized birds/waves; start in Wake & Wind Down; no scheduled wake alarms, background reliability or hardware brightness/light control",
-      proactiveCoaching: !proactiveDeliveryEnabled(env, userId) ? "operator has not enabled delivery" : "available with user opt-in and calendar availability",
+      proactiveCoaching: coaching,
+      proactiveSettings: { optedIn: preferences?.proactiveOptIn ?? null, deliveryEnabled, accountActive, dailyCap: preferences ? Math.min(3, preferences.dailyCap) : null, settingsChanged: false },
       otherAccounts: "not connected: email, Apple Calendar, Google Tasks, shopping, health, and other third-party apps",
       manageConnections: `${env.APP_BASE_URL}/extensions`,
     });
