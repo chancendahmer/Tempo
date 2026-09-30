@@ -15,6 +15,16 @@ describe("current-message routing", () => {
   };
   beforeEach(() => { create.mockReset(); settings.webSearch = false; });
 
+  it("uses the combined read-only rundown tool for a natural planning question", async () => {
+    const message = "Can I get my reminders, goals, tasks and calendar for next week?";
+    create.mockResolvedValueOnce({ content: [{ type: "tool_use", id: "rundown", name: "get_rundown", input: { sourceQuote: message, startDate: "2026-09-07", days: 7 } }] })
+      .mockResolvedValueOnce({ content: [{ type: "text", text: "Your week has a dentist appointment and one task due." }] });
+    const execute = vi.fn(async () => "Weekly rundown: Dentist; Report due. Calendar current.");
+    await new AnthropicTaskIntentParser().parse({ ...input, message, execute });
+    expect(execute).toHaveBeenCalledExactlyOnceWith({ type: "get_rundown", startDate: "2026-09-07", days: 7 });
+    expect(create).toHaveBeenCalledTimes(2);
+  });
+
   it.each([
     [400, "Your credit balance is too low", "billing"],
     [401, "Unauthorized", "configuration"],

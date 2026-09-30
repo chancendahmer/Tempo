@@ -1,4 +1,4 @@
-import { and, asc, eq, gt, ilike, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, gt, gte, lt, or, isNotNull, ilike, inArray, sql } from "drizzle-orm";
 import { MessagingProvider } from "../../adapters/sms/sms-transport";
 import { nextRecurringOccurrence, ReminderRepository, ReminderRecord } from "../../domain/reminder-service";
 import { getDatabase, TempoDatabase } from "../client";
@@ -59,6 +59,16 @@ export class DrizzleReminderRepository implements ReminderRepository {
       inArray(reminders.status, ["scheduled", "sending"]),
       gt(reminders.remindAt, now),
     )).orderBy(asc(reminders.remindAt)).limit(50);
+    return rows.map(asRecord);
+  }
+
+  async listForRundown(userId: string, start: Date, end: Date) {
+    const rows = await this.database.select().from(reminders).where(and(
+      eq(reminders.userId, userId),
+      inArray(reminders.status, ["scheduled", "sending"]),
+      lt(reminders.remindAt, end),
+      or(gte(reminders.remindAt, start), isNotNull(reminders.recurrence)),
+    )).orderBy(asc(reminders.remindAt)).limit(101);
     return rows.map(asRecord);
   }
 

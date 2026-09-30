@@ -39,6 +39,7 @@ import { ConversationHistoryRepository } from "./conversation-history";
 import { isExplicitReminderRequest, ReminderCommand } from "./reminder-commands";
 import { ReminderRepository, executeReminderCommand, requestedReminderTime } from "./reminder-service";
 import { AssistantCommand, AssistantIntegrations } from "./assistant-commands";
+import { buildRundown, parseRundownRequest, isRundownQuestion } from "./rundown";
 
 export type InboundConversationContext = {
   messageId: string;
@@ -297,6 +298,8 @@ export class ConversationOrchestrator {
       return `This permanently deletes your Tempo data. Confirm only if that’s what you want: ${this.secureLinks.accountDelete(context.userId)}`;
     }
 
+    const rundown = parseRundownRequest(context.body, now, context.timezone);
+    if (rundown) return buildRundown({ tasks: this.tasks, goals: this.goals, reminders: this.reminders, integrations: this.integrations }, { ...context, now }, rundown);
     const lifeRequest = isLifeWorkspaceRequest(context.body);
     const memoryReply = lifeRequest ? null : await this.memories?.tryHandleCorrection({
       userId: context.userId,
@@ -309,7 +312,7 @@ export class ConversationOrchestrator {
     // Broad task heuristics ("move", "cancel", "completed") must not consume
     // requests for a different entity before the assistant can resolve them.
     const otherEntity = lifeRequest || isExplicitReminderRequest(context.body) || /\b(reminders?|calendar|appointments?|events?|breakfast|lunch|dinner|snack)\b/i.test(context.body);
-    const heuristicCommand = parseGoalCommandHeuristically(context.body)
+    const heuristicCommand = isRundownQuestion(context.body) ? null : parseGoalCommandHeuristically(context.body)
       ?? (otherEntity ? null : parseRescheduleHeuristically(context.body)
         ?? parseTaskCommandHeuristically(context.body, now));
     if (!heuristicCommand) {
@@ -349,6 +352,7 @@ export class ConversationOrchestrator {
   }
 
   private async executeCommand(context: InboundConversationContext, now: Date, command: CoachingCommand): Promise<string> {
+    if (command.type === "get_rundown") return buildRundown({ tasks: this.tasks, goals: this.goals, reminders: this.reminders, integrations: this.integrations }, { ...context, now }, command);
     if (command.type === "food_search" || command.type === "life_list" || command.type === "life_save" || command.type === "life_remove") {
       return this.life?.execute(context.userId, context.messageId, command) ?? "Your life workspace is not configured in this environment.";
     }

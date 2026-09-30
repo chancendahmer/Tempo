@@ -25,6 +25,7 @@ describe("reminder service", () => {
       findBySourceMessage: async () => null,
       create,
       listUpcoming: async () => [],
+      listForRundown: async () => [],
       cancel: async () => ({ kind: "not_found" }),
     };
     const reply = await executeReminderCommand(repository, {
@@ -56,6 +57,7 @@ describe("reminder service", () => {
       findBySourceMessage: async () => null,
       create: vi.fn(),
       listUpcoming: async () => [],
+      listForRundown: async () => [],
       cancel: async () => ({ kind: "not_found" }),
     };
     await expect(executeReminderCommand(repository, {
