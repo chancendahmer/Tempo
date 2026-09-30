@@ -1,4 +1,5 @@
 import { TaskCommand, TaskSummary, resolveTaskReference } from "./task-commands";
+import { formatReminderTime } from "./reminder-service";
 
 export type TaskRecord = TaskSummary & {
   goalId: string | null;
@@ -67,7 +68,7 @@ export function replyForTaskAction(
 export async function executeTaskCommand(
   repository: TaskRepository,
   command: TaskCommand,
-  context: { userId: string; sourceMessageId: string; now: Date },
+  context: { userId: string; sourceMessageId: string; now: Date; timezone?: string },
 ): Promise<TaskExecutionResult> {
   if (command.type !== "list_tasks") {
     const priorAction = await repository.findActionBySourceMessage(context.sourceMessageId);
@@ -97,7 +98,13 @@ export async function executeTaskCommand(
     if (tasks.length === 0) return { kind: "executed", reply: "Your task list is clear." };
     return {
       kind: "executed",
-      reply: tasks.slice(0, 8).map((task, index) => `${index + 1}. ${task.title}`).join("\n"),
+      reply: tasks.slice(0, 8).map((task, index) => {
+        const details = [task.status.replaceAll("_", " ")];
+        if (task.estimatedMinutes !== null) details.push(`${task.estimatedMinutes} min`);
+        if (task.dueAt) details.push(`due ${formatReminderTime(task.dueAt, context.timezone ?? "UTC")}${task.dueAt < context.now && ["not_started", "in_progress"].includes(task.status) ? " (overdue)" : ""}`);
+        else details.push("no deadline");
+        return `${index + 1}. ${task.title} — ${details.join(" · ")}`;
+      }).concat(tasks.length > 8 ? [`Showing 8 of ${tasks.length} tasks; this list is incomplete. Ask for a dated rundown to focus on a day or week.`] : []).join("\n"),
     };
   }
 
