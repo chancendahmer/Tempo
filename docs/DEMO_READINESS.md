@@ -4,6 +4,15 @@ Status: a locally validated demo candidate, not a verified consumer release.
 Live model quality, real SMS delivery, and the founder canary remain release
 gates. Passing mocked tests does not prove those gates passed.
 
+Latest checkpoint: [INDIRECT_DEMO.md](INDIRECT_DEMO.md) records two real-model
+25-turn indirect-language runs and a real TextFree signup diagnosis. Anthropic
+credits now work. The second run passed all state checks, with remaining reply
+quality issues recorded separately. A missing Sendblue shared-line route was
+identified; creating it and retrying START produced real verification and welcome
+messages. Google authorization, the remaining real-account journey and candidate
+deployment are still required. The historical checkpoints below describe earlier
+states and must not be read as the latest provider availability.
+
 September 29 evaluation: see [DEMO_ITERATIONS.md](DEMO_ITERATIONS.md) for the
 mixed SMS/web journey, 20-account context checks, fixes and readiness ratings.
 Run `npm run simulate:workspace -- --scripted` for state-path snapshots, or omit

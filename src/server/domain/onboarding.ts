@@ -106,24 +106,35 @@ export function handleOnboardingMessage(state: OnboardingState, message: string)
       return { handled: true, nextState: state };
     case "introduction": {
       const normalized = message.trim();
+      const skipContact = /^(skip|not now|later)[.!\s]*$/i.test(normalized)
+        || /\b(?:can (?:we|i)|let['’]?s|please|i (?:want|would like) to) skip\b/i.test(normalized)
+        || (/\b(?:no contact card|(?:isn['’]?t|is not|can['’]?t see|cannot see|don['’]?t see) (?:a |the |any )?contact card)\b/i.test(normalized)
+          && /\b(?:get started|continue|move on|proceed)\b/i.test(normalized));
+      if (skipContact) {
+        return {
+          handled: true,
+          nextState: "calendar",
+          reply: "No problem—saving my contact is optional. You can add it later. Next, connect Google Calendar using the secure link below, or reply SKIP to use Tempo without it.",
+        };
+      }
       if (/^(done|added|saved|i added it|contact added)[.!✅\s]*$/i.test(normalized)) {
         return {
           handled: true,
           nextState: "calendar",
-          reply: "Nice—you’ve added Tempo. One last setup step: connect Google Calendar so I can notice useful open windows. Tap the secure link below.",
+          reply: "Nice—you’ve added Tempo. One last setup step: connect Google Calendar so I can notice useful open windows. Tap the secure link below, or reply SKIP to use Tempo without it.",
         };
       }
       if (/^(i )?(need|want) more help|help me|how do i add (it|you)|help[.!❓\s]*$/i.test(normalized)) {
         return {
           handled: true,
           nextState: state,
-          reply: "Tap the Tempo contact card above, choose Create New Contact or Add to Existing Contact, then tap Done. When it’s saved, reply DONE. If the card won’t open, tell me what you see.",
+          reply: "If you see a Tempo contact card, tap it, choose Create New Contact or Add to Existing Contact, then tap Done. When it’s saved, reply DONE. No card, or it won’t open? Reply SKIP—we can get started without saving it.",
         };
       }
       return {
         handled: true,
         nextState: state,
-        reply: "Quick check—did you save Tempo as a contact? Reply with one choice: DONE or I NEED MORE HELP.",
+        reply: "Saving Tempo as a contact is optional. Reply DONE if you saved it, SKIP to keep going without it, or I NEED MORE HELP for instructions.",
       };
     }
     case "first_task": {

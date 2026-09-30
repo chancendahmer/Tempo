@@ -13,6 +13,8 @@ import { logger } from "../../observability/logger";
 import { isConversationOnlyMessage } from "../../domain/conversation-routing";
 import { AssistantProviderFailure } from "../../domain/assistant-provider-failure";
 import { normalizeProviderFailure } from "./provider-failure";
+import { HEALTH_CAPABILITY_LIMIT } from "../../domain/connection-status-reply";
+import { RUNDOWN_HISTORY_LIMIT } from "../../domain/rundown";
 
 export type CoachingCommand = TaskCommand | GoalCommand | RescheduleCommand | ReminderCommand | MemoryCommand | AssistantCommand;
 export type TaskIntentResult = { kind: "command"; command: CoachingCommand } | { kind: "conversation"; reply: string };
@@ -359,6 +361,8 @@ export class AnthropicTaskIntentParser implements TaskIntentParser {
       tool_choice: conversationOnly ? { type: "none" } : { type: "auto", disable_parallel_tool_use: true },
     } satisfies MessageCreateParamsNonStreaming;
     let actionResult: string | undefined;
+    const verifiedReports: string[] = [];
+    const withVerifiedReports = (reply: string): string => [reply, ...verifiedReports.filter(report => !reply.includes(report))].filter(Boolean).join("\n\n");
     let searchFallbackUsed = false;
     let searchesUsed = 0;
     const knownEventIds = new Set<string>();
@@ -371,7 +375,7 @@ export class AnthropicTaskIntentParser implements TaskIntentParser {
       // A completed write must still get its truthful confirmation if synthesis fails.
       const failure = normalizeProviderFailure(error);
       logger.error({ status: failure.status, category: failure.category, operation: "assistant_response" }, "assistant provider request failed");
-      if (actionResult) return { kind: "conversation", reply: actionResult };
+      if (actionResult || verifiedReports.length) return { kind: "conversation", reply: withVerifiedReports(actionResult ?? "") };
       if (!searchFallbackUsed && failure.status === 400 && /web.?search/i.test(String((error as { message?: unknown } | null)?.message ?? ""))) {
         searchFallbackUsed = true;
         request.tools = tools;
@@ -427,7 +431,14 @@ export class AnthropicTaskIntentParser implements TaskIntentParser {
           } catch { /* A readable connection error is also a valid tool result. */ }
         }
       }
-      if (command.type === "calendar_change" || command.type === "set_checkins") return { kind: "conversation", reply: result };
+      // Preserve completeness and capability limits without ending compound requests.
+      if (command.type === "get_rundown" || command.type === "connection_status") {
+        const notice = command.type === "connection_status" ? HEALTH_CAPABILITY_LIMIT
+          : result.includes(RUNDOWN_HISTORY_LIMIT) ? RUNDOWN_HISTORY_LIMIT : null;
+        if (notice && !verifiedReports.includes(notice)) verifiedReports.push(notice);
+        request.system += "\nThe capability/history limitation from this tool will be appended verbatim. Do not repeat that limitation. Summarize the actual report and answer remaining requests. For a health capability question fully answered by the appended limitation, return ACK_ONLY unless other help was requested. Never contradict the verified capability or completeness limits.";
+      }
+      if (command.type === "calendar_change" || command.type === "set_checkins") return { kind: "conversation", reply: withVerifiedReports(result) };
       messages.push({ role: "assistant", content: response.content });
       messages.push({ role: "user", content: [{ type: "tool_result", tool_use_id: tool.id!, content: result }] });
       continue;
@@ -437,11 +448,11 @@ export class AnthropicTaskIntentParser implements TaskIntentParser {
       continue;
     }
     const parsed = parseTaskIntentResponse(blocks);
-    if (parsed.kind === "conversation" && parsed.reply.trim() === "ACK_ONLY") return { kind: "conversation", reply: actionResult ?? "What would you like help with?" };
-    if (parsed.kind === "conversation" && actionResult) return { kind: "conversation", reply: `${actionResult}\n${parsed.reply}` };
+    if (parsed.kind === "conversation" && parsed.reply.trim() === "ACK_ONLY") return { kind: "conversation", reply: withVerifiedReports(actionResult ?? (verifiedReports.length ? "" : "What would you like help with?")) };
+    if (parsed.kind === "conversation") return { kind: "conversation", reply: withVerifiedReports(actionResult ? `${actionResult}\n${parsed.reply}` : parsed.reply) };
     return parsed;
     }
-    return { kind: "conversation", reply: actionResult ?? "That took too many steps to finish in one text. Could you narrow it to the first thing you need?" };
+    return { kind: "conversation", reply: withVerifiedReports(actionResult ?? "That took too many steps to finish in one text. Could you narrow it to the first thing you need?") };
   }
 }
 

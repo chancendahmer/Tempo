@@ -40,6 +40,7 @@ import { isExplicitReminderRequest, ReminderCommand } from "./reminder-commands"
 import { ReminderRepository, executeReminderCommand, requestedReminderTime } from "./reminder-service";
 import { AssistantCommand, AssistantIntegrations } from "./assistant-commands";
 import { buildRundown, parseRundownRequest, isRundownQuestion } from "./rundown";
+import { connectionStatusReply } from "./connection-status-reply";
 
 export type InboundConversationContext = {
   messageId: string;
@@ -363,7 +364,7 @@ export class ConversationOrchestrator {
     if (command.type === "forget_memory") {
       return await this.memories?.tryHandleCorrection({ userId: context.userId, messageId: context.messageId, body: `forget ${command.query}`, now }) ?? "Memory is temporarily unavailable.";
     }
-    if (command.type === "connection_status") return this.integrations?.status(context.userId) ?? "Account connections are not configured. Tasks, reminders, and memory are available.";
+    if (command.type === "connection_status") return connectionStatusReply(await this.integrations?.status(context.userId) ?? "Account connections are not configured. Tasks, reminders, and memory are available.");
     if (command.type === "set_checkins") return this.integrations?.setCheckins(context.userId, command.enabled, command.dailyCap) ?? "Check-in settings are temporarily unavailable.";
     if (command.type === "calendar_agenda" || command.type === "calendar_change") {
       if (!this.integrations) return "Calendar tools are not configured yet. You can still plan a schedule with me.";

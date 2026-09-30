@@ -61,6 +61,8 @@ export function parseRundownRequest(message: string, now: Date, timezone: string
   return parsed.success ? parsed.data : null;
 }
 
+export const RUNDOWN_HISTORY_LIMIT = "This is your current open plan, not a history of completed tasks, delivered reminders or calendar edits.";
+
 export async function buildRundown(
   repositories: { tasks: Pick<TaskRepository, "list">; goals: Pick<GoalRepository, "list">; reminders?: Pick<ReminderRepository, "listForRundown">; integrations?: Pick<AssistantIntegrations, "agenda"> },
   context: { userId: string; timezone: string; now: Date },
@@ -123,6 +125,6 @@ export async function buildRundown(
   } else sections.push("Tasks unavailable; try again later.");
   if (goalResult.status === "fulfilled") section("Goals · ongoing, not scheduled", goalResult.value.map(g => line(g.title)));
   else sections.push("Goals unavailable; try again later.");
-  if (start < context.now) sections.push("This is your current open plan, not a history of completed tasks, delivered reminders or calendar edits.");
+  if (start < context.now) sections.push(RUNDOWN_HISTORY_LIMIT);
   return sections.join("\n\n");
 }

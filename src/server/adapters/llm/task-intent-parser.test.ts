@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AnthropicTaskIntentParser, parseTaskIntentResponse } from "./task-intent-parser";
 import { isExplicitReminderRequest } from "../../domain/reminder-commands";
 import { AssistantProviderFailure } from "../../domain/assistant-provider-failure";
+import { HEALTH_CAPABILITY_LIMIT } from "../../domain/connection-status-reply";
+import { RUNDOWN_HISTORY_LIMIT } from "../../domain/rundown";
 
 const { create, settings } = vi.hoisted(() => ({ create: vi.fn(), settings: { webSearch: false } }));
 vi.mock("@anthropic-ai/sdk", () => ({ default: class { messages = { create }; } }));
@@ -14,6 +16,26 @@ describe("current-message routing", () => {
     history: [{ id: "old", role: "user" as const, content: "Remind me tomorrow at 11 AM to add Davis to get home", createdAt: new Date("2026-08-19T12:00:00Z") }],
   };
   beforeEach(() => { create.mockReset(); settings.webSearch = false; });
+
+  it("keeps the rundown history limit while completing a compound write", async () => {
+    const message = "Show my week and add a task to buy groceries";
+    create.mockResolvedValueOnce({ content: [{ type: "tool_use", id: "r", name: "get_rundown", input: { sourceQuote: message, startDate: "2026-08-31", days: 7 } }] })
+      .mockResolvedValueOnce({ content: [{ type: "tool_use", id: "t", name: "create_task", input: { sourceQuote: "add a task to buy groceries", title: "Buy groceries" } }] })
+      .mockResolvedValueOnce({ content: [{ type: "text", text: "Your dentist appointment is Friday." }] });
+    const execute = vi.fn(async command => command.type === "get_rundown" ? `Dentist Friday.\n${RUNDOWN_HISTORY_LIMIT}` : "Added: Buy groceries.");
+    const result = await new AnthropicTaskIntentParser().parse({ ...input, message, execute });
+    expect(execute).toHaveBeenCalledTimes(2);
+    expect(result).toMatchObject({ reply: expect.stringContaining(RUNDOWN_HISTORY_LIMIT) });
+    expect(result).toMatchObject({ reply: expect.stringContaining("Added: Buy groceries.") });
+  });
+
+  it("renders the exact health limitation once when synthesis requests only its acknowledgement", async () => {
+    const message = "Can you see my steps?";
+    create.mockResolvedValueOnce({ content: [{ type: "tool_use", id: "c", name: "connection_status", input: { sourceQuote: message } }] })
+      .mockResolvedValueOnce({ content: [{ type: "text", text: "ACK_ONLY" }] });
+    const result = await new AnthropicTaskIntentParser().parse({ ...input, message, execute: vi.fn(async () => HEALTH_CAPABILITY_LIMIT) });
+    expect(result).toEqual({ kind: "conversation", reply: HEALTH_CAPABILITY_LIMIT });
+  });
 
   it("returns a verified action receipt once when no extra answer is needed", async () => {
     const message = "Add a task to renew my library card";
