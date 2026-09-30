@@ -35,6 +35,7 @@ import { DrizzleOutboundMessageRepository } from "./outbound-message-repository"
 import { DrizzleReminderRepository } from "./reminder-repository";
 import { DrizzleTaskRepository } from "./task-repository";
 import type { AssistantIntegrations } from "../../domain/assistant-commands";
+import { ScheduledActionRepository } from "../../jobs/scheduled-action-repository";
 
 describe("inbound conversation orchestration", () => {
   let client: PGlite;
@@ -131,17 +132,34 @@ describe("inbound conversation orchestration", () => {
     const user = await consentedUser("+12025550974", "complete");
     const started = new Date("2026-08-18T12:00:00Z");
     const [message] = await database.insert(conversationMessages).values({ userId: user.id, conversationId: user.conversationId, direction: "inbound", kind: "user", status: "processing", processingStartedAt: started, body: "Add task buy lemons" }).returning();
-    const repository = new DrizzleConversationRepository(database);
-    await expect(repository.claimInbound(message.id, new Date("2026-08-18T12:02:00Z"))).rejects.toThrow("still leased");
+    const [action] = await database.insert(scheduledActions).values({ userId: user.id, kind: "process_inbound_message", status: "running", runAt: started, idempotencyKey: `lease-retry:${message.id}`, payload: { messageId: message.id } }).returning();
+    const actions = new ScheduledActionRepository(database);
+    const transport = new TestSmsTransport("LEASE");
+    const coach = orchestrator(transport);
+    // Simulate delivery to the handler while a crashed predecessor still owns
+    // a fresh claim. This is repository/orchestrator coverage, not pg-boss proof.
+    expect(await actions.markRunning(action.id)).toBe(true);
+    await expect(coach.process(message.id)).rejects.toThrow("still leased");
+    await actions.markFailed(action.id, new Error("Inbound claim still leased"));
+    expect((await database.select().from(scheduledActions).where(eq(scheduledActions.id, action.id)))[0].status).toBe("failed");
+    expect(transport.sent).toHaveLength(0);
     const [busy] = await database.select().from(conversationMessages).where(eq(conversationMessages.id, message.id));
     expect(busy.status).toBe("processing");
     // A restart past the lease can reclaim the work, and a later queue retry
     // observes the processed message rather than creating a second task.
     await database.update(conversationMessages).set({ processingStartedAt: new Date("2026-08-18T11:54:00Z") }).where(eq(conversationMessages.id, message.id));
-    const coach = orchestrator(new TestSmsTransport("LEASE"));
+    expect(await actions.markRunning(action.id)).toBe(true);
     expect(await coach.process(message.id)).toEqual({ processed: true });
+    await actions.markCompleted(action.id);
     expect(await coach.process(message.id)).toEqual({ processed: false });
+    expect(await actions.markRunning(action.id)).toBe(false);
     expect(await database.select().from(tasks).where(eq(tasks.userId, user.id))).toEqual([expect.objectContaining({ title: "buy lemons" })]);
+    expect(await database.select().from(taskEvents).where(eq(taskEvents.sourceMessageId, message.id))).toHaveLength(1);
+    expect(transport.sent).toHaveLength(1);
+    const outbound = await database.select().from(conversationMessages).where(and(eq(conversationMessages.userId, user.id), eq(conversationMessages.direction, "outbound")));
+    expect(outbound).toEqual([expect.objectContaining({ idempotencyKey: `reply:${message.id}`, status: "queued", providerMessageSid: "LEASE000001" })]);
+    expect((await database.select().from(conversationMessages).where(eq(conversationMessages.id, message.id)))[0].status).toBe("processed");
+    expect((await database.select().from(scheduledActions).where(eq(scheduledActions.id, action.id)))[0]).toMatchObject({ status: "completed", lastError: null });
   });
 
   it("accepts the contact choice and asks for local time before calendar", async () => {

@@ -3,16 +3,32 @@ import { CalendarAssistantIntegrations, CALENDAR_EVENTS_SCOPE } from "./calendar
 import { encryptField } from "../../security/field-encryption";
 import { TempoDatabase } from "../../db/client";
 
-const mocks = vi.hoisted(() => ({ get: vi.fn(), list: vi.fn(), insert: vi.fn(), patch: vi.fn(), remove: vi.fn(), connection: vi.fn() }));
+const mocks = vi.hoisted(() => ({ get: vi.fn(), list: vi.fn(), insert: vi.fn(), patch: vi.fn(), remove: vi.fn(), connection: vi.fn(), config: { INTERVENTION_SHADOW_MODE: true, AUTONOMOUS_SENDING_ENABLED: false, PROACTIVE_CANARY_USER_IDS: ["00000000-0000-4000-8000-000000000001"] } }));
 const key = Buffer.alloc(32, 7).toString("base64");
 vi.mock("googleapis", () => ({ google: {
   auth: { OAuth2: class { setCredentials() {} } },
   calendar: () => ({ events: { get: mocks.get, list: mocks.list, insert: mocks.insert, patch: mocks.patch, delete: mocks.remove } }),
 } }));
-vi.mock("../../config/env", () => ({ requireEnv: () => ({ FIELD_ENCRYPTION_KEY: Buffer.alloc(32, 7).toString("base64"), GOOGLE_CLIENT_ID: "test", GOOGLE_CLIENT_SECRET: "test", GOOGLE_REDIRECT_URI: "https://example.test/callback" }) }));
+vi.mock("../../config/env", () => ({ getServerEnv: () => mocks.config, requireEnv: () => ({ FIELD_ENCRYPTION_KEY: Buffer.alloc(32, 7).toString("base64"), GOOGLE_CLIENT_ID: "test", GOOGLE_CLIENT_SECRET: "test", GOOGLE_REDIRECT_URI: "https://example.test/callback" }) }));
 vi.mock("../../db/repositories/calendar-sync-repository", () => ({ DrizzleCalendarSyncRepository: class { getActiveConnection = mocks.connection; } }));
 
 describe("confirmation-gated Google Calendar", () => {
+  it("reports account opt-in and scoped operator delivery without changing preferences", async () => {
+    const limit = vi.fn(async () => [{ proactiveOptIn: true, dailyCap: 1, cooldownMinutes: 240, status: "active" }]);
+    const where = vi.fn(() => ({ limit }));
+    const database = { select: vi.fn(() => ({ from: () => ({ where }) })) };
+    const service = new CalendarAssistantIntegrations(database as unknown as TempoDatabase);
+    const own = JSON.parse(await service.status("00000000-0000-4000-8000-000000000001"));
+    expect(own.proactiveSettings).toMatchObject({ optedIn: true, deliveryEnabled: true, dailyCap: 1, settingsChanged: false });
+    expect(own.proactiveCoaching).toContain("evaluates opportunities in the background");
+    expect(own.proactiveCoaching).toContain("does not guarantee a text");
+    const other = JSON.parse(await service.status("00000000-0000-4000-8000-000000000009"));
+    expect(other.proactiveSettings.deliveryEnabled).toBe(false);
+    expect(other.proactiveCoaching).toContain("operator delivery is disabled");
+    expect(JSON.stringify(own)).not.toContain("00000000");
+    limit.mockResolvedValueOnce([{ proactiveOptIn: false, dailyCap: 1, cooldownMinutes: 240, status: "active" }]);
+    expect(JSON.parse(await service.status("00000000-0000-4000-8000-000000000001")).proactiveCoaching).toContain("not opted into");
+  });
   const userId = "00000000-0000-4000-8000-000000000001";
   const source = "00000000-0000-4000-8000-000000000002";
   const now = new Date("2026-09-15T12:00:00Z");

@@ -1,23 +1,29 @@
 # Tempo demo readiness
 
-Status: a locally validated demo candidate, not a verified consumer release.
-Live model quality, real SMS delivery, and the founder canary remain release
-gates. Passing mocked tests does not prove those gates passed.
+Status: a live single-account demo under iterative evaluation, not a verified
+consumer release. Passing mocked tests does not prove live release gates passed.
 
 September 30 live checkpoint: [LIVE_DEMO_JOURNEY.md](LIVE_DEMO_JOURNEY.md)
 records a real phone-verified demo account, connected Google Calendar and
-confirmed event creation/rescheduling with dashboard readback. The independent
-mediated novice review remains below five because routine creation and a task
-clarification failed. Candidate repairs passed 363 tests and the full check;
-live replay and scheduled SMS delivery remain required.
+confirmed event creation/rescheduling with dashboard readback. Real scheduled
+SMS delivery, autonomous coaching, automatic focus launch/completion, routines,
+full recipe meal planning and short time answers interrupted by a reminder have
+passed live checks. Personal recall and exact task-move failures kept the
+earlier score below five until deployed replay. PR 16 replay then passed real SMS
+note recall, the exact Saturday move with goal/duration preserved and repeat
+groceries without new duplicates. The mediated reviewer rates the controlled
+demo 8.2/10 and commercial readiness 6.6/10. PR 16 repairs passed the
+full check: 446 tests across 68 files, lint, typecheck and production/operations
+builds. Public OAuth readiness, native scheduled alarms and hardware brightness,
+actual installation, camera scanning and a real twenty-account load remain gates.
 
-Latest checkpoint: [INDIRECT_DEMO.md](INDIRECT_DEMO.md) records two real-model
+Earlier checkpoint: [INDIRECT_DEMO.md](INDIRECT_DEMO.md) records two real-model
 25-turn indirect-language runs and a real TextFree signup diagnosis. Anthropic
 credits now work. The second run passed all state checks, with remaining reply
 quality issues recorded separately. A missing Sendblue shared-line route was
 identified; creating it and retrying START produced real verification and welcome
-messages. Google authorization, the remaining real-account journey and candidate
-deployment are still required. The historical checkpoints below describe earlier
+messages. Google authorization subsequently passed in the separate demo account;
+the current remaining live checks are recorded above. The historical checkpoints below describe earlier
 states and must not be read as the latest provider availability.
 
 September 29 evaluation: see [DEMO_ITERATIONS.md](DEMO_ITERATIONS.md) for the
