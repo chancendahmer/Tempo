@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { ZodError } from "zod";
+import { randomUUID } from "node:crypto";
 import type { MessageParam, Tool, ToolUnion, MessageCreateParamsNonStreaming } from "@anthropic-ai/sdk/resources/messages";
 import { requireEnv } from "../../config/env";
 import { TaskCommand, TaskSummary, taskCommandSchema } from "../../domain/task-commands";
@@ -248,6 +249,15 @@ export function parseTaskIntentResponse(blocks: ResponseBlock[]): TaskIntentResu
     const rawInput = (toolUse.input && typeof toolUse.input === "object") ? toolUse.input as Record<string, unknown> : {};
     const commandInput = { ...rawInput };
     delete commandInput.sourceQuote;
+    // Identity and initial completion state are server-owned for new routines.
+    // Edits keep strict ID/version validation so existing steps cannot be replaced.
+    if (toolUse.name === "life_save" && commandInput.id === undefined && commandInput.data && typeof commandInput.data === "object") {
+      const data = commandInput.data as Record<string, unknown>;
+      if (data.kind === "routine" && Array.isArray(data.steps)) {
+        commandInput.data = { ...data, steps: data.steps.map(step => step && typeof step === "object" && !Array.isArray(step)
+          ? { ...step, id: randomUUID(), completedOn: null } : step) };
+      }
+    }
     return {
       kind: "command",
       command: ASSISTANT_TOOLS.some((tool) => tool.name === toolUse.name)
@@ -354,7 +364,7 @@ export class AnthropicTaskIntentParser implements TaskIntentParser {
         "Be warm, direct, curious, and practical. Match the user's tone and energy. Answer their question before offering coaching; don't turn every exchange into therapy. Avoid repeated pep talks, stock empathy, excessive praise, or calling everything a tiny step. For a correction, acknowledge it briefly and fix the specific detail. Ask one focused question only when needed to identify the record or missing required information. Don't ask permission again for an ordinary edit the user already requested.",
         "The workspace tabs display account data; you can change records with tools, not redesign pages, navigate the user's screen, or control hardware. Tasks are daily/weekly actions; goals are longer-term outcomes. Recipes are reusable favorites, meal plans are dated intentions, food logs record what was actually eaten, and notes are the thought inbox. Wake & Wind Down supports manual light/sound sessions while the browser stays open; you cannot set a scheduled wake alarm, change hardware brightness, or control a physical light. A text reminder is a different capability; explain the distinction and ask before substituting it for an alarm.",
         "Use life_list before referring to or editing saved routines, recipes, meals, food logs, workouts, groceries or notes. Resolve pronouns from recent conversation, then verify the record through the current lookup. If multiple records fit, ask which one. For life_save edits preserve all unrelated fields, routine step IDs and completion dates. Use the user's account timezone. Save recipes and logs as structured life items, not generic memory. Never invent food nutrients; use null for unknown values. A suggested meal is not a saved meal or an eaten food log.",
-        "A routine requires kind routine, title, period morning or evening, time HH:mm, and steps with UUID id, title, integer minutes from 1 to 180, and completedOn null. Generate new step UUIDs yourself, never ask the user for technical IDs. If the user hasn't given a start time, ask what time they want the routine to start; do not guess a clock time. For a requested simple routine you may suggest reasonable step durations, clearly described as adjustable estimates. Missing user choices need a concise question, not an invalid tool call or a request to repeat the entire routine.",
+        "A routine requires kind routine, title, period morning or evening, time HH:mm, and steps with UUID id, title, integer minutes from 1 to 180, and completedOn null. For new routines the server assigns step UUIDs and resets completedOn to null; never ask the user for technical IDs. Existing routine edits must preserve their saved UUIDs and completion dates. If the user hasn't given a start time, ask what time they want the routine to start; do not guess a clock time. For a requested simple routine you may suggest reasonable step durations, clearly described as adjustable estimates. Missing user choices need a concise question, not an invalid tool call or a request to repeat the entire routine.",
         "When logging food, follow an explicit fallback such as leave calories unknown if you lack reliable data: save the food with null unknown nutrient fields immediately when its title, date and meal are known. Do not ask the user to choose again between unknown values and estimates they already declined. Do not substitute generic nutrition estimates or claim a USDA/database lookup unless an available tool actually returned that evidence. An Open Food Facts search miss does not prevent saving a manual food entry with unknown nutrients.",
         "Never use guilt, shame, or moralizing.",
         "Sound like a thoughtful person texting: respond directly, use natural contractions, and offer one manageable next step when useful. Do not force every exchange into a task or append a menu to normal conversation. Use short choices when they make a decision easier; ask at most one question at a time.",
@@ -482,6 +492,21 @@ function hasLinkedActionReference(command: CoachingCommand, input: Parameters<Ta
   const text = input.message;
   const reference = /\b(?:that|this|it|those)\b/i.test(text);
   const explicitSave = /\b(?:save|keep|put|add|plan|log|record|remember|make)\b/i.test(text);
+  if (command.type === "life_save" && command.data.kind === "routine" && !command.id) {
+    const answer = normalizeSourceQuote(text);
+    const timeAnswer = /^(?:at\s+)?\d{1,2}(?::\d{2})?\s*(?:a\.?m\.?|p\.?m\.?)?(?:\s+please)?[.!]?$/.test(answer);
+    const asksRoutineTime = /\?/.test(reply.content) && /\b(?:when|what time)\b/i.test(reply.content) && /\broutine\b/i.test(reply.content);
+    const requestedRoutine = /\broutine\b/i.test(request.content) && /\b(?:make|save|create|add|want|put|set)\b/i.test(request.content);
+    if (timeAnswer && asksRoutineTime && requestedRoutine) {
+      const clock = answer.match(/^(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(a\.?m\.?|p\.?m\.?)?/);
+      const hour = Number(clock?.[1]), minute = Number(clock?.[2] ?? 0), meridiem = clock?.[3]?.[0];
+      const valid = minute < 60 && (meridiem ? hour >= 1 && hour <= 12 : hour <= 23 && Boolean(clock?.[2]));
+      const resolvedHour = meridiem ? hour % 12 + (meridiem === "p" ? 12 : 0) : hour;
+      const expectedTime = `${String(resolvedHour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+      return valid && command.data.time === expectedTime && hasCurrentActionEvidence(command, request.content)
+        && command.data.steps.length > 0 && command.data.steps.every(step => hasCurrentActionEvidence({ type: "create_task", title: step.title }, request.content));
+    }
+  }
   if (command.type === "create_task") {
     // The current choice authorizes one pending subject, not an old request.
     const taskChoice = /^(?:(?:just|only)\s+(?:a\s+)?(?:task|to-?do)|(?:make|keep|save|add|put)\s+(?:it|that|this)\s+(?:as\s+|on\s+)?(?:a\s+|my\s+)?(?:task|to-?do)(?:\s+list)?)(?:\b|[.,!])/i.test(text.trim());

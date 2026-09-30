@@ -1,8 +1,8 @@
 import { timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import { DeliveryProviderMessage, InboundProviderMessage, StoredMessageStatus } from "../../domain/messaging";
+import { sendblueServiceSchema } from "./sendblue-service";
 
-const serviceSchema = z.enum(["iMessage", "RCS", "SMS"]);
 // Media is optional metadata, never downloaded or retained here. Discard unusable
 // values without rejecting the authenticated text message or delivery receipt.
 // Keep this fallback scoped to media: required event fields still fail validation.
@@ -22,7 +22,7 @@ const sendblueWebhookSchema = z.object({
   number: z.string().nullish(),
   to_number: z.string().nullish(),
   sendblue_number: z.string().nullish(),
-  service: serviceSchema.nullish(),
+  service: sendblueServiceSchema,
   message_type: z.string().nullish(),
   media_url: optionalProviderUrl,
   group_id: z.string().nullish(),

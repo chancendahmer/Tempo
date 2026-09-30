@@ -17,6 +17,25 @@ describe("current-message routing", () => {
   };
   beforeEach(() => { create.mockReset(); settings.webSearch = false; });
 
+  it.each([
+    [true, "07:30", "Get dressed", true],
+    [false, "07:30", "Get dressed", false],
+    [true, "08:00", "Get dressed", false],
+    [true, "07:30", "Buy groceries", false],
+  ])("grounds routine start-time answers in the linked request (%s, %s, %s)", async (linked, time, lastStep, allowed) => {
+    const message = "7:30am please.";
+    const data = { kind: "routine", title: "Morning routine", period: "morning", time, steps: ["Drink water", "Brush my teeth", lastStep].map((title, i) => ({ id: `00000000-0000-4000-8000-00000000008${i}`, title, minutes: 2, completedOn: null })) };
+    create.mockResolvedValueOnce({ content: [{ type: "tool_use", id: "routine", name: "life_save", input: { sourceQuote: message, data } }] })
+      .mockResolvedValueOnce({ content: [{ type: "text", text: "ACK_ONLY" }] });
+    const execute = vi.fn(async () => "Morning routine saved.");
+    await new AnthropicTaskIntentParser().parse({ ...input, message, execute, history: [
+      { id: "routine-request", role: "user", content: "Mornings are chaotic. Can you make me a simple morning routine: drink water, brush my teeth, and get dressed?", createdAt: input.now },
+      { id: "clarify", role: "assistant", replyToMessageId: linked ? "routine-request" : "unrelated", content: "What time do you want the routine to start?", createdAt: input.now },
+    ] });
+    expect(execute).toHaveBeenCalledTimes(allowed ? 1 : 0);
+    if (allowed) expect(execute).toHaveBeenCalledWith({ type: "life_save", data: { ...data, steps: data.steps.map(step => ({ ...step, id: expect.any(String) })) } });
+  });
+
   it("recovers malformed routine arguments by asking only for the missing user choice", async () => {
     const message = "Mornings are chaotic. Can you make me a simple morning routine: drink water, brush my teeth, and get dressed?";
     create.mockResolvedValueOnce({ content: [{ type: "tool_use", id: "routine", name: "life_save", input: { sourceQuote: message, data: { kind: "routine", title: "Morning routine", period: "morning", steps: [] } } }] })
@@ -28,15 +47,25 @@ describe("current-message routing", () => {
     expect(JSON.stringify(create.mock.calls[1][0].messages)).toContain("No action was performed");
   });
 
-  it("repairs a generated routine UUID without loosening the schema or repeating the mutation", async () => {
+  it("assigns server-owned new routine IDs and completion state without a repair round trip", async () => {
     const message = "Save my morning routine at 8 AM: water for two minutes.";
-    const data = { kind: "routine", title: "Morning routine", period: "morning", time: "08:00", steps: [{ id: "water", title: "Drink water", minutes: 2, completedOn: null }] };
+    const data = { kind: "routine", title: "Morning routine", period: "morning", time: "08:00", steps: [{ id: "water", title: "Drink water", minutes: 2, completedOn: "2026-09-03" }] };
     create.mockResolvedValueOnce({ content: [{ type: "tool_use", id: "bad", name: "life_save", input: { sourceQuote: message, data } }] })
-      .mockResolvedValueOnce({ content: [{ type: "tool_use", id: "good", name: "life_save", input: { sourceQuote: message, data: { ...data, steps: [{ ...data.steps[0], id: "00000000-0000-4000-8000-000000000081" }] } } }] })
       .mockResolvedValueOnce({ content: [{ type: "text", text: "ACK_ONLY" }] });
     const execute = vi.fn(async () => "Morning routine saved.");
     expect(await new AnthropicTaskIntentParser().parse({ ...input, message, execute })).toEqual({ kind: "conversation", reply: "Morning routine saved." });
     expect(execute).toHaveBeenCalledTimes(1);
+    expect(execute).toHaveBeenCalledWith({ type: "life_save", data: { ...data, steps: [{ ...data.steps[0], id: expect.stringMatching(/^[0-9a-f-]{36}$/), completedOn: null }] } });
+    expect(create).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps routine edits strict and does not invent missing times or durations", () => {
+    const data = { kind: "routine", title: "Easy start", period: "morning", time: "07:30", steps: [{ title: "Drink water", minutes: 2 }] };
+    const parse = (args: unknown) => parseTaskIntentResponse([{ type: "tool_use", name: "life_save", input: args }]);
+    expect(() => parse({ data })).not.toThrow();
+    expect(() => parse({ id: "00000000-0000-4000-8000-000000000091", version: 1, data })).toThrow();
+    expect(() => parse({ data: { ...data, time: undefined } })).toThrow();
+    expect(() => parse({ data: { ...data, steps: [{ title: "Drink water" }] } })).toThrow();
   });
 
   it("stops after one invalid-argument repair attempt without any mutation", async () => {

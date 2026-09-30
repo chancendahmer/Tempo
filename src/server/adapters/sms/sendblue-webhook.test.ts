@@ -18,6 +18,13 @@ function webhook(overrides: Record<string, unknown> = {}) {
 }
 
 describe("Sendblue webhook boundary", () => {
+  it("normalizes lowercase SMS metadata without dropping delivery receipts", () => {
+    expect(parseSendblueWebhook(webhook({ service: "sms" }))).toMatchObject({ kind: "inbound", input: { service: "SMS" } });
+    expect(parseSendblueWebhook(webhook({ is_outbound: true, status: "SENT", service: "future-service" }))).toMatchObject({
+      kind: "delivery", input: { providerMessageId: "sendblue-message-1", status: "sent" },
+    });
+    expect(parseSendblueWebhook(webhook({ service: undefined }))).toMatchObject({ kind: "inbound", input: { service: undefined } });
+  });
   it("compares the configured signing secret without accepting omissions or partial values", () => {
     expect(validateSendblueWebhook({ secret: "tempo-secret", providedSecret: "tempo-secret" })).toBe(true);
     expect(validateSendblueWebhook({ secret: "tempo-secret", providedSecret: "tempo" })).toBe(false);

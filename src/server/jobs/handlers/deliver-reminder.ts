@@ -41,18 +41,28 @@ export async function registerDeliverReminderHandler(boss: PgBoss) {
           await actions.markCompleted(job.data.scheduledActionId);
           continue;
         }
-        if (result.reason === "duplicate" && await reminders.reconcileDelivery(reminder.id, occurrenceAt) === "sent") {
-          await actions.markCompleted(job.data.scheduledActionId);
-          continue;
+        if (result.reason === "duplicate") {
+          if (await reminders.reconcileDelivery(reminder.id, occurrenceAt) === "sent") {
+            await actions.markCompleted(job.data.scheduledActionId);
+            continue;
+          }
+          // Another sender may still be waiting for provider acknowledgement.
+          // Retry reconciliation without labelling its accepted send a failure.
+          throw new ReminderDeliveryPendingError();
         }
         await reminders.markFailed(reminder.id, result.reason);
         await actions.markCancelled(job.data.scheduledActionId, result.reason);
       } catch (error) {
-        await reminders.markFailed(job.data.reminderId, error);
+        if (!(error instanceof ReminderDeliveryPendingError)) await reminders.markFailed(job.data.reminderId, error);
         await actions.markFailed(job.data.scheduledActionId, error);
-        logger.error({ err: error, reminderId: job.data.reminderId }, "reminder delivery failed");
+        if (error instanceof ReminderDeliveryPendingError) logger.warn({ reminderId: job.data.reminderId }, "reminder submission awaiting reconciliation");
+        else logger.error({ err: error, reminderId: job.data.reminderId }, "reminder delivery failed");
         throw error;
       }
     }
   });
+}
+
+class ReminderDeliveryPendingError extends Error {
+  constructor() { super("Reminder submission is pending reconciliation"); }
 }

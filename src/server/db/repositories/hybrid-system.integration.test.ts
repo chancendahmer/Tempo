@@ -145,6 +145,17 @@ describe("hybrid reminder and accountability infrastructure", () => {
     expect((await repository.findBySourceMessage(source.id))?.status).toBe("scheduled");
   });
 
+  it("does not let a late failing job overwrite a successfully sent reminder", async () => {
+    const { userId, conversationId } = await createUser("+12025550219");
+    const [source] = await database.insert(conversationMessages).values({ userId, conversationId, direction: "inbound", kind: "user", status: "processed", body: "Stretch" }).returning();
+    const repository = new DrizzleReminderRepository(database);
+    const reminder = await repository.create({ userId, sourceMessageId: source.id, text: "Stretch", remindAt: new Date("2026-09-30T15:45:00Z"), timezone: "UTC" });
+    await repository.markSending(reminder.id, reminder.remindAt);
+    await repository.markSent(reminder.id, "sendblue", "accepted-stretch");
+    await repository.markFailed(reminder.id, "duplicate");
+    expect((await repository.findBySourceMessage(source.id))?.status).toBe("sent");
+  });
+
   it("persists Give me 15 and resolves the second commitment into task progress", async () => {
     const { userId, conversationId } = await createUser("+12025550202");
     const [task] = await database.insert(tasks).values({ userId, title: "Finish report" }).returning({ id: tasks.id });
