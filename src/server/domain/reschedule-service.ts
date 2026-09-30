@@ -38,14 +38,8 @@ export function parseRescheduleHeuristically(body: string): RescheduleCommand | 
       afterToday: true,
     });
   }
-  const reschedule = trimmed.match(/^(?:reschedule|move)\s+(.+?)(?:\s+for\s+later)?[.!]?$/i);
-  return reschedule
-    ? rescheduleCommandSchema.parse({
-        type: "reschedule_task",
-        taskQuery: reschedule[1].replace(/^(?:the|my)\s+/i, "").trim(),
-        afterToday: false,
-      })
-    : null;
+  // A move may specify an exact destination; contextual routing must preserve it.
+  return null;
 }
 
 export async function proposeTaskReschedule(

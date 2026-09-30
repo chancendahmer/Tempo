@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import type { AssistantCommand } from "../../domain/assistant-commands";
 import { getDatabase, TempoDatabase } from "../client";
 import { lifeItems } from "../schema";
@@ -11,6 +11,15 @@ export class LifeAssistant {
   async execute(userId: string, sourceMessageId: string, command: Extract<AssistantCommand, { type: "food_search" | "life_list" | "life_save" | "life_remove" | "grocery_add" }>) {
     if (command.type === "food_search") return JSON.stringify(await foodCatalog(userId, command, this.database));
     if (command.type === "life_list") {
+      if (command.kind === "note" && command.query) {
+        const terms = [...new Set(command.query.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [])];
+        if (!terms.length || terms.length > 12) return JSON.stringify({ items: [], truncated: false, notice: "Use 1–12 search words for this note lookup." });
+        const matches = await this.database.select({ id: lifeItems.id, version: lifeItems.version, data: lifeItems.data }).from(lifeItems)
+          .where(and(eq(lifeItems.userId, userId), sql`${lifeItems.data}->>'kind' = 'note'`,
+            ...terms.map(term => sql`lower(concat(${lifeItems.data}->>'title', ' ', ${lifeItems.data}->>'body')) like ${`%${term}%`}`)))
+          .orderBy(desc(lifeItems.createdAt)).limit(21);
+        return JSON.stringify({ items: matches.slice(0, 20), truncated: matches.length > 20, notice: matches.length > 20 ? "More matching notes exist; narrow the search." : "Only notes matching every search word are included; this is not a complete account search." });
+      }
       const rows = await this.database.select({ id: lifeItems.id, version: lifeItems.version, data: lifeItems.data }).from(lifeItems).where(and(eq(lifeItems.userId, userId), sql`${lifeItems.data}->>'kind' = ${command.kind}`)).limit(100);
       return JSON.stringify(rows);
     }

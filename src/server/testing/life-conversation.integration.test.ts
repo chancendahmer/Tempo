@@ -1,6 +1,25 @@
 import { expect, it } from "vitest";
 import { createAssistantSimulator } from "../../../scripts/lib/assistant-simulator";
 
+it("recalls account-owned notes across channels using separated search words (scripted parser)", async () => {
+  const simulation = await createAssistantSimulator({ parse: async input => {
+    if (input.message.startsWith("Save note")) return { kind: "command", command: { type: "life_save", data: { kind: "note", title: "Spare apartment keys location", body: input.message.includes("neighbor") ? "Neighbor's private hiding place" : "My spare apartment keys are in the blue bowl by the door." } } };
+    return { kind: "command", command: { type: "recall_memories", query: "spare keys" } };
+  } });
+  try {
+    const owner = await simulation.user(), other = await simulation.user(), empty = await simulation.user();
+    await owner.send("Save note: spare apartment keys are in the blue bowl by the door.", { channel: "web" });
+    await other.send("Save note: neighbor spare apartment keys.");
+    const reply = (await owner.send("Where did I leave my spare keys?")).replies.join(" ");
+    expect(reply).toContain("blue bowl");
+    expect(reply).not.toContain("Neighbor's private hiding place");
+    expect(reply).toContain("factSearchNotice");
+    const noMatch = (await empty.send("Where did I leave my spare keys?")).replies.join(" ");
+    expect(noMatch).not.toContain("blue bowl");
+    expect(noMatch).not.toContain("Neighbor's private hiding place");
+  } finally { await simulation.close(); }
+}, 30000);
+
 it("routes an SMS recipe request to the structured library, then retrieves it without inventing a task (scripted parser)", async () => {
   const simulation = await createAssistantSimulator({ parse: async input => {
     if (/remember/i.test(input.message)) return { kind: "command", command: { type: "life_save", data: { kind: "recipe", title: "Lemon rice", ingredients: "Rice\nLemon", instructions: "Cook rice and add lemon.", servings: 2, prepMinutes: 20, favorite: true } } };
