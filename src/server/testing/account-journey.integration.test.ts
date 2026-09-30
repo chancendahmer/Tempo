@@ -56,7 +56,7 @@ it("SMS recipe -> web follow-up edit -> dashboard edit -> SMS recall and delete 
     await user.send("Save my lemon rice recipe: rice, lemon, cook rice and add lemon. Serves 2, 20 minutes.");
     const first = (await user.workspace()).items[0];
     const edit = await user.send("Make that recipe serve four instead.", { channel: "web" });
-    expect(edit.replies).toEqual(["Saved."]);
+    expect(edit.replies).toEqual(["Updated: Lemon rice. Serves 4."]);
     expect((await user.workspace()).items).toEqual([{ ...first, version: 2, data: { ...recipe, servings: 4 } }]);
     const replay = await user.send(edit.input, { channel: "web", providerId: edit.providerId });
     expect(replay).toMatchObject({ duplicate: true, replies: [] });

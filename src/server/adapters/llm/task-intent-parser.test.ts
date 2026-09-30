@@ -15,6 +15,15 @@ describe("current-message routing", () => {
   };
   beforeEach(() => { create.mockReset(); settings.webSearch = false; });
 
+  it("returns a verified action receipt once when no extra answer is needed", async () => {
+    const message = "Add a task to renew my library card";
+    create.mockResolvedValueOnce({ content: [{ type: "tool_use", id: "task", name: "create_task", input: { sourceQuote: message, title: "Renew library card" } }] })
+      .mockResolvedValueOnce({ content: [{ type: "text", text: "ACK_ONLY" }] });
+    const execute = vi.fn(async () => "Added: Renew library card.");
+    expect(await new AnthropicTaskIntentParser().parse({ ...input, message, execute })).toEqual({ kind: "conversation", reply: "Added: Renew library card." });
+    expect(execute).toHaveBeenCalledTimes(1);
+  });
+
   it.each([
     ["Don't remind me about laundry anymore", "cancel_reminder", { reminderQuery: "laundry" }],
     ["When will you remind me about laundry?", "list_reminders", {}],

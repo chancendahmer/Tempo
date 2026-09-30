@@ -31,5 +31,13 @@ describe("indirect journey acceptance checks", () => {
     input.simulator.calendarWrites.push({ userId: "demo", change: { operation: "update", eventId: "fixture-dentist", start: "bad date", end: "bad date" } });
     expect(await indirectWeekJourney[17].expectation!(input)).toContain("Confirmed calendar edit has wrong account, event, or time.");
   });
+  it.each(["isn't", "isn’t"])("accepts an honest Google Health '%s a connected integration' disclosure", async contraction => {
+    const input = context();
+    input.simulator.calendarWrites.push({ userId: "demo", change: { operation: "update", eventId: "fixture-dentist" } });
+    input.turn.replies = [`Google Health / Google Fit ${contraction} a connected integration — I can only see your Google Calendar right now.`];
+    expect(await indirectWeekJourney[20].expectation!(input)).toEqual([]);
+    input.turn.replies = ["Google Health is a connected integration. I can see your steps."];
+    expect(await indirectWeekJourney[20].expectation!(input)).not.toEqual([]);
+  });
 });
 
