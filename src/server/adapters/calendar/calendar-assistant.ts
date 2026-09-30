@@ -3,6 +3,7 @@ import { google, calendar_v3 } from "googleapis";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { getServerEnv, requireEnv } from "../../config/env";
+import { proactiveDeliveryEnabled } from "../../config/proactive-delivery";
 import { getDatabase, TempoDatabase } from "../../db/client";
 import { users } from "../../db/schema";
 import { DrizzleCalendarSyncRepository } from "../../db/repositories/calendar-sync-repository";
@@ -60,7 +61,7 @@ export class CalendarAssistantIntegrations implements AssistantIntegrations {
       memory: "available", tasksAndReminders: "available",
         workspace: "Tempo routines, recipes, meal plans, food logs, workouts, groceries and notes; edits appear after refresh",
         wakeAndWindDown: "manual sunrise/sunset screen sessions with optional synthesized birds/waves; start in Wake & Wind Down; no scheduled wake alarms, background reliability or hardware brightness/light control",
-      proactiveCoaching: env.INTERVENTION_SHADOW_MODE || !env.AUTONOMOUS_SENDING_ENABLED ? "operator has not enabled delivery" : "available with user opt-in and calendar availability",
+      proactiveCoaching: !proactiveDeliveryEnabled(env, userId) ? "operator has not enabled delivery" : "available with user opt-in and calendar availability",
       otherAccounts: "not connected: email, Apple Calendar, Google Tasks, shopping, health, and other third-party apps",
       manageConnections: `${env.APP_BASE_URL}/extensions`,
     });
@@ -152,7 +153,7 @@ export class CalendarAssistantIntegrations implements AssistantIntegrations {
     await this.database.update(users).set({ proactiveOptIn: enabled, dailyInterventionCap: enabled ? Math.max(1, Math.min(3, dailyCap)) : 0, interventionCooldownMinutes: 120, updatedAt: new Date() }).where(eq(users.id, userId));
     const env = getServerEnv();
     if (!enabled) return "Optional task check-ins are off. Your requested reminders are unchanged.";
-    if (env.INTERVENTION_SHADOW_MODE || !env.AUTONOMOUS_SENDING_ENABLED) return "Your check-in preference is saved, but proactive delivery is not enabled by the demo operator yet. Your requested reminders still work.";
+    if (!proactiveDeliveryEnabled(env, userId)) return "Your check-in preference is saved, but proactive delivery is not enabled by the demo operator yet. Your requested reminders still work.";
     return `I can check in up to ${dailyCap} times a day, at least two hours apart, when your calendar shows a suitable opening. Quiet hours still apply. You can ask me to turn check-ins off anytime.`;
   }
 }

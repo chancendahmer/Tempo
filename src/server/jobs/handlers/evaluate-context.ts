@@ -1,5 +1,6 @@
 import { PgBoss } from "pg-boss";
 import { getServerEnv } from "../../config/env";
+import { proactiveDeliveryEnabled } from "../../config/proactive-delivery";
 import { DrizzleContextEngineRepository } from "../../db/repositories/context-engine-repository";
 import { DrizzleInterventionRepository } from "../../db/repositories/intervention-repository";
 import { AnthropicInterventionDecisionReviewer } from "../../adapters/llm/intervention-decision-reviewer";
@@ -17,7 +18,7 @@ export async function registerEvaluateContextHandler(boss: PgBoss) {
       if (!(await actions.markRunning(job.data.scheduledActionId))) continue;
       try {
         const env = getServerEnv();
-        const shadowMode = env.INTERVENTION_SHADOW_MODE || !env.AUTONOMOUS_SENDING_ENABLED;
+        const shadowMode = !proactiveDeliveryEnabled(env, job.data.userId);
         const result = await evaluateUserContext({
           userId: job.data.userId,
           repository: new DrizzleContextEngineRepository(),

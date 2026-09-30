@@ -18,6 +18,41 @@ describe("current-message routing", () => {
   beforeEach(() => { create.mockReset(); settings.webSearch = false; });
 
   it.each([
+    ["9 AM works.", true, "Walk/jog", "2026-09-05T09:00:00-04:00", true],
+    ["9 AM works.", false, "Walk/jog", "2026-09-05T09:00:00-04:00", false],
+    ["9 AM works.", true, "Buy groceries", "2026-09-05T09:00:00-04:00", false],
+    ["9 AM works.", true, "Walk/jog", "2026-09-05T10:00:00-04:00", false],
+    ["2 PM please.", true, "Walk/jog", "2026-09-05T14:00:00-04:00", false],
+    ["9 AM, don't save it.", true, "Walk/jog", "2026-09-05T09:00:00-04:00", false],
+  ])("completes only a grounded linked task-time answer (%s, %s, %s)", async (message, linked, title, dueAt, allowed) => {
+    create.mockResolvedValueOnce({ content: [{ type: "tool_use", id: "task", name: "create_task", input: { sourceQuote: message, title, dueAt, estimatedMinutes: 10 } }] })
+      .mockResolvedValueOnce({ content: [{ type: "text", text: "ACK_ONLY" }] });
+    const execute = vi.fn(async () => "Task saved.");
+    await new AnthropicTaskIntentParser().parse({ ...input, message, execute, history: [
+      { id: "request", role: "user", content: "Add a 10-minute walk/jog for Saturday morning.", createdAt: input.now },
+      { id: "question", role: "assistant", replyToMessageId: linked ? "request" : "other", content: "What time in the morning would you like that task?", createdAt: input.now },
+    ] });
+    expect(execute).toHaveBeenCalledTimes(allowed ? 1 : 0);
+  });
+
+  it.each([
+    ["Add a 10-minute walk/jog for Saturday morning", "2026-09-05T12:00:00-04:00", false],
+    ["Add a 10-minute walk/jog for Saturday morning", "2026-09-05T09:00:00-04:00", false],
+    ["Add a walk/jog for Saturday morning", undefined, false],
+    ["Add a walk/jog for Saturday morning at 9 AM", "2026-09-05T12:00:00-04:00", false],
+    ["Add a walk/jog for Saturday morning at 9 AM", "2026-09-05T13:00:00Z", true],
+    ["Add a walk/jog for Saturday afternoon at 2 PM", "2026-09-05T14:00:00-04:00", true],
+    ["Add a walk/jog for Saturday evening", "2026-09-05T19:00:00-04:00", false],
+  ])("does not invent or contradict a task scheduling window (%s)", async (message, dueAt, allowed) => {
+    create.mockResolvedValueOnce({ content: [{ type: "tool_use", id: "task", name: "create_task", input: { sourceQuote: message, title: "Walk/jog", ...(dueAt ? { dueAt } : {}) } }] })
+      .mockResolvedValueOnce({ content: [{ type: "text", text: "ACK_ONLY" }] });
+    const execute = vi.fn(async () => "Task saved.");
+    const result = await new AnthropicTaskIntentParser().parse({ ...input, message, execute });
+    expect(execute).toHaveBeenCalledTimes(allowed ? 1 : 0);
+    if (!allowed) expect(result).toMatchObject({ reply: expect.stringMatching(/what time/i) });
+  });
+
+  it.each([
     [true, "07:30", "Get dressed", "7:30am please.", true],
     [true, "07:30", "Get dressed", "7:30 AM works.", true],
     [true, "07:30", "Get dressed", "7:30 AM works for me.", true],

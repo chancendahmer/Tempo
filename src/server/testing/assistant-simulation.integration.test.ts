@@ -4,6 +4,21 @@ import { assistantScenarios, scriptedScenarioParser } from "../../../scripts/lib
 import { tasks, goals, reminders } from "../db/schema";
 
 describe("captured SMS acceptance conversations (scripted model; real repositories)", () => {
+  it("passes a compound scheduled task unchanged to the contextual parser", async () => {
+    const message = "I need to fold the demo laundry today by 4:45pm. Add it as a ten-minute task.";
+    const received: string[] = [];
+    const isolated = await createAssistantSimulator({ parse: async input => {
+      received.push(input.message);
+      return { kind: "command", command: { type: "create_task", title: "Fold the demo laundry", dueAt: "2027-01-15T02:45:00Z", estimatedMinutes: 10 } };
+    } });
+    try {
+      isolated.setTime(new Date("2027-01-14T20:15:00Z"));
+      const person = await isolated.user();
+      expect((await person.send(message)).parserCalled).toBe(true);
+      expect(received).toEqual([message]);
+      expect((await person.state()).tasks).toEqual([expect.objectContaining({ title: "Fold the demo laundry", dueAt: new Date("2027-01-14T21:45:00Z"), estimatedMinutes: 10 })]);
+    } finally { await isolated.close(); }
+  }, 30_000);
   let simulation: AssistantSimulator;
   beforeAll(async () => {
     simulation = await createAssistantSimulator(scriptedScenarioParser);

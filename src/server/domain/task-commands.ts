@@ -52,36 +52,6 @@ export const taskCommandSchema = z
 
 export type TaskCommand = z.infer<typeof taskCommandSchema>;
 
-const WEEKDAYS: Record<string, number> = {
-  sunday: 0,
-  monday: 1,
-  tuesday: 2,
-  wednesday: 3,
-  thursday: 4,
-  friday: 5,
-  saturday: 6,
-};
-
-function nextWeekday(reference: Date, weekday: number): Date {
-  const due = new Date(reference);
-  const delta = (weekday - due.getUTCDay() + 7) % 7 || 7;
-  due.setUTCDate(due.getUTCDate() + delta);
-  due.setUTCHours(17, 0, 0, 0);
-  return due;
-}
-
-function relativeDueAt(text: string, reference: Date): string | undefined {
-  const lower = text.toLowerCase();
-  if (/\bby\s+tomorrow\b/.test(lower)) {
-    const due = new Date(reference);
-    due.setUTCDate(due.getUTCDate() + 1);
-    due.setUTCHours(17, 0, 0, 0);
-    return due.toISOString();
-  }
-  const weekdayMatch = lower.match(/\bby\s+(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/);
-  return weekdayMatch ? nextWeekday(reference, WEEKDAYS[weekdayMatch[1]]).toISOString() : undefined;
-}
-
 function estimatedMinutes(text: string): number | undefined {
   const hours = text.match(/\b(?:probably\s+)?(?:a\s+)?(\d+(?:\.\d+)?)\s*(?:hours?|hrs?)\b/i);
   if (hours) return Math.round(Number(hours[1]) * 60);
@@ -96,13 +66,17 @@ function cleanReference(input: string): string {
     .trim();
 }
 
-function createTaskFromNaturalLanguage(text: string, reference: Date): TaskCommand | null {
+function createTaskFromNaturalLanguage(text: string): TaskCommand | null {
   if (!/^(?:i\s+need\s+to|i\s+have\s+to|remember\s+to|add\s+(?:a\s+)?task(?:\s+to)?|new\s+task:?)/i.test(text.trim())) {
     return null;
   }
 
   const duration = estimatedMinutes(text);
-  const dueAt = relativeDueAt(text, reference);
+  // The fast path only owns a plain title plus an optional numeric duration
+  // suffix. Dates, clocks and compound requests need the contextual parser.
+  const plain = text.replace(/\s*,?\s*(?:probably\s+)?(?:a\s+)?\d+(?:\.\d+)?\s*(?:hours?|hrs?|minutes?|mins?)\s*(?:job)?[.!]?\s*$/i, "");
+  if (/[.!?]\s+\S|\d\s*:\s*\d|\b\d+\s*[ap]\.?m\.?\b|\b(?:today|tomorrow|tonight|morning|afternoon|evening|noon|midnight|sunday|monday|tuesday|wednesday|thursday|friday|saturday|january|february|march|april|may|june|july|august|september|october|november|december|minutes?|mins?|hours?|hrs?|days?|weeks?|months?|year|deadline|due|by|before|after|at|then)\b|\d[/-]\d/i.test(plain)) return null;
+
   const title = text
     .trim()
     .replace(/^(?:i\s+need\s+to|i\s+have\s+to|remember\s+to|add\s+(?:a\s+)?task(?:\s+to)?|new\s+task:?)\s*/i, "")
@@ -115,11 +89,12 @@ function createTaskFromNaturalLanguage(text: string, reference: Date): TaskComma
     type: "create_task",
     title,
     estimatedMinutes: duration,
-    dueAt,
+
   });
 }
 
-export function parseTaskCommandHeuristically(text: string, reference = new Date()): TaskCommand | null {
+export function parseTaskCommandHeuristically(text: string, _reference = new Date()): TaskCommand | null {
+  void _reference; // Retained call signature; dated requests now use the contextual parser.
   const trimmed = text.trim();
   if (/^(?:list|show)(?:\s+me)?\s+(?:my\s+)?tasks|^what(?:'s|\s+is)\s+on\s+my\s+list/i.test(trimmed)) {
     return taskCommandSchema.parse({ type: "list_tasks", status: "open" });
@@ -134,7 +109,7 @@ export function parseTaskCommandHeuristically(text: string, reference = new Date
   const abandon = trimmed.match(/^(?:abandon|drop|cancel)\s+(.+)$/i);
   if (abandon) return taskCommandSchema.parse({ type: "abandon_task", taskQuery: cleanReference(abandon[1]) });
 
-  return createTaskFromNaturalLanguage(trimmed, reference);
+  return createTaskFromNaturalLanguage(trimmed);
 }
 
 export type TaskSummary = {

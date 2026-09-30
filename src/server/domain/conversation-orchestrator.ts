@@ -41,6 +41,7 @@ import { ReminderRepository, executeReminderCommand, requestedReminderTime } fro
 import { AssistantCommand, AssistantIntegrations } from "./assistant-commands";
 import { buildRundown, parseRundownRequest, isRundownQuestion } from "./rundown";
 import { connectionStatusReply } from "./connection-status-reply";
+import { normalizeTaskDeadline } from "./task-deadline";
 
 export type InboundConversationContext = {
   messageId: string;
@@ -433,7 +434,7 @@ export class ConversationOrchestrator {
         now,
       });
     }
-    const result = await executeTaskCommand(this.tasks, intent.command, {
+    const result = await executeTaskCommand(this.tasks, normalizeTaskDeadline(intent.command, context.body, now, context.timezone), {
       userId: context.userId,
       sourceMessageId: context.messageId,
       now,

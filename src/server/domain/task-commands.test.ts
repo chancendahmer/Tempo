@@ -9,15 +9,26 @@ describe("task command validation and fallback parsing", () => {
   it("parses the core natural-language creation fixture", () => {
     expect(
       parseTaskCommandHeuristically(
-        "I need to finish the Q3 report by Friday, probably a 2 hour job",
+        "I need to finish the Q3 report, probably a 2 hour job",
         new Date("2026-08-18T12:00:00.000Z"),
       ),
     ).toEqual({
       type: "create_task",
       title: "finish the Q3 report",
       estimatedMinutes: 120,
-      dueAt: "2026-08-21T17:00:00.000Z",
     });
+  });
+
+  it.each([
+    "I need to fold the demo laundry today by 4:45pm. Add it as a ten-minute task.",
+    "I need to finish the Q3 report by Friday, probably a 2 hour job",
+    "Add a task to walk Saturday morning",
+    "I need to do a ten-minute walk",
+    "I need to call Mom at 4pm",
+    "I need to call Mom on 10/3",
+    "I need to file taxes. Make it urgent.",
+  ])("defers unsupported or compound task details intact: %s", text => {
+    expect(parseTaskCommandHeuristically(text)).toBeNull();
   });
 
   it.each([

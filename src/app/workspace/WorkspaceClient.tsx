@@ -6,6 +6,7 @@ import { SectionArt, MealIllustration } from "./SectionArt";
 import { FoodSearch } from "./FoodSearch";
 import { TasksView, GoalsView } from "./PlanningViews";
 import { CalendarView } from "./CalendarView";
+import { taskDueLabel } from "./task-due-label";
 import { ChatMessage } from "./ChatMessage";
 import { WakeExperience } from "./WakeExperience";
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
@@ -231,7 +232,7 @@ export function WorkspaceClient({ preview = false }: { preview?: boolean }) {
   const empty = (title: string, body: string, action?: () => void, label = "Add your first one") => <div className={s.empty}><FiSun /><h3>{title}</h3><p>{body}</p>{action && <button className={s.primary} onClick={action}><FiPlus />{label}</button>}</div>;
   const taskRow = (task: Workspace["tasks"][number]) => <div className={s.taskRow} key={task.id}>
     <button className={`${s.check} ${task.status === "completed" ? s.checked : ""}`} disabled={saving || task.status === "completed"} aria-label={`Complete ${task.title}`} onClick={() => void taskAction({ type: "complete_task", taskId: task.id })}>{task.status === "completed" && <FiCheck />}</button>
-    <div className={s.grow}><strong className={task.status === "completed" ? s.done : ""}>{task.title}</strong><small>{task.dueAt ? `${new Intl.DateTimeFormat(undefined, { timeZone: data?.timezone, month: "short", day: "numeric" }).format(new Date(task.dueAt))} · ${time(task.dueAt)}` : "Whenever there’s room"} {task.estimatedMinutes ? `· ${task.estimatedMinutes} min` : ""}</small></div>
+    <div className={s.grow}><strong className={task.status === "completed" ? s.done : ""}>{task.title}</strong><small>{task.dueAt ? taskDueLabel(task.dueAt, data?.timezone ?? "UTC", true) : "Whenever there’s room"} {task.estimatedMinutes ? `· ${task.estimatedMinutes} min` : ""}</small></div>
     {task.status !== "completed" && <><button className={s.iconButton} title="Edit task" aria-label={`Edit ${task.title}`} onClick={() => taskEditor(task)}><FiEdit2 /></button><button className={s.startButton} disabled={saving} onClick={() => void startFocus(task)}><FiPlay /> Start</button></>}
   </div>;
   const itemActions = (item: SavedLifeItem) => <div className={s.row}><button className={s.iconButton} aria-label={`Edit ${item.data.title}`} onClick={() => itemEditor(item.data.kind, item)}><FiEdit2 /></button><button className={s.iconButton} aria-label={`Remove ${item.data.title}`} onClick={() => remove(item)}><FiTrash2 /></button></div>;

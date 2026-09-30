@@ -41,6 +41,61 @@ it("twenty accounts keep SMS, dashboard edits, assistant context and replies sep
   } finally { await simulation.close(); }
 }, 60000);
 
+it("isolates concurrent task commits, web task lookups and account rundowns for twenty users (scripted parser)", async () => {
+  const taskLookupContexts: Parameters<TaskIntentParser["parse"]>[0][] = [];
+  const simulation = await createAssistantSimulator({ parse: async input => {
+    if (input.message === "Which task should I focus on?") {
+      taskLookupContexts.push(input);
+      return { kind: "conversation", reply: `[SCRIPTED TASK CONTEXT] ${input.openTasks.map(task => task.title).join(", ")}` };
+    }
+    return { kind: "conversation", reply: `[SCRIPTED CONTEXT] ${input.openTasks.map(task => task.title).join(", ")}` };
+  } });
+  try {
+    simulation.setTime(new Date("2027-01-14T15:00:00Z"));
+    const people: Awaited<ReturnType<typeof simulation.user>>[] = [];
+    for (let index = 0; index < 20; index++) people.push(await simulation.user());
+    const titles = people.map((_, index) => `ACCOUNT_${String(index).padStart(2, "0")}_PRIVATE_TASK`);
+
+    // Commit distinct dashboard task writes at the same time, then issue reads
+    // and deterministic account-scoped rundowns concurrently across all users.
+    const writes = await Promise.all(people.map((person, index) => mutateWorkspace(person.id, {
+      action: "task",
+      requestId: randomUUID(),
+      command: { type: "create_task", title: titles[index], dueAt: "2027-01-15T12:00:00-05:00" },
+    }, simulation.database)));
+    expect(writes.map(write => write.message)).toEqual(titles.map(title => `Added: ${title}.`));
+
+    const lookups = await Promise.all(people.map(person => person.send("Which task should I focus on?", { channel: "web" })));
+    const rundowns = await Promise.all(people.map(person => person.send("Weekly rundown for 2027-01-11", { channel: "web" })));
+    const workspaces = await Promise.all(people.map(person => person.workspace()));
+
+    for (const index of people.keys()) {
+      const own = titles[index];
+      const foreignTitles = titles.filter((_, foreignIndex) => foreignIndex !== index);
+      expect(lookups[index].replies).toEqual([`[SCRIPTED TASK CONTEXT] ${own}`]);
+      expect(rundowns[index].replies[0]).toContain(own);
+      expect(workspaces[index].tasks.map(task => task.title)).toEqual([own]);
+      expect(workspaces[index].messages.some(message => message.body === "Which task should I focus on?")).toBe(true);
+      for (const foreign of foreignTitles) {
+        expect(lookups[index].replies[0]).not.toContain(foreign);
+        expect(rundowns[index].replies[0]).not.toContain(foreign);
+        expect(JSON.stringify(workspaces[index])).not.toContain(foreign);
+      }
+    }
+    expect(taskLookupContexts).toHaveLength(20);
+    for (const context of taskLookupContexts) {
+      const own = context.openTasks[0]?.title;
+      expect(titles).toContain(own);
+      expect(context.openTasks.map(task => task.title)).toEqual([own]);
+      for (const foreign of titles.filter(title => title !== own)) {
+        expect(JSON.stringify(context)).not.toContain(foreign);
+      }
+    }
+    // Web replies remain in each account's history and are never sent over SMS.
+    expect(simulation.transport.sent).toHaveLength(0);
+  } finally { await simulation.close(); }
+}, 60000);
+
 it("SMS recipe -> web follow-up edit -> dashboard edit -> SMS recall and delete share one record", async () => {
   const recipe = { kind: "recipe" as const, title: "Lemon rice", ingredients: "Rice\nLemon", instructions: "Cook rice and add lemon.", servings: 2, prepMinutes: 20, favorite: true };
   const simulation = await createAssistantSimulator({ parse: async input => {

@@ -2,6 +2,7 @@ import { PgBoss } from "pg-boss";
 import { AnthropicInterventionComposer } from "../../adapters/llm/intervention-composer";
 import { createMessagingTransport } from "../../adapters/sms/messaging-provider";
 import { getServerEnv } from "../../config/env";
+import { proactiveDeliveryEnabled } from "../../config/proactive-delivery";
 import { DrizzleContextEngineRepository } from "../../db/repositories/context-engine-repository";
 import { DrizzleInterventionRepository } from "../../db/repositories/intervention-repository";
 import { DrizzleOutboundMessageRepository } from "../../db/repositories/outbound-message-repository";
@@ -50,7 +51,7 @@ export async function registerDeliverInterventionHandler(boss: PgBoss) {
           contextRepository.getActivePolicy(),
           contextRepository.loadSignals(context.userId, new Date()),
         ]);
-        if (!signals || env.INTERVENTION_SHADOW_MODE || !env.AUTONOMOUS_SENDING_ENABLED) {
+        if (!signals || !proactiveDeliveryEnabled(env, context.userId)) {
           await interventions.markCancelled(context.id);
           await actions.markCancelled(job.data.scheduledActionId, "shadow_mode_or_missing_user");
           continue;
