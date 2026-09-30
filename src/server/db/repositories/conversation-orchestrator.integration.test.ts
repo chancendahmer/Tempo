@@ -127,6 +127,23 @@ describe("inbound conversation orchestration", () => {
     expect(transport.sent.map(item => item.body)).toEqual(Array(3).fill("Start with the part that feels easiest."));
   });
 
+  it("retries a fresh interrupted claim, then recovers after lease expiry without duplicating its task", async () => {
+    const user = await consentedUser("+12025550974", "complete");
+    const started = new Date("2026-08-18T12:00:00Z");
+    const [message] = await database.insert(conversationMessages).values({ userId: user.id, conversationId: user.conversationId, direction: "inbound", kind: "user", status: "processing", processingStartedAt: started, body: "Add task buy lemons" }).returning();
+    const repository = new DrizzleConversationRepository(database);
+    await expect(repository.claimInbound(message.id, new Date("2026-08-18T12:02:00Z"))).rejects.toThrow("still leased");
+    const [busy] = await database.select().from(conversationMessages).where(eq(conversationMessages.id, message.id));
+    expect(busy.status).toBe("processing");
+    // A restart past the lease can reclaim the work, and a later queue retry
+    // observes the processed message rather than creating a second task.
+    await database.update(conversationMessages).set({ processingStartedAt: new Date("2026-08-18T11:54:00Z") }).where(eq(conversationMessages.id, message.id));
+    const coach = orchestrator(new TestSmsTransport("LEASE"));
+    expect(await coach.process(message.id)).toEqual({ processed: true });
+    expect(await coach.process(message.id)).toEqual({ processed: false });
+    expect(await database.select().from(tasks).where(eq(tasks.userId, user.id))).toEqual([expect.objectContaining({ title: "buy lemons" })]);
+  });
+
   it("accepts the contact choice and asks for local time before calendar", async () => {
     const user = await consentedUser("+12025550198", "introduction");
     const [message] = await database
