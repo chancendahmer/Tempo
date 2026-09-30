@@ -370,7 +370,15 @@ export class ConversationOrchestrator {
     }
     if (command.type === "recall_memories") {
       const memories = await this.memories?.retrieveRelevant(context.userId, now, 20) ?? [];
-      return memories.length ? JSON.stringify(memories.map(({ content }) => content)) : "No saved memories found.";
+      if (command.query) {
+        const terms = command.query.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
+        const facts = memories.filter(memory => terms.length && terms.every(term => memory.content.toLowerCase().includes(term))).map(({ content }) => content);
+        const rawNotes = await this.life?.execute(context.userId, context.messageId, { type: "life_list", kind: "note", query: command.query });
+        let noteSearch: unknown = { items: [], notice: "Note search is unavailable; do not claim no note exists." };
+        if (rawNotes) { try { noteSearch = JSON.parse(rawNotes); } catch { /* Preserve the explicit unavailable notice. */ } }
+        return JSON.stringify({ facts, noteSearch, factSearchNotice: "Search covers up to 20 retrieved facts; no match does not prove the information was never saved." });
+      }
+      return memories.length ? JSON.stringify(memories.map(({ content }) => content)) : "No saved memory facts found. Thought inbox notes have not been searched; use recall_memories with specific query keywords before answering a personal recall question.";
     }
     if (command.type === "forget_memory") {
       return await this.memories?.tryHandleCorrection({ userId: context.userId, messageId: context.messageId, body: `forget ${command.query}`, now }) ?? "Memory is temporarily unavailable.";

@@ -343,6 +343,19 @@ describe("current-message routing", () => {
     expect(result).toMatchObject({ reply: expect.stringContaining("Saved.") });
   });
 
+  it("authorizes a note edit using the current bounded search result version", async () => {
+    const id = "00000000-0000-4000-8000-000000000091";
+    const message = "Update my spare keys note to say green bowl.";
+    const data = { kind: "note", title: "Spare keys", body: "Green bowl" };
+    create.mockResolvedValueOnce({ content: [{ type: "tool_use", id: "read", name: "life_list", input: { kind: "note", query: "spare keys", sourceQuote: message } }] })
+      .mockResolvedValueOnce({ content: [{ type: "tool_use", id: "edit", name: "life_save", input: { id, version: 2, data, sourceQuote: message } }] })
+      .mockResolvedValueOnce({ content: [{ type: "text", text: "ACK_ONLY" }] });
+    const execute = vi.fn(async command => command.type === "life_list" ? JSON.stringify({ items: [{ id, version: 2, data }], truncated: false }) : "Saved.");
+    await new AnthropicTaskIntentParser().parse({ ...input, message, execute });
+    expect(execute).toHaveBeenCalledTimes(2);
+    expect(execute.mock.calls[1][0]).toMatchObject({ type: "life_save", id, version: 2 });
+  });
+
   it.each(["life_save", "life_remove"])("blocks %s with an ID that was not read this turn", async type => {
     create.mockResolvedValueOnce({ content: [{ type: "tool_use", id: "unread", name: type, input: {
       id: "00000000-0000-4000-8000-000000000091", version: 2, sourceQuote: "Change it",

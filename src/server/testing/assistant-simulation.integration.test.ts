@@ -4,6 +4,25 @@ import { assistantScenarios, scriptedScenarioParser } from "../../../scripts/lib
 import { tasks, goals, reminders } from "../db/schema";
 
 describe("captured SMS acceptance conversations (scripted model; real repositories)", () => {
+  it("passes an exact task move to the parser and preserves its goal association", async () => {
+    const message = "Move my 10-minute walk/jog to Saturday at 9 AM. Keep it linked to the running goal.";
+    const received: string[] = [];
+    const isolated = await createAssistantSimulator({ parse: async input => {
+      received.push(input.message);
+      return { kind: "command", command: { type: "update_task", taskQuery: "Walk/jog", patch: { dueAt: "2027-01-16T09:00:00-05:00" } } };
+    } });
+    try {
+      isolated.setTime(new Date("2027-01-14T20:15:00Z"));
+      const person = await isolated.user();
+      const [goal] = await isolated.database.insert(goals).values({ userId: person.id, title: "Running goal" }).returning();
+      await isolated.database.insert(tasks).values({ userId: person.id, title: "Walk/jog", goalId: goal.id, estimatedMinutes: 10 });
+      const turn = await person.send(message);
+      expect(received).toEqual([message]);
+      expect(turn.parserCalled).toBe(true);
+      expect(turn.replies.join(" ")).not.toMatch(/YES|NO|propos/i);
+      expect((await person.state()).tasks).toEqual([expect.objectContaining({ title: "Walk/jog", goalId: goal.id, estimatedMinutes: 10, dueAt: new Date("2027-01-16T14:00:00Z") })]);
+    } finally { await isolated.close(); }
+  }, 30_000);
   it("passes a compound scheduled task unchanged to the contextual parser", async () => {
     const message = "I need to fold the demo laundry today by 4:45pm. Add it as a ten-minute task.";
     const received: string[] = [];

@@ -142,3 +142,17 @@ A requested two-minute message arrived in TextFree and shared chat at 5:03 PM; C
 The next candidate also adds installable standalone web-app metadata and proper Tempo icons. No offline cache, native alarm, hardware brightness control or installation verification is implied.
 
 The final candidate passed npm run check: 436 tests across 66 files, lint, typecheck and production/operations builds. Grocery tests verify case/whitespace normalization, distinct-message repeats, checked-item repurchase and account isolation. Existing duplicate test records are not silently deleted.
+
+## Iteration 7: live PR 15 and personal recall
+
+Both services deployed PR 15. The final clarification replay passed: a real requested SMS arrived at 5:17 PM between the Sunday time question and the 5:19 PM answer “9 AM works.” Tempo saved exactly one Five-minute stretch task; Next 7 days showed October 4, 9:00 AM, five minutes. This uses a scheduled reminder as the unsolicited outbound interruption, not a second autonomous coaching message. The earlier coaching cap and cooldown were not bypassed.
+
+The deployed standalone manifest returned /workspace and the correct 192/512 icon contract. Actual installation remains unverified.
+
+A repeated grocery request avoided a new write but inferred state from conversation history and asked whether to add duplicates. Candidate instructions require the current-state batch tool even for repeated requests. A real SMS personal recall query incorrectly reported no note or memory about spare keys, while the authenticated Thought inbox displayed the saved blue-bowl note. The candidate combines account-owned topic-matching notes with matching saved facts, bounds note results to twenty, and includes search completeness notices. Cross-account exclusion and web-save-to-SMS recall paths are tested; deployed replay remains required. This core recall failure prevents a readiness score above five until fixed live.
+
+A mixed health/sunrise question correctly disclosed that Health integration and scheduled/hardware alarms are unsupported, described the manual screen session, and offered rather than silently created a reminder.
+
+An explicit request to move the goal-linked walk/jog to Saturday at 9 AM instead produced a Wednesday 6:45 PM proposal. The demo user declined it; no incorrect time was saved. The candidate removes the bare move shortcut so the model receives the specific destination, and reserves free-slot rescheduling for requests without a named destination. Regression tests preserve the goal link and duration.
+
+The combined candidate passed npm run check: 446 tests across 68 files, lint, typecheck, Next production build and operations build. Today now labels upcoming Calendar windows and reminders with Today, Tomorrow or their actual date; timezone and date-boundary tests passed. Live replay of recall, explicit moves and repeated grocery additions remains pending deployment.
