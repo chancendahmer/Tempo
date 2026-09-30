@@ -176,3 +176,7 @@ Both services deployed PR 17. The real SMS automatic-contact replay at 6:04 PM c
 The complete task-list repair passed npm run check: 448 tests across 68 files, lint, typecheck and production/operations builds.
 
 Both services deployed PR 18. The exact advice replay still asked for the recycling deadline, despite the improved lookup. The model did not reliably use the lookup before answering. The next candidate therefore also includes the existing account-owned dueAt, estimatedMinutes and overdue marker in the initial open-task context; no new records or data sources are added. This remaining reply-quality regression is recorded rather than presented as a passed prioritization test.
+
+## Iteration 10: live PR 19 prioritization replay
+
+The context repair passed npm run check: 448 tests across 68 files, lint, typecheck and production/operations builds. Both Railway services showed PR 19 active. At 6:23 PM, repeating the exact no-edit advice question correctly prioritized the overdue five-minute recycling task, then the dentist task due tomorrow, and distinguished the later-week walk/jog and stretch. It no longer asked for the saved deadline. This is a live model reply, not a scripted transcript. No schedule change or consent change was requested or announced.

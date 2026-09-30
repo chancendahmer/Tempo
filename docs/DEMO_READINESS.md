@@ -13,8 +13,11 @@ earlier score below five until deployed replay. PR 16 replay then passed real SM
 note recall, the exact Saturday move with goal/duration preserved and repeat
 groceries without new duplicates. The mediated reviewer rates the controlled
 demo 8.2/10 and commercial readiness 6.6/10. PR 16 repairs passed the
-full check: 446 tests across 68 files, lint, typecheck and production/operations
-builds. Public OAuth readiness, native scheduled alarms and hardware brightness,
+full check. Subsequent PR 19 passed 448 tests across 68 files, lint, typecheck and
+production/operations builds; live prioritization then correctly distinguished
+overdue recycling, tomorrow's dentist task and later-week activities. The real
+SMS automatic-contact explanation correctly reported existing consent and caps.
+Public OAuth readiness, native scheduled alarms and hardware brightness,
 actual installation, camera scanning and a real twenty-account load remain gates.
 
 Earlier checkpoint: [INDIRECT_DEMO.md](INDIRECT_DEMO.md) records two real-model
