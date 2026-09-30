@@ -9,6 +9,7 @@ import { TempoDatabase } from "../client";
 import * as schema from "../schema";
 import { calendarConnections, consentRecords, contextSnapshots, conversationMessages, interventionPolicies, interventions, scheduledActions, tasks, users } from "../schema";
 import { DrizzleContextEngineRepository } from "./context-engine-repository";
+import { ensureDirectConversation } from "./messaging-identity-repository";
 import { DrizzleInterventionRepository } from "./intervention-repository";
 
 describe("shadow context evaluation", () => {
@@ -23,6 +24,22 @@ describe("shadow context evaluation", () => {
     database = drizzle(client, { schema }) as unknown as TempoDatabase;
   });
   afterAll(async () => client.close());
+
+  it("uses the account's latest inbound across web and SMS, ignoring other accounts and outbound replies", async () => {
+    const [owner, other] = await database.insert(users).values([{ phoneE164: "+12025550951" }, { phoneE164: "+12025550952" }]).returning();
+    const ownerChat = await ensureDirectConversation(database, { userId: owner.id, phoneE164: owner.phoneE164 });
+    const otherChat = await ensureDirectConversation(database, { userId: other.id, phoneE164: other.phoneE164 });
+    const smsAt = new Date("2026-08-18T13:54:00Z");
+    const webAt = new Date("2026-08-18T13:59:00Z");
+    await database.insert(conversationMessages).values([
+      { userId: owner.id, conversationId: ownerChat.conversationId, direction: "inbound", kind: "user", status: "processed", body: "SMS", createdAt: smsAt },
+      { userId: owner.id, conversationId: ownerChat.conversationId, direction: "inbound", kind: "user", status: "received", body: "Web", idempotencyKey: `web-chat:${owner.id}:recent`, createdAt: webAt },
+      { userId: owner.id, conversationId: ownerChat.conversationId, direction: "outbound", kind: "coach", status: "delivered", body: "Reply", createdAt: new Date("2026-08-18T14:00:00Z") },
+      { userId: other.id, conversationId: otherChat.conversationId, direction: "inbound", kind: "user", status: "processed", body: "Other", createdAt: new Date("2026-08-18T14:01:00Z") },
+    ]);
+    const signals = await new DrizzleContextEngineRepository(database).loadSignals(owner.id, new Date("2026-08-18T14:02:00Z"));
+    expect(signals?.lastUserMessageAt).toEqual(webAt);
+  });
 
   it("persists reproducible decisions and never creates an outbound SMS", async () => {
     const [user] = await database.insert(users).values({

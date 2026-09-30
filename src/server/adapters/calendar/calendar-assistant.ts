@@ -154,6 +154,6 @@ export class CalendarAssistantIntegrations implements AssistantIntegrations {
     const env = getServerEnv();
     if (!enabled) return "Optional task check-ins are off. Your requested reminders are unchanged.";
     if (!proactiveDeliveryEnabled(env, userId)) return "Your check-in preference is saved, but proactive delivery is not enabled by the demo operator yet. Your requested reminders still work.";
-    return `I can check in up to ${dailyCap} times a day, at least two hours apart, when your calendar shows a suitable opening. Quiet hours still apply. You can ask me to turn check-ins off anytime.`;
+    return `I can check in up to ${dailyCap} ${dailyCap === 1 ? "time" : "times"} a day, at least two hours apart, when your calendar shows a suitable opening. Quiet hours still apply. You can ask me to turn check-ins off anytime.`;
   }
 }

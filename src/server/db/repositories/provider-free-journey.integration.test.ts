@@ -102,6 +102,10 @@ describe("provider-free V1 journey", () => {
       })).toEqual({ duplicate: false });
       const [message] = await database.select().from(conversationMessages)
         .where(eq(conversationMessages.providerMessageSid, sid));
+      // Ingestion uses the database clock; align the persisted inbound with this
+      // journey's virtual clock before evaluating recent-conversation safety.
+      await database.update(conversationMessages).set({ createdAt: now, receivedAt: now })
+        .where(eq(conversationMessages.id, message.id));
       expect(await coach.process(message.id)).toEqual({ processed: true });
       return message;
     }

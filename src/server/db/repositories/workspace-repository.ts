@@ -1,7 +1,7 @@
 import { isDeepStrictEqual } from "node:util";
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { getDatabase, TempoDatabase } from "../client";
 import { conversationMessages, goals, lifeItems, lifeActionReceipts, scheduledActions, tasks, users } from "../schema";
 import { lifeItemSchema, localDay } from "../../domain/life-items";
@@ -15,6 +15,7 @@ import { ensureDirectConversation } from "./messaging-identity-repository";
 import { readBoard } from "./board-repository";
 
 export const workspaceActionSchema = z.discriminatedUnion("action", [
+  z.object({ action: z.literal("add_groceries"), items: z.array(z.string().trim().min(1).max(240)).min(1).max(20) }),
   z.object({ action: z.literal("save"), id: z.uuid(), version: z.number().int().min(0), data: lifeItemSchema }),
   z.object({ action: z.literal("delete"), id: z.uuid(), version: z.number().int().min(1) }),
   z.object({ action: z.literal("task"), requestId: z.uuid(), command: taskCommandSchema }),
@@ -54,6 +55,10 @@ export async function mutateWorkspace(userId: string, input: WorkspaceAction, da
       }
     }
     const perform = async (): Promise<{ message: string }> => {
+    if (input.action === "add_groceries") {
+      await transaction.insert(lifeItems).values(input.items.map(title => ({ id: randomUUID(), userId, data: { kind: "grocery" as const, title, checked: false } })));
+      return { message: `Added to your shopping list: ${input.items.join(", ")}.` };
+    }
     if (input.action === "finish_focus") {
       const [focus] = await transaction.select().from(lifeItems).where(and(eq(lifeItems.id, input.id), eq(lifeItems.userId, userId), eq(lifeItems.version, input.version))).limit(1);
       if (!focus || focus.data.kind !== "focus") throw new WorkspaceConflict("This focus session changed. Refresh first.");

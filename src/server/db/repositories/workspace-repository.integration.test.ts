@@ -11,7 +11,7 @@ import { mutateWorkspace, readWorkspace } from "./workspace-repository";
 import { LifeAssistant } from "./life-assistant";
 import { WebReplySender, isWebMessage } from "./web-reply-repository";
 import { DrizzleConversationHistoryRepository } from "./conversation-history-repository";
-import type { LifeItem } from "../../domain/life-items";
+import { lifeItemSchema, type LifeItem } from "../../domain/life-items";
 
 describe("shared life workspace", () => {
   let client: PGlite, db: TempoDatabase, owner: string, other: string;
@@ -24,6 +24,44 @@ describe("shared life workspace", () => {
   }, 30000);
   afterAll(async () => client.close());
   const recipe: LifeItem = { kind: "recipe", title: "Lemon rice", ingredients: "Rice\nLemon", instructions: "Cook rice, add lemon.", servings: 2, prepMinutes: 20, favorite: true };
+
+  it("adds a complete grocery batch once, atomically and only to its account", async () => {
+    const [batchUser] = await db.insert(schema.users).values({ phoneE164: "+12025550959" }).returning();
+    const assistant = new LifeAssistant(db), source = randomUUID();
+    const command = { type: "grocery_add" as const, items: ["Cucumber", "Lemon", "Feta"] };
+    const replies = await Promise.all([assistant.execute(batchUser.id, source, command), assistant.execute(batchUser.id, source, command)]);
+    expect(replies[0]).toBe("Added to your shopping list: Cucumber, Lemon, Feta.");
+    expect(replies[1]).toBe(replies[0]);
+    const rows = (await readWorkspace(batchUser.id, db)).items;
+    expect(rows.map(row => row.data.title).sort()).toEqual(["Cucumber", "Feta", "Lemon"]);
+    expect(rows.every(row => row.data.kind === "grocery" && !row.data.checked)).toBe(true);
+    expect((await readWorkspace(other, db)).items.some(row => rows.some(created => row.id === created.id))).toBe(false);
+    await expect(assistant.execute(batchUser.id, randomUUID(), { type: "grocery_add", items: ["Bread", ""] })).rejects.toThrow();
+    expect((await readWorkspace(batchUser.id, db)).items).toHaveLength(3);
+    expect(await assistant.execute(batchUser.id, source, { type: "grocery_add", items: ["Different"] })).toContain("already made a different change");
+    expect((await readWorkspace(batchUser.id, db)).items).toHaveLength(3);
+  });
+
+  it("copies the full account-owned recipe into a meal without trusting model ingredients", async () => {
+    const assistant = new LifeAssistant(db), recipeId = randomUUID(), mealId = randomUUID();
+    const ingredients = "Chickpeas\nCucumber\nTomato\nLemon\nOlive oil\nParsley";
+    await assistant.execute(owner, recipeId, { type: "life_save", data: { ...recipe, title: "Simple chickpea salad", ingredients } });
+    const data = { kind: "meal" as const, title: "Chickpea salad", date: "2026-10-01", meal: "Dinner" as const, ingredients: "chickpeas (4 servings)", servings: 4 };
+    const command = { type: "life_save" as const, sourceRecipeId: recipeId, data };
+    expect(await assistant.execute(owner, mealId, command)).toContain("Saved");
+    expect((await readWorkspace(owner, db)).items.find(row => row.id === mealId)?.data).toEqual({ ...data, ingredients });
+    await assistant.execute(owner, mealId, command);
+    expect((await readWorkspace(owner, db)).items.filter(row => row.id === mealId)).toHaveLength(1);
+    const otherMealId = randomUUID();
+    expect(await assistant.execute(other, otherMealId, command)).toContain("couldn’t find");
+    expect((await readWorkspace(other, db)).items.some(row => row.id === otherMealId)).toBe(false);
+    await assistant.execute(owner, randomUUID(), { type: "life_save", id: mealId, version: 1, data: { ...data, ingredients, date: "2026-10-02" } });
+    expect((await readWorkspace(owner, db)).items.find(row => row.id === mealId)?.data).toEqual({ ...data, ingredients, date: "2026-10-02" });
+    expect(lifeItemSchema.safeParse({ ...data, servings: 0 }).success).toBe(false);
+    expect(lifeItemSchema.safeParse({ ...data, servings: 101 }).success).toBe(false);
+    expect(lifeItemSchema.safeParse({ ...data, servings: 1.5 }).success).toBe(false);
+    expect(lifeItemSchema.safeParse({ ...data, servings: undefined }).success).toBe(true);
+  });
 
   it("saves recipes from the assistant into the same account workspace and handles replay", async () => {
     const assistant = new LifeAssistant(db), source = randomUUID();

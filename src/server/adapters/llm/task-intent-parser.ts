@@ -364,8 +364,9 @@ export class AnthropicTaskIntentParser implements TaskIntentParser {
           : "Live web search is disabled by the operator. Be honest about that limitation; still help with general knowledge.",
         "Keep replies concise and energetic enough for SMS. Emojis are welcome when they add warmth, but usually use no more than one.",
         "Be warm, direct, curious, and practical. Match the user's tone and energy. Answer their question before offering coaching; don't turn every exchange into therapy. Avoid repeated pep talks, stock empathy, excessive praise, or calling everything a tiny step. For a correction, acknowledge it briefly and fix the specific detail. Ask one focused question only when needed to identify the record or missing required information. Don't ask permission again for an ordinary edit the user already requested.",
-        "The workspace tabs display account data; you can change records with tools, not redesign pages, navigate the user's screen, or control hardware. Tasks are daily/weekly actions; goals are longer-term outcomes. Recipes are reusable favorites, meal plans are dated intentions, food logs record what was actually eaten, and notes are the thought inbox. Wake & Wind Down supports manual light/sound sessions while the browser stays open; you cannot set a scheduled wake alarm, change hardware brightness, or control a physical light. A text reminder is a different capability; explain the distinction and ask before substituting it for an alarm.",
+        "The workspace tabs display account data; you can change records with tools, not redesign pages, navigate the user's screen, or control hardware. Tasks are daily/weekly actions; goals are longer-term outcomes. To start a focus timer, go to Tasks & focus and tap the play button beside a task, or My routines and the play button beside a step. Opening a task title opens its edit form. The fullscreen timer offers Pause, I’m done, and +5 minutes. Recipes are reusable favorites, meal plans are dated intentions, food logs record what was actually eaten, and notes are the thought inbox. Wake & Wind Down supports manual light/sound sessions while the browser stays open; you cannot set a scheduled wake alarm, change hardware brightness, or control a physical light. A text reminder is a different capability; explain the distinction and ask before substituting it for an alarm.",
         "Use life_list before referring to or editing saved routines, recipes, meals, food logs, workouts, groceries or notes. Resolve pronouns from recent conversation, then verify the record through the current lookup. If multiple records fit, ask which one. For life_save edits preserve all unrelated fields, routine step IDs and completion dates. Use the user's account timezone. Save recipes and logs as structured life items, not generic memory. Never invent food nutrients; use null for unknown values. A suggested meal is not a saved meal or an eaten food log.",
+        "For a requested shopping list, use one grocery_add call for all explicitly requested items. This is one atomic change; do not make the user repeat each item in separate messages. When planning a saved recipe, read recipes first and pass its exact sourceRecipeId to preserve every ingredient. Save an explicit meal serving count in data.servings. Do not silently scale ingredient amounts when changing serving counts.",
         "A routine requires kind routine, title, period morning or evening, time HH:mm, and steps with UUID id, title, integer minutes from 1 to 180, and completedOn null. For new routines the server assigns step UUIDs and resets completedOn to null; never ask the user for technical IDs. Existing routine edits must preserve their saved UUIDs and completion dates. If the user hasn't given a start time, ask what time they want the routine to start; do not guess a clock time. For a requested simple routine you may suggest reasonable step durations, clearly described as adjustable estimates. Missing user choices need a concise question, not an invalid tool call or a request to repeat the entire routine.",
         "When logging food, follow an explicit fallback such as leave calories unknown if you lack reliable data: save the food with null unknown nutrient fields immediately when its title, date and meal are known. Do not ask the user to choose again between unknown values and estimates they already declined. Do not substitute generic nutrition estimates or claim a USDA/database lookup unless an available tool actually returned that evidence. An Open Food Facts search miss does not prevent saving a manual food entry with unknown nutrients.",
         "Never use guilt, shame, or moralizing.",
@@ -509,7 +510,12 @@ function taskPartOfDayClarification(command: CoachingCommand, message: string, t
 /** Resolve an explicit "save that" or an immediate clarification, never a backlog. */
 function hasLinkedActionReference(command: CoachingCommand, input: Parameters<TaskIntentParser["parse"]>[0]): boolean {
   const history = input.history ?? [];
-  const reply = history.at(-1), request = history.at(-2);
+  let requestIndex = history.length - 1;
+  while (requestIndex >= 0 && history[requestIndex].role !== "user") requestIndex -= 1;
+  const request = history[requestIndex];
+  // Unsolicited coaching can arrive between a clarification and its answer.
+  // Only the latest human request may supply context; a human pivot invalidates it.
+  const reply = history.slice(requestIndex + 1).reverse().find(message => message.role === "assistant" && message.replyToMessageId === request?.id);
   if (reply?.role !== "assistant" || request?.role !== "user" || reply.replyToMessageId !== request.id) return false;
   const text = input.message;
   const reference = /\b(?:that|this|it|those)\b/i.test(text);
@@ -532,7 +538,8 @@ function hasLinkedActionReference(command: CoachingCommand, input: Parameters<Ta
   }
   if (command.type === "create_task") {
     const timeReply = normalizeSourceQuote(text).match(/^(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*([ap])\.?m\.?(?:\s+(?:please|works(?: for me)?|is (?:good|fine)))?[.!]?$/);
-    const taskTimeQuestion = /\?/.test(reply.content) && /\bwhat time\b/i.test(reply.content) && /\btask\b/i.test(reply.content);
+    const taskTimeQuestion = /\?/.test(reply.content) && /\bwhat time\b/i.test(reply.content)
+      && (/\btask\b/i.test(reply.content) || (/\bschedule (?:it|that)\b/i.test(reply.content) && /\btask\b/i.test(request.content)));
     const priorTaskRequest = /\b(?:add|create|save|put|schedule)\b/i.test(request.content) && !isExplicitReminderRequest(request.content);
     if (timeReply && taskTimeQuestion && priorTaskRequest && command.dueAt && hasCurrentActionEvidence(command, request.content)) {
       const hour = Number(timeReply[1]), minute = Number(timeReply[2] ?? 0);
@@ -563,6 +570,7 @@ function hasLinkedActionReference(command: CoachingCommand, input: Parameters<Ta
 
 /** Quotes must authorize the payload, not merely contain a generic word like “me”. */
 export function hasCurrentActionEvidence(command: CoachingCommand, message: string): boolean {
+  if (command.type === "grocery_add") return command.items.every(title => hasCurrentActionEvidence({ type: "create_task", title }, message));
   if (command.type === "set_checkins") {
     return /\b(check.?ins?|proactive|reach out|coaching)\b/i.test(message)
       && (command.enabled ? /\b(enable|opt in|turn on|start|please|want)\b/i.test(message) : /\b(disable|turn off|stop|no|don't|do not)\b/i.test(message));
