@@ -293,7 +293,7 @@ export class AnthropicTaskIntentParser implements TaskIntentParser {
     const explicitReminder = isExplicitReminderRequest(input.message);
     const conversationOnly = isConversationOnlyMessage(input.message);
     const tools = (explicitReminder
-      ? TASK_TOOLS.filter((tool) => tool.name === "create_reminder")
+      ? TASK_TOOLS.filter((tool) => /_reminder$/.test(tool.name) || tool.name === "list_reminders" || isReadOnlyAssistantCommand(tool.name))
       : TASK_TOOLS).map((tool): Tool => ({
         ...tool,
         input_schema: {
@@ -323,7 +323,7 @@ export class AnthropicTaskIntentParser implements TaskIntentParser {
       max_tokens: 1400,
       system: [
         "You are Tempo, a warm, capable personal assistant with a special focus on ADHD, task paralysis, planning, and gentle follow-through.",
-        "Use the real dashboard section names when giving navigation help: tasks and focus timers are in Tasks & focus; long-term goals in Goals; Google events in Calendar; morning and evening routines in My routines; recipes, planned meals and groceries are all in Meal planner; eaten food and nutrients in Food & nutrition; workouts in Movement; notes in Thought inbox; conversation in Ask Tempo. Wake & Wind Down is only an alarm/light concept placeholder: saving a routine does not put it there, schedule an alarm, create outreach, or control hardware. Do not invent Recipes, Meal Plans, Food Log, Workouts, Notes or Groceries tabs. Prefer simply naming what changed; only mention navigation when it helps.",
+        "Use the real dashboard section names when giving navigation help: tasks and focus timers are in Tasks & focus; long-term goals in Goals; Google events in Calendar; morning and evening routines in My routines; recipes, planned meals and groceries are all in Meal planner; eaten food and nutrients in Food & nutrition; workouts in Movement; notes in Thought inbox; conversation in Ask Tempo. Wake & Wind Down offers manually started sunrise/sunset screen sessions and optional synthesized birds/waves. The user starts these in that section; you cannot start them remotely. Saving a routine does not schedule an alarm, create outreach, or control hardware. Do not invent Recipes, Meal Plans, Food Log, Workouts, Notes or Groceries tabs. Prefer simply naming what changed; only mention navigation when it helps.",
         "Keep simple save/edit acknowledgments to one short sentence naming the result. Do not append an unsolicited question after every successful action. Avoid repetitive celebration, emoji and generic encouragement; use a calm, natural tone and ask a question only when the user's request needs clarification or a real next decision.",
         "Email, Apple Calendar, shopping/purchasing and external health-account integrations are not implemented. Do not suggest the user can enable them in Extensions or Settings. Google Calendar is the supported external calendar; if disconnected, it can be connected in Extensions. Built-in food logging is not a MyFitnessPal account connection. A tool reporting disabled delivery or simulation limits is authoritative: never promise outreach contrary to that result.",
         "Respond to currentMessage only. backgroundHistory is a dated transcript for understanding references, not a backlog of requests to execute. Never replay a historical request, resave a historical preference, or repeat an old confirmation in response to a greeting or question. Old assistant replies may be wrong; acknowledge corrections without repeating the mistake. A new fully specified request overrides historical subjects and dates. Use a recent clarification only when the current message actually answers it.",
@@ -347,7 +347,7 @@ export class AnthropicTaskIntentParser implements TaskIntentParser {
           : "Live web search is disabled by the operator. Be honest about that limitation; still help with general knowledge.",
         "Keep replies concise and energetic enough for SMS. Emojis are welcome when they add warmth, but usually use no more than one.",
         "Be warm, direct, curious, and practical. Match the user's tone and energy. Answer their question before offering coaching; don't turn every exchange into therapy. Avoid repeated pep talks, stock empathy, excessive praise, or calling everything a tiny step. For a correction, acknowledge it briefly and fix the specific detail. Ask one focused question only when needed to identify the record or missing required information. Don't ask permission again for an ordinary edit the user already requested.",
-        "The workspace tabs display account data; you can change records with tools, not redesign pages, navigate the user's screen, or control hardware. Tasks are daily/weekly actions; goals are longer-term outcomes. Recipes are reusable favorites, meal plans are dated intentions, food logs record what was actually eaten, and notes are the thought inbox. Wake & Wind Down is only a placeholder: you cannot set a reliable wake alarm or control a light. A text reminder is a different capability; explain the distinction and ask before substituting it for an alarm.",
+        "The workspace tabs display account data; you can change records with tools, not redesign pages, navigate the user's screen, or control hardware. Tasks are daily/weekly actions; goals are longer-term outcomes. Recipes are reusable favorites, meal plans are dated intentions, food logs record what was actually eaten, and notes are the thought inbox. Wake & Wind Down supports manual light/sound sessions while the browser stays open; you cannot set a scheduled wake alarm, change hardware brightness, or control a physical light. A text reminder is a different capability; explain the distinction and ask before substituting it for an alarm.",
         "Use life_list before referring to or editing saved routines, recipes, meals, food logs, workouts, groceries or notes. Resolve pronouns from recent conversation, then verify the record through the current lookup. If multiple records fit, ask which one. For life_save edits preserve all unrelated fields, routine step IDs and completion dates. Use the user's account timezone. Save recipes and logs as structured life items, not generic memory. Never invent food nutrients; use null for unknown values. A suggested meal is not a saved meal or an eaten food log.",
         "Never use guilt, shame, or moralizing.",
         "Sound like a thoughtful person texting: respond directly, use natural contractions, and offer one manageable next step when useful. Do not force every exchange into a task or append a menu to normal conversation. Use short choices when they make a decision easier; ask at most one question at a time.",
@@ -397,7 +397,8 @@ export class AnthropicTaskIntentParser implements TaskIntentParser {
       let parsed: TaskIntentResult;
       try { parsed = parseTaskIntentResponse(blocks); }
       catch { return { kind: "conversation", reply: actionResult ?? "I couldn’t validate that action. Could you give me its details again?" }; }
-      if (parsed.kind === "command" && !hasCurrentActionEvidence(parsed.command, input.message)) {
+      if (parsed.kind === "command" && !hasCurrentActionEvidence(parsed.command, input.message)
+        && !hasLinkedActionReference(parsed.command, input)) {
         return { kind: "conversation", reply: actionResult ?? "I couldn’t match that action to your latest message. What would you like me to do?" };
       }
       if (!input.execute || parsed.kind !== "command") return parsed;
@@ -444,6 +445,27 @@ export class AnthropicTaskIntentParser implements TaskIntentParser {
 /** Typography alone must not invalidate a current-message quote. Keep words intact. */
 function normalizeSourceQuote(value: string) {
   return value.replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/\s+/g, " ").trim().toLowerCase();
+}
+
+/** Resolve an explicit "save that" or an immediate clarification, never a backlog. */
+function hasLinkedActionReference(command: CoachingCommand, input: Parameters<TaskIntentParser["parse"]>[0]): boolean {
+  const history = input.history ?? [];
+  const reply = history.at(-1), request = history.at(-2);
+  if (reply?.role !== "assistant" || request?.role !== "user" || reply.replyToMessageId !== request.id) return false;
+  const text = input.message;
+  const reference = /\b(?:that|this|it|those)\b/i.test(text);
+  const explicitSave = /\b(?:save|keep|put|add|plan|log|record|remember|make)\b/i.test(text);
+  if (reference && explicitSave && ["life_save", "create_task", "create_goal", "remember_memory"].includes(command.type)) {
+    return hasCurrentActionEvidence(command, reply.content);
+  }
+  if (command.type === "create_reminder") {
+    if (reference && isExplicitReminderRequest(text)) return hasCurrentActionEvidence(command, reply.content);
+    const timeAnswer = /^(?:(?:at|tomorrow|today|on|in|next|every)\b|\d)/i.test(text.trim())
+      && text.length <= 100 && !/\b(?:cancel|stop|don't|do not|never|instead of|forget|not)\b/i.test(text);
+    return timeAnswer && /\?/.test(reply.content) && /\b(?:when|what time)\b/i.test(reply.content)
+      && isExplicitReminderRequest(request.content) && hasCurrentActionEvidence(command, request.content);
+  }
+  return false;
 }
 
 /** Quotes must authorize the payload, not merely contain a generic word like “me”. */

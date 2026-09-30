@@ -10,7 +10,7 @@ import {
   resolvePendingTaskChoice,
 } from "./task-service";
 import type { TaskIntentParser } from "../adapters/llm/task-intent-parser";
-import { isConversationOnlyMessage, isLifeWorkspaceRequest } from "./conversation-routing";
+import { isConversationOnlyMessage, isLifeWorkspaceRequest, needsConversationalRouting } from "./conversation-routing";
 import { assistantProviderFailureReply } from "./assistant-provider-failure";
 import { OutcomeTracker } from "./outcome-tracker";
 import { MemoryCommand, MemoryService } from "./memory-service";
@@ -312,7 +312,7 @@ export class ConversationOrchestrator {
     // Broad task heuristics ("move", "cancel", "completed") must not consume
     // requests for a different entity before the assistant can resolve them.
     const otherEntity = lifeRequest || isExplicitReminderRequest(context.body) || /\b(reminders?|calendar|appointments?|events?|breakfast|lunch|dinner|snack)\b/i.test(context.body);
-    const heuristicCommand = isRundownQuestion(context.body) ? null : parseGoalCommandHeuristically(context.body)
+    const heuristicCommand = isRundownQuestion(context.body) || needsConversationalRouting(context.body) ? null : parseGoalCommandHeuristically(context.body)
       ?? (otherEntity ? null : parseRescheduleHeuristically(context.body)
         ?? parseTaskCommandHeuristically(context.body, now));
     if (!heuristicCommand) {

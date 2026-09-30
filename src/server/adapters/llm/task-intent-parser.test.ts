@@ -15,6 +15,41 @@ describe("current-message routing", () => {
   };
   beforeEach(() => { create.mockReset(); settings.webSearch = false; });
 
+  it.each([
+    ["Don't remind me about laundry anymore", "cancel_reminder", { reminderQuery: "laundry" }],
+    ["When will you remind me about laundry?", "list_reminders", {}],
+    ["Can you remind me at 10 instead?", "reschedule_reminder", { reminderQuery: "laundry", remindAt: "2026-09-03T10:00:00-04:00" }],
+  ])("allows reminder correction/lookup: %s", async (message, name, args) => {
+    create.mockResolvedValueOnce({ content: [{ type: "tool_use", id: "reminder", name, input: { sourceQuote: message, ...args } }] })
+      .mockResolvedValueOnce({ content: [{ type: "text", text: "Handled your reminder request." }] });
+    const execute = vi.fn(async () => "Verified reminder result.");
+    await new AnthropicTaskIntentParser().parse({ ...input, message, execute });
+    expect(execute).toHaveBeenCalledExactlyOnceWith({ type: name, ...args });
+  });
+
+  it.each([true, false])("accepts a time-only answer only with a linked reminder clarification (linked=%s)", async linked => {
+    create.mockResolvedValueOnce({ content: [{ type: "tool_use", id: "r", name: "create_reminder", input: { sourceQuote: "At 8 tomorrow", text: "Pack lunch", remindAt: "2026-09-03T08:00:00-04:00" } }] })
+      .mockResolvedValueOnce({ content: [{ type: "text", text: "Your reminder is set." }] });
+    const execute = vi.fn(async () => "Reminder set: Pack lunch.");
+    await new AnthropicTaskIntentParser().parse({ ...input, message: "At 8 tomorrow", execute, history: [
+      { id: "request", role: "user", content: "Remind me to pack lunch", createdAt: input.now },
+      { id: "clarify", role: "assistant", replyToMessageId: linked ? "request" : "unrelated", content: "What time should I remind you?", createdAt: input.now },
+    ] });
+    expect(execute).toHaveBeenCalledTimes(linked ? 1 : 0);
+  });
+
+  it("uses a linked meal suggestion only when the current message explicitly saves it", async () => {
+    const message = "Put that in my meal plan for Friday";
+    create.mockResolvedValueOnce({ content: [{ type: "tool_use", id: "meal", name: "life_save", input: { sourceQuote: message, data: { kind: "meal", title: "Lemon rice", date: "2026-09-04", meal: "Dinner", ingredients: "rice, lemon" } } }] })
+      .mockResolvedValueOnce({ content: [{ type: "text", text: "Ready for Friday." }] });
+    const execute = vi.fn(async () => "Meal saved.");
+    await new AnthropicTaskIntentParser().parse({ ...input, message, execute, history: [
+      { id: "idea", role: "user", content: "What could I make for dinner?", createdAt: input.now },
+      { id: "suggestion", role: "assistant", replyToMessageId: "idea", content: "Lemon rice: rice and lemon make a simple dinner.", createdAt: input.now },
+    ] });
+    expect(execute).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ type: "life_save", data: expect.objectContaining({ title: "Lemon rice" }) }));
+  });
+
   it("uses the combined read-only rundown tool for a natural planning question", async () => {
     const message = "Can I get my reminders, goals, tasks and calendar for next week?";
     create.mockResolvedValueOnce({ content: [{ type: "tool_use", id: "rundown", name: "get_rundown", input: { sourceQuote: message, startDate: "2026-09-07", days: 7 } }] })
@@ -86,7 +121,9 @@ describe("current-message routing", () => {
     } }] });
     const result = await new AnthropicTaskIntentParser().parse({ ...input, message: "Can you text me and remind me to do the dishes at 9:26 in 1 minutes?" });
     expect(result.kind).toBe("conversation");
-    expect(create.mock.calls[0][0].tools.map((tool: { name: string }) => tool.name)).toEqual(["create_reminder"]);
+    const offered = create.mock.calls[0][0].tools.map((tool: { name: string }) => tool.name);
+    expect(offered).toEqual(expect.arrayContaining(["create_reminder", "list_reminders", "cancel_reminder", "reschedule_reminder"]));
+    expect(offered).not.toContain("create_task");
   });
 
   it("accepts the current reminder and supports a direct answer to a memory question", async () => {
