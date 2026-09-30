@@ -2,11 +2,12 @@ import { z } from "zod";
 import { requireEnv } from "../../config/env";
 import { normalizeE164 } from "../../domain/phone";
 import { MessagingTransport, SendMessageInput, TEXT_ONLY_CAPABILITIES } from "./sms-transport";
+import { sendblueServiceSchema } from "./sendblue-service";
 
 const sendblueSendResponseSchema = z.object({
   message_handle: z.string().min(1),
   status: z.string().min(1),
-  service: z.enum(["iMessage", "RCS", "SMS"]).optional(),
+  service: sendblueServiceSchema,
   from_number: z.string().optional(),
 }).passthrough();
 

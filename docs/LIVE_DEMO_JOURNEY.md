@@ -47,10 +47,41 @@ do not erase original failures. These scores are judgement, not measured metrics
 build and operations build. Production replay is required to claim these live
 failures are fixed.
 
-## Remaining release gates
+## Iteration 2: deployed fixes and follow-up findings
 
-Real scheduled SMS reminder receipt, proactive coaching delivery, worker recovery,
-and the repaired novice journey remain unverified. Google OAuth is External
+PR 10 deployed successfully to both web and worker. Chat Markdown is formatted
+in the dashboard. The original routine request now asks for its start time;
+however, answering 7:30 AM still failed action grounding, and a fully specified
+routine request still failed validation. These failures remain recorded.
+
+A real TextFree request at 11:43 AM scheduled a two-minute stretch reminder,
+and the matching message arrived at 11:45 AM Eastern. The dashboard nevertheless
+showed failed. Scoped diagnostics found a failed outbound reservation caused by
+Sendblue response `service` validation, followed by a duplicate retry. Candidate
+repairs normalize optional service metadata without discarding the required
+provider message handle, await duplicate reconciliation and prevent late errors
+from overwriting successful reminder state. Existing ambiguous failed sends are
+not blindly resent. Sendblue documents lowercase `sms` on fallback responses:
+[sending messages](https://docs.sendblue.com/getting-started/sending-messages).
+
+Candidate routine repair assigns new step UUIDs and initial completion state on
+the server, retaining strict times, durations and existing-step edit validation.
+Immediate routine-time answers are checked against the linked original request.
+
+Observed foreground sunrise and sunset previews completed their 20-second
+dark-to-gold and gold-to-dark transitions. This does not verify scheduled alarms
+or audible sound. SMS recall correctly returned the recipe created and edited
+on the dashboard, including feta, two servings and the same ingredients.
+
+The full check passed 377 tests across 62 files, lint, typecheck and builds.
+Subsequent food-search display-only rounding passed lint and typecheck; the final
+production build also passed for that UI edit. Post-deployment replay is still required.
+
+## Remaining release gates (current)
+
+Reminder status consistency, proactive coaching delivery, worker recovery,
+and the repaired novice journey remain unverified. Real scheduled SMS receipt
+was observed as described above. Google OAuth is External
 Testing with the demo account allowlisted; this is not public OAuth launch.
 Wake & Wind Down is a foreground screen session; scheduled native alarms,
 background reliability, hardware brightness and Health Connect remain unsupported.

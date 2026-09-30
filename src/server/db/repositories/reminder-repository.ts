@@ -226,6 +226,6 @@ export class DrizzleReminderRepository implements ReminderRepository {
     const message = error instanceof Error ? error.message : String(error);
     await this.database.update(reminders).set({
       status: "failed", lastError: message.slice(0, 500), updatedAt: now,
-    }).where(eq(reminders.id, reminderId));
+    }).where(and(eq(reminders.id, reminderId), inArray(reminders.status, ["scheduled", "sending", "failed"])));
   }
 }

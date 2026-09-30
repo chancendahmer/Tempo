@@ -79,4 +79,25 @@ describe("Sendblue messaging transport", () => {
     expect(error).toMatchObject({ status: 429, code: "RATE_LIMITED", retryAfterSeconds: 30 });
     expect(request).toHaveBeenCalledTimes(1);
   });
+
+  it.each([
+    ["sms", "SMS"], ["rcs", "RCS"], [null, undefined], [undefined, undefined], ["future-service", undefined],
+  ])("preserves accepted message identity with service metadata %s", async (service, expected) => {
+    const request = vi.fn<typeof fetch>(async () => new Response(JSON.stringify({
+      message_handle: "accepted-reminder", status: "QUEUED", service,
+    }), { status: 200 }));
+    const result = await new SendblueMessagingTransport(request).send({
+      to: "+12025550198", body: "Reminder: stretch", idempotencyKey: "reminder-test",
+    });
+    expect(result).toMatchObject({ providerMessageSid: "accepted-reminder", status: "queued" });
+    expect(result.service).toBe(expected);
+    expect(request).toHaveBeenCalledTimes(1);
+  });
+
+  it("still rejects a success response missing its message identity", async () => {
+    const request = vi.fn<typeof fetch>(async () => new Response(JSON.stringify({ status: "QUEUED", service: "sms" }), { status: 200 }));
+    await expect(new SendblueMessagingTransport(request).send({
+      to: "+12025550198", body: "Reminder: stretch", idempotencyKey: "reminder-test",
+    })).rejects.toThrow();
+  });
 });
