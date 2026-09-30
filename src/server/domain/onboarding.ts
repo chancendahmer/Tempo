@@ -113,15 +113,15 @@ export function handleOnboardingMessage(state: OnboardingState, message: string)
       if (skipContact) {
         return {
           handled: true,
-          nextState: "calendar",
-          reply: "No problem—saving my contact is optional. You can add it later. Next, connect Google Calendar using the secure link below, or reply SKIP to use Tempo without it.",
+          nextState: "timezone",
+          reply: "No problem—saving my contact is optional. What time zone are you in? Say Eastern, Central, Mountain, Pacific, or an IANA zone like America/Chicago so your plans use the right local time.",
         };
       }
       if (/^(done|added|saved|i added it|contact added)[.!✅\s]*$/i.test(normalized)) {
         return {
           handled: true,
-          nextState: "calendar",
-          reply: "Nice—you’ve added Tempo. One last setup step: connect Google Calendar so I can notice useful open windows. Tap the secure link below, or reply SKIP to use Tempo without it.",
+          nextState: "timezone",
+          reply: "Nice—you’ve added Tempo. What time zone are you in? Say Eastern, Central, Mountain, Pacific, or an IANA zone like America/Chicago so your plans use the right local time.",
         };
       }
       if (/^(i )?(need|want) more help|help me|how do i add (it|you)|help[.!❓\s]*$/i.test(normalized)) {

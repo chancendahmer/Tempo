@@ -81,4 +81,14 @@ describe("calendar OAuth repository", () => {
     await expect(repository.consumeState("expired-state-hash", new Date("2026-08-18T12:00:00Z")))
       .resolves.toBeNull();
   });
+
+  it.each(["awaiting_consent", "introduction", "timezone", "quiet_hours", "coaching_style", "first_task", "calendar", "complete"] as const)("only finishes onboarding from calendar, preserving %s", async state => {
+    await database.update(users).set({ onboardingState: state }).where(eq(users.id, userId));
+    await new DrizzleCalendarOAuthRepository(database).saveConnection({
+      userId, encryptedAccessToken: "test-encrypted-access", encryptedRefreshToken: "test-encrypted-refresh",
+      tokenExpiresAt: new Date("2027-01-01T00:00:00Z"), scopes: ["freebusy"],
+    });
+    const [user] = await database.select().from(users).where(eq(users.id, userId));
+    expect(user.onboardingState).toBe(state === "calendar" ? "complete" : state);
+  });
 });

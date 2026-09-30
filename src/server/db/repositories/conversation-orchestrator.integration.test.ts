@@ -100,7 +100,7 @@ describe("inbound conversation orchestration", () => {
     expect(transport.sent.map(item => item.body)).toEqual(Array(3).fill("Start with the part that feels easiest."));
   });
 
-  it("accepts the quick contact choice and advances to calendar", async () => {
+  it("accepts the contact choice and asks for local time before calendar", async () => {
     const user = await consentedUser("+12025550198", "introduction");
     const [message] = await database
       .insert(conversationMessages)
@@ -119,9 +119,9 @@ describe("inbound conversation orchestration", () => {
 
     const [updatedUser] = await database.select().from(users).where(eq(users.id, user.id));
     const createdTasks = await database.select().from(tasks).where(eq(tasks.userId, user.id));
-    expect(updatedUser.onboardingState).toBe("calendar");
+    expect(updatedUser.onboardingState).toBe("timezone");
     expect(createdTasks).toHaveLength(0);
-    expect(transport.sent[0].body).toContain("One last setup step");
+    expect(transport.sent[0].body).toContain("What time zone");
   });
 
   it("asks for clarification, applies the selected task, and ignores a job retry", async () => {
