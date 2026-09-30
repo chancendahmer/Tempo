@@ -39,14 +39,14 @@ describe("SMS onboarding", () => {
     expect(commitmentTitle("I need to finish the Q3 report.")).toBe("finish the Q3 report");
   });
 
-  it("uses a quick contact choice before the calendar step", () => {
+  it("uses a contact choice before confirming local time", () => {
     expect(handleOnboardingMessage("introduction", "I need more help")).toMatchObject({
       nextState: "introduction",
       reply: expect.stringContaining("reply DONE"),
     });
     expect(handleOnboardingMessage("introduction", "DONE")).toMatchObject({
-      nextState: "calendar",
-      reply: expect.stringContaining("One last setup step"),
+      nextState: "timezone",
+      reply: expect.stringContaining("What time zone"),
     });
   });
 
@@ -81,7 +81,7 @@ describe("SMS onboarding", () => {
     "Please skip the contact card",
   ])("allows optional contact setup to be skipped: %s", message => {
     const result = handleOnboardingMessage("introduction", message);
-    expect(result).toMatchObject({ handled: true, nextState: "calendar" });
+    expect(result).toMatchObject({ handled: true, nextState: "timezone" });
     expect(result.reply).toContain("saving my contact is optional");
     expect(result.reply).not.toContain("you’ve added");
     expect(result.updates).toBeUndefined();

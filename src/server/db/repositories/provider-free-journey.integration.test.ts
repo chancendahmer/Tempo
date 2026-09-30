@@ -107,6 +107,12 @@ describe("provider-free V1 journey", () => {
     }
 
     await reply("DONE");
+    expect(transport.sent.at(-1)?.body).toContain("What time zone");
+    await reply("Eastern");
+    expect(transport.sent.at(-1)?.body).toContain("stay quiet");
+    await reply("11pm to 7am");
+    expect(transport.sent.at(-1)?.body).toContain("gentle, direct, or balanced");
+    await reply("balanced");
     expect(transport.sent.at(-1)?.body).toContain("/api/auth/google/start?token=");
     now = new Date("2026-08-18T16:01:00Z");
     await reply("not now");
@@ -117,7 +123,9 @@ describe("provider-free V1 journey", () => {
     const [task] = await database.select().from(tasks).where(eq(tasks.userId, consent.userId));
     expect(onboardedUser).toMatchObject({
       onboardingState: "complete",
-      timezone: "UTC",
+      timezone: "America/New_York",
+      quietHoursStart: "23:00:00",
+      quietHoursEnd: "07:00:00",
       coachingTone: "balanced",
     });
     expect(task.title).toBe("submit my lab report");

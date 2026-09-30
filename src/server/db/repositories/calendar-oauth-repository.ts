@@ -53,7 +53,7 @@ export class DrizzleCalendarOAuthRepository implements CalendarOAuthRepository {
       await transaction
         .update(users)
         .set({ onboardingState: "complete", updatedAt: new Date() })
-        .where(eq(users.id, input.userId));
+        .where(and(eq(users.id, input.userId), eq(users.onboardingState, "calendar")));
       const [existingSync] = await transaction.select({ id: scheduledActions.id }).from(scheduledActions).where(and(
         eq(scheduledActions.userId, input.userId),
         eq(scheduledActions.kind, "sync_calendar"),
