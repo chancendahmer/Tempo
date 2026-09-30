@@ -18,6 +18,10 @@ export const serverEnvSchema = z.object({
     .enum(["true", "false"])
     .default("false")
     .transform((value) => value === "true"),
+  PROACTIVE_CANARY_USER_IDS: z.string().default("")
+    .transform(value => value.trim() ? value.split(",").map(id => id.trim().toLowerCase()) : [])
+    .pipe(z.array(z.uuid()).max(20))
+    .transform(ids => [...new Set(ids)]),
   HYBRID_AI_REVIEW_ENABLED: z
     .enum(["true", "false"])
     .default("true")

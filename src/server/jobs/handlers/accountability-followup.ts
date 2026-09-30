@@ -1,4 +1,6 @@
 import { PgBoss } from "pg-boss";
+import { getServerEnv } from "../../config/env";
+import { proactiveDeliveryEnabled } from "../../config/proactive-delivery";
 import { createMessagingTransport } from "../../adapters/sms/messaging-provider";
 import { DrizzleInterventionRepository } from "../../db/repositories/intervention-repository";
 import { DrizzleOutboundMessageRepository } from "../../db/repositories/outbound-message-repository";
@@ -18,6 +20,10 @@ export async function registerAccountabilityFollowupHandler(boss: PgBoss) {
         const context = await interventions.getAccountabilityFollowupContext(job.data.interventionId);
         if (!context) {
           await actions.markCompleted(job.data.scheduledActionId);
+          continue;
+        }
+        if (!proactiveDeliveryEnabled(getServerEnv(), context.userId)) {
+          await actions.markCancelled(job.data.scheduledActionId, "proactive_delivery_disabled");
           continue;
         }
         const result = await new SafeSmsSender(new DrizzleOutboundMessageRepository(), createMessagingTransport()).send({

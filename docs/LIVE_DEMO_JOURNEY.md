@@ -98,3 +98,23 @@ Typed barcode 5449000000996 returned Coca-Cola Original through Open Food Facts.
 A weekly rundown submitted during rollout became stranded processing. A candidate recovery fix retries busy claims instead of acknowledging them, extends the queue execution budget and updates existing queue settings. Recovery may take about 10–11 minutes; old queued jobs retain their original budget and already stranded actions need scoped recovery. This is a release failure, not a successful agenda test.
 
 The next candidate passed npm run check: 384 tests across 62 files, lint, typecheck and production/operations builds. Its natural-time and restart fixes still require live replay.
+
+## Iteration 4: live PR 12 regressions
+
+The original dentist clarification now creates an untimed task, verified in Upcoming. A natural evening-routine request followed by '10:30 PM works' saved Evening wind-down at 22:30 with the three requested steps in order. Navigation help named the actual sidebar sections. Independent mediated review provisionally rated the current demo 7.2/10 and commercial readiness 6.4/10.
+
+The stranded read-only weekly request was recovered by an account/message/action-guarded transaction using the original queue job ID and public retry. Failed preparation attempts rolled back; no new inbound message or task was created by recovery. Its eventual reply covered through Sunday, but incorrectly annotated a current open dentist task using an earlier completed task with the same title. Current-lookup authority is strengthened in the next candidate; fresh rundown replay remains required.
+
+Before canary configuration, the assistant correctly disclosed that automatic task monitoring/outreach was not enabled. A new account-scoped proactive canary is being tested; it does not establish observed live proactive delivery yet.
+
+## Next candidate: ordinary task wording and controlled coaching
+
+A natural laundry request was incorrectly consumed by a shortcut parser, losing its deadline and duration. A follow-up update stored 20:45 local instead of requested 16:45; a scoped read confirmed this was persisted incorrectly, not only displayed wrong. Candidate fixes defer unsupported scheduling and compound task language to the model, then canonicalize unambiguous today/tomorrow AM/PM deadlines in the account timezone. New persistence tests deliberately supply the wrong model timestamp.
+
+Date-only end-of-day task labels now display By end of day in Tasks, Today and Calendar task rows; explicit other times remain shown in the account timezone. Morning requests without a clock ask for one, and immediate linked time answers remain grounded against the original task.
+
+A 20-account PGlite integration test concurrently commits distinct tasks and checks account-specific model input, web replies, workspace records and weekly rundowns. It uses a scripted parser and captured transport; this establishes isolated code-path behavior, not production load or twenty real phone/Google accounts.
+
+PROACTIVE_CANARY_USER_IDS defaults empty and restricts controlled delivery to configured account UUIDs. Evaluation, delivery, capability replies and queued follow-ups use the same operator permission. Opt-in, consent, quiet hours, calendar availability, cooldown and caps remain enforced. No live canary setting or proactive receipt has been verified yet.
+
+The complete next-candidate check passed 425 tests across 66 files, lint, typecheck and production/operations builds. A live recipe edit changed servings from two to four while preserving all six ingredient lines and five preparation instructions in the Meal planner readback.

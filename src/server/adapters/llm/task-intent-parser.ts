@@ -347,6 +347,8 @@ export class AnthropicTaskIntentParser implements TaskIntentParser {
         "A greeting, a question about who you are or what you can do, and a complaint about your last response need conversation, not a state-changing tool. Asking whether you can remember favorite foods supplies no actual food: explain that you can, and ask for one food to add. Never invent a preference or a reminder subject from old history.",
         "Use a tool whenever the user creates, lists, starts, updates, completes, or abandons a task or goal, or asks Tempo to contact them at a future time.",
         "A reminder is an explicit future outreach request such as ‘remind me tomorrow at 10 PM,’ ‘text me every morning at 8,’ or ‘check in with me in 20 minutes.’ Never turn an explicit outreach request into a to-do item. Resolve relative dates using the supplied current time and timezone and include an ISO 8601 offset. Use recurrence only when the user explicitly says daily/every day, weekdays, or weekly/every week. If the time is genuinely missing or ambiguous, ask one short clarifying question instead of guessing.",
+        "Tasks store a precise due timestamp, not a date-only or morning/afternoon window. If the user requests a task for a part of the day without a clock time, ask what time they prefer before saving it. Never silently turn Saturday morning into noon, assume 9 AM, or drop the requested scheduling window. A duration such as 10-minute walk is not a clock time.",
+        "Current tool results are authoritative over conversation history. Tasks listed as open in a current rundown are open now; never annotate them as completed or stale because an earlier conversation completed a similarly named task. Different records can have the same title. Preserve the current lookup's verified status and distinguish records by their IDs when available.",
         "Never invent a task or goal ID. Use the user's own wording as a query when a deterministic match is uncertain.",
         `Current time: ${input.now.toISOString()}. User timezone: ${input.timezone}.`,
         `Open tasks: ${JSON.stringify(input.openTasks.map(({ id, title, status }) => ({ id, title, status })))}`,
@@ -430,6 +432,10 @@ export class AnthropicTaskIntentParser implements TaskIntentParser {
         && !hasLinkedActionReference(parsed.command, input)) {
         return { kind: "conversation", reply: actionResult ?? "I couldn’t match that action to your latest message. What would you like me to do?" };
       }
+      if (parsed.kind === "command") {
+        const clarification = taskPartOfDayClarification(parsed.command, input.message, input.timezone);
+        if (clarification) return { kind: "conversation", reply: actionResult ?? clarification };
+      }
       if (!input.execute || parsed.kind !== "command") return parsed;
       const command = parsed.command;
       const readOnly = isReadOnlyAssistantCommand(command.type);
@@ -484,6 +490,22 @@ function normalizeSourceQuote(value: string) {
   return value.replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/\s+/g, " ").trim().toLowerCase();
 }
 
+/** A part-of-day request must never become a made-up precise due time. */
+function taskPartOfDayClarification(command: CoachingCommand, message: string, timezone: string): string | undefined {
+  if (command.type !== "create_task" && command.type !== "update_task") return;
+  const part = message.match(/\b(morning|afternoon|evening|tonight)\b/i)?.[1].toLowerCase();
+  if (!part) return;
+  const dueAt = command.type === "create_task" ? command.dueAt : command.patch.dueAt;
+  // Updating only a title is not an attempt to schedule the task.
+  if (command.type === "update_task" && !dueAt) return;
+  const hasClock = /\b\d{1,2}:\d{2}\b|\b\d{1,2}\s*[ap]\.?m\.?\b|\bat\s+\d{1,2}\b|\b(?:noon|midnight)\b/i.test(message);
+  const label = part === "tonight" ? "tonight" : `in the ${part}`;
+  if (!hasClock || !dueAt) return `What time ${label} would you like that task?`;
+  const hour = Number(new Intl.DateTimeFormat("en-US", { timeZone: timezone, hour: "numeric", hourCycle: "h23" }).format(new Date(dueAt)));
+  const matches = part === "morning" ? hour >= 0 && hour < 12 : part === "afternoon" ? hour >= 12 && hour < 18 : hour >= 18;
+  if (!matches) return `I need to clarify the time ${label} before saving that task. What time should I use?`;
+}
+
 /** Resolve an explicit "save that" or an immediate clarification, never a backlog. */
 function hasLinkedActionReference(command: CoachingCommand, input: Parameters<TaskIntentParser["parse"]>[0]): boolean {
   const history = input.history ?? [];
@@ -509,6 +531,16 @@ function hasLinkedActionReference(command: CoachingCommand, input: Parameters<Ta
     if (asksRoutineTime && requestedRoutine) return false;
   }
   if (command.type === "create_task") {
+    const timeReply = normalizeSourceQuote(text).match(/^(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*([ap])\.?m\.?(?:\s+(?:please|works(?: for me)?|is (?:good|fine)))?[.!]?$/);
+    const taskTimeQuestion = /\?/.test(reply.content) && /\bwhat time\b/i.test(reply.content) && /\btask\b/i.test(reply.content);
+    const priorTaskRequest = /\b(?:add|create|save|put|schedule)\b/i.test(request.content) && !isExplicitReminderRequest(request.content);
+    if (timeReply && taskTimeQuestion && priorTaskRequest && command.dueAt && hasCurrentActionEvidence(command, request.content)) {
+      const hour = Number(timeReply[1]), minute = Number(timeReply[2] ?? 0);
+      if (hour < 1 || hour > 12 || minute > 59) return false;
+      const expected = `${String(hour % 12 + (timeReply[3] === "p" ? 12 : 0)).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+      const actual = new Intl.DateTimeFormat("en-GB", { timeZone: input.timezone, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(command.dueAt));
+      return actual === expected && !taskPartOfDayClarification(command, `${request.content} at ${text}`, input.timezone);
+    }
     // The current choice authorizes one pending subject, not an old request.
     const taskChoice = /^(?:(?:just|only)\s+(?:a\s+)?(?:task|to-?do)|(?:make|keep|save|add|put)\s+(?:it|that|this)\s+(?:as\s+|on\s+)?(?:a\s+|my\s+)?(?:task|to-?do)(?:\s+list)?)(?:\b|[.,!])/i.test(text.trim());
     const reminderClarification = /\?/.test(reply.content) && /\b(?:when|what time)\b/i.test(reply.content) && /\bremind/i.test(reply.content);

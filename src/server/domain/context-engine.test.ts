@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ContextPolicy, ContextSignals, DEFAULT_CONTEXT_POLICY, evaluateContext, isQuietTime, selectTask } from "./context-engine";
+import { proactiveDeliveryEnabled } from "../config/proactive-delivery";
 
 const now = new Date("2026-08-18T14:00:00Z");
 const policy: ContextPolicy = { id: "policy-1", ...DEFAULT_CONTEXT_POLICY };
@@ -28,6 +29,19 @@ const baseSignals: ContextSignals = {
 };
 
 describe("context engine", () => {
+  it.each([
+    ["proactive_opt_in_missing", { proactiveOptIn: false }],
+    ["quiet_hours", { timezone: "UTC", quietHoursStart: "13:00", quietHoursEnd: "15:00" }],
+    ["calendar_busy", { calendarBusy: true }],
+    ["daily_cap_reached", { dailyInterventionCount: 3 }],
+  ])("canary permission cannot bypass %s", (reason, override) => {
+    const userId = "00000000-0000-4000-8000-000000000001";
+    const shadowMode = !proactiveDeliveryEnabled({ INTERVENTION_SHADOW_MODE: true, AUTONOMOUS_SENDING_ENABLED: false, PROACTIVE_CANARY_USER_IDS: [userId] }, userId);
+    expect(shadowMode).toBe(false);
+    const result = evaluateContext({ signals: { ...baseSignals, userId, ...override }, policy, now, shadowMode });
+    expect(result.decision).toBe("blocked");
+    expect(result.reasonCodes).toContain(reason);
+  });
   it("logs an above-threshold opportunity as shadow without authorizing a send", () => {
     const evaluation = evaluateContext({ signals: baseSignals, policy, now, shadowMode: true });
     expect(evaluation.decision).toBe("shadow");
