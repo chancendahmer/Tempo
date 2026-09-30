@@ -180,3 +180,5 @@ Both services deployed PR 18. The exact advice replay still asked for the recycl
 ## Iteration 10: live PR 19 prioritization replay
 
 The context repair passed npm run check: 448 tests across 68 files, lint, typecheck and production/operations builds. Both Railway services showed PR 19 active. At 6:23 PM, repeating the exact no-edit advice question correctly prioritized the overdue five-minute recycling task, then the dentist task due tomorrow, and distinguished the later-week walk/jog and stretch. It no longer asked for the saved deadline. This is a live model reply, not a scripted transcript. No schedule change or consent change was requested or announced.
+
+The mediated reviewer updated the controlled-demo score to 8.4/10 and retained commercial readiness at 6.6/10. The remaining commercial gates have no new verification evidence in this iteration.

@@ -12,7 +12,7 @@ passed live checks. Personal recall and exact task-move failures kept the
 earlier score below five until deployed replay. PR 16 replay then passed real SMS
 note recall, the exact Saturday move with goal/duration preserved and repeat
 groceries without new duplicates. The mediated reviewer rates the controlled
-demo 8.2/10 and commercial readiness 6.6/10. PR 16 repairs passed the
+demo 8.4/10 after the final PR 19 replay and commercial readiness 6.6/10. PR 16 repairs passed the
 full check. Subsequent PR 19 passed 448 tests across 68 files, lint, typecheck and
 production/operations builds; live prioritization then correctly distinguished
 overdue recycling, tomorrow's dentist task and later-week activities. The real
