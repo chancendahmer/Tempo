@@ -132,3 +132,13 @@ The first candidate-wide check passed lint and typecheck but failed one of 431 t
 Additional live novice requests found incomplete meal ingredients and a three-item grocery request that saved only its first item. Candidate repairs add account-owned recipe ingredient copying, optional meal servings shown and editable in the UI, and a bounded atomic grocery batch. Tests cover foreign recipe denial, full ingredient preservation, serving validation, batch replay without duplicates, account isolation and rejecting unrequested grocery items. Deployed replay remains pending.
 
 The final combined candidate passed npm run check: 434 tests across 66 files, lint, typecheck, Next production build and operations build. An intermediate operations build caught newer Array APIs unsupported by the worker compiler target; the clarification resolver now uses compatible array operations. Completing the live laundry focus session removed that task from Today, leaving recycling as the only current task.
+
+## Iteration 6: live PR 14 and short-question regression
+
+Both services deployed PR 14. Repeating the meal request saved a four-serving dinner for October 1 with all six original ingredient lines; the card and edit form displayed four servings. The earlier incomplete meal remains as a historical test record. The three-item grocery request saved Cucumber, Lemon and Feta in one action; an older Cucumber test record causes a duplicate until the next candidate's unchecked-item deduplication is deployed.
+
+A requested two-minute message arrived in TextFree and shared chat at 5:03 PM; Calendar showed sent. It arrived after the Sunday task question and before the time answer. The question was phrased “What time Sunday morning works for you?” and the answer “9 AM works” still failed. The next candidate no longer requires the linked question to repeat task/schedule wording; original request grounding, reply linkage and clock validation remain enforced. This is a real failing regression and keeps readiness below the core-action threshold until deployed replay succeeds.
+
+The next candidate also adds installable standalone web-app metadata and proper Tempo icons. No offline cache, native alarm, hardware brightness control or installation verification is implied.
+
+The final candidate passed npm run check: 436 tests across 66 files, lint, typecheck and production/operations builds. Grocery tests verify case/whitespace normalization, distinct-message repeats, checked-item repurchase and account isolation. Existing duplicate test records are not silently deleted.
