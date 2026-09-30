@@ -42,6 +42,22 @@ describe("shared life workspace", () => {
     expect((await readWorkspace(batchUser.id, db)).items).toHaveLength(3);
   });
 
+  it("deduplicates unchecked groceries across messages but permits another purchase of checked items", async () => {
+    const [buyer, neighbor] = await db.insert(schema.users).values([{ phoneE164: "+12025550957" }, { phoneE164: "+12025550958" }]).returning();
+    const assistant = new LifeAssistant(db);
+    await assistant.execute(buyer.id, randomUUID(), { type: "grocery_add", items: ["Cucumber", "  Olive   oil ", "olive oil"] });
+    const reply = await assistant.execute(buyer.id, randomUUID(), { type: "grocery_add", items: ["CUCUMBER", "olive  oil", "Feta", " feta "] });
+    expect(reply).toBe("Added to your shopping list: Feta. Already on your shopping list: CUCUMBER, olive oil.");
+    expect((await readWorkspace(buyer.id, db)).items).toHaveLength(3);
+    expect(await assistant.execute(neighbor.id, randomUUID(), { type: "grocery_add", items: ["Cucumber"] })).toBe("Added to your shopping list: Cucumber.");
+    const cucumber = (await readWorkspace(buyer.id, db)).items.find(row => row.data.title === "Cucumber")!;
+    await mutateWorkspace(buyer.id, { action: "save", id: cucumber.id, version: cucumber.version, data: { kind: "grocery", title: "Cucumber", checked: true } }, db);
+    expect(await assistant.execute(buyer.id, randomUUID(), { type: "grocery_add", items: ["cucumber"] })).toBe("Added to your shopping list: cucumber.");
+    const groceries = (await readWorkspace(buyer.id, db)).items;
+    expect(groceries).toHaveLength(4);
+    expect(groceries.filter(row => row.data.kind === "grocery" && !row.data.checked && row.data.title.toLowerCase() === "cucumber")).toHaveLength(1);
+  });
+
   it("copies the full account-owned recipe into a meal without trusting model ingredients", async () => {
     const assistant = new LifeAssistant(db), recipeId = randomUUID(), mealId = randomUUID();
     const ingredients = "Chickpeas\nCucumber\nTomato\nLemon\nOlive oil\nParsley";

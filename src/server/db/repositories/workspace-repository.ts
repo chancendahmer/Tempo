@@ -56,8 +56,20 @@ export async function mutateWorkspace(userId: string, input: WorkspaceAction, da
     }
     const perform = async (): Promise<{ message: string }> => {
     if (input.action === "add_groceries") {
-      await transaction.insert(lifeItems).values(input.items.map(title => ({ id: randomUUID(), userId, data: { kind: "grocery" as const, title, checked: false } })));
-      return { message: `Added to your shopping list: ${input.items.join(", ")}.` };
+      const normalize = (title: string) => title.trim().replace(/\s+/g, " ").toLowerCase();
+      const existing = await transaction.select({ data: lifeItems.data }).from(lifeItems)
+        .where(and(eq(lifeItems.userId, userId), sql`${lifeItems.data}->>'kind' = 'grocery'`, sql`${lifeItems.data}->>'checked' = 'false'`));
+      const listed = new Set(existing.map(row => normalize(row.data.title)));
+      const seen = new Set<string>(), added: string[] = [], alreadyListed: string[] = [];
+      for (const item of input.items) {
+        const title = item.trim().replace(/\s+/g, " "), key = normalize(title);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        if (listed.has(key)) alreadyListed.push(title);
+        else added.push(title);
+      }
+      if (added.length) await transaction.insert(lifeItems).values(added.map(title => ({ id: randomUUID(), userId, data: { kind: "grocery" as const, title, checked: false } })));
+      return { message: [added.length ? `Added to your shopping list: ${added.join(", ")}.` : "", alreadyListed.length ? `Already on your shopping list: ${alreadyListed.join(", ")}.` : ""].filter(Boolean).join(" ") };
     }
     if (input.action === "finish_focus") {
       const [focus] = await transaction.select().from(lifeItems).where(and(eq(lifeItems.id, input.id), eq(lifeItems.userId, userId), eq(lifeItems.version, input.version))).limit(1);

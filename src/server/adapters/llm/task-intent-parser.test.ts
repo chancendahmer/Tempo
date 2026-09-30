@@ -22,18 +22,18 @@ describe("current-message routing", () => {
   };
   beforeEach(() => { create.mockReset(); settings.webSearch = false; });
 
-  it.each(["coach", "human-pivot", "wrong-link"])("resolves task clarification across only unsolicited outputs (%s)", async scenario => {
+  it.each(["coach", "short-question", "human-pivot", "wrong-link"])("resolves task clarification across only unsolicited outputs (%s)", async scenario => {
     const message = "9 AM works.";
     create.mockResolvedValueOnce({ content: [{ type: "tool_use", id: "task", name: "create_task", input: { sourceQuote: message, title: "Stretch", estimatedMinutes: 5, dueAt: "2026-09-06T09:00:00-04:00" } }] })
       .mockResolvedValueOnce({ content: [{ type: "text", text: "ACK_ONLY" }] });
     const execute = vi.fn(async () => "Task saved.");
     await new AnthropicTaskIntentParser().parse({ ...input, message, execute, history: [
       { id: "request", role: "user", content: "Add a five-minute stretch for Sunday morning as a task.", createdAt: input.now },
-      { id: "question", role: "assistant", replyToMessageId: scenario === "wrong-link" ? "other" : "request", content: "What time on Sunday morning would you like to schedule it?", createdAt: input.now },
+      { id: "question", role: "assistant", replyToMessageId: scenario === "wrong-link" ? "other" : "request", content: scenario === "short-question" ? "What time Sunday morning works for you?" : "What time on Sunday morning would you like to schedule it?", createdAt: input.now },
       ...(scenario === "human-pivot" ? [{ id: "pivot", role: "user" as const, content: "Actually, let's talk about food instead.", createdAt: input.now }] : []),
       { id: "coach", role: "assistant", content: "How is your afternoon going? Want a small next step?", createdAt: input.now },
     ] });
-    expect(execute).toHaveBeenCalledTimes(scenario === "coach" ? 1 : 0);
+    expect(execute).toHaveBeenCalledTimes(scenario === "coach" || scenario === "short-question" ? 1 : 0);
   });
 
   it("keeps a linked routine clarification through an unsolicited coaching message", async () => {
