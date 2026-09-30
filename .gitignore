@@ -27,6 +27,9 @@
 /qa/workspace-*-latest.md
 /qa/workspace-live-iteration-*
 /qa/assistant-live-iteration-*
+/qa/week-*-latest.json
+/qa/week-*-latest.md
+/qa/week-live-iteration-*
 
 # OS files
 .DS_Store

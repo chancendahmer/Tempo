@@ -86,6 +86,20 @@ describe("inbound conversation orchestration", () => {
     );
   }
 
+  it("routes advice and compound requests through the model without shortcut task creation", async () => {
+    const user = await consentedUser("+12025550981", "complete");
+    const parse = vi.fn(async () => ({ kind: "conversation" as const, reply: "Start with the part that feels easiest." }));
+    const transport = new TestSmsTransport("ADVICE");
+    for (const body of ["I need to eat better, where should I start?", "Show my tasks and suggest where to start", "My goal is to feel healthier; how would you approach it?"]) {
+      const [message] = await database.insert(conversationMessages).values({ userId: user.id, conversationId: user.conversationId, direction: "inbound", kind: "user", status: "received", body }).returning();
+      await orchestrator(transport, { parse }).process(message.id);
+    }
+    expect(parse).toHaveBeenCalledTimes(3);
+    expect(await database.select().from(tasks).where(eq(tasks.userId, user.id))).toHaveLength(0);
+    expect(await database.select().from(goals).where(eq(goals.userId, user.id))).toHaveLength(0);
+    expect(transport.sent.map(item => item.body)).toEqual(Array(3).fill("Start with the part that feels easiest."));
+  });
+
   it("accepts the quick contact choice and advances to calendar", async () => {
     const user = await consentedUser("+12025550198", "introduction");
     const [message] = await database

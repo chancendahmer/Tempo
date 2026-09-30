@@ -11,6 +11,10 @@ import { AssistantCommand, assistantCommandSchema } from "../../domain/assistant
 import { ASSISTANT_TOOLS, isReadOnlyAssistantCommand } from "./assistant-tools";
 import { logger } from "../../observability/logger";
 import { isConversationOnlyMessage } from "../../domain/conversation-routing";
+import { AssistantProviderFailure } from "../../domain/assistant-provider-failure";
+import { normalizeProviderFailure } from "./provider-failure";
+import { HEALTH_CAPABILITY_LIMIT } from "../../domain/connection-status-reply";
+import { RUNDOWN_HISTORY_LIMIT } from "../../domain/rundown";
 
 export type CoachingCommand = TaskCommand | GoalCommand | RescheduleCommand | ReminderCommand | MemoryCommand | AssistantCommand;
 export type TaskIntentResult = { kind: "command"; command: CoachingCommand } | { kind: "conversation"; reply: string };
@@ -277,12 +281,21 @@ export class AnthropicTaskIntentParser implements TaskIntentParser {
   private client: Anthropic | undefined;
 
   async parse(input: Parameters<TaskIntentParser["parse"]>[0]): Promise<TaskIntentResult> {
-    const env = requireEnv(["ANTHROPIC_API_KEY", "ANTHROPIC_MODEL"]);
-    this.client ??= new Anthropic({ apiKey: env.ANTHROPIC_API_KEY!, timeout: 30_000, maxRetries: 1 });
+    let env: ReturnType<typeof requireEnv>;
+    try { env = requireEnv(["ANTHROPIC_API_KEY", "ANTHROPIC_MODEL"]); }
+    catch {
+      logger.error({ category: "configuration", operation: "assistant_response" }, "assistant provider configuration unavailable");
+      throw new AssistantProviderFailure("configuration");
+    }
+    try { this.client ??= new Anthropic({ apiKey: env.ANTHROPIC_API_KEY!, timeout: 30_000, maxRetries: 1 }); }
+    catch {
+      logger.error({ category: "configuration", operation: "assistant_response" }, "assistant provider configuration unavailable");
+      throw new AssistantProviderFailure("configuration");
+    }
     const explicitReminder = isExplicitReminderRequest(input.message);
     const conversationOnly = isConversationOnlyMessage(input.message);
     const tools = (explicitReminder
-      ? TASK_TOOLS.filter((tool) => tool.name === "create_reminder")
+      ? TASK_TOOLS.filter((tool) => /_reminder$/.test(tool.name) || tool.name === "list_reminders" || isReadOnlyAssistantCommand(tool.name))
       : TASK_TOOLS).map((tool): Tool => ({
         ...tool,
         input_schema: {
@@ -312,8 +325,10 @@ export class AnthropicTaskIntentParser implements TaskIntentParser {
       max_tokens: 1400,
       system: [
         "You are Tempo, a warm, capable personal assistant with a special focus on ADHD, task paralysis, planning, and gentle follow-through.",
-        "Use the real dashboard section names when giving navigation help: tasks and focus timers are in Tasks & focus; long-term goals in Goals; Google events in Calendar; morning and evening routines in My routines; recipes, planned meals and groceries are all in Meal planner; eaten food and nutrients in Food & nutrition; workouts in Movement; notes in Thought inbox; conversation in Ask Tempo. Wake & Wind Down is only an alarm/light concept placeholder: saving a routine does not put it there, schedule an alarm, create outreach, or control hardware. Do not invent Recipes, Meal Plans, Food Log, Workouts, Notes or Groceries tabs. Prefer simply naming what changed; only mention navigation when it helps.",
+        "Use the real dashboard section names when giving navigation help: tasks and focus timers are in Tasks & focus; long-term goals in Goals; Google events in Calendar; morning and evening routines in My routines; recipes, planned meals and groceries are all in Meal planner; eaten food and nutrients in Food & nutrition; workouts in Movement; notes in Thought inbox; conversation in Ask Tempo. Wake & Wind Down offers manually started sunrise/sunset screen sessions and optional synthesized birds/waves. The user starts these in that section; you cannot start them remotely. Saving a routine does not schedule an alarm, create outreach, or control hardware. Do not invent Recipes, Meal Plans, Food Log, Workouts, Notes or Groceries tabs. Prefer simply naming what changed; only mention navigation when it helps.",
         "Keep simple save/edit acknowledgments to one short sentence naming the result. Do not append an unsolicited question after every successful action. Avoid repetitive celebration, emoji and generic encouragement; use a calm, natural tone and ask a question only when the user's request needs clarification or a real next decision.",
+        "After a state-changing tool returns, its verified result will be shown to the user automatically. If the user's request is now fully answered, output exactly ACK_ONLY as your final text. Do not add a second confirmation, navigation directions, celebration or a follow-up question. If the user also asked an unanswered informational question, answer only that remaining question concisely, without repeating the confirmation. This rule never authorizes an action or changes a confirmation gate.",
+        "Default to plain-text replies under 80 words, except a requested detailed explanation or a daily/weekly rundown. For idea questions, offer two useful options rather than a long menu or an explanation about ADHD. Do not add an unsolicited next-action question after a completed edit or a rundown. Movement records store activity duration, not step counts; if the user wants to keep a step count, offer a note, never claim structured step tracking. A rundown is the current open plan, not a retrospective record of completed work: preserve that limitation for a past/current date range and never infer that the user had an empty or easy week from an empty open-task list.",
         "Email, Apple Calendar, shopping/purchasing and external health-account integrations are not implemented. Do not suggest the user can enable them in Extensions or Settings. Google Calendar is the supported external calendar; if disconnected, it can be connected in Extensions. Built-in food logging is not a MyFitnessPal account connection. A tool reporting disabled delivery or simulation limits is authoritative: never promise outreach contrary to that result.",
         "Respond to currentMessage only. backgroundHistory is a dated transcript for understanding references, not a backlog of requests to execute. Never replay a historical request, resave a historical preference, or repeat an old confirmation in response to a greeting or question. Old assistant replies may be wrong; acknowledge corrections without repeating the mistake. A new fully specified request overrides historical subjects and dates. Use a recent clarification only when the current message actually answers it.",
         "Use tool results to finish helping with the user's whole request. For example, after saving a favorite food, still answer their meal-planning question. You may do several lookups but at most one state-changing action per message; explain any remaining actions rather than pretending they happened. Do not repeat an already executed action. The app displays the exact action result before your final reply: don't repeat its confirmation, just add useful help if needed. For a simple action, briefly name the affected record, changed detail, and relevant workspace section when useful. Avoid repeating Saved or Done when the action result already says it. If a write failed, never follow it with a success claim. Calendar proposals require a separate YES before execution; never say a proposed change is already done.",
@@ -336,7 +351,7 @@ export class AnthropicTaskIntentParser implements TaskIntentParser {
           : "Live web search is disabled by the operator. Be honest about that limitation; still help with general knowledge.",
         "Keep replies concise and energetic enough for SMS. Emojis are welcome when they add warmth, but usually use no more than one.",
         "Be warm, direct, curious, and practical. Match the user's tone and energy. Answer their question before offering coaching; don't turn every exchange into therapy. Avoid repeated pep talks, stock empathy, excessive praise, or calling everything a tiny step. For a correction, acknowledge it briefly and fix the specific detail. Ask one focused question only when needed to identify the record or missing required information. Don't ask permission again for an ordinary edit the user already requested.",
-        "The workspace tabs display account data; you can change records with tools, not redesign pages, navigate the user's screen, or control hardware. Tasks are daily/weekly actions; goals are longer-term outcomes. Recipes are reusable favorites, meal plans are dated intentions, food logs record what was actually eaten, and notes are the thought inbox. Wake & Wind Down is only a placeholder: you cannot set a reliable wake alarm or control a light. A text reminder is a different capability; explain the distinction and ask before substituting it for an alarm.",
+        "The workspace tabs display account data; you can change records with tools, not redesign pages, navigate the user's screen, or control hardware. Tasks are daily/weekly actions; goals are longer-term outcomes. Recipes are reusable favorites, meal plans are dated intentions, food logs record what was actually eaten, and notes are the thought inbox. Wake & Wind Down supports manual light/sound sessions while the browser stays open; you cannot set a scheduled wake alarm, change hardware brightness, or control a physical light. A text reminder is a different capability; explain the distinction and ask before substituting it for an alarm.",
         "Use life_list before referring to or editing saved routines, recipes, meals, food logs, workouts, groceries or notes. Resolve pronouns from recent conversation, then verify the record through the current lookup. If multiple records fit, ask which one. For life_save edits preserve all unrelated fields, routine step IDs and completion dates. Use the user's account timezone. Save recipes and logs as structured life items, not generic memory. Never invent food nutrients; use null for unknown values. A suggested meal is not a saved meal or an eaten food log.",
         "Never use guilt, shame, or moralizing.",
         "Sound like a thoughtful person texting: respond directly, use natural contractions, and offer one manageable next step when useful. Do not force every exchange into a task or append a menu to normal conversation. Use short choices when they make a decision easier; ask at most one question at a time.",
@@ -346,6 +361,8 @@ export class AnthropicTaskIntentParser implements TaskIntentParser {
       tool_choice: conversationOnly ? { type: "none" } : { type: "auto", disable_parallel_tool_use: true },
     } satisfies MessageCreateParamsNonStreaming;
     let actionResult: string | undefined;
+    const verifiedReports: string[] = [];
+    const withVerifiedReports = (reply: string): string => [reply, ...verifiedReports.filter(report => !reply.includes(report))].filter(Boolean).join("\n\n");
     let searchFallbackUsed = false;
     let searchesUsed = 0;
     const knownEventIds = new Set<string>();
@@ -356,16 +373,16 @@ export class AnthropicTaskIntentParser implements TaskIntentParser {
       response = await this.client.messages.create(request);
     } catch (error) {
       // A completed write must still get its truthful confirmation if synthesis fails.
-      if (actionResult) return { kind: "conversation", reply: actionResult };
-      const failure = error as { status?: number; message?: string };
-      if (!searchFallbackUsed && failure.status === 400 && /web.?search/i.test(failure.message ?? "")) {
+      const failure = normalizeProviderFailure(error);
+      logger.error({ status: failure.status, category: failure.category, operation: "assistant_response" }, "assistant provider request failed");
+      if (actionResult || verifiedReports.length) return { kind: "conversation", reply: withVerifiedReports(actionResult ?? "") };
+      if (!searchFallbackUsed && failure.status === 400 && /web.?search/i.test(String((error as { message?: unknown } | null)?.message ?? ""))) {
         searchFallbackUsed = true;
         request.tools = tools;
         request.system += "\nWeb search failed or is unavailable for this provider account. Do not claim live verification. Answer from general knowledge when suitable and disclose the limitation.";
         continue;
       }
-      logger.error({ status: failure.status, operation: "assistant_response" }, "assistant provider request failed");
-      throw error;
+      throw failure;
     }
     const blocks = response.content as ResponseBlock[];
     searchesUsed += blocks.filter((block) => block.type === "server_tool_use"
@@ -386,7 +403,8 @@ export class AnthropicTaskIntentParser implements TaskIntentParser {
       let parsed: TaskIntentResult;
       try { parsed = parseTaskIntentResponse(blocks); }
       catch { return { kind: "conversation", reply: actionResult ?? "I couldn’t validate that action. Could you give me its details again?" }; }
-      if (parsed.kind === "command" && !hasCurrentActionEvidence(parsed.command, input.message)) {
+      if (parsed.kind === "command" && !hasCurrentActionEvidence(parsed.command, input.message)
+        && !hasLinkedActionReference(parsed.command, input)) {
         return { kind: "conversation", reply: actionResult ?? "I couldn’t match that action to your latest message. What would you like me to do?" };
       }
       if (!input.execute || parsed.kind !== "command") return parsed;
@@ -413,7 +431,14 @@ export class AnthropicTaskIntentParser implements TaskIntentParser {
           } catch { /* A readable connection error is also a valid tool result. */ }
         }
       }
-      if (command.type === "calendar_change" || command.type === "set_checkins") return { kind: "conversation", reply: result };
+      // Preserve completeness and capability limits without ending compound requests.
+      if (command.type === "get_rundown" || command.type === "connection_status") {
+        const notice = command.type === "connection_status" ? HEALTH_CAPABILITY_LIMIT
+          : result.includes(RUNDOWN_HISTORY_LIMIT) ? RUNDOWN_HISTORY_LIMIT : null;
+        if (notice && !verifiedReports.includes(notice)) verifiedReports.push(notice);
+        request.system += "\nThe capability/history limitation from this tool will be appended verbatim. Do not repeat that limitation. Summarize the actual report and answer remaining requests. For a health capability question fully answered by the appended limitation, return ACK_ONLY unless other help was requested. Never contradict the verified capability or completeness limits.";
+      }
+      if (command.type === "calendar_change" || command.type === "set_checkins") return { kind: "conversation", reply: withVerifiedReports(result) };
       messages.push({ role: "assistant", content: response.content });
       messages.push({ role: "user", content: [{ type: "tool_result", tool_use_id: tool.id!, content: result }] });
       continue;
@@ -423,16 +448,38 @@ export class AnthropicTaskIntentParser implements TaskIntentParser {
       continue;
     }
     const parsed = parseTaskIntentResponse(blocks);
-    if (parsed.kind === "conversation" && actionResult) return { kind: "conversation", reply: `${actionResult}\n${parsed.reply}` };
+    if (parsed.kind === "conversation" && parsed.reply.trim() === "ACK_ONLY") return { kind: "conversation", reply: withVerifiedReports(actionResult ?? (verifiedReports.length ? "" : "What would you like help with?")) };
+    if (parsed.kind === "conversation") return { kind: "conversation", reply: withVerifiedReports(actionResult ? `${actionResult}\n${parsed.reply}` : parsed.reply) };
     return parsed;
     }
-    return { kind: "conversation", reply: actionResult ?? "That took too many steps to finish in one text. Could you narrow it to the first thing you need?" };
+    return { kind: "conversation", reply: withVerifiedReports(actionResult ?? "That took too many steps to finish in one text. Could you narrow it to the first thing you need?") };
   }
 }
 
 /** Typography alone must not invalidate a current-message quote. Keep words intact. */
 function normalizeSourceQuote(value: string) {
   return value.replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/\s+/g, " ").trim().toLowerCase();
+}
+
+/** Resolve an explicit "save that" or an immediate clarification, never a backlog. */
+function hasLinkedActionReference(command: CoachingCommand, input: Parameters<TaskIntentParser["parse"]>[0]): boolean {
+  const history = input.history ?? [];
+  const reply = history.at(-1), request = history.at(-2);
+  if (reply?.role !== "assistant" || request?.role !== "user" || reply.replyToMessageId !== request.id) return false;
+  const text = input.message;
+  const reference = /\b(?:that|this|it|those)\b/i.test(text);
+  const explicitSave = /\b(?:save|keep|put|add|plan|log|record|remember|make)\b/i.test(text);
+  if (reference && explicitSave && ["life_save", "create_task", "create_goal", "remember_memory"].includes(command.type)) {
+    return hasCurrentActionEvidence(command, reply.content);
+  }
+  if (command.type === "create_reminder") {
+    if (reference && isExplicitReminderRequest(text)) return hasCurrentActionEvidence(command, reply.content);
+    const timeAnswer = /^(?:(?:at|tomorrow|today|on|in|next|every)\b|\d)/i.test(text.trim())
+      && text.length <= 100 && !/\b(?:cancel|stop|don't|do not|never|instead of|forget|not)\b/i.test(text);
+    return timeAnswer && /\?/.test(reply.content) && /\b(?:when|what time)\b/i.test(reply.content)
+      && isExplicitReminderRequest(request.content) && hasCurrentActionEvidence(command, request.content);
+  }
+  return false;
 }
 
 /** Quotes must authorize the payload, not merely contain a generic word like “me”. */

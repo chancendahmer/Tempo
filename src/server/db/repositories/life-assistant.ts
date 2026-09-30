@@ -19,7 +19,15 @@ export class LifeAssistant {
       if (command.data.kind === "focus") return "Start or pause a focus session using the workspace controls, or start its task.";
       if (isSensitiveMemory(JSON.stringify(command.data))) return "I can save everyday plans and preferences, but not secrets or sensitive medical details.";
       if (Boolean(command.id) !== Boolean(command.version)) return "Read the current item before editing; both its id and version are required.";
-      return (await mutateWorkspace(userId, { action: "save", id: command.id ?? sourceMessageId, version: command.version ?? 0, data: command.data }, this.database, sourceMessageId)).message;
+      const result = await mutateWorkspace(userId, { action: "save", id: command.id ?? sourceMessageId, version: command.version ?? 0, data: command.data }, this.database, sourceMessageId);
+      if (result.message !== "Saved.") return result.message;
+      const data = command.data;
+      const details = data.kind === "recipe" ? `Serves ${data.servings}.`
+        : data.kind === "routine" ? `${data.time}, ${data.steps.length} steps.`
+        : data.kind === "food" ? `${data.meal}, ${data.date}; ${data.calories ?? "unknown"} calories, ${data.protein ?? "unknown"}g protein.`
+        : data.kind === "meal" ? `${data.meal}, ${data.date}.`
+        : data.kind === "workout" ? `${data.minutes} minutes, ${data.date}.` : "";
+      return `${command.id ? "Updated" : "Saved"}: ${data.title}.${details ? ` ${details}` : ""}`;
     } catch (error) {
       if (error instanceof WorkspaceConflict) return error.message;
       throw error;

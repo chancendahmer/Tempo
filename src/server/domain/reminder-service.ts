@@ -28,6 +28,7 @@ export interface ReminderRepository {
     taskId?: string;
   }): Promise<ReminderRecord>;
   listUpcoming(userId: string, now: Date): Promise<ReminderRecord[]>;
+  listForRundown(userId: string, start: Date, end: Date): Promise<ReminderRecord[]>;
   cancel(input: { userId: string; reminderId?: string; reminderQuery?: string; now: Date }): Promise<
     | { kind: "cancelled"; reminder: ReminderRecord }
     | { kind: "not_found" }
@@ -64,7 +65,7 @@ function localParts(date: Date, timezone: string): LocalDateTime {
   return { year: value("year"), month: value("month"), day: value("day"), hour: value("hour"), minute: value("minute"), second: value("second") };
 }
 
-function localDateTimeToUtc(target: LocalDateTime, timezone: string): Date {
+export function localDateTimeToUtc(target: LocalDateTime, timezone: string): Date {
   const targetEpoch = Date.UTC(target.year, target.month - 1, target.day, target.hour, target.minute, target.second);
   let candidate = targetEpoch;
   for (let attempt = 0; attempt < 4; attempt += 1) {

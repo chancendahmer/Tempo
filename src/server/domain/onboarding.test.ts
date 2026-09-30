@@ -71,4 +71,33 @@ describe("SMS onboarding", () => {
       nextState: "complete",
     });
   });
+
+  it.each([
+    "SKIP",
+    "Not now",
+    "Can we skip that and get started?",
+    "I only see text, there isn't a contact card. Can we skip that and get started?",
+    "There is no contact card. I'd like to continue.",
+    "Please skip the contact card",
+  ])("allows optional contact setup to be skipped: %s", message => {
+    const result = handleOnboardingMessage("introduction", message);
+    expect(result).toMatchObject({ handled: true, nextState: "calendar" });
+    expect(result.reply).toContain("saving my contact is optional");
+    expect(result.reply).not.toContain("you’ve added");
+    expect(result.updates).toBeUndefined();
+    expect(result.createTaskTitle).toBeUndefined();
+  });
+
+  it("offers an exit for missing-card help without claiming a contact was saved", () => {
+    for (const message of ["I NEED MORE HELP", "There isn't a contact card", "I don't want to skip"]) {
+      const result = handleOnboardingMessage("introduction", message);
+      expect(result.nextState).toBe("introduction");
+      expect(result.reply).toContain("SKIP");
+    }
+  });
+
+  it("does not use contact skipping to bypass consent or interpret opt-out as skipping", () => {
+    expect(handleOnboardingMessage("awaiting_consent", "SKIP")).toEqual({ handled: true, nextState: "awaiting_consent" });
+    expect(handleOnboardingMessage("introduction", "STOP").nextState).toBe("introduction");
+  });
 });

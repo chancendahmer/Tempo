@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
     });
 
     let verificationSent = false;
-    if (sendblueOnboarding && onboarding && "verified" in onboarding && !onboarding.verified) {
+    if (sendblueOnboarding && onboarding && "verificationMethod" in onboarding && onboarding.verificationMethod === "provider_message" && !onboarding.verified) {
       try {
         await sendblueOnboarding.requestVerification(phoneE164);
         verificationSent = true;

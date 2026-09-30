@@ -71,7 +71,7 @@ describe("shared life workspace", () => {
     const assistant = new LifeAssistant(db), source = randomUUID();
     const edit = { type: "life_save" as const, id, version: 1, data: { ...recipe, title: "Lemon rice bowl" } };
     await assistant.execute(owner, source, edit);
-    expect(await assistant.execute(owner, source, edit)).toBe("Saved.");
+    expect(await assistant.execute(owner, source, edit)).toBe("Updated: Lemon rice bowl. Serves 2.");
     expect(await assistant.execute(owner, source, { ...edit, data: { ...recipe, title: "Different mutation" } })).toContain("different change");
     await expect(mutateWorkspace(owner, { action: "save", id, version: 1, data: recipe }, db)).rejects.toThrow("changed elsewhere");
     const removal = { type: "life_remove" as const, id, version: 2 }, removeSource = randomUUID();

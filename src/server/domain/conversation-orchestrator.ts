@@ -10,7 +10,8 @@ import {
   resolvePendingTaskChoice,
 } from "./task-service";
 import type { TaskIntentParser } from "../adapters/llm/task-intent-parser";
-import { isConversationOnlyMessage, isLifeWorkspaceRequest } from "./conversation-routing";
+import { isConversationOnlyMessage, isLifeWorkspaceRequest, needsConversationalRouting } from "./conversation-routing";
+import { assistantProviderFailureReply } from "./assistant-provider-failure";
 import { OutcomeTracker } from "./outcome-tracker";
 import { MemoryCommand, MemoryService } from "./memory-service";
 import { SecureActionLinks } from "../security/action-links";
@@ -38,6 +39,8 @@ import { ConversationHistoryRepository } from "./conversation-history";
 import { isExplicitReminderRequest, ReminderCommand } from "./reminder-commands";
 import { ReminderRepository, executeReminderCommand, requestedReminderTime } from "./reminder-service";
 import { AssistantCommand, AssistantIntegrations } from "./assistant-commands";
+import { buildRundown, parseRundownRequest, isRundownQuestion } from "./rundown";
+import { connectionStatusReply } from "./connection-status-reply";
 
 export type InboundConversationContext = {
   messageId: string;
@@ -296,6 +299,8 @@ export class ConversationOrchestrator {
       return `This permanently deletes your Tempo data. Confirm only if that’s what you want: ${this.secureLinks.accountDelete(context.userId)}`;
     }
 
+    const rundown = parseRundownRequest(context.body, now, context.timezone);
+    if (rundown) return buildRundown({ tasks: this.tasks, goals: this.goals, reminders: this.reminders, integrations: this.integrations }, { ...context, now }, rundown);
     const lifeRequest = isLifeWorkspaceRequest(context.body);
     const memoryReply = lifeRequest ? null : await this.memories?.tryHandleCorrection({
       userId: context.userId,
@@ -308,7 +313,7 @@ export class ConversationOrchestrator {
     // Broad task heuristics ("move", "cancel", "completed") must not consume
     // requests for a different entity before the assistant can resolve them.
     const otherEntity = lifeRequest || isExplicitReminderRequest(context.body) || /\b(reminders?|calendar|appointments?|events?|breakfast|lunch|dinner|snack)\b/i.test(context.body);
-    const heuristicCommand = parseGoalCommandHeuristically(context.body)
+    const heuristicCommand = isRundownQuestion(context.body) || needsConversationalRouting(context.body) ? null : parseGoalCommandHeuristically(context.body)
       ?? (otherEntity ? null : parseRescheduleHeuristically(context.body)
         ?? parseTaskCommandHeuristically(context.body, now));
     if (!heuristicCommand) {
@@ -341,13 +346,14 @@ export class ConversationOrchestrator {
           customInstructions: context.profileInstructions ?? undefined,
           history,
           execute: (command) => this.executeCommand(context, now, command),
-        })).catch(() => ({ kind: "conversation" as const, reply: "I’m having trouble reaching my AI service right now. Please try that message again in a moment." }));
+        })).catch((error: unknown) => ({ kind: "conversation" as const, reply: assistantProviderFailureReply(error) }));
 
     if (intent.kind === "conversation") return intent.reply;
     return this.executeCommand(context, now, intent.command);
   }
 
   private async executeCommand(context: InboundConversationContext, now: Date, command: CoachingCommand): Promise<string> {
+    if (command.type === "get_rundown") return buildRundown({ tasks: this.tasks, goals: this.goals, reminders: this.reminders, integrations: this.integrations }, { ...context, now }, command);
     if (command.type === "food_search" || command.type === "life_list" || command.type === "life_save" || command.type === "life_remove") {
       return this.life?.execute(context.userId, context.messageId, command) ?? "Your life workspace is not configured in this environment.";
     }
@@ -358,7 +364,7 @@ export class ConversationOrchestrator {
     if (command.type === "forget_memory") {
       return await this.memories?.tryHandleCorrection({ userId: context.userId, messageId: context.messageId, body: `forget ${command.query}`, now }) ?? "Memory is temporarily unavailable.";
     }
-    if (command.type === "connection_status") return this.integrations?.status(context.userId) ?? "Account connections are not configured. Tasks, reminders, and memory are available.";
+    if (command.type === "connection_status") return connectionStatusReply(await this.integrations?.status(context.userId) ?? "Account connections are not configured. Tasks, reminders, and memory are available.");
     if (command.type === "set_checkins") return this.integrations?.setCheckins(context.userId, command.enabled, command.dailyCap) ?? "Check-in settings are temporarily unavailable.";
     if (command.type === "calendar_agenda" || command.type === "calendar_change") {
       if (!this.integrations) return "Calendar tools are not configured yet. You can still plan a schedule with me.";

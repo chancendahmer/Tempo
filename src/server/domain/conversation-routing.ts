@@ -10,3 +10,10 @@ export function isConversationOnlyMessage(message: string): boolean {
 export function isLifeWorkspaceRequest(message: string): boolean {
   return /\b(recipes?|nutrition|shopping list|meal\s*(?:plan|prep)|(?:this|that|favorite|favourite) meal|routines?|food (?:log|diary)|calories|nutrients?|workouts?|grocer(?:y|ies)|notes?|thought inbox|barcode)\b/i.test(message);
 }
+
+/** Shortcuts are for standalone commands, not advice or multi-part conversation. */
+export function needsConversationalRouting(message: string): boolean {
+  return /[?;]/.test(message)
+    || /\b(?:how|why|where|which|whether|should|could)\b/i.test(message)
+    || /\b(?:and|then|also)\s+(?:can|could|would|tell|show|suggest|help|explain|what|why)\b/i.test(message);
+}

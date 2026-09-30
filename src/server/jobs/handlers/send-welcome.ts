@@ -8,7 +8,7 @@ import { JOB_NAMES, SendWelcomeJob } from "../names";
 import { ScheduledActionRepository } from "../scheduled-action-repository";
 
 const WELCOME_MESSAGE =
-  "Hi, it’s Tempo. Tap the contact card to add me and keep my photo with this conversation. When it’s saved, reply DONE. If you get stuck, reply I NEED MORE HELP. Then we’ll finish onboarding in one more step. Msg frequency varies. Reply STOP to opt out or HELP for help.";
+  "Hi, it’s Tempo. You can save me using the contact card, then reply DONE. No card or prefer to do that later? Reply SKIP to get started without it. For contact instructions, reply I NEED MORE HELP. Msg frequency varies. Reply STOP to opt out or HELP for help.";
 
 export async function registerSendWelcomeHandler(boss: PgBoss) {
   await boss.work<SendWelcomeJob>(JOB_NAMES.sendWelcome, { localConcurrency: 2 }, async (jobs) => {

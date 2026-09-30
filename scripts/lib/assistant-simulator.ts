@@ -26,6 +26,7 @@ import { ensureDirectConversation } from "../../src/server/db/repositories/messa
 import { LifeAssistant } from "../../src/server/db/repositories/life-assistant";
 import { mutateWorkspace, readWorkspace } from "../../src/server/db/repositories/workspace-repository";
 import { WebReplySender } from "../../src/server/db/repositories/web-reply-repository";
+import { createSimulatedCalendar } from "./simulated-calendar";
 
 export type TranscriptTurn = {
   input: string; replies: string[]; providerId: string; duplicate: boolean;
@@ -44,12 +45,13 @@ export async function createAssistantSimulator(parser: TaskIntentParser) {
   const database = drizzle(client, { schema }) as unknown as TempoDatabase;
   const transport = new TestSmsTransport("SIMULATED");
   const calendarWrites: Array<{ userId: string; change: CalendarChange }> = [];
+  const calendar = createSimulatedCalendar();
   const pendingCalendar = new Map<string, { userId: string; change: CalendarChange; expiresAt: number }>();
   let userNumber = 100;
   let clock = new Date();
   const integrations: AssistantIntegrations = {
     status: async () => "Calendar: simulated fixture only. Email, Apple Calendar, shopping and health data: not connected.",
-    agenda: async () => JSON.stringify({ events: [{ id: "fixture-dentist", title: "Dentist", start: { dateTime: "2027-01-15T14:00:00-05:00" }, end: { dateTime: "2027-01-15T15:00:00-05:00" }, editable: true }] }),
+    agenda: async (userId, start, end) => calendar.agenda(userId, start, end),
     proposeCalendarChange: async (userId, _messageId, change, _timezone, now) => {
       const token = randomUUID();
       pendingCalendar.set(token, { userId, change, expiresAt: now.getTime() + 900_000 });
@@ -58,6 +60,7 @@ export async function createAssistantSimulator(parser: TaskIntentParser) {
     confirmCalendarChange: async (userId, token, now) => {
       const pending = pendingCalendar.get(token);
       if (!pending || pending.userId !== userId || pending.expiresAt <= now.getTime()) throw new Error("Invalid test proposal");
+      calendar.apply(userId, pending.change);
       calendarWrites.push({ userId, change: pending.change });
       pendingCalendar.delete(token);
       return "Confirmed calendar change in the simulated calendar.";

@@ -29,6 +29,7 @@ export const serverEnvSchema = z.object({
   SENDBLUE_API_SECRET: optionalSecret,
   SENDBLUE_WEBHOOK_SECRET: optionalSecret,
   SENDBLUE_PHONE_NUMBER: optionalSecret,
+  SENDBLUE_ONBOARDING_MODE: z.enum(["shared", "dedicated"]).default("shared"),
   SENDBLUE_API_BASE_URL: z.url().default("https://api.sendblue.com"),
   LINQ_API_KEY: optionalSecret,
   LINQ_WEBHOOK_SECRET: optionalSecret,

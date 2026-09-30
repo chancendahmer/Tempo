@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createAssistantSimulator, type AssistantSimulator } from "../../../scripts/lib/assistant-simulator";
 import { assistantScenarios, scriptedScenarioParser } from "../../../scripts/lib/assistant-scenarios";
+import { tasks, goals, reminders } from "../db/schema";
 
 describe("captured SMS acceptance conversations (scripted model; real repositories)", () => {
   let simulation: AssistantSimulator;
@@ -9,6 +10,38 @@ describe("captured SMS acceptance conversations (scripted model; real repositori
     simulation.setTime(new Date("2027-01-14T15:00:00Z"));
   }, 30_000);
   afterAll(async () => simulation?.close());
+
+  it("returns the same account-scoped rundown through SMS and web without model calls or mutations", async () => {
+    const owner = await simulation.user();
+    const outsider = await simulation.user();
+    await simulation.database.insert(tasks).values([
+      { userId: owner.id, title: "Prepare demo", dueAt: new Date("2027-01-15T18:00:00Z") },
+      { userId: outsider.id, title: "PRIVATE OTHER TASK" },
+    ]);
+    await simulation.database.insert(goals).values([
+      { userId: owner.id, title: "Build confidence" }, { userId: outsider.id, title: "PRIVATE OTHER GOAL" },
+    ]);
+    await simulation.database.insert(reminders).values([
+      { userId: owner.id, text: "Pack lunch", remindAt: new Date("2027-01-15T14:00:00Z"), timezone: "America/New_York", idempotencyKey: `rundown-${owner.id}` },
+      { userId: outsider.id, text: "PRIVATE OTHER REMINDER", remindAt: new Date("2027-01-15T14:00:00Z"), timezone: "America/New_York", idempotencyKey: `rundown-${outsider.id}` },
+      { userId: owner.id, text: "CANCELLED REMINDER", status: "cancelled", remindAt: new Date("2027-01-15T14:00:00Z"), timezone: "America/New_York", idempotencyKey: `cancelled-${owner.id}` },
+    ]);
+    const before = await owner.state();
+    const otherBefore = await outsider.state();
+    const sms = await owner.send("Weekly rundown for 2027-01-11");
+    const web = await owner.send("Weekly rundown for 2027-01-11", { channel: "web" });
+    expect(sms.parserCalled).toBe(false);
+    expect(web.parserCalled).toBe(false);
+    expect(web.replies).toEqual(sms.replies);
+    for (const title of ["Prepare demo", "Build confidence", "Pack lunch", "Dentist"]) expect(sms.replies[0]).toContain(title);
+    expect(sms.replies[0]).not.toMatch(/PRIVATE OTHER|CANCELLED REMINDER/);
+    const after = await owner.state();
+    expect(after.tasks).toEqual(before.tasks);
+    expect(after.reminders).toEqual(before.reminders);
+    expect(after.calendarWrites).toEqual([]);
+    expect(await outsider.state()).toEqual(otherBefore);
+    expect((await owner.send("Weekly rundown for 2027-01-11", { providerId: sms.providerId })).duplicate).toBe(true);
+  });
 
   it("stores dessert preferences, forgets only yogurt, and declines secrets", async () => {
     const user = await simulation.user();
