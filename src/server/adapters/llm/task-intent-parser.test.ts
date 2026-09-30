@@ -18,13 +18,18 @@ describe("current-message routing", () => {
   beforeEach(() => { create.mockReset(); settings.webSearch = false; });
 
   it.each([
-    [true, "07:30", "Get dressed", true],
-    [false, "07:30", "Get dressed", false],
-    [true, "08:00", "Get dressed", false],
-    [true, "07:30", "Buy groceries", false],
-  ])("grounds routine start-time answers in the linked request (%s, %s, %s)", async (linked, time, lastStep, allowed) => {
-    const message = "7:30am please.";
-    const data = { kind: "routine", title: "Morning routine", period: "morning", time, steps: ["Drink water", "Brush my teeth", lastStep].map((title, i) => ({ id: `00000000-0000-4000-8000-00000000008${i}`, title, minutes: 2, completedOn: null })) };
+    [true, "07:30", "Get dressed", "7:30am please.", true],
+    [true, "07:30", "Get dressed", "7:30 AM works.", true],
+    [true, "07:30", "Get dressed", "7:30 AM works for me.", true],
+    [true, "07:30", "Get dressed", "7:30 AM is good.", true],
+    [true, "07:30", "Get dressed", "7:30 AM sounds fine!", true],
+    [false, "07:30", "Get dressed", "7:30 AM works.", false],
+    [true, "08:00", "Get dressed", "7:30 AM works.", false],
+    [true, "07:30", "Buy groceries", "7:30 AM works.", false],
+    [true, "07:30", "Get dressed", "7:30 AM doesn't work.", false],
+    [true, "07:30", "Get dressed", "7:30 AM works, but don't save it.", false],
+  ])("grounds routine start-time answers in the linked request (%s, %s, %s, %s)", async (linked, time, lastStep, message, allowed) => {
+    const data = { kind: "routine", title: "Easy start", period: "morning", time, steps: ["Drink water", "Brush my teeth", lastStep].map((title, i) => ({ id: `00000000-0000-4000-8000-00000000008${i}`, title, minutes: 2, completedOn: null })) };
     create.mockResolvedValueOnce({ content: [{ type: "tool_use", id: "routine", name: "life_save", input: { sourceQuote: message, data } }] })
       .mockResolvedValueOnce({ content: [{ type: "text", text: "ACK_ONLY" }] });
     const execute = vi.fn(async () => "Morning routine saved.");

@@ -494,7 +494,7 @@ function hasLinkedActionReference(command: CoachingCommand, input: Parameters<Ta
   const explicitSave = /\b(?:save|keep|put|add|plan|log|record|remember|make)\b/i.test(text);
   if (command.type === "life_save" && command.data.kind === "routine" && !command.id) {
     const answer = normalizeSourceQuote(text);
-    const timeAnswer = /^(?:at\s+)?\d{1,2}(?::\d{2})?\s*(?:a\.?m\.?|p\.?m\.?)?(?:\s+please)?[.!]?$/.test(answer);
+    const timeAnswer = /^(?:at\s+)?\d{1,2}(?::\d{2})?\s*(?:a\.?m\.?|p\.?m\.?)?(?:\s+(?:please|works(?:\s+for me)?|is (?:good|fine|perfect)|sounds (?:good|fine)))?[.!]?$/.test(answer);
     const asksRoutineTime = /\?/.test(reply.content) && /\b(?:when|what time)\b/i.test(reply.content) && /\broutine\b/i.test(reply.content);
     const requestedRoutine = /\broutine\b/i.test(request.content) && /\b(?:make|save|create|add|want|put|set)\b/i.test(request.content);
     if (timeAnswer && asksRoutineTime && requestedRoutine) {
@@ -503,9 +503,10 @@ function hasLinkedActionReference(command: CoachingCommand, input: Parameters<Ta
       const valid = minute < 60 && (meridiem ? hour >= 1 && hour <= 12 : hour <= 23 && Boolean(clock?.[2]));
       const resolvedHour = meridiem ? hour % 12 + (meridiem === "p" ? 12 : 0) : hour;
       const expectedTime = `${String(resolvedHour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
-      return valid && command.data.time === expectedTime && hasCurrentActionEvidence(command, request.content)
+      return valid && command.data.time === expectedTime
         && command.data.steps.length > 0 && command.data.steps.every(step => hasCurrentActionEvidence({ type: "create_task", title: step.title }, request.content));
     }
+    if (asksRoutineTime && requestedRoutine) return false;
   }
   if (command.type === "create_task") {
     // The current choice authorizes one pending subject, not an old request.

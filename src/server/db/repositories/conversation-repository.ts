@@ -89,7 +89,12 @@ export class DrizzleConversationRepository implements ConversationRepository {
           conversationId: conversationMessages.conversationId,
           body: conversationMessages.body,
         });
-      if (!claimed) return null;
+      if (!claimed) {
+        const [existing] = await transaction.select({ status: conversationMessages.status })
+          .from(conversationMessages).where(and(eq(conversationMessages.id, messageId), eq(conversationMessages.direction, "inbound"))).limit(1);
+        if (existing?.status === "processing") throw new Error("Inbound message is still leased by another attempt; retry after the lease expires");
+        return null;
+      }
 
       const [user] = await transaction
         .select({

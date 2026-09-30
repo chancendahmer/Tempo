@@ -86,3 +86,15 @@ Testing with the demo account allowlisted; this is not public OAuth launch.
 Wake & Wind Down is a foreground screen session; scheduled native alarms,
 background reliability, hardware brightness and Health Connect remain unsupported.
 Account-isolation suites are automated checks, not twenty-person load validation.
+
+## Iteration 3: live replay after PR 11
+
+Both Railway services ran PR 11. A fully specified Easy start routine saved at 07:30 with Drink water, Brush my teeth, Get dressed in order. Starting its first step opened a fullscreen countdown; Done persisted 1 of 3 steps. The short answer '7:30 AM works' still failed grounding and remains a failed regression until replayed after the next fix.
+
+A fresh SMS two-minute reminder arrived in TextFree at 12:25 PM. The dashboard showed sent, and a scoped read confirmed a persisted provider handle, sent timestamp and no last error. The earlier ambiguous failed reservation was not resent.
+
+Typed barcode 5449000000996 returned Coca-Cola Original through Open Food Facts. Camera capture remains untested. Dentist completion was acknowledged and Today counted one completed task.
+
+A weekly rundown submitted during rollout became stranded processing. A candidate recovery fix retries busy claims instead of acknowledging them, extends the queue execution budget and updates existing queue settings. Recovery may take about 10–11 minutes; old queued jobs retain their original budget and already stranded actions need scoped recovery. This is a release failure, not a successful agenda test.
+
+The next candidate passed npm run check: 384 tests across 62 files, lint, typecheck and production/operations builds. Its natural-time and restart fixes still require live replay.

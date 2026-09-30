@@ -76,12 +76,18 @@ export async function runWorker() {
   });
   await boss.createQueue(JOB_NAMES.processInbound, {
     policy: "key_strict_fifo",
-    retryLimit: 2,
-    retryDelay: 15,
-    retryBackoff: true,
-    expireInSeconds: 120,
+    retryLimit: 6,
+    retryDelay: 60,
+    retryBackoff: false,
+    expireInSeconds: 600,
     deleteAfterSeconds: 604_800,
     notify: true,
+  });
+  // createQueue preserves an existing queue's options. Apply the recovery budget
+  // on upgrades too. Six model steps with one retry each can exceed two minutes;
+  // expiry must also outlast the five-minute persisted inbound claim lease.
+  await boss.updateQueue(JOB_NAMES.processInbound, {
+    retryLimit: 6, retryDelay: 60, retryBackoff: false, expireInSeconds: 600,
   });
   await boss.createQueue(JOB_NAMES.deliverReminder, {
     policy: "standard",
