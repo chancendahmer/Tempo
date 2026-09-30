@@ -445,6 +445,7 @@ export class ConversationOrchestrator {
     const result = await executeTaskCommand(this.tasks, normalizeTaskDeadline(intent.command, context.body, now, context.timezone), {
       userId: context.userId,
       sourceMessageId: context.messageId,
+      timezone: context.timezone,
       now,
     });
     if (result.kind === "executed" && result.task && (intent.command.type === "start_task" || intent.command.type === "complete_task")) {

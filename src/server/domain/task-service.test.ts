@@ -28,6 +28,19 @@ function repository(tasks: TaskRecord[]): TaskRepository {
 const context = { userId: "user-1", sourceMessageId: "message-1", now: new Date("2026-08-18T12:00:00Z") };
 
 describe("task service", () => {
+  it("lists local deadlines, effort and overdue status without writing", async () => {
+    const store = repository([
+      { ...task("1", "Recycling"), dueAt: new Date("2026-08-18T11:00:00Z"), estimatedMinutes: 5 },
+      { ...task("2", "Walk"), dueAt: new Date("2026-08-22T13:00:00Z"), estimatedMinutes: 10 },
+    ]);
+    const result = await executeTaskCommand(store, { type: "list_tasks", status: "open" }, { ...context, timezone: "America/New_York" });
+    expect(result.reply).toContain("7:00 AM");
+    expect(result.reply).toContain("5 min");
+    expect(result.reply.match(/overdue/g)).toHaveLength(1);
+    expect(result.reply).toContain("9:00 AM");
+    expect(store.mutate).not.toHaveBeenCalled();
+    expect(store.create).not.toHaveBeenCalled();
+  });
   it("creates a task with source context", async () => {
     const store = repository([]);
     const result = await executeTaskCommand(

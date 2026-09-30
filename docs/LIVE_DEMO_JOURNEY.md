@@ -168,3 +168,9 @@ A further no-edit advice request correctly used the current task titles but aske
 A separate no-change question about automatic texts incorrectly denied background coaching despite the verified check-in. The candidate reads the account's opt-in, scoped delivery permission, pause state, daily cap and cooldown through connection status. It explains conditional background opportunities without promising continuous monitoring or changing consent. Provider-free tests cover enabled demo delivery, disabled delivery for another account and opt-out. The recovery regression also now asserts one task/event, one captured provider acceptance, one persisted reply and completed inbound/action state after simulated lease expiry; it does not prove real pg-boss restart recovery or carrier delivery.
 
 The final combined follow-up candidate passed npm run check: 447 tests across 68 files, lint, typecheck and production/operations builds. Live replay of the advice and outreach explanations remains required after deployment.
+
+## Iteration 9: live PR 17 capability reply and task-list data
+
+Both services deployed PR 17. The real SMS automatic-contact replay at 6:04 PM correctly reported that this account already had proactive check-ins enabled, one daily message and a two-hour cooldown, with consent/quiet/calendar gates and no guaranteed trigger. It explicitly stated that nothing changed. A separate advice replay still reported no deadlines shown. Inspection found that list_tasks returned titles only, despite the repository having due dates and durations. The next repair includes local deadlines, effort, status, overdue markers and an incomplete-list notice in that tool's result. A nearest service test verifies local time, exactly one overdue marker and no writes. Deployed advice replay remains required.
+
+The complete task-list repair passed npm run check: 448 tests across 68 files, lint, typecheck and production/operations builds.
