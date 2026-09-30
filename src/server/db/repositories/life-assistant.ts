@@ -24,7 +24,7 @@ export class LifeAssistant {
       const data = command.data;
       const details = data.kind === "recipe" ? `Serves ${data.servings}.`
         : data.kind === "routine" ? `${data.time}, ${data.steps.length} steps.`
-        : data.kind === "food" ? `${data.meal}, ${data.date}; ${data.calories ?? "unknown"} calories, ${data.protein ?? "unknown"}g protein.`
+        : data.kind === "food" ? `${data.meal}, ${data.date}; ${data.calories === null ? "calories unknown" : `${data.calories} calories`}, ${data.protein === null ? "protein unknown" : `${data.protein}g protein`}.`
         : data.kind === "meal" ? `${data.meal}, ${data.date}.`
         : data.kind === "workout" ? `${data.minutes} minutes, ${data.date}.` : "";
       return `${command.id ? "Updated" : "Saved"}: ${data.title}.${details ? ` ${details}` : ""}`;

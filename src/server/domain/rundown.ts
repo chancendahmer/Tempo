@@ -4,13 +4,13 @@ import type { TaskRepository } from "./task-service";
 import type { GoalRepository } from "./goal-service";
 import { localDateTimeToUtc, nextRecurringOccurrence, formatReminderTime, type ReminderRepository } from "./reminder-service";
 
-export type RundownRequest = { startDate: string; days: 1 | 7 };
+export type RundownRequest = { startDate: string; days: number };
 export function isRundownQuestion(message: string): boolean {
   return /\b(rundown|overview|summary|agenda)\b/i.test(message)
     || (/\b(show|list|what|give|tell)\b/i.test(message)
       && /\b(today|tomorrow|day|week|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/i.test(message));
 }
-const requestSchema = z.object({ startDate: z.iso.date(), days: z.union([z.literal(1), z.literal(7)]) });
+const requestSchema = z.object({ startDate: z.iso.date(), days: z.number().int().min(1).max(7) });
 const calendarSchema = z.object({
   events: z.array(z.object({
     title: z.string(),
@@ -44,6 +44,17 @@ export function rundownRange(request: RundownRequest, timezone: string) {
 /** A deliberately narrow shortcut also works when the model is unavailable. */
 export function parseRundownRequest(message: string, now: Date, timezone: string): RundownRequest | null {
   const text = message.trim().replace(/[?!.]+$/, "");
+  // Only consume a complete read request. Mixed writes continue to the model.
+  const remaining = text.match(/^(?:(?:please )?(?:give|show|send) me (?:(?:my|a|the) )?(?:rundown|overview|summary|agenda) for |what do i have )(?:(tomorrow) and (?:for )?)?(?:the )?rest of (?:this|the) week(?:[?!.]?\s+include (?:my )?(?:tasks|goals|reminders|calendar|plans|and|,|\s)+)?$/i);
+  if (remaining) {
+    const today = localDate(now, timezone);
+    const offset = remaining[1] ? 1 : 0;
+    const weekday = (new Date(`${today}T12:00:00Z`).getUTCDay() + 6) % 7;
+    // On Sunday, "tomorrow and the rest of this week" spans two weeks;
+    // leave the ambiguity for a clarification rather than silently rolling it.
+    if (weekday + offset > 6) return null;
+    return { startDate: shiftDate(today, offset), days: 7 - weekday - offset };
+  }
   const match = text.match(/^(?:(?:please )?(?:give|show|send) me )?(?:(?:my|a|the) )?(?:(daily|weekly) )?(?:rundown|overview|summary|agenda)(?: (?:for|of))?(?: (today|tomorrow|this week|next week|\d{4}-\d{2}-\d{2}))?$/i)
     ?? text.match(/^what(?:'s| is| does) my (day|week)(?: look like)?$/i);
   if (!match) return null;
@@ -76,7 +87,7 @@ export async function buildRundown(
     repositories.integrations ? repositories.integrations.agenda(context.userId, start.toISOString(), end.toISOString()) : Promise.reject(new Error("unavailable")),
   ]);
   const [taskResult, goalResult, reminderResult, calendarResult] = results;
-  const sections: string[] = [`${request.days === 1 ? "Daily" : "Weekly"} rundown · ${request.startDate}${request.days === 7 ? ` – ${shiftDate(request.startDate, 6)}` : ""} (${context.timezone})`];
+  const sections: string[] = [`${request.days === 1 ? "Daily" : request.days === 7 ? "Weekly" : "Upcoming"} rundown · ${request.startDate}${request.days > 1 ? ` – ${shiftDate(request.startDate, request.days - 1)}` : ""} (${context.timezone})`];
   const line = (text: string) => text.replace(/[\r\n]+/g, " ").slice(0, 240);
   const section = (title: string, items: string[], empty = "None.") => {
     sections.push(`${title}\n${items.length ? items.slice(0, 12).map(item => `• ${item}`).join("\n") : empty}${items.length > 12 ? `\n+ ${items.length - 12} more; ask for a shorter date range or check the app.` : ""}`);

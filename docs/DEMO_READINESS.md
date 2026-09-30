@@ -4,6 +4,13 @@ Status: a locally validated demo candidate, not a verified consumer release.
 Live model quality, real SMS delivery, and the founder canary remain release
 gates. Passing mocked tests does not prove those gates passed.
 
+September 30 live checkpoint: [LIVE_DEMO_JOURNEY.md](LIVE_DEMO_JOURNEY.md)
+records a real phone-verified demo account, connected Google Calendar and
+confirmed event creation/rescheduling with dashboard readback. The independent
+mediated novice review remains below five because routine creation and a task
+clarification failed. Candidate repairs passed 363 tests and the full check;
+live replay and scheduled SMS delivery remain required.
+
 Latest checkpoint: [INDIRECT_DEMO.md](INDIRECT_DEMO.md) records two real-model
 25-turn indirect-language runs and a real TextFree signup diagnosis. Anthropic
 credits now work. The second run passed all state checks, with remaining reply

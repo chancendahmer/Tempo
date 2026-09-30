@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { ZodError } from "zod";
 import type { MessageParam, Tool, ToolUnion, MessageCreateParamsNonStreaming } from "@anthropic-ai/sdk/resources/messages";
 import { requireEnv } from "../../config/env";
 import { TaskCommand, TaskSummary, taskCommandSchema } from "../../domain/task-commands";
@@ -353,6 +354,8 @@ export class AnthropicTaskIntentParser implements TaskIntentParser {
         "Be warm, direct, curious, and practical. Match the user's tone and energy. Answer their question before offering coaching; don't turn every exchange into therapy. Avoid repeated pep talks, stock empathy, excessive praise, or calling everything a tiny step. For a correction, acknowledge it briefly and fix the specific detail. Ask one focused question only when needed to identify the record or missing required information. Don't ask permission again for an ordinary edit the user already requested.",
         "The workspace tabs display account data; you can change records with tools, not redesign pages, navigate the user's screen, or control hardware. Tasks are daily/weekly actions; goals are longer-term outcomes. Recipes are reusable favorites, meal plans are dated intentions, food logs record what was actually eaten, and notes are the thought inbox. Wake & Wind Down supports manual light/sound sessions while the browser stays open; you cannot set a scheduled wake alarm, change hardware brightness, or control a physical light. A text reminder is a different capability; explain the distinction and ask before substituting it for an alarm.",
         "Use life_list before referring to or editing saved routines, recipes, meals, food logs, workouts, groceries or notes. Resolve pronouns from recent conversation, then verify the record through the current lookup. If multiple records fit, ask which one. For life_save edits preserve all unrelated fields, routine step IDs and completion dates. Use the user's account timezone. Save recipes and logs as structured life items, not generic memory. Never invent food nutrients; use null for unknown values. A suggested meal is not a saved meal or an eaten food log.",
+        "A routine requires kind routine, title, period morning or evening, time HH:mm, and steps with UUID id, title, integer minutes from 1 to 180, and completedOn null. Generate new step UUIDs yourself, never ask the user for technical IDs. If the user hasn't given a start time, ask what time they want the routine to start; do not guess a clock time. For a requested simple routine you may suggest reasonable step durations, clearly described as adjustable estimates. Missing user choices need a concise question, not an invalid tool call or a request to repeat the entire routine.",
+        "When logging food, follow an explicit fallback such as leave calories unknown if you lack reliable data: save the food with null unknown nutrient fields immediately when its title, date and meal are known. Do not ask the user to choose again between unknown values and estimates they already declined. Do not substitute generic nutrition estimates or claim a USDA/database lookup unless an available tool actually returned that evidence. An Open Food Facts search miss does not prevent saving a manual food entry with unknown nutrients.",
         "Never use guilt, shame, or moralizing.",
         "Sound like a thoughtful person texting: respond directly, use natural contractions, and offer one manageable next step when useful. Do not force every exchange into a task or append a menu to normal conversation. Use short choices when they make a decision easier; ask at most one question at a time.",
       ].join("\n"),
@@ -361,6 +364,7 @@ export class AnthropicTaskIntentParser implements TaskIntentParser {
       tool_choice: conversationOnly ? { type: "none" } : { type: "auto", disable_parallel_tool_use: true },
     } satisfies MessageCreateParamsNonStreaming;
     let actionResult: string | undefined;
+    let validationRepairUsed = false;
     const verifiedReports: string[] = [];
     const withVerifiedReports = (reply: string): string => [reply, ...verifiedReports.filter(report => !reply.includes(report))].filter(Boolean).join("\n\n");
     let searchFallbackUsed = false;
@@ -402,7 +406,16 @@ export class AnthropicTaskIntentParser implements TaskIntentParser {
       }
       let parsed: TaskIntentResult;
       try { parsed = parseTaskIntentResponse(blocks); }
-      catch { return { kind: "conversation", reply: actionResult ?? "I couldn’t validate that action. Could you give me its details again?" }; }
+      catch (error) {
+        if (!validationRepairUsed && error instanceof ZodError && tool.id && !actionResult) {
+          validationRepairUsed = true;
+          messages.push({ role: "assistant", content: response.content });
+          messages.push({ role: "user", content: [{ type: "tool_result", tool_use_id: tool.id, is_error: true,
+            content: `No action was performed. Tool arguments failed schema validation (${error.issues.map(issue => `${issue.path.join(".")}: ${issue.code}`).join("; ")}). Follow the tool schema exactly. Repair formatting or generated IDs only; do not invent user choices. If a routine start time or other required user detail is missing, ask one specific question using the details already given.` }] });
+          continue;
+        }
+        return { kind: "conversation", reply: actionResult ?? "I couldn’t validate that action. Could you give me its details again?" };
+      }
       if (parsed.kind === "command" && !hasCurrentActionEvidence(parsed.command, input.message)
         && !hasLinkedActionReference(parsed.command, input)) {
         return { kind: "conversation", reply: actionResult ?? "I couldn’t match that action to your latest message. What would you like me to do?" };
@@ -469,6 +482,14 @@ function hasLinkedActionReference(command: CoachingCommand, input: Parameters<Ta
   const text = input.message;
   const reference = /\b(?:that|this|it|those)\b/i.test(text);
   const explicitSave = /\b(?:save|keep|put|add|plan|log|record|remember|make)\b/i.test(text);
+  if (command.type === "create_task") {
+    // The current choice authorizes one pending subject, not an old request.
+    const taskChoice = /^(?:(?:just|only)\s+(?:a\s+)?(?:task|to-?do)|(?:make|keep|save|add|put)\s+(?:it|that|this)\s+(?:as\s+|on\s+)?(?:a\s+|my\s+)?(?:task|to-?do)(?:\s+list)?)(?:\b|[.,!])/i.test(text.trim());
+    const reminderClarification = /\?/.test(reply.content) && /\b(?:when|what time)\b/i.test(reply.content) && /\bremind/i.test(reply.content);
+    if (taskChoice && reminderClarification && !text.includes("?") && !/\b(?:don['’]t|do not|never|cancel|forget)\b/i.test(text)) {
+      return hasCurrentActionEvidence(command, request.content);
+    }
+  }
   if (reference && explicitSave && ["life_save", "create_task", "create_goal", "remember_memory"].includes(command.type)) {
     return hasCurrentActionEvidence(command, reply.content);
   }

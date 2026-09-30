@@ -17,6 +17,37 @@ describe("current-message routing", () => {
   };
   beforeEach(() => { create.mockReset(); settings.webSearch = false; });
 
+  it("recovers malformed routine arguments by asking only for the missing user choice", async () => {
+    const message = "Mornings are chaotic. Can you make me a simple morning routine: drink water, brush my teeth, and get dressed?";
+    create.mockResolvedValueOnce({ content: [{ type: "tool_use", id: "routine", name: "life_save", input: { sourceQuote: message, data: { kind: "routine", title: "Morning routine", period: "morning", steps: [] } } }] })
+      .mockResolvedValueOnce({ content: [{ type: "text", text: "What time would you like your water, teeth and getting dressed routine to start?" }] });
+    const execute = vi.fn();
+    const result = await new AnthropicTaskIntentParser().parse({ ...input, message, execute });
+    expect(execute).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ reply: expect.stringContaining("What time") });
+    expect(JSON.stringify(create.mock.calls[1][0].messages)).toContain("No action was performed");
+  });
+
+  it("repairs a generated routine UUID without loosening the schema or repeating the mutation", async () => {
+    const message = "Save my morning routine at 8 AM: water for two minutes.";
+    const data = { kind: "routine", title: "Morning routine", period: "morning", time: "08:00", steps: [{ id: "water", title: "Drink water", minutes: 2, completedOn: null }] };
+    create.mockResolvedValueOnce({ content: [{ type: "tool_use", id: "bad", name: "life_save", input: { sourceQuote: message, data } }] })
+      .mockResolvedValueOnce({ content: [{ type: "tool_use", id: "good", name: "life_save", input: { sourceQuote: message, data: { ...data, steps: [{ ...data.steps[0], id: "00000000-0000-4000-8000-000000000081" }] } } }] })
+      .mockResolvedValueOnce({ content: [{ type: "text", text: "ACK_ONLY" }] });
+    const execute = vi.fn(async () => "Morning routine saved.");
+    expect(await new AnthropicTaskIntentParser().parse({ ...input, message, execute })).toEqual({ kind: "conversation", reply: "Morning routine saved." });
+    expect(execute).toHaveBeenCalledTimes(1);
+  });
+
+  it("stops after one invalid-argument repair attempt without any mutation", async () => {
+    const message = "Save my morning routine";
+    create.mockResolvedValue({ content: [{ type: "tool_use", id: "bad", name: "life_save", input: { sourceQuote: message, data: { kind: "routine" } } }] });
+    const execute = vi.fn();
+    await new AnthropicTaskIntentParser().parse({ ...input, message, execute });
+    expect(execute).not.toHaveBeenCalled();
+    expect(create).toHaveBeenCalledTimes(2);
+  });
+
   it("keeps the rundown history limit while completing a compound write", async () => {
     const message = "Show my week and add a task to buy groceries";
     create.mockResolvedValueOnce({ content: [{ type: "tool_use", id: "r", name: "get_rundown", input: { sourceQuote: message, startDate: "2026-08-31", days: 7 } }] })
@@ -67,6 +98,25 @@ describe("current-message routing", () => {
       { id: "clarify", role: "assistant", replyToMessageId: linked ? "request" : "unrelated", content: "What time should I remind you?", createdAt: input.now },
     ] });
     expect(execute).toHaveBeenCalledTimes(linked ? 1 : 0);
+  });
+
+  it.each([
+    ["Just a task, no reminder time.", true, "Call the dentist", true],
+    ["Make it a task instead.", true, "Call the dentist", true],
+    ["Just a task, no reminder time.", false, "Call the dentist", false],
+    ["Just a task, no reminder time.", true, "Buy groceries", false],
+    ["What is a task?", true, "Call the dentist", false],
+    ["Just a task?", true, "Call the dentist", false],
+    ["Just a task? Don't save it yet.", true, "Call the dentist", false],
+  ])("grounds a current task clarification without replay (%s, linked=%s, title=%s)", async (message, linked, title, allowed) => {
+    create.mockResolvedValueOnce({ content: [{ type: "tool_use", id: "task", name: "create_task", input: { sourceQuote: message, title } }] })
+      .mockResolvedValueOnce({ content: [{ type: "text", text: "ACK_ONLY" }] });
+    const execute = vi.fn(async () => "Added: Call the dentist.");
+    await new AnthropicTaskIntentParser().parse({ ...input, message, execute, history: [
+      { id: "request", role: "user", content: "I need to call the dentist tomorrow. Can you help me remember?", createdAt: input.now },
+      { id: "clarify", role: "assistant", replyToMessageId: linked ? "request" : "other", content: "What time tomorrow should I remind you?", createdAt: input.now },
+    ] });
+    expect(execute).toHaveBeenCalledTimes(allowed ? 1 : 0);
   });
 
   it("uses a linked meal suggestion only when the current message explicitly saves it", async () => {
