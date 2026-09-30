@@ -34,6 +34,7 @@ import { DrizzleSchedulingRepository } from "./scheduling-repository";
 import { DrizzleOutboundMessageRepository } from "./outbound-message-repository";
 import { DrizzleReminderRepository } from "./reminder-repository";
 import { DrizzleTaskRepository } from "./task-repository";
+import type { AssistantIntegrations } from "../../domain/assistant-commands";
 
 describe("inbound conversation orchestration", () => {
   let client: PGlite;
@@ -69,7 +70,7 @@ describe("inbound conversation orchestration", () => {
     return { ...user, conversationId: identity.conversationId };
   }
 
-  function orchestrator(transport: TestSmsTransport, parser?: TaskIntentParser) {
+  function orchestrator(transport: TestSmsTransport, parser?: TaskIntentParser, integrations?: AssistantIntegrations) {
     return new ConversationOrchestrator(
       new DrizzleConversationRepository(database),
       new DrizzleTaskRepository(database),
@@ -83,8 +84,34 @@ describe("inbound conversation orchestration", () => {
       undefined,
       new DrizzleConversationHistoryRepository(database),
       new DrizzleReminderRepository(database),
+      integrations,
     );
   }
+
+  it.each([true, false])("finishes preferences with persisted calendar connection=%s", async connected => {
+    const user = await consentedUser(connected ? "+12025550971" : "+12025550972", "introduction");
+    await database.update(users).set({ onboardingState: "coaching_style", timezone: "America/Chicago", quietHoursStart: "22:00:00", quietHoursEnd: "07:00:00" }).where(eq(users.id, user.id));
+    const hasConnectedCalendar = vi.fn(async () => connected);
+    const integrations: AssistantIntegrations = { hasConnectedCalendar, status: vi.fn(), agenda: vi.fn(), proposeCalendarChange: vi.fn(), confirmCalendarChange: vi.fn(), setCheckins: vi.fn() };
+    const [message] = await database.insert(conversationMessages).values({ userId: user.id, conversationId: user.conversationId, direction: "inbound", kind: "user", status: "received", body: "gentle" }).returning();
+    const transport = new TestSmsTransport(`PREFERENCES${connected}`);
+    await orchestrator(transport, undefined, integrations).process(message.id);
+    const [updated] = await database.select().from(users).where(eq(users.id, user.id));
+    expect(updated).toMatchObject({ onboardingState: connected ? "complete" : "calendar", coachingTone: "gentle", timezone: "America/Chicago", quietHoursStart: "22:00:00", quietHoursEnd: "07:00:00" });
+    expect(hasConnectedCalendar).toHaveBeenCalledExactlyOnceWith(user.id);
+    expect(transport.sent[0].body).toContain(connected ? "already connected" : "connect Google Calendar");
+  });
+
+  it("recovers a connected account waiting at calendar without consuming its new task", async () => {
+    const user = await consentedUser("+12025550973", "introduction");
+    await database.update(users).set({ onboardingState: "calendar" }).where(eq(users.id, user.id));
+    const integrations: AssistantIntegrations = { hasConnectedCalendar: vi.fn(async () => true), status: vi.fn(), agenda: vi.fn(), proposeCalendarChange: vi.fn(), confirmCalendarChange: vi.fn(), setCheckins: vi.fn() };
+    const [message] = await database.insert(conversationMessages).values({ userId: user.id, conversationId: user.conversationId, direction: "inbound", kind: "user", status: "received", body: "Add task buy oranges" }).returning();
+    await orchestrator(new TestSmsTransport("RECOVER"), undefined, integrations).process(message.id);
+    const [updated] = await database.select().from(users).where(eq(users.id, user.id));
+    expect(updated.onboardingState).toBe("complete");
+    expect(await database.select().from(tasks).where(eq(tasks.userId, user.id))).toEqual([expect.objectContaining({ title: "buy oranges" })]);
+  });
 
   it("routes advice and compound requests through the model without shortcut task creation", async () => {
     const user = await consentedUser("+12025550981", "complete");

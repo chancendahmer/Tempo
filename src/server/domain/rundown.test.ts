@@ -6,6 +6,17 @@ const context = { userId: "owner", timezone: "America/New_York", now: new Date("
 const request = { startDate: "2027-03-14", days: 1 as const };
 
 describe("account rundown", () => {
+  it("ends remaining-week requests on the local Sunday, including tomorrow variants", () => {
+    const wednesday = new Date("2026-09-30T16:00:00Z");
+    expect(parseRundownRequest("Show me my rundown for rest of this week", wednesday, context.timezone)).toEqual({ startDate: "2026-09-30", days: 5 });
+    expect(parseRundownRequest("What do I have tomorrow and for the rest of this week? Include tasks, goals and calendar plans.", wednesday, context.timezone)).toEqual({ startDate: "2026-10-01", days: 4 });
+    const sundayInNewYork = new Date("2026-10-05T02:00:00Z");
+    expect(parseRundownRequest("What do I have rest of this week?", sundayInNewYork, context.timezone)).toEqual({ startDate: "2026-10-04", days: 1 });
+    expect(parseRundownRequest("What do I have tomorrow and the rest of this week?", sundayInNewYork, context.timezone)).toBeNull();
+    expect(parseRundownRequest("What do I have rest of this week?", sundayInNewYork, "UTC")).toEqual({ startDate: "2026-10-05", days: 7 });
+    expect(parseRundownRequest("Show me my rundown for rest of this week and delete my tasks", wednesday, context.timezone)).toBeNull();
+    expect(() => rundownRange({ startDate: "2026-10-01", days: 8 }, context.timezone)).toThrow();
+  });
   it("uses local midnights across daylight saving changes", () => {
     expect(rundownRange(request, context.timezone)).toEqual({ start: new Date("2027-03-14T05:00:00Z"), end: new Date("2027-03-15T04:00:00Z") });
     const autumn = rundownRange({ startDate: "2027-11-07", days: 1 }, context.timezone);

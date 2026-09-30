@@ -36,6 +36,10 @@ function providerCode(error: unknown) {
 export class CalendarAssistantIntegrations implements AssistantIntegrations {
   constructor(private readonly database: TempoDatabase = getDatabase()) {}
 
+  async hasConnectedCalendar(userId: string): Promise<boolean> {
+    return Boolean(await new DrizzleCalendarSyncRepository(this.database).getActiveConnection(userId));
+  }
+
   private async calendar(userId: string) {
     const env = requireEnv(["FIELD_ENCRYPTION_KEY", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GOOGLE_REDIRECT_URI"]);
     const connection = await new DrizzleCalendarSyncRepository(this.database).getActiveConnection(userId);

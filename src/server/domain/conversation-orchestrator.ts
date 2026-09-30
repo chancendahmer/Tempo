@@ -266,7 +266,14 @@ export class ConversationOrchestrator {
       return result.reply;
     }
 
-    const onboarding = handleOnboardingMessage(context.onboardingState, context.body);
+    // OAuth may finish before conversational preferences. Check persisted account
+    // state rather than interpreting a user's claim or a model-generated status.
+    const calendarAlreadyConnected = (context.onboardingState === "coaching_style" || context.onboardingState === "calendar")
+      && await this.integrations?.hasConnectedCalendar?.(context.userId) === true;
+    if (context.onboardingState === "calendar" && calendarAlreadyConnected) {
+      await this.conversations.applyOnboarding({ userId: context.userId, nextState: "complete" });
+    }
+    const onboarding = handleOnboardingMessage(calendarAlreadyConnected && context.onboardingState === "calendar" ? "complete" : context.onboardingState, context.body);
     if (onboarding.handled) {
       if (onboarding.createTaskTitle) {
         await executeTaskCommand(
@@ -277,9 +284,12 @@ export class ConversationOrchestrator {
       }
       await this.conversations.applyOnboarding({
         userId: context.userId,
-        nextState: onboarding.nextState,
+        nextState: onboarding.nextState === "calendar" && calendarAlreadyConnected ? "complete" : onboarding.nextState,
         updates: onboarding.updates,
       });
+      if (onboarding.nextState === "calendar" && calendarAlreadyConnected) {
+        return "Your coaching preference is saved. Google Calendar is already connected, and setup is complete. Ask me about your plans or tell me what you’d like to add. Text STOP to opt out.";
+      }
       if (onboarding.nextState === "calendar" && this.secureLinks) {
         return `${onboarding.reply}\n${this.secureLinks.calendarConnect(context.userId)}`;
       }
