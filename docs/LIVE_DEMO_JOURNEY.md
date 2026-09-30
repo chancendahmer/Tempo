@@ -79,9 +79,9 @@ production build also passed for that UI edit. Post-deployment replay is still r
 
 ## Remaining release gates (current)
 
-Reminder status consistency, proactive coaching delivery, worker recovery,
-and the repaired novice journey remain unverified. Real scheduled SMS receipt
-was observed as described above. Google OAuth is External
+Fresh reminder status consistency and proactive coaching delivery were observed
+in later iterations below. Automatic restart recovery and the complete repaired
+novice journey still require live verification. Google OAuth is External
 Testing with the demo account allowlisted; this is not public OAuth launch.
 Wake & Wind Down is a foreground screen session; scheduled native alarms,
 background reliability, hardware brightness and Health Connect remain unsupported.
@@ -118,3 +118,17 @@ A 20-account PGlite integration test concurrently commits distinct tasks and che
 PROACTIVE_CANARY_USER_IDS defaults empty and restricts controlled delivery to configured account UUIDs. Evaluation, delivery, capability replies and queued follow-ups use the same operator permission. Opt-in, consent, quiet hours, calendar availability, cooldown and caps remain enforced. No live canary setting or proactive receipt has been verified yet.
 
 The complete next-candidate check passed 425 tests across 66 files, lint, typecheck and production/operations builds. A live recipe edit changed servings from two to four while preserving all six ingredient lines and five preparation instructions in the Meal planner readback.
+
+## Iteration 5: live PR 13 and conversation interruptions
+
+Both services deployed PR 13. Fresh live edits displayed Fold demo laundry at 4:45 PM and Put out demo recycling at 5:00 PM with the requested durations. A fresh weekly rundown covered through Sunday, included the connected Google Calendar event at 4 PM and the running goal, and correctly described the current dentist task as open without borrowing an older completed task's status.
+
+The separate demo account was configured as the sole proactive canary and explicitly opted into at most one daily check-in. A real coaching message arrived in TextFree and the dashboard. Replying “I will get started right now!” acknowledged the commitment and automatically opened the fullscreen laundry timer. This is observed live outreach and UI follow-through, not simulated transport.
+
+The coaching message arrived between a Sunday task's time question and “9 AM works”; that answer failed grounding. The next candidate resolves the latest human request and its linked clarification despite unrelated outbound coaching. A separate deterministic gate suppresses initial proactive evaluation and delivery within five minutes of an inbound web or SMS message. Human topic changes still invalidate old clarification context. Exact deployed replay remains required; no readiness score above the core-action failure threshold is claimed yet.
+
+The first candidate-wide check passed lint and typecheck but failed one of 431 tests: the provider-free journey used real database inbound timestamps with an earlier fixed evaluation clock. The fixture is being corrected to use its simulated clock. This failure is recorded rather than reported as a passing release check.
+
+Additional live novice requests found incomplete meal ingredients and a three-item grocery request that saved only its first item. Candidate repairs add account-owned recipe ingredient copying, optional meal servings shown and editable in the UI, and a bounded atomic grocery batch. Tests cover foreign recipe denial, full ingredient preservation, serving validation, batch replay without duplicates, account isolation and rejecting unrequested grocery items. Deployed replay remains pending.
+
+The final combined candidate passed npm run check: 434 tests across 66 files, lint, typecheck, Next production build and operations build. An intermediate operations build caught newer Array APIs unsupported by the worker compiler target; the clarification resolver now uses compatible array operations. Completing the live laundry focus session removed that task from Today, leaving recycling as the only current task.

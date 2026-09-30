@@ -122,7 +122,7 @@ export class ConversationOrchestrator {
     private readonly history?: ConversationHistoryRepository,
     private readonly reminders?: ReminderRepository,
     private readonly integrations?: AssistantIntegrations,
-    private readonly life?: { execute(userId: string, sourceMessageId: string, command: Extract<AssistantCommand, { type: "food_search" | "life_list" | "life_save" | "life_remove" }>): Promise<string> },
+    private readonly life?: { execute(userId: string, sourceMessageId: string, command: Extract<AssistantCommand, { type: "food_search" | "life_list" | "life_save" | "life_remove" | "grocery_add" }>): Promise<string> },
   ) {}
 
   async process(messageId: string): Promise<{ processed: boolean }> {
@@ -365,7 +365,7 @@ export class ConversationOrchestrator {
 
   private async executeCommand(context: InboundConversationContext, now: Date, command: CoachingCommand): Promise<string> {
     if (command.type === "get_rundown") return buildRundown({ tasks: this.tasks, goals: this.goals, reminders: this.reminders, integrations: this.integrations }, { ...context, now }, command);
-    if (command.type === "food_search" || command.type === "life_list" || command.type === "life_save" || command.type === "life_remove") {
+    if (command.type === "grocery_add" || command.type === "food_search" || command.type === "life_list" || command.type === "life_save" || command.type === "life_remove") {
       return this.life?.execute(context.userId, context.messageId, command) ?? "Your life workspace is not configured in this environment.";
     }
     if (command.type === "recall_memories") {

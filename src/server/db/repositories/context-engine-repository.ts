@@ -6,6 +6,7 @@ import {
   calendarBusyWindows,
   calendarConnections,
   consentRecords,
+  conversationMessages,
   contextSnapshots,
   extensionSignalSnapshots,
   interventionOutcomes,
@@ -45,7 +46,7 @@ export class DrizzleContextEngineRepository implements ContextEngineRepository {
   async loadSignals(userId: string, now: Date) {
     const [user] = await this.database.select().from(users).where(eq(users.id, userId)).limit(1);
     if (!user) return null;
-    const [latestConsent, openTasks, currentBusy, nextBusy, recentInterventions, pending, learningMemories, calendarConnection, extensionSignals] = await Promise.all([
+    const [latestConsent, openTasks, currentBusy, nextBusy, recentInterventions, pending, learningMemories, calendarConnection, extensionSignals, latestInbound] = await Promise.all([
       this.database.select({ status: consentRecords.status }).from(consentRecords)
         .where(eq(consentRecords.userId, userId)).orderBy(desc(consentRecords.createdAt)).limit(1),
       this.database.select({
@@ -92,6 +93,9 @@ export class DrizzleContextEngineRepository implements ContextEngineRepository {
         eq(extensionSignalSnapshots.userId, userId),
         gt(extensionSignalSnapshots.validUntil, now),
       )),
+      this.database.select({ createdAt: conversationMessages.createdAt }).from(conversationMessages)
+        .where(and(eq(conversationMessages.userId, userId), eq(conversationMessages.direction, "inbound")))
+        .orderBy(desc(conversationMessages.createdAt)).limit(1),
     ]);
 
     const contactStatuses = new Set(["queued", "sent", "delivered", "responded", "expired"]);
@@ -128,6 +132,7 @@ export class DrizzleContextEngineRepository implements ContextEngineRepository {
       minutesSinceLastIntervention: lastIntervention ? Math.floor((now.getTime() - lastIntervention.getTime()) / 60_000) : null,
       interventionCooldownMinutes: user.interventionCooldownMinutes,
       hasPendingResponse: pending.length > 0,
+      lastUserMessageAt: latestInbound[0]?.createdAt ?? null,
       responseRate: typeof bucketRate === "number" ? bucketRate : 0.5,
       coachingTone: user.coachingTone,
       preferredCoachingStyle: user.preferredCoachingStyle,

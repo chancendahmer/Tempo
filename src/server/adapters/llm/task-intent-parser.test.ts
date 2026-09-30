@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { AnthropicTaskIntentParser, parseTaskIntentResponse } from "./task-intent-parser";
+import { AnthropicTaskIntentParser, hasCurrentActionEvidence, parseTaskIntentResponse } from "./task-intent-parser";
 import { isExplicitReminderRequest } from "../../domain/reminder-commands";
 import { AssistantProviderFailure } from "../../domain/assistant-provider-failure";
 import { HEALTH_CAPABILITY_LIMIT } from "../../domain/connection-status-reply";
@@ -10,12 +10,45 @@ vi.mock("@anthropic-ai/sdk", () => ({ default: class { messages = { create }; } 
 vi.mock("../../config/env", async (importOriginal) => ({ ...(await importOriginal<typeof import("../../config/env")>()), requireEnv: () => ({ ANTHROPIC_API_KEY: "test-only", ANTHROPIC_MODEL: "test-model", ASSISTANT_WEB_SEARCH_ENABLED: settings.webSearch }) }));
 
 describe("current-message routing", () => {
+  it("grounds every grocery item rather than allowing one requested item to authorize extras", () => {
+    const message = "Add cucumber, lemon and feta to my shopping list.";
+    expect(hasCurrentActionEvidence({ type: "grocery_add", items: ["Cucumber", "Lemon", "Feta"] }, message)).toBe(true);
+    expect(hasCurrentActionEvidence({ type: "grocery_add", items: ["Cucumber", "Vodka"] }, message)).toBe(false);
+  });
   const input = {
     message: "Hello", timezone: "America/New_York", now: new Date("2026-09-03T01:25:00Z"),
     openTasks: [], openGoals: [], memories: [],
     history: [{ id: "old", role: "user" as const, content: "Remind me tomorrow at 11 AM to add Davis to get home", createdAt: new Date("2026-08-19T12:00:00Z") }],
   };
   beforeEach(() => { create.mockReset(); settings.webSearch = false; });
+
+  it.each(["coach", "human-pivot", "wrong-link"])("resolves task clarification across only unsolicited outputs (%s)", async scenario => {
+    const message = "9 AM works.";
+    create.mockResolvedValueOnce({ content: [{ type: "tool_use", id: "task", name: "create_task", input: { sourceQuote: message, title: "Stretch", estimatedMinutes: 5, dueAt: "2026-09-06T09:00:00-04:00" } }] })
+      .mockResolvedValueOnce({ content: [{ type: "text", text: "ACK_ONLY" }] });
+    const execute = vi.fn(async () => "Task saved.");
+    await new AnthropicTaskIntentParser().parse({ ...input, message, execute, history: [
+      { id: "request", role: "user", content: "Add a five-minute stretch for Sunday morning as a task.", createdAt: input.now },
+      { id: "question", role: "assistant", replyToMessageId: scenario === "wrong-link" ? "other" : "request", content: "What time on Sunday morning would you like to schedule it?", createdAt: input.now },
+      ...(scenario === "human-pivot" ? [{ id: "pivot", role: "user" as const, content: "Actually, let's talk about food instead.", createdAt: input.now }] : []),
+      { id: "coach", role: "assistant", content: "How is your afternoon going? Want a small next step?", createdAt: input.now },
+    ] });
+    expect(execute).toHaveBeenCalledTimes(scenario === "coach" ? 1 : 0);
+  });
+
+  it("keeps a linked routine clarification through an unsolicited coaching message", async () => {
+    const message = "7:30 AM works.";
+    const data = { kind: "routine", title: "Easy start", period: "morning", time: "07:30", steps: [{ title: "Drink water", minutes: 2 }] };
+    create.mockResolvedValueOnce({ content: [{ type: "tool_use", id: "routine", name: "life_save", input: { sourceQuote: message, data } }] })
+      .mockResolvedValueOnce({ content: [{ type: "text", text: "ACK_ONLY" }] });
+    const execute = vi.fn(async () => "Routine saved.");
+    await new AnthropicTaskIntentParser().parse({ ...input, message, execute, history: [
+      { id: "request", role: "user", content: "Make a morning routine with drinking water.", createdAt: input.now },
+      { id: "question", role: "assistant", replyToMessageId: "request", content: "What time should the routine start?", createdAt: input.now },
+      { id: "coach", role: "assistant", content: "Remember to take a break.", createdAt: input.now },
+    ] });
+    expect(execute).toHaveBeenCalledTimes(1);
+  });
 
   it.each([
     ["9 AM works.", true, "Walk/jog", "2026-09-05T09:00:00-04:00", true],

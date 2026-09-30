@@ -53,6 +53,7 @@ export type ContextSignals = {
   minutesSinceLastIntervention?: number | null;
   interventionCooldownMinutes: number;
   hasPendingResponse: boolean;
+  lastUserMessageAt?: Date | null;
   responseRate: number;
   coachingTone: "gentle" | "balanced" | "direct";
   preferredCoachingStyle?: "micro_start" | "direct_nudge" | "task_breakdown" | "body_doubling" | "reschedule" | null;
@@ -182,6 +183,7 @@ export function evaluateContext(input: {
   if (!task) reasonCodes.push("no_actionable_task");
   if (signals.dailyInterventionCount >= Math.min(3, signals.dailyInterventionCap)) reasonCodes.push("daily_cap_reached");
   if (signals.hasPendingResponse) reasonCodes.push("pending_response");
+  if (signals.lastUserMessageAt && now.getTime() - signals.lastUserMessageAt.getTime() < 5 * 60_000) reasonCodes.push("recent_conversation");
   if (
     signals.minutesSinceLastIntervention !== null &&
     signals.minutesSinceLastIntervention !== undefined &&

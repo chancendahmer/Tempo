@@ -29,6 +29,12 @@ const baseSignals: ContextSignals = {
 };
 
 describe("context engine", () => {
+  it("holds proactive nudges during conversation and allows the exact five-minute boundary", () => {
+    const evaluate = (age: number) => evaluateContext({ signals: { ...baseSignals, lastUserMessageAt: new Date(now.getTime() - age) }, policy: { ...policy, holdoutBasisPoints: 0 }, now, shadowMode: false });
+    expect(evaluate(299_999)).toMatchObject({ decision: "blocked", reasonCodes: expect.arrayContaining(["recent_conversation"]) });
+    expect(evaluate(300_000).decision).toBe("send");
+    expect(evaluate(300_001).decision).toBe("send");
+  });
   it.each([
     ["proactive_opt_in_missing", { proactiveOptIn: false }],
     ["quiet_hours", { timezone: "UTC", quietHoursStart: "13:00", quietHoursEnd: "15:00" }],
