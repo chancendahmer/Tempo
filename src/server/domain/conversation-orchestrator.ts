@@ -138,6 +138,7 @@ export class ConversationOrchestrator {
           body: reply,
           kind: "coach",
           idempotencyKey: `reply:${context.messageId}`,
+          replyToMessageId: context.messageId,
         });
       }
       await this.conversations.markProcessed(context.userId, context.messageId);

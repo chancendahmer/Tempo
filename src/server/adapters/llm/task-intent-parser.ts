@@ -6,7 +6,7 @@ import { requireEnv } from "../../config/env";
 import { TaskCommand, TaskSummary, taskCommandSchema } from "../../domain/task-commands";
 import { GoalCommand, GoalSummary, goalCommandSchema } from "../../domain/goal-commands";
 import { RescheduleCommand, rescheduleCommandSchema } from "../../domain/reschedule-service";
-import { ConversationHistoryMessage } from "../../domain/conversation-history";
+import { latestLinkedExchange, ConversationHistoryMessage } from "../../domain/conversation-history";
 import { isExplicitReminderRequest, ReminderCommand, reminderCommandSchema } from "../../domain/reminder-commands";
 import { MemoryCommand, memoryCommandSchema } from "../../domain/memory-service";
 import { AssistantCommand, assistantCommandSchema } from "../../domain/assistant-commands";
@@ -17,6 +17,9 @@ import { AssistantProviderFailure } from "../../domain/assistant-provider-failur
 import { normalizeProviderFailure } from "./provider-failure";
 import { HEALTH_CAPABILITY_LIMIT } from "../../domain/connection-status-reply";
 import { RUNDOWN_HISTORY_LIMIT } from "../../domain/rundown";
+
+import { TurnWritePolicy } from "../../domain/turn-write-policy";
+import { AnthropicTurnAuthorizer } from "./turn-authorizer";
 
 export type CoachingCommand = TaskCommand | GoalCommand | RescheduleCommand | ReminderCommand | MemoryCommand | AssistantCommand;
 export type TaskIntentResult = { kind: "command"; command: CoachingCommand } | { kind: "conversation"; reply: string };
@@ -290,6 +293,7 @@ export function parseTaskIntentResponse(blocks: ResponseBlock[]): TaskIntentResu
 
 export class AnthropicTaskIntentParser implements TaskIntentParser {
   private client: Anthropic | undefined;
+  private readonly reminderAuthorizer = new AnthropicTurnAuthorizer();
 
   async parse(input: Parameters<TaskIntentParser["parse"]>[0]): Promise<TaskIntentResult> {
     let env: ReturnType<typeof requireEnv>;
@@ -303,6 +307,7 @@ export class AnthropicTaskIntentParser implements TaskIntentParser {
       logger.error({ category: "configuration", operation: "assistant_response" }, "assistant provider configuration unavailable");
       throw new AssistantProviderFailure("configuration");
     }
+    const contextualReminderPolicy = new TurnWritePolicy(input, this.reminderAuthorizer);
     const explicitReminder = isExplicitReminderRequest(input.message);
     const conversationOnly = isConversationOnlyMessage(input.message);
     const tools = (explicitReminder
@@ -435,6 +440,13 @@ export class AnthropicTaskIntentParser implements TaskIntentParser {
         }
         return { kind: "conversation", reply: actionResult ?? "I couldn’t validate that action. Could you give me its details again?" };
       }
+      // A linked exchange can supply a reminder subject, never permission.
+      // Independently authorize the current answer before expanding this path.
+      if (parsed.kind === "command" && parsed.command.type === "create_reminder"
+        && !hasCurrentActionEvidence(parsed.command, input.message)) {
+        const denial = await contextualReminderPolicy.denial(parsed.command);
+        if (denial) return { kind: "conversation", reply: actionResult ?? denial };
+      }
       if (parsed.kind === "command" && !hasCurrentActionEvidence(parsed.command, input.message)
         && !hasLinkedActionReference(parsed.command, input)) {
         return { kind: "conversation", reply: actionResult ?? "I couldn’t match that action to your latest message. What would you like me to do?" };
@@ -516,14 +528,9 @@ function taskPartOfDayClarification(command: CoachingCommand, message: string, t
 
 /** Resolve an explicit "save that" or an immediate clarification, never a backlog. */
 function hasLinkedActionReference(command: CoachingCommand, input: Parameters<TaskIntentParser["parse"]>[0]): boolean {
-  const history = input.history ?? [];
-  let requestIndex = history.length - 1;
-  while (requestIndex >= 0 && history[requestIndex].role !== "user") requestIndex -= 1;
-  const request = history[requestIndex];
-  // Unsolicited coaching can arrive between a clarification and its answer.
-  // Only the latest human request may supply context; a human pivot invalidates it.
-  const reply = history.slice(requestIndex + 1).reverse().find(message => message.role === "assistant" && message.replyToMessageId === request?.id);
-  if (reply?.role !== "assistant" || request?.role !== "user" || reply.replyToMessageId !== request.id) return false;
+  const exchange = latestLinkedExchange(input.history);
+  if (!exchange) return false;
+  const { request, reply } = exchange;
   const text = input.message;
   const reference = /\b(?:that|this|it|those)\b/i.test(text);
   const explicitSave = /\b(?:save|keep|put|add|plan|log|record|remember|make)\b/i.test(text);
@@ -567,11 +574,7 @@ function hasLinkedActionReference(command: CoachingCommand, input: Parameters<Ta
     return hasCurrentActionEvidence(command, reply.content);
   }
   if (command.type === "create_reminder") {
-    if (reference && isExplicitReminderRequest(text)) return hasCurrentActionEvidence(command, reply.content);
-    const timeAnswer = /^(?:(?:at|tomorrow|today|on|in|next|every)\b|\d)/i.test(text.trim())
-      && text.length <= 100 && !/\b(?:cancel|stop|don't|do not|never|instead of|forget|not)\b/i.test(text);
-    return timeAnswer && /\?/.test(reply.content) && /\b(?:when|what time)\b/i.test(reply.content)
-      && isExplicitReminderRequest(request.content) && hasCurrentActionEvidence(command, request.content);
+    return hasCurrentActionEvidence(command, request.content) || hasCurrentActionEvidence(command, reply.content);
   }
   return false;
 }
