@@ -5,11 +5,55 @@ import { AssistantProviderFailure } from "../../domain/assistant-provider-failur
 import { HEALTH_CAPABILITY_LIMIT } from "../../domain/connection-status-reply";
 import { RUNDOWN_HISTORY_LIMIT } from "../../domain/rundown";
 
-const { create, settings } = vi.hoisted(() => ({ create: vi.fn(), settings: { webSearch: false } }));
+const { create, authorize, settings } = vi.hoisted(() => ({ create: vi.fn(), authorize: vi.fn(), settings: { webSearch: false } }));
 vi.mock("@anthropic-ai/sdk", () => ({ default: class { messages = { create }; } }));
 vi.mock("../../config/env", async (importOriginal) => ({ ...(await importOriginal<typeof import("../../config/env")>()), requireEnv: () => ({ ANTHROPIC_API_KEY: "test-only", ANTHROPIC_MODEL: "test-model", ASSISTANT_WEB_SEARCH_ENABLED: settings.webSearch }) }));
 
+vi.mock("./turn-authorizer", () => ({ AnthropicTurnAuthorizer: class { authorize = authorize; } }));
+
 describe("current-message routing", () => {
+  it.each(["set 5PM too", "Yes, add the 5 PM one too", "5 PM as well please"])("grounds an authorized extra reminder in the linked exchange: %s", async message => {
+    authorize.mockResolvedValue({ mode: "write", commands: ["create_reminder"] });
+    create.mockResolvedValueOnce({ content: [{ type: "tool_use", id: "extra", name: "create_reminder", input: { sourceQuote: message, text: "Drink water", remindAt: "2026-09-03T17:00:00-04:00" } }] })
+      .mockResolvedValueOnce({ content: [{ type: "text", text: "ACK_ONLY" }] });
+    const execute = vi.fn(async () => "Also set: Drink water at 5 PM.");
+    const result = await new AnthropicTaskIntentParser().parse({ ...input, message, execute, history: [
+      { id: "request", role: "user", content: "Remind me to drink water at 3 PM.", createdAt: input.now },
+      { id: "offer", role: "assistant", replyToMessageId: "request", content: "Set for 3 PM. Would you like one at 5 PM too?", createdAt: input.now },
+      { id: "interruption", role: "assistant", content: "Your requested reminder to stretch.", createdAt: input.now },
+    ] });
+    expect(execute).toHaveBeenCalledExactlyOnceWith({ type: "create_reminder", text: "Drink water", remindAt: "2026-09-03T17:00:00-04:00" });
+    expect(result).toEqual({ kind: "conversation", reply: "Also set: Drink water at 5 PM." });
+    expect(authorize).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(["unlinked", "human-pivot", "unrelated-subject"])("does not revive reminder context from %s", async scenario => {
+    const message = "set 5PM too";
+    create.mockResolvedValueOnce({ content: [{ type: "tool_use", id: "extra", name: "create_reminder", input: { sourceQuote: message, text: scenario === "unrelated-subject" ? "Pay rent" : "Drink water", remindAt: "2026-09-03T17:00:00-04:00" } }] });
+    const execute = vi.fn();
+    await new AnthropicTaskIntentParser().parse({ ...input, message, execute, history: [
+      { id: "request", role: "user", content: "Remind me to drink water at 3 PM.", createdAt: input.now },
+      { id: "offer", role: "assistant", replyToMessageId: scenario === "unlinked" ? "other" : "request", content: "Set for 3 PM. Would you like one at 5 PM too?", createdAt: input.now },
+      ...(scenario === "human-pivot" ? [{ id: "pivot", role: "user" as const, content: "Let's talk about dinner instead.", createdAt: input.now }] : []),
+    ] });
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["Would another reminder be useful?", "read_only"],
+    ["Maybe, I'm not sure", "uncertain"],
+    ["Do not add the 5 PM one", "write"],
+  ])("does not let a linked suggestion grant permission: %s", async (message, mode) => {
+    authorize.mockResolvedValue({ mode, commands: mode === "write" ? ["create_reminder"] : [] });
+    create.mockResolvedValueOnce({ content: [{ type: "tool_use", id: "extra", name: "create_reminder", input: { sourceQuote: message, text: "Drink water", remindAt: "2026-09-03T17:00:00-04:00" } }] });
+    const execute = vi.fn();
+    await new AnthropicTaskIntentParser().parse({ ...input, message, execute, history: [
+      { id: "request", role: "user", content: "Remind me to drink water at 3 PM.", createdAt: input.now },
+      { id: "offer", role: "assistant", replyToMessageId: "request", content: "Set for 3 PM. Would you like one at 5 PM too?", createdAt: input.now },
+    ] });
+    expect(execute).not.toHaveBeenCalled();
+  });
+
   it("grounds every grocery item rather than allowing one requested item to authorize extras", () => {
     const message = "Add cucumber, lemon and feta to my shopping list.";
     expect(hasCurrentActionEvidence({ type: "grocery_add", items: ["Cucumber", "Lemon", "Feta"] }, message)).toBe(true);
@@ -20,7 +64,7 @@ describe("current-message routing", () => {
     openTasks: [], openGoals: [], memories: [],
     history: [{ id: "old", role: "user" as const, content: "Remind me tomorrow at 11 AM to add Davis to get home", createdAt: new Date("2026-08-19T12:00:00Z") }],
   };
-  beforeEach(() => { create.mockReset(); settings.webSearch = false; });
+  beforeEach(() => { create.mockReset(); settings.webSearch = false; authorize.mockReset().mockResolvedValue({ mode: "write", commands: ["create_reminder"] }); });
 
   it.each(["coach", "short-question", "human-pivot", "wrong-link"])("resolves task clarification across only unsolicited outputs (%s)", async scenario => {
     const message = "9 AM works.";

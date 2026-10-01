@@ -1,10 +1,10 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import {
   OutboundBlockReason,
   OutboundMessageRepository,
 } from "../../domain/outbound-messaging";
 import { getDatabase, TempoDatabase } from "../client";
-import { consentRecords, conversationMessages, conversations, providerMessageBindings, users } from "../schema";
+import { consentRecords, conversationMessages, conversations, messageRelations, providerMessageBindings, users } from "../schema";
 import { ensureDirectConversation } from "./messaging-identity-repository";
 
 export class DrizzleOutboundMessageRepository implements OutboundMessageRepository {
@@ -43,37 +43,38 @@ export class DrizzleOutboundMessageRepository implements OutboundMessageReposito
       .from(users).where(eq(users.id, input.userId)).limit(1);
     if (!user) throw new Error("Cannot reserve an outbound message for an unknown Tempo user");
     const identity = await ensureDirectConversation(database, {
-      userId: input.userId,
-      phoneE164: user.phoneE164,
-      phoneVerifiedAt: user.phoneVerifiedAt,
+      userId: input.userId, phoneE164: user.phoneE164, phoneVerifiedAt: user.phoneVerifiedAt,
     });
-    const [created] = await database
-      .insert(conversationMessages)
-      .values({
-        userId: input.userId,
-        conversationId: identity.conversationId,
-        idempotencyKey: input.idempotencyKey,
-        direction: "outbound",
-        kind: input.kind,
-        status: "queued",
-        body: input.body,
-        contentParts: [{ type: "text", value: input.body }],
-        relatedInterventionId: input.relatedInterventionId,
-        relatedReminderId: input.relatedReminderId,
-      })
-      .onConflictDoNothing({ target: conversationMessages.idempotencyKey })
-      .returning({ id: conversationMessages.id });
-
-    if (created) return { messageId: created.id, duplicate: false };
-
-    const [existing] = await database
-      .select({ id: conversationMessages.id })
-      .from(conversationMessages)
-      .where(eq(conversationMessages.idempotencyKey, input.idempotencyKey))
-      .limit(1);
-
-    if (!existing) throw new Error("Outbound idempotency conflict could not be resolved");
-    return { messageId: existing.id, duplicate: true };
+    return database.transaction(async transaction => {
+      if (input.replyToMessageId) {
+        const [parent] = await transaction.select({ id: conversationMessages.id }).from(conversationMessages).where(and(
+          eq(conversationMessages.id, input.replyToMessageId), eq(conversationMessages.userId, input.userId),
+          eq(conversationMessages.conversationId, identity.conversationId), eq(conversationMessages.direction, "inbound"),
+        )).limit(1);
+        if (!parent) throw new Error("Invalid outbound reply source");
+      }
+      const [created] = await transaction.insert(conversationMessages).values({
+        userId: input.userId, conversationId: identity.conversationId,
+        idempotencyKey: input.idempotencyKey, direction: "outbound", kind: input.kind, status: "queued",
+        body: input.body, contentParts: [{ type: "text", value: input.body }],
+        relatedInterventionId: input.relatedInterventionId, relatedReminderId: input.relatedReminderId,
+      }).onConflictDoNothing({ target: conversationMessages.idempotencyKey }).returning({ id: conversationMessages.id });
+      // Lock duplicate reservations so the same reply cannot acquire two parents.
+      const [message] = await transaction.select().from(conversationMessages)
+        .where(eq(conversationMessages.idempotencyKey, input.idempotencyKey)).limit(1).for("update");
+      if (!message || message.userId !== input.userId || message.conversationId !== identity.conversationId || message.direction !== "outbound") {
+        throw new Error("Outbound idempotency conflict could not be resolved");
+      }
+      if (input.replyToMessageId) {
+        const existing = await transaction.select({ target: messageRelations.targetMessageId }).from(messageRelations)
+          .where(and(eq(messageRelations.sourceMessageId, message.id), eq(messageRelations.type, "reply")));
+        if (existing.some(relation => relation.target !== input.replyToMessageId)) throw new Error("Conflicting outbound reply source");
+        await transaction.insert(messageRelations).values({ conversationId: identity.conversationId,
+          sourceMessageId: message.id, targetMessageId: input.replyToMessageId, type: "reply",
+        }).onConflictDoNothing();
+      }
+      return { messageId: message.id, duplicate: !created };
+    });
   }
 
   async cancel(messageId: string, reason: OutboundBlockReason) {

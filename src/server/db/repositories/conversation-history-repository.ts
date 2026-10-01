@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, isNotNull, lte, ne, or } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, ne, or, sql } from "drizzle-orm";
 import { ConversationHistoryRepository } from "../../domain/conversation-history";
 import { getDatabase, TempoDatabase } from "../client";
 import { conversationMessages, messageRelations } from "../schema";
@@ -15,6 +15,9 @@ export class DrizzleConversationHistoryRepository implements ConversationHistory
       ))
       .limit(1);
     if (!boundary) return [];
+    // Keep PostgreSQL's microsecond precision when adjacent messages arrive in
+    // the same JavaScript millisecond.
+    const cutoff = sql`(select cutoff.created_at from conversation_messages cutoff where cutoff.id = ${input.beforeMessageId})`;
 
     const descending = await this.database.select({
       id: conversationMessages.id,
@@ -23,7 +26,12 @@ export class DrizzleConversationHistoryRepository implements ConversationHistory
       createdAt: conversationMessages.createdAt,
     }).from(conversationMessages).where(and(
       eq(conversationMessages.conversationId, input.conversationId),
-      lte(conversationMessages.createdAt, boundary.createdAt),
+      or(sql`${conversationMessages.createdAt} <= ${cutoff}`, sql`exists (
+        select 1 from message_relations relation join conversation_messages parent on parent.id = relation.target_message_id
+        where relation.source_message_id = ${conversationMessages.id} and relation.type = 'reply'
+          and parent.conversation_id = ${input.conversationId} and parent.direction = 'inbound'
+          and parent.created_at <= ${cutoff} and parent.id <> ${input.beforeMessageId}
+      )`),
       ne(conversationMessages.id, input.beforeMessageId),
       inArray(conversationMessages.kind, ["user", "coach"]),
       or(

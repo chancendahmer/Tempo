@@ -23,6 +23,7 @@ export interface OutboundMessageRepository {
     idempotencyKey: string;
     relatedInterventionId?: string;
     relatedReminderId?: string;
+    replyToMessageId?: string;
   }): Promise<OutboundReservation>;
   cancel(messageId: string, reason: OutboundBlockReason): Promise<void>;
   markSubmitted(
@@ -46,6 +47,7 @@ export type SendSafeSmsInput = {
   mediaUrl?: string;
   relatedInterventionId?: string;
   relatedReminderId?: string;
+  replyToMessageId?: string;
 };
 
 export type SendSafeSmsResult =
