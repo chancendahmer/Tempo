@@ -543,6 +543,7 @@ export const taskEvents = pgTable(
 export const reminders = pgTable(
   "reminders",
   {
+    sourceOperation: integer("source_operation").default(0).notNull(),
     id: uuid("id").defaultRandom().primaryKey(),
     userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
     taskId: uuid("task_id").references(() => tasks.id, { onDelete: "set null" }),
@@ -563,7 +564,7 @@ export const reminders = pgTable(
   },
   (table) => [
     uniqueIndex("reminders_idempotency_key_unique").on(table.idempotencyKey),
-    uniqueIndex("reminders_source_message_unique").on(table.sourceMessageId),
+    uniqueIndex("reminders_source_operation_unique").on(table.sourceMessageId, table.sourceOperation),
     index("reminders_user_status_time_idx").on(table.userId, table.status, table.remindAt),
     check("reminders_recurrence_check", sql`${table.recurrence} is null or ${table.recurrence} in ('daily', 'weekdays', 'weekly')`),
   ],

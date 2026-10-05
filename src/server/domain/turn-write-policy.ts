@@ -1,11 +1,12 @@
 import { z } from "zod";
+import { reminderReference } from "./reminder-context";
 import { latestLinkedExchange, type ConversationHistoryMessage } from "./conversation-history";
 
 // Closed by default: adding a tool never implicitly grants it write authority.
 export const WRITE_COMMANDS = [
   "create_task", "update_task", "start_task", "complete_task", "abandon_task",
   "create_goal", "update_goal", "complete_goal", "abandon_goal", "reschedule_task",
-  "create_reminder", "cancel_reminder", "reschedule_reminder", "complete_reminder",
+  "create_reminders", "reschedule_reminders", "create_reminder", "cancel_reminder", "reschedule_reminder", "complete_reminder",
   "remember_memory", "forget_memory", "grocery_add", "life_save", "life_patch", "life_remove",
   "calendar_change", "set_checkins",
 ] as const;
@@ -71,6 +72,7 @@ export function authorizationContext(input: TurnAuthorizationInput) {
   const exchange = latestLinkedExchange(input.history);
   return {
     currentMessage: input.message,
+    ...(reminderReference(input) ? { referencedReminder: reminderReference(input) } : {}),
     precedingExchange: exchange ? { request: exchange.request.content, reply: exchange.reply.content } : null,
   };
 }

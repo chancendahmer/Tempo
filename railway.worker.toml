@@ -3,6 +3,7 @@ builder = "RAILPACK"
 buildCommand = "npm run typecheck"
 
 [deploy]
+preDeployCommand = ["npm run db:migrate"]
 startCommand = "npm run worker:start"
 restartPolicyType = "ALWAYS"
 restartPolicyMaxRetries = 5

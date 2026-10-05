@@ -1,7 +1,7 @@
 import { and, desc, eq, inArray, isNotNull, ne, or, sql } from "drizzle-orm";
 import { ConversationHistoryRepository } from "../../domain/conversation-history";
 import { getDatabase, TempoDatabase } from "../client";
-import { conversationMessages, messageRelations } from "../schema";
+import { conversationMessages, messageRelations, reminders } from "../schema";
 
 export class DrizzleConversationHistoryRepository implements ConversationHistoryRepository {
   constructor(private readonly database: TempoDatabase = getDatabase()) {}
@@ -24,6 +24,8 @@ export class DrizzleConversationHistoryRepository implements ConversationHistory
       direction: conversationMessages.direction,
       body: conversationMessages.body,
       createdAt: conversationMessages.createdAt,
+      relatedReminderId: conversationMessages.relatedReminderId,
+      userId: conversationMessages.userId,
     }).from(conversationMessages).where(and(
       eq(conversationMessages.conversationId, input.conversationId),
       or(sql`${conversationMessages.createdAt} <= ${cutoff}`, sql`exists (
@@ -54,12 +56,18 @@ export class DrizzleConversationHistoryRepository implements ConversationHistory
       eq(messageRelations.type, "reply"),
       inArray(messageRelations.sourceMessageId, descending.map((message) => message.id)),
     ));
+    const reminderIds = descending.flatMap(message => message.relatedReminderId ? [message.relatedReminderId] : []);
+    const linkedReminders = reminderIds.length ? await this.database.select({ id: reminders.id, userId: reminders.userId, text: reminders.text, remindAt: reminders.remindAt }).from(reminders).where(and(inArray(reminders.id, reminderIds), inArray(reminders.userId, [...new Set(descending.map(message => message.userId))]))) : [];
+    const reminderById = new Map(linkedReminders.map(item => [item.id, item]));
     const replyTargets = new Map(relations.map((relation) => [relation.sourceMessageId, relation.targetMessageId]));
     return descending.reverse().map((message) => ({
       id: message.id,
       role: message.direction === "inbound" ? "user" as const : "assistant" as const,
       content: message.body,
       replyToMessageId: replyTargets.get(message.id),
+      ...(message.relatedReminderId && reminderById.get(message.relatedReminderId)?.userId === message.userId ? {
+        relatedReminder: { id: message.relatedReminderId, text: reminderById.get(message.relatedReminderId)!.text, remindAt: reminderById.get(message.relatedReminderId)!.remindAt.toISOString() },
+      } : {}),
       createdAt: message.createdAt,
     }));
   }

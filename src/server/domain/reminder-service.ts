@@ -12,6 +12,9 @@ export type ReminderRecord = {
 };
 
 export interface ReminderRepository {
+  createMany?(input: { userId: string; sourceMessageId: string; timezone: string; items: Array<{ text: string; remindAt: Date; recurrence?: "daily" | "weekdays" | "weekly"; taskId?: string }> }): Promise<ReminderRecord[]>;
+  updateMany?(input: { userId: string; sourceMessageId: string; now: Date; changes: Array<{ reminderId: string; expectedRemindAt: Date; remindAt: Date }> }): Promise<{ kind: "updated"; reminders: ReminderRecord[] } | { kind: "stale" }>;
+
   update?(input: { userId: string; sourceMessageId: string; reminderId?: string; reminderQuery?: string; remindAt?: Date; now: Date }): Promise<
     | { kind: "updated"; reminder: ReminderRecord }
     | { kind: "not_found" }
@@ -147,8 +150,22 @@ function recurrenceLabel(recurrence: ReminderRecord["recurrence"]): string {
 export async function executeReminderCommand(
   repository: ReminderRepository,
   command: ReminderCommand,
-  context: { userId: string; sourceMessageId: string; timezone: string; now: Date },
+  context: { userId: string; sourceMessageId: string; timezone: string; now: Date; forModel?: boolean },
 ): Promise<string> {
+  if (command.type === "create_reminders") {
+    if (!repository.createMany) return "Multiple reminders are temporarily unavailable.";
+    if (command.reminders.some(item => new Date(item.remindAt) <= context.now)) return "One of those times has passed. What future date and time should I use? No reminders were added.";
+    if (new Set(command.reminders.map(item => item.text.toLowerCase() + ":" + new Date(item.remindAt).toISOString())).size !== command.reminders.length) return "Those include a duplicate reminder. Please choose distinct times.";
+    const saved = await repository.createMany({ ...context, items: command.reminders.map(item => ({ ...item, remindAt: new Date(item.remindAt) })) });
+    return "Reminders set:\n" + saved.map(item => formatReminderTime(item.remindAt, item.timezone) + " — " + item.text).join("\n");
+  }
+  if (command.type === "reschedule_reminders") {
+    if (!repository.updateMany) return "Multiple reminder updates are temporarily unavailable.";
+    if (command.changes.some(item => new Date(item.remindAt) <= context.now) || new Set(command.changes.map(item => item.reminderId)).size !== command.changes.length) return "Please choose distinct reminders and future times. Nothing was changed.";
+    const result = await repository.updateMany({ ...context, changes: command.changes.map(item => ({ ...item, expectedRemindAt: new Date(item.expectedRemindAt), remindAt: new Date(item.remindAt) })) });
+    if (result.kind === "stale") return "Those reminders changed or are no longer editable. Please let me check them again. Nothing was changed.";
+    return "Reminders moved:\n" + result.reminders.map(item => formatReminderTime(item.remindAt, item.timezone) + " — " + item.text).join("\n");
+  }
   if (command.type === "create_reminder") {
     const prior = await repository.findBySourceMessage(context.sourceMessageId);
     if (prior) return `Reminder set for ${formatReminderTime(prior.remindAt, prior.timezone)}: ${prior.text}`;
@@ -169,6 +186,7 @@ export async function executeReminderCommand(
 
   if (command.type === "list_reminders") {
     const reminders = await repository.listUpcoming(context.userId, context.now);
+    if (context.forModel) return JSON.stringify({ items: reminders, limit: 50, truncated: reminders.length >= 50 });
     if (reminders.length === 0) return "You don’t have any upcoming reminders.";
     return reminders.slice(0, 8).map((reminder, index) =>
       `${index + 1}. ${reminder.recurrence ? `${recurrenceLabel(reminder.recurrence)}, next ` : ""}${formatReminderTime(reminder.remindAt, reminder.timezone)} — ${reminder.text}`,

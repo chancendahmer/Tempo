@@ -24,7 +24,6 @@ it("adds a 5 PM SMS follow-up without losing 3 PM, leaking context or duplicatin
   const proposal = (message: string, remindAt: string) => ({ content: [{ type: "tool_use", id: "reminder", name: "create_reminder",
     input: { sourceQuote: message, text: "Drink water", remindAt } }] });
   create.mockReset().mockResolvedValueOnce(proposal(firstInput, firstTime))
-    .mockResolvedValueOnce({ content: [{ type: "text", text: "Would you like one at 5 PM too?" }] })
     .mockResolvedValueOnce(proposal(nextInput, nextTime)) // Another account must fail to resolve the subject.
     .mockResolvedValueOnce(proposal(nextInput, nextTime))
     .mockResolvedValueOnce({ content: [{ type: "text", text: "ACK_ONLY" }] });
@@ -34,7 +33,7 @@ it("adds a 5 PM SMS follow-up without losing 3 PM, leaking context or duplicatin
     const person = await simulation.user(), other = await simulation.user();
     const first = await person.send(firstInput);
     expect(first.tools).toEqual(["create_reminder"]);
-    expect(first.replies.join(" ")).toContain("Would you like one at 5 PM too?");
+    expect(first.replies.join(" ")).toContain("3:00 PM");
     const initial = (await person.state()).reminders;
     expect(initial).toHaveLength(1);
     expect(initial[0].remindAt.toISOString()).toBe(firstTime);
@@ -59,6 +58,6 @@ it("adds a 5 PM SMS follow-up without losing 3 PM, leaking context or duplicatin
     expect((await person.state()).reminders).toHaveLength(2);
     const jobs = await simulation.database.select().from(scheduledActions).where(eq(scheduledActions.userId, person.id));
     expect(jobs.filter(job => job.kind === "deliver_reminder")).toHaveLength(2);
-    expect(create).toHaveBeenCalledTimes(5);
+    expect(create).toHaveBeenCalledTimes(3);
   } finally { await simulation.close(); }
 }, 30_000);

@@ -26,30 +26,65 @@ export class DrizzleReminderRepository implements ReminderRepository {
   }
 
   async create(input: Parameters<ReminderRepository["create"]>[0]) {
-    return this.database.transaction(async (transaction) => {
-      const idempotencyKey = `reminder:${input.sourceMessageId}`;
-      const [created] = await transaction.insert(reminders).values({
-        userId: input.userId,
-        taskId: input.taskId,
-        sourceMessageId: input.sourceMessageId,
-        text: input.text,
-        remindAt: input.remindAt,
-        timezone: input.timezone,
-        recurrence: input.recurrence,
-        idempotencyKey,
-      }).onConflictDoNothing({ target: reminders.idempotencyKey }).returning();
-      const reminder = created ?? (await transaction.select().from(reminders)
-        .where(eq(reminders.idempotencyKey, idempotencyKey)).limit(1))[0];
-      if (!reminder) throw new Error("Reminder idempotency conflict could not be resolved");
-      await transaction.insert(scheduledActions).values({
-        userId: input.userId,
-        reminderId: reminder.id,
-        kind: "deliver_reminder",
-        payload: { reminderId: reminder.id, occurrenceAt: reminder.remindAt.toISOString() },
-        idempotencyKey: `deliver-reminder:${reminder.id}`,
-        runAt: reminder.remindAt,
-      }).onConflictDoNothing({ target: scheduledActions.idempotencyKey });
-      return asRecord(reminder);
+    return (await this.createMany({ ...input, items: [{ text: input.text, remindAt: input.remindAt, recurrence: input.recurrence, taskId: input.taskId }] }))[0];
+  }
+
+  async createMany(input: Parameters<NonNullable<ReminderRepository["createMany"]>>[0]) {
+    if (!input.items.length || input.items.length > 8) throw new Error("Invalid reminder batch size");
+    return this.database.transaction(async transaction => {
+      const [source] = await transaction.select({ id: conversationMessages.id }).from(conversationMessages)
+        .where(and(eq(conversationMessages.id, input.sourceMessageId), eq(conversationMessages.userId, input.userId), eq(conversationMessages.direction, "inbound"))).limit(1).for("update");
+      if (!source) throw new Error("Invalid reminder source");
+      const prior = await transaction.select().from(reminders).where(and(eq(reminders.userId, input.userId), eq(reminders.sourceMessageId, input.sourceMessageId))).orderBy(asc(reminders.sourceOperation));
+      if (prior.length) return prior.map(asRecord);
+      const saved: ReminderRecord[] = [];
+      for (const [index, item] of input.items.entries()) {
+        const [row] = await transaction.insert(reminders).values({ ...item, userId: input.userId, timezone: input.timezone,
+          sourceMessageId: input.sourceMessageId, sourceOperation: index,
+          idempotencyKey: `reminder:${input.sourceMessageId}${index ? `:${index}` : ""}`,
+        }).returning();
+        await transaction.insert(scheduledActions).values({ userId: input.userId, reminderId: row.id, kind: "deliver_reminder",
+          payload: { reminderId: row.id, occurrenceAt: row.remindAt.toISOString() },
+          idempotencyKey: `deliver-reminder:${row.id}`, runAt: row.remindAt,
+        });
+        saved.push(asRecord(row));
+      }
+      return saved;
+    });
+  }
+
+  async updateMany(input: Parameters<NonNullable<ReminderRepository["updateMany"]>>[0]) {
+    if (input.changes.length < 2 || input.changes.length > 8 || new Set(input.changes.map(item => item.reminderId)).size !== input.changes.length) return { kind: "stale" as const };
+    return this.database.transaction(async transaction => {
+      const [source] = await transaction.select({ id: conversationMessages.id }).from(conversationMessages)
+        .where(and(eq(conversationMessages.id, input.sourceMessageId), eq(conversationMessages.userId, input.userId), eq(conversationMessages.direction, "inbound"))).limit(1).for("update");
+      if (!source) throw new Error("Invalid reminder source");
+      const prefix = `reminder-update:${input.sourceMessageId}:`;
+      const receipts = await transaction.select({ reminderId: scheduledActions.reminderId }).from(scheduledActions)
+        .where(and(eq(scheduledActions.userId, input.userId), ilike(scheduledActions.idempotencyKey, `${prefix}%`)));
+      if (receipts.length) {
+        const rows = await transaction.select().from(reminders).where(and(eq(reminders.userId, input.userId), inArray(reminders.id, receipts.flatMap(item => item.reminderId ? [item.reminderId] : []))));
+        return { kind: "updated" as const, reminders: rows.map(asRecord) };
+      }
+      // Stable lock order prevents opposite-order batch edits deadlocking.
+      const rows = await transaction.select().from(reminders).where(and(eq(reminders.userId, input.userId), inArray(reminders.id, input.changes.map(item => item.reminderId))))
+        .orderBy(asc(reminders.id)).for("update");
+      if (rows.length !== input.changes.length || input.changes.some(change => {
+        const row = rows.find(item => item.id === change.reminderId);
+        return !row || !["scheduled", "failed"].includes(row.status) || row.remindAt.getTime() !== change.expectedRemindAt.getTime() || change.remindAt <= input.now;
+      })) return { kind: "stale" as const };
+      const updated: ReminderRecord[] = [];
+      for (const change of input.changes) {
+        const [row] = await transaction.update(reminders).set({ remindAt: change.remindAt, status: "scheduled", lastError: null, updatedAt: input.now })
+          .where(and(eq(reminders.id, change.reminderId), eq(reminders.userId, input.userId))).returning();
+        await transaction.update(scheduledActions).set({ status: "cancelled", completedAt: input.now, updatedAt: input.now })
+          .where(and(eq(scheduledActions.reminderId, row.id), inArray(scheduledActions.status, ["scheduled", "failed"])));
+        await transaction.insert(scheduledActions).values({ userId: input.userId, reminderId: row.id, kind: "deliver_reminder",
+          payload: { reminderId: row.id, occurrenceAt: row.remindAt.toISOString() }, idempotencyKey: `${prefix}${row.id}`, runAt: row.remindAt,
+        });
+        updated.push(asRecord(row));
+      }
+      return { kind: "updated" as const, reminders: updated };
     });
   }
 

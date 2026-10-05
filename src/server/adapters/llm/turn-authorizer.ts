@@ -1,3 +1,4 @@
+import { ZodError } from "zod";
 import Anthropic from "@anthropic-ai/sdk";
 import { requireEnv } from "../../config/env";
 import { logger } from "../../observability/logger";
@@ -11,6 +12,8 @@ const operationDescriptions: Record<(typeof WRITE_COMMANDS)[number], string> = {
   create_goal: "Create a long-term goal", update_goal: "Edit a long-term goal",
   complete_goal: "Mark a goal achieved", abandon_goal: "Remove or abandon a goal",
   reschedule_task: "Move a task's scheduled time",
+  create_reminders: "Schedule two to eight notifications explicitly requested together; never add suggested or inferred times",
+  reschedule_reminders: "Move two to eight existing reminders explicitly requested together",
   create_reminder: "Schedule a reminder notification", cancel_reminder: "Cancel a reminder",
   reschedule_reminder: "Move a reminder's time", complete_reminder: "Mark a reminder done",
   remember_memory: "Save a personal fact or preference to assistant memory",
@@ -30,7 +33,7 @@ export class AnthropicTurnAuthorizer implements TurnAuthorizer {
   async authorize(input: TurnAuthorizationInput): Promise<TurnAuthorization> {
     try {
       const env = requireEnv(["ANTHROPIC_API_KEY", "ANTHROPIC_MODEL"]);
-      this.client ??= new Anthropic({ apiKey: env.ANTHROPIC_API_KEY!, timeout: 15_000, maxRetries: 0 });
+      this.client ??= new Anthropic({ apiKey: env.ANTHROPIC_API_KEY!, timeout: 30_000, maxRetries: 0 });
       const response = await this.client.messages.create({
         model: env.ANTHROPIC_MODEL!, max_tokens: 300,
         system: [
@@ -45,18 +48,23 @@ export class AnthropicTurnAuthorizer implements TurnAuthorizer {
           "Use uncertain with no commands if permission is unclear. Do not infer permission from likely benefit. List only the applicable command names; do not generate arguments or a reply.",
         ].join("\n"),
         messages: [{ role: "user", content: JSON.stringify(authorizationContext(input)) }],
-        tools: [{ name: "classify_turn", description: "Record turn permission only.", input_schema: {
+        tools: [{ name: "classify_turn", description: "Record turn permission only.", strict: true, input_schema: {
           type: "object", properties: {
             mode: { type: "string", enum: ["read_only", "write", "uncertain"] },
-            commands: { type: "array", description: JSON.stringify(operationDescriptions), items: { type: "string", enum: [...WRITE_COMMANDS] }, maxItems: WRITE_COMMANDS.length },
+            commands: { type: "array", description: JSON.stringify(operationDescriptions), items: { type: "string", enum: [...WRITE_COMMANDS] } },
           }, required: ["mode", "commands"], additionalProperties: false,
         } }],
         tool_choice: { type: "tool", name: "classify_turn", disable_parallel_tool_use: true },
       });
+      if (response.stop_reason === "max_tokens" || response.stop_reason === "refusal") throw new Error("incomplete_classification");
       const block = response.content.length === 1 ? response.content[0] : undefined;
       if (block?.type === "tool_use" && block.name === "classify_turn") return turnAuthorizationSchema.parse(block.input);
-    } catch {
-      logger.warn({ operation: "turn_authorization" }, "write authorization unavailable; no write authorized");
+    } catch (error) {
+      const reason = error instanceof ZodError ? "invalid_response"
+        : error instanceof Error && error.name === "APIConnectionTimeoutError" ? "timeout"
+        : error instanceof Error && error.message === "incomplete_classification" ? "incomplete_response" : "provider_unavailable";
+      // Never log user text, raw model output, credentials or provider error bodies.
+      logger.warn({ operation: "turn_authorization", reason }, "write authorization unavailable; no write authorized");
     }
     return { mode: "uncertain", commands: [] };
   }

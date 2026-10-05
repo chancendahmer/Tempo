@@ -81,7 +81,7 @@ function isRescheduleCommand(command: CoachingCommand): command is RescheduleCom
 }
 
 function isReminderCommand(command: CoachingCommand): command is ReminderCommand {
-  return command.type.endsWith("_reminder") || command.type === "list_reminders";
+  return command.type.endsWith("_reminder") || command.type.endsWith("_reminders");
 }
 
 function isMemoryCommand(command: CoachingCommand): command is MemoryCommand {
@@ -441,6 +441,7 @@ export class ConversationOrchestrator {
         sourceMessageId: context.messageId,
         timezone: context.timezone,
         now,
+        forModel: command.type === "list_reminders",
       });
     }
     const result = await executeTaskCommand(this.tasks, normalizeTaskDeadline(intent.command, context.body, now, context.timezone), {
