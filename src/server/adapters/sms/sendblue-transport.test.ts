@@ -9,6 +9,12 @@ const prior = {
 };
 
 describe("Sendblue messaging transport", () => {
+  it.each([408, 409, 500])("treats HTTP %s as ambiguous rather than safe to resend", status => {
+    expect(new SendblueApiError("uncertain", status).submissionOutcome).toBe("unknown");
+  });
+  it.each([400, 429])("recognizes a rejected HTTP %s submission", status => {
+    expect(new SendblueApiError("rejected", status).submissionOutcome).toBe("not_accepted");
+  });
   beforeEach(() => {
     process.env.SENDBLUE_API_KEY = "sendblue-test-key";
     process.env.SENDBLUE_API_SECRET = "sendblue-test-secret";

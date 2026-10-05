@@ -8,6 +8,7 @@ function asRecord(row: typeof reminders.$inferSelect): ReminderRecord {
   return {
     id: row.id,
     text: row.text,
+    contentMode: row.contentMode,
     remindAt: row.remindAt,
     timezone: row.timezone,
     recurrence: row.recurrence,
@@ -26,7 +27,7 @@ export class DrizzleReminderRepository implements ReminderRepository {
   }
 
   async create(input: Parameters<ReminderRepository["create"]>[0]) {
-    return (await this.createMany({ ...input, items: [{ text: input.text, remindAt: input.remindAt, recurrence: input.recurrence, taskId: input.taskId }] }))[0];
+    return (await this.createMany({ ...input, items: [{ contentMode: input.contentMode, text: input.text, remindAt: input.remindAt, recurrence: input.recurrence, taskId: input.taskId }] }))[0];
   }
 
   async createMany(input: Parameters<NonNullable<ReminderRepository["createMany"]>>[0]) {

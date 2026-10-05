@@ -23,7 +23,8 @@ function repository(permissionSequence: MessagingPermission[], duplicate = false
   let permissionIndex = 0;
   return {
     getPermission: vi.fn(async () => permissionSequence[Math.min(permissionIndex++, permissionSequence.length - 1)] ?? null),
-    reserve: vi.fn(async () => ({ messageId: "message-1", duplicate })),
+    reserve: vi.fn(async () => ({ messageId: "message-1", duplicate, state: duplicate ? "accepted" as const : "reserved" as const })),
+    beginSubmission: vi.fn(async () => true),
     cancel: vi.fn(async () => undefined),
     markSubmitted: vi.fn(async () => undefined),
     markFailed: vi.fn(async () => undefined),

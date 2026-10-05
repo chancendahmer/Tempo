@@ -3,6 +3,7 @@ import { z } from "zod";
 import { CalendarAssistantIntegrations } from "@/server/adapters/calendar/calendar-assistant";
 import { WEB_SESSION_COOKIE, WebSessionService } from "@/server/security/web-session";
 import { OperationalRepository } from "@/server/db/repositories/operational-repository";
+import { CalendarAuthorizationError } from "@/server/adapters/calendar/calendar-provider";
 export const dynamic = "force-dynamic";
 export async function GET(request: NextRequest) {
   const headers = { "Cache-Control": "private, no-store" };
@@ -17,6 +18,7 @@ export async function GET(request: NextRequest) {
     const agenda = await new CalendarAssistantIntegrations().agenda(account.userId, query.start, query.end);
     return NextResponse.json({ ...JSON.parse(agenda), fetchedAt: new Date().toISOString() }, { headers });
   } catch (error) {
+    if (error instanceof CalendarAuthorizationError) return NextResponse.json({ code: "calendar_reauth_required", error: "Google Calendar access needs to be renewed. Reconnect Google Calendar to see current events." }, { status: 409, headers });
     return NextResponse.json({ error: error instanceof z.ZodError ? "Choose a valid calendar range." : "Google Calendar couldn’t be refreshed. Check your connection in Extensions, then try again." }, { status: error instanceof z.ZodError ? 400 : 503, headers });
   }
 }

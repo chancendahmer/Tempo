@@ -1,23 +1,23 @@
-.app { --bg: #f7f8f4; --surface: #fff; --text: #293d35; --soft: #748079; --line: #e5e9e1; --green: #416853; --pale: #edf2e9; min-height: 100dvh; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.6; }
+.app { --bg: #f7f8f4; --surface: #fff; --text: #293d35; --soft: #59655e; --line: #e5e9e1; --green: #416853; --pale: #edf2e9; min-height: 100dvh; background: var(--bg); color: var(--text); font-size: 16px; line-height: 1.6; }
 .app * { box-sizing: border-box; }
 .app button, .app input, .app textarea, .app select { font: inherit; }
 .app button { cursor: pointer; }
 .app button:disabled { cursor: default; opacity: .5; }
 .app button, .app a { -webkit-tap-highlight-color: transparent; }
-.app :focus-visible { outline: 3px solid #c48e46; outline-offset: 4px; }
+.app :focus-visible { outline: 3px solid #76510f; outline-offset: 4px; }
 .app h1, .app h2, .app h3, .app p { margin: 0; }
 .app h1 { font-size: clamp(30px, 3.1vw, 46px); line-height: 1.24; font-weight: 600; letter-spacing: -1.7px; }
 .app h2 { font-size: 21px; line-height: 1.4; font-weight: 650; letter-spacing: -.55px; }
 .app h3 { font-size: 18px; line-height: 1.4; letter-spacing: -.4px; font-weight: 650; }
-.app small { display: block; color: var(--soft); font-size: 11px; line-height: 1.65; }
+.app small { display: block; color: var(--soft); font-size: 13px; line-height: 1.55; }
 .app svg { flex-shrink: 0; stroke-width: 1.7; }
 .sidebar { position: fixed; width: 236px; inset: 0 auto 0 0; background: #eef2e9; border-right: 1px solid #e3e8dd; display: flex; flex-direction: column; padding: 32px 18px 12px; z-index: 30; overflow-y: auto; }
 .brand { display: flex; align-items: center; gap: 9px; font-size: 34px; font-weight: 700; letter-spacing: -2px; line-height: 1; padding: 0 13px; }
 .brandMark { display: grid; place-items: center; background: #365945; border-radius: 12px; color: #f5f7ed; width: 33px; height: 36px; font-size: 28px; font-weight: 600; padding-bottom: 4px; transform: rotate(-7deg); }
 .brandDot { color: #7e9a6c; font-size: 10px; align-self: flex-end; margin: 0 0 3px -6px; }
-.spaceLabel { font-size: 8px; letter-spacing: 1.8px; color: #86907d; margin: 28px 16px 16px; font-weight: 700; }
+.spaceLabel { font-size: 11px; letter-spacing: 1.4px; color: #59655e; margin: 28px 16px 16px; font-weight: 700; }
 .sidebar nav { display: flex; flex-direction: column; gap: 3px; }
-.sidebar nav button { display: flex; align-items: center; gap: 12px; padding: 11px 15px; min-height: 44px; border: 0; border-radius: 9px; background: transparent; color: #687667; text-align: left; font-size: 12px; }
+.sidebar nav button { display: flex; align-items: center; gap: 12px; padding: 11px 15px; min-height: 44px; border: 0; border-radius: 9px; background: transparent; color: #52624f; text-align: left; font-size: 14px; }
 .sidebar nav button svg { width: 17px; height: 17px; }
 .sidebar nav button:hover { background: #e4eadf; }
 .sidebar nav .activeNav { background: #fff; color: #34513d; box-shadow: 0 2px 5px #31492d07; font-weight: 650; }
@@ -45,15 +45,15 @@
 .sectionHeading h2 { font-size: 18px; }
 .sectionHeading h2 svg { vertical-align: middle; margin-right: 6px; }
 .dateLabel { color: #7d877c; font-size: 11px; margin-right: 8px; }
-.primary, .secondary, .darkButton, .startButton { display: inline-flex; justify-content: center; align-items: center; gap: 8px; min-height: 42px; padding: 10px 17px; border: 1px solid transparent; border-radius: 8px; font-size: 11px !important; font-weight: 600; white-space: nowrap; }
+.primary, .secondary, .darkButton, .startButton { display: inline-flex; justify-content: center; align-items: center; gap: 8px; min-height: 44px; padding: 10px 17px; border: 1px solid transparent; border-radius: 8px; font-size: 13px !important; font-weight: 600; white-space: nowrap; }
 .primary { background: var(--green); color: #fff; }
 .primary:hover, .darkButton:hover { background: #2f4d3b; }
 .secondary { background: #fff; border-color: #dfe5d9; color: #456047; }
 .secondary:hover { background: #f2f5ed; }
 .darkButton { background: #34543e; color: #fff; min-height: 46px; padding: 12px 22px; }
-.iconButton { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; border: 0; border-radius: 8px; background: transparent; color: #83917e; }
+.iconButton { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; border: 0; border-radius: 8px; background: transparent; color: #53634f; }
 .iconButton:hover { background: #eef2e7; color: #415c40; }
-.textButton { display: inline-flex; align-items: center; justify-content: center; gap: 7px; border: 0; background: transparent; color: #54714e; font-size: 11px !important; font-weight: 600; padding: 8px 0; min-height: 36px; }
+.textButton { display: inline-flex; align-items: center; justify-content: center; gap: 7px; border: 0; background: transparent; color: #3f5d3c; font-size: 13px !important; font-weight: 600; padding: 8px 2px; min-height: 44px; }
 .textButton:hover { color: #233d27; }
 .menuButton { display: none; }
 .content { max-width: 1520px; margin: auto; padding: 38px 42px 0; }
@@ -104,10 +104,10 @@
 .app progress::-webkit-progress-bar { background: #edf0e7; border-radius: 5px; }
 .app progress::-webkit-progress-value { background: #a2b28c; border-radius: 5px; }
 .app progress::-moz-progress-bar { background: #a2b28c; border-radius: 5px; }
-.step { display: flex; align-items: center; gap: 10px; margin: 16px 0; font-size: 11px; }
+.step { display: flex; align-items: center; gap: 10px; margin: 16px 0; min-height: 44px; font-size: 14px; }
 .step .check { width: 21px; height: 21px; border-radius: 6px; }
-.step small { font-size: 9px; }
-.step + small { margin-top: 20px; font-size: 9px; }
+.step small { font-size: 12px; }
+.step + small { margin-top: 20px; font-size: 12px; }
 .assistantCard { background: #f0f3e9; border-color: #e2e7d8; text-align: center; padding: 28px 20px 20px; }
 .assistantOrb { display: inline-flex; justify-content: center; align-items: center; width: 45px; height: 45px; border-radius: 15px; background: #e1e9d4; color: #819868; font-size: 30px; }
 .assistantCard .eyebrow { font-size: 7px; margin-top: 17px; letter-spacing: 1.2px; }
@@ -135,7 +135,7 @@
 .tabs button[aria-pressed="true"] { background: #fff; color: #46613c; box-shadow: 0 1px 3px #20301009; }
 .tabs span { margin-left: 5px; color: #89987b; }
 .badge { display: inline-block; border-radius: 5px; background: #eef3e7; color: #7a8e65; padding: 4px 8px; font-size: 9px; }
-.dateInput { border: 1px solid #dfe5d8; border-radius: 7px; background: #fff; padding: 8px 12px; color: #6a7b5c; font-size: 12px !important; min-height: 40px; }
+.dateInput { border: 1px solid #dfe5d8; border-radius: 7px; background: #fff; padding: 8px 12px; color: #43563b; font-size: 14px !important; min-height: 44px; }
 .calendarLayout { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 24px; }
 .hour { display: flex; min-height: 66px; }
 .hour > span { width: 55px; padding-top: 5px; color: #9aa48f; font-size: 10px; }
@@ -237,6 +237,15 @@
 @media (max-width: 1200px) { .sidebar { width: 210px; } .main { margin-left: 210px; } .content { padding: 28px; } .topbar { padding: 0 28px; } .dashboard { grid-template-columns: minmax(0, 1fr) 240px; gap: 20px; } .twoColumns { gap: 16px; } .card { padding: 20px; } .taskRow .iconButton { display: none; } .mealGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .toast { left: calc(50% + 105px); } .nutritionSummary { grid-template-columns: 1fr; } .sunArt { margin-right: 0; } }
 @media (max-width: 1000px) { .dashboard, .calendarLayout, .chatLayout { grid-template-columns: 1fr; } .rightRail { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; } .railNote { display: none; } .rightRail .card { margin-bottom: 0; } .calendarLayout aside { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; } .taskRow .iconButton { display: inline-flex; } .pageHeading h1 { font-size: 35px; } .sunArt { width: 95px; } }
 @media (max-width: 760px) { .sidebar { transform: translateX(-100%); width: 236px; z-index: 80; } .sidebarOpen { transform: translateX(0); } .scrim { position: fixed; inset: 0; z-index: 70; background: #25302560; border: 0; } .main { margin-left: 0; } .menuButton { display: inline-flex; } .topbar { height: 68px; padding: 0 18px; } .topbar .primary { font-size: 10px !important; padding: 9px 12px; } .content { padding: 26px 19px 0; } .dateLabel { display: none; } .previewBanner { padding: 9px 19px; font-size: 9px; flex-wrap: wrap; } .pageHeading { min-height: 110px; } .pageHeading h1 { font-size: 31px; letter-spacing: -1.2px; } .pageHeading p:not(.eyebrow) { font-size: 11px; } .sunArt { display: none; } .focusCard { padding: 22px; } .focusCard h2 { font-size: 24px; } .focusCard .between:last-of-type { align-items: flex-start; flex-direction: column; gap: 17px; } .stats { gap: 12px; } .stats button { padding: 14px 10px; gap: 9px; } .stats strong { font-size: 21px; } .statIcon { width: 30px; height: 30px; font-size: 17px; } .stats strong small { display: block; font-size: 9px; } .stats p { font-size: 8px; } .twoColumns, .rightRail, .calendarLayout aside { grid-template-columns: 1fr; } .card { padding: 20px; } .sectionHeading { flex-wrap: wrap; gap: 12px; } .taskRow { gap: 9px; } .taskRow strong { font-size: 11px; } .taskRow .iconButton { width: 30px; } .startButton { font-size: 9px !important; padding: 6px 8px; } .infoStrip { flex-wrap: wrap; font-size: 11px; padding: 16px; } .calorieCard { flex-direction: column; align-items: flex-start; } .calorieCircle { align-self: center; } .captureBox { flex-wrap: wrap; padding: 20px; } .captureBox div { min-width: 180px; } .captureBox h2 { font-size: 18px; } .movementHero { gap: 16px; } .largeIcon { width: 50px; height: 50px; font-size: 25px; border-radius: 18px; } .movementHero h2 { font-size: 18px; } .toast { left: 50%; bottom: 15px; font-size: 11px; } .footer { flex-direction: column; gap: 6px; } .focusOverlay { padding: 23px 20px; } .focusCenter h1 { font-size: 30px; } .focusCenter > p:not(.eyebrow) { font-size: 12px; } .focusActions { flex-wrap: wrap; justify-content: center; gap: 10px; } .focusActions button { font-size: 11px !important; padding: 10px 15px; } .focusDock { right: 15px; left: 15px; max-width: none; padding: 15px; gap: 12px; } .focusDock span { flex: 1; font-size: 11px; } .messages { padding: 16px; } .composer { margin: 15px; } .chatHeader { padding: 16px; } .gate h1 { font-size: 36px; } .gate .row { flex-direction: column; } }
+@media (max-width: 760px) {
+  .app small { font-size: 12px; }
+  .topbar .primary, .previewBanner, .pageHeading p:not(.eyebrow), .infoStrip, .focusActions button, .focusDock span { font-size: 13px !important; }
+  .stats strong small, .stats p { font-size: 12px; color: #52624f; }
+  .taskRow strong, .taskRow small { font-size: 13px; }
+  .taskRow .iconButton { width: 44px; }
+  .startButton { min-height: 44px; font-size: 13px !important; }
+  .focusActions button { min-height: 44px; }
+}
 @media (prefers-reduced-motion: reduce) { .app *, .app *::before, .app *::after { scroll-behavior: auto !important; animation: none !important; transition: none !important; } }
 
 /* A planner palette: each part of the day has its own visual identity. */
@@ -387,7 +396,7 @@
 .routineVisual .step { position:relative; background:#fafbf7; border:1px solid #e7ecdf; border-radius:12px; padding:12px; margin:8px 0; gap:12px; }
 .routineVisual[data-period="evening"] .step { background:#faf8fd; border-color:#eee8f4; }
 .routineVisual .check { border-radius:50%; }
-.routineHint { display:flex!important; align-items:center; gap:7px; margin-top:15px; font-size:11px!important; }
+.routineHint { display:flex!important; align-items:center; gap:7px; margin-top:15px; font-size:13px!important; }
 .mealGrid .card { padding-top:0; overflow:hidden; }
 .mealArt { width:auto; height:128px; margin:0 -28px 20px; border-radius:0; display:grid; place-items:center; }
 .plateArt { width:180px; height:110px; color:#8b7455; }
@@ -441,3 +450,22 @@
 .nightPreview { background:#35364e; border:1px solid #444560; color:#f3e8dd; display:flex; flex-direction:column; justify-content:center; }.nightMoon { width:65px; height:65px; stroke-width:1; color:#d5cae8; margin-bottom:36px; }.nightPreview .eyebrow,.nightPreview small { color:#c4bcd3; }.nightPreview h2 { margin-top:14px; }.nightPreview p { color:#ded4e6; max-width:280px; }.nightSwatches { display:flex; gap:8px; margin:32px 0 20px; }.nightSwatches span { height:30px; flex:1; border-radius:8px; background:#e6b77f; }.nightSwatches span:nth-child(2) { background:#c48d6f; }.nightSwatches span:nth-child(3) { background:#9a7374; }.nightSwatches span:nth-child(4) { background:#71647d; }.nightSwatches span:nth-child(5) { background:#514c68; }
 .wakeNotice { display:flex; align-items:center; gap:16px; padding:22px; border:1px solid #deded4; border-radius:16px; margin-top:24px; background:white; }.wakeNotice>svg { width:24px; height:24px; color:#977849; }.wakeNotice>div { flex:1; }.wakeNotice p { margin-top:5px; font-size:13px; color:#687365; }.wakeNotice strong { font-size:14px; }
 @media(max-width:760px) { .wakeGrid { grid-template-columns:1fr; }.sunrisePreview,.nightPreview { padding:26px; }.wakeNotice { flex-wrap:wrap; }.wakeNotice>div { min-width:200px; }.wakeSequence { gap:7px; font-size:11px; }.nightMoon { margin-bottom:22px; } }
+
+/* Keep task metadata and controls legible at standard and zoomed viewports. */
+.app small { color: #52624f; font-size: 13px; }
+.spaceLabel { font-size: 10px; letter-spacing: .7px; white-space: nowrap; }
+.sidebar nav button { font-size: 14px; }
+.iconButton { width: 44px; height: 44px; }
+.textButton { min-height: 44px; font-size: 13px !important; }
+.primary, .secondary, .startButton { min-height: 44px; font-size: 13px !important; }
+.taskRow small, .step small, .agendaItem small, .routineHint, .timerRing small { color: #52624f; font-size: 12px !important; }
+.focusCard .between > .row { color: #4c6043; font-size: 14px; }
+.stats strong small, .stats p { color: #52624f; font-size: 12px; }
+.weekStrip button { min-height: 52px; }
+@media (max-width: 760px) {
+  .topbar .primary, .previewBanner, .pageHeading p:not(.eyebrow), .infoStrip, .focusActions button, .focusDock span { font-size: 13px !important; }
+  .stats strong small, .stats p { font-size: 12px; }
+  .taskRow strong, .taskRow small { font-size: 13px; }
+  .taskRow .iconButton { width: 44px; }
+  .startButton, .focusActions button { min-height: 44px; }
+}

@@ -14,7 +14,7 @@ const operationDescriptions: Record<(typeof WRITE_COMMANDS)[number], string> = {
   reschedule_task: "Move a task's scheduled time",
   create_reminders: "Schedule two to eight notifications explicitly requested together; never add suggested or inferred times",
   reschedule_reminders: "Move two to eight existing reminders explicitly requested together",
-  create_reminder: "Schedule a reminder notification", cancel_reminder: "Cancel a reminder",
+  create_reminder: "Schedule a reminder notification, including a future current-plan briefing. Missing time details still require a separate scheduling clarification; they do not make the request advice-only.", cancel_reminder: "Cancel a reminder",
   reschedule_reminder: "Move a reminder's time", complete_reminder: "Mark a reminder done",
   remember_memory: "Save a personal fact or preference to assistant memory",
   forget_memory: "Forget a saved personal fact or preference",

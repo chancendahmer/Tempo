@@ -9,7 +9,7 @@ it("twenty accounts keep SMS, dashboard edits, assistant context and replies sep
   const observations: Parameters<TaskIntentParser["parse"]>[0][] = [];
   const simulation = await createAssistantSimulator({ parse: async input => {
     observations.push(input);
-    const notes = JSON.parse(await input.execute!({ type: "life_list", kind: "note" })) as SavedLifeItem[];
+    const { items: notes } = JSON.parse(await input.execute!({ type: "life_list", kind: "note" })) as { items: SavedLifeItem[] };
     return { kind: "conversation", reply: `[SCRIPTED] ${notes.map(note => note.data.title).join(", ")}` };
   } });
   try {
@@ -100,9 +100,9 @@ it("SMS recipe -> web follow-up edit -> dashboard edit -> SMS recall and delete 
   const recipe = { kind: "recipe" as const, title: "Lemon rice", ingredients: "Rice\nLemon", instructions: "Cook rice and add lemon.", servings: 2, prepMinutes: 20, favorite: true };
   const simulation = await createAssistantSimulator({ parse: async input => {
     if (input.message.startsWith("Save")) return { kind: "command", command: { type: "life_save", data: recipe } };
-    const rows = JSON.parse(await input.execute!({ type: "life_list", kind: "recipe" })) as SavedLifeItem[];
+    const { items: rows } = JSON.parse(await input.execute!({ type: "life_list", kind: "recipe" })) as { items: SavedLifeItem[] };
     const row = rows[0];
-    if (input.message.startsWith("Make")) return { kind: "command", command: { type: "life_save", id: row.id, version: row.version, data: { ...recipe, servings: 4 } } };
+    if (input.message.startsWith("Make")) return { kind: "command", command: { type: "life_patch", id: row.id, version: row.version, patch: { kind: "recipe", servings: 4 } } };
     if (input.message.startsWith("Delete")) return { kind: "command", command: { type: "life_remove", id: row.id, version: row.version } };
     return { kind: "conversation", reply: JSON.stringify(rows) };
   } });

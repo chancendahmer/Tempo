@@ -21,12 +21,13 @@ vi.mock("../scheduled-action-repository", () => ({ ScheduledActionRepository: cl
 } }));
 vi.mock("../../db/repositories/outbound-message-repository", () => ({ DrizzleOutboundMessageRepository: class {
   getPermission = m.permission; reserve = m.reserve; markSubmitted = m.submitted;
+  async beginSubmission() { return true; }
 } }));
 beforeEach(() => {
   vi.clearAllMocks();
   m.env.PROACTIVE_CANARY_USER_IDS = [userId];
   m.permission.mockResolvedValue({ userStatus: "active", latestConsent: "granted", phoneE164: "+12025550123", phoneVerified: true });
-  m.reserve.mockResolvedValue({ duplicate: false, messageId: "out" });
+  m.reserve.mockResolvedValue({ duplicate: false, messageId: "out", state: "reserved" });
   m.transportSend.mockResolvedValue({ provider: "test", providerMessageSid: "sent" });
 });
 

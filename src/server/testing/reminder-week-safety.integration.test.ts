@@ -10,7 +10,7 @@ const { create, authorize } = vi.hoisted(() => ({ create: vi.fn(), authorize: vi
 vi.mock("@anthropic-ai/sdk", () => ({ default: class { messages = { create }; } }));
 vi.mock("../adapters/llm/turn-authorizer", () => ({ AnthropicTurnAuthorizer: class { authorize = authorize; } }));
 vi.mock("../config/env", async original => ({ ...(await original<typeof import("../config/env")>()), requireEnv: () => ({ ANTHROPIC_API_KEY: "test", ANTHROPIC_MODEL: "test", ASSISTANT_WEB_SEARCH_ENABLED: false }) }));
-beforeEach(() => { create.mockReset(); authorize.mockReset().mockResolvedValue({ mode: "write", commands: ["create_reminders", "reschedule_reminders"] }); });
+beforeEach(() => { create.mockReset(); authorize.mockReset().mockResolvedValue({ mode: "write", commands: ["create_reminders", "reschedule_reminders", "reschedule_reminder"] }); });
 
 it.each(["extra-time", "wrong-day", "advice", "negated"])("blocks a fabricated reminder batch: %s", async scenario => {
   const message = scenario === "advice" ? "Would reminders tomorrow at 2 PM and 5 PM help?" : scenario === "negated" ? "Do not add reminders tomorrow at 2 PM and 5 PM" : "Remind me tomorrow at 2 PM and 5 PM to pick up the charger";

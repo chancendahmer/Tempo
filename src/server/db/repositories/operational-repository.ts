@@ -5,6 +5,18 @@ import { consentRecords, oauthStates, rateLimitBuckets, serviceHeartbeats, users
 export class OperationalRepository {
   constructor(private readonly database: TempoDatabase = getDatabase()) {}
 
+  async messageHealth(now = new Date()) {
+    const result = await this.database.execute<{ ambiguousOutbound: number; pendingInbound: number; oldestPendingSeconds: number | null }>(sql`
+      select
+        count(*) filter (where direction = 'outbound' and (outbound_state = 'ambiguous'
+          or (outbound_state = 'submitting' and submission_started_at < ${new Date(now.getTime() - 120_000)})))::int as "ambiguousOutbound",
+        count(*) filter (where direction = 'inbound' and status in ('received','processing'))::int as "pendingInbound",
+        extract(epoch from (${now}::timestamptz - min(created_at) filter (where direction = 'inbound' and status in ('received','processing'))))::int as "oldestPendingSeconds"
+      from conversation_messages
+    `);
+    return result.rows[0];
+  }
+
   async heartbeat(serviceKey: string, metadata: Record<string, unknown>, now = new Date()) {
     await this.database.insert(serviceHeartbeats).values({ serviceKey, lastSeenAt: now, metadata, updatedAt: now })
       .onConflictDoUpdate({

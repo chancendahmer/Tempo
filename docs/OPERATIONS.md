@@ -3,7 +3,7 @@
 ## Normal checks
 
 - `/api/health` proves the web process is alive and exposes the two sending safety switches.
-- `/api/ready` proves PostgreSQL is reachable and the worker heartbeat is under two minutes old.
+- `/api/ready` proves PostgreSQL is reachable and the worker heartbeat is under two minutes old; it also rejects blocked accounts, stale inbound backlog and outbound submissions awaiting reconciliation.
 - `npm run context:report` shows recent policy decisions and hard-block reasons.
 - `npm run beta:report` shows masked per-user and aggregate intervention outcomes.
 - Railway receives Tempo's single-line Pino JSON logs. Filter `@level:error`, `calendar sync failed`, `job queue error`, and `intervention delivery failed`.
@@ -15,7 +15,7 @@ Configure Railway project webhooks for failed/crashed deployments. On Railway Pr
 For unexpected or inappropriate outbound messages:
 
 1. Set `AUTONOMOUS_SENDING_ENABLED=false` on the worker immediately.
-2. If any uncertainty remains, also set `INTERVENTION_SHADOW_MODE=true`.
+2. Set `INTERVENTION_SHADOW_MODE=true` and clear `PROACTIVE_CANARY_USER_IDS`; the allowlist can permit delivery despite the global switches.
 3. Redeploy/restart the worker and verify `/api/health` reports the safe values.
 4. Inspect `context_snapshots`, `interventions`, `conversation_messages`, and `intervention_outcomes` before changing policy.
 5. Do not re-enable until the founder signs the launch checklist.
@@ -53,3 +53,15 @@ Never test restores against the production database. Encryption-key backup is eq
 - Account deletion is a confirmation-gated hard delete with database cascades.
 - Memory corrections are source-traced and either supersede or soft-delete the prior entry.
 - Do not export raw messages, phone numbers, or memory content into tickets or screenshots.
+
+## Held inbound recovery
+
+Inspect queueProblems from /api/ready and the worker queueHealth log. An outbound submission marked ambiguous or left submitting may already have reached the provider. Compare the provider's receipt with the account-scoped message before reconciling; do not reset it to reserved or resend on a guess. New readiness checks can expose old failures after migration. Do not delete history to make readiness green.
+
+For a terminal failed inbound job, use a securely configured process environment and run:
+
+```text
+npx tsx scripts/recover-inbound.ts --user ACCOUNT_UUID --job JOB_UUID --operator NAME --reason "Verified failure cause and provider state"
+```
+
+Default is dry run. Add --apply only after reviewing the selected account/job and provider evidence. The command checks job/action/message ownership, lease expiry and outbound state, and records the operator/reason. It refuses uncertain provider submissions. Do not automatically retry every failed job. Configure an external monitor for /api/ready before an unattended pilot; logging alone does not notify an operator.

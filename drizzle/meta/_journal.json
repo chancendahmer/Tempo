@@ -169,6 +169,27 @@
       "when": 1791224038575,
       "tag": "0023_third_mandroid",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1791242098434,
+      "tag": "0024_daily_beta_reliability",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1791242328023,
+      "tag": "0025_fresh_daily_briefing",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1791242590547,
+      "tag": "0026_recurring_job_claims",
+      "breakpoints": true
     }
   ]
 }

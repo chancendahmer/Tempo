@@ -40,6 +40,7 @@ export type SendMessageInput = {
   providerConversationId?: string;
   providerThreadId?: string;
   replyToProviderMessageId?: string;
+  signal?: AbortSignal;
 };
 
 export type SendMessageResult = {

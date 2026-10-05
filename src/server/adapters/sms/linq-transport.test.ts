@@ -5,6 +5,12 @@ import { LinqApiError, LinqMessagingTransport } from "./linq-transport";
 const priorKey = process.env.LINQ_API_KEY;
 
 describe("Linq messaging transport", () => {
+  it.each([408, 409, 500])("treats HTTP %s as ambiguous rather than safe to resend", status => {
+    expect(new LinqApiError("uncertain", status).submissionOutcome).toBe("unknown");
+  });
+  it.each([400, 429])("recognizes a rejected HTTP %s submission", status => {
+    expect(new LinqApiError("rejected", status).submissionOutcome).toBe("not_accepted");
+  });
   beforeEach(() => {
     process.env.LINQ_API_KEY = "linq-test-key";
     resetEnvCacheForTests();

@@ -25,6 +25,7 @@ export type MemoryRecord = {
 
 export interface MemoryRepository {
   retrieveRelevant(userId: string, now: Date, limit: number): Promise<MemoryRecord[]>;
+  searchRelevant?(userId: string, now: Date, query: string | undefined, limit: number): Promise<MemoryRecord[]>;
   forgetMatching(userId: string, query: string, now: Date): Promise<number>;
   forgetMostRecent(userId: string, now: Date): Promise<boolean>;
   supersedePreference(input: { userId: string; content: string; sourceMessageId: string; now: Date }): Promise<void>;
@@ -86,6 +87,21 @@ export class MemoryService {
     return this.repository.retrieveRelevant(userId, now, Math.max(1, Math.min(limit, 20)));
   }
 
+  async searchRelevant(userId: string, now: Date, query?: string, limit = 20) {
+    const size = Math.max(1, Math.min(limit, 20));
+    if (!this.repository.searchRelevant) {
+      return { items: query ? [] : await this.retrieveRelevant(userId, now, size), truncated: true,
+        coverage: "Topic search is unavailable; these results cannot establish that information was never saved." };
+    }
+    const terms = query?.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
+    if (query && (!terms.length || terms.length > 12)) return { items: [], truncated: false, coverage: "Use 1–12 distinctive search words." };
+    const rows = await this.repository.searchRelevant(userId, now, query, size + 1);
+    return { items: rows.slice(0, size), truncated: rows.length > size,
+      coverage: rows.length > size ? "More matching saved facts exist; narrow the topic."
+        : query ? "All active non-sensitive saved facts matching every search word; notes are searched separately."
+        : "Active non-sensitive saved facts; notes are searched separately." };
+  }
+
   async executeCommand(input: { userId: string; messageId: string; command: MemoryCommand; now: Date }) {
     if (isSensitiveMemory(input.command.content)) return sensitiveMemoryReply;
     await this.repository.storeExplicit({
@@ -100,13 +116,16 @@ export class MemoryService {
       : `Saved: ${input.command.content}`;
   }
 
-  async tryHandleCorrection(input: { userId: string; messageId: string; body: string; now: Date }) {
+  async tryHandleCorrection(input: { userId: string; messageId: string; body: string; now: Date },
+    authorize?: (type: "remember_memory" | "forget_memory") => Promise<string | undefined>) {
     if (/^(?:(?:can|could|will|would) you )?remember my favou?rite foods?[?.!\s]*$/i.test(input.body.trim())) {
       return "Yes—I can keep your favorite foods and help you pick something when deciding feels hard. What’s one food you’d like me to remember?";
     }
     const correction = parseMemoryCorrection(input.body);
     if (!correction) return null;
     if ("content" in correction && isSensitiveMemory(correction.content)) return sensitiveMemoryReply;
+    const denial = await authorize?.(correction.type === "forget" || correction.type === "forget_recent" ? "forget_memory" : "remember_memory");
+    if (denial) return denial;
     if (correction.type === "forget") {
       const count = await this.repository.forgetMatching(input.userId, correction.query, input.now);
       return count > 0 ? "Forgot it." : "I couldn’t find a matching memory to remove.";

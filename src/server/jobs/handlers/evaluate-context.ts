@@ -1,3 +1,4 @@
+import { inOwnedExecution, ownedService } from "../../domain/inbound-execution";
 import { PgBoss } from "pg-boss";
 import { getServerEnv } from "../../config/env";
 import { proactiveDeliveryEnabled } from "../../config/proactive-delivery";
@@ -15,22 +16,24 @@ export async function registerEvaluateContextHandler(boss: PgBoss) {
   await boss.work<EvaluateContextJob>(JOB_NAMES.evaluateContext, { localConcurrency: 4 }, async (jobs) => {
     for (const job of jobs) {
       const actions = new ScheduledActionRepository();
-      if (!(await actions.markRunning(job.data.scheduledActionId))) continue;
+      const ownership = await actions.claimRecurring(job.data.scheduledActionId, job.signal, job.expireInSeconds * 1000);
+      if (!ownership) continue;
       try {
         const env = getServerEnv();
         const shadowMode = !proactiveDeliveryEnabled(env, job.data.userId);
-        const result = await evaluateUserContext({
+        const result = await inOwnedExecution(ownership, () => evaluateUserContext({
           userId: job.data.userId,
-          repository: new DrizzleContextEngineRepository(),
+          repository: ownedService(new DrizzleContextEngineRepository()),
           shadowMode,
-          planner: new DrizzleInterventionRepository(),
+          planner: ownedService(new DrizzleInterventionRepository()),
           reviewer: !shadowMode && env.HYBRID_AI_REVIEW_ENABLED ? new AnthropicInterventionDecisionReviewer() : undefined,
-        });
+        }));
         if (result.evaluated) {
           await actions.completeAndScheduleContextEvaluation(job.data.scheduledActionId, job.data.userId, new Date(Date.now() + EVALUATION_INTERVAL_MS));
           logger.debug({ userId: job.data.userId, decision: result.evaluation.decision, score: result.evaluation.score }, "context evaluated");
         } else await actions.markCompleted(job.data.scheduledActionId);
       } catch (error) {
+        if (job.signal.aborted) throw error;
         await actions.markFailed(job.data.scheduledActionId, error);
         await actions.scheduleRecurringRecovery({
           failedActionId: job.data.scheduledActionId,

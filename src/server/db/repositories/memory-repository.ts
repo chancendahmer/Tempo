@@ -6,6 +6,18 @@ import { memoryEntries } from "../schema";
 export class DrizzleMemoryRepository implements MemoryRepository {
   constructor(private readonly database: TempoDatabase = getDatabase()) {}
 
+  async searchRelevant(userId: string, now: Date, query: string | undefined, limit: number) {
+    const terms = [...new Set(query?.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [])];
+    if (query && (!terms.length || terms.length > 12)) return [];
+    return this.database.select({ id: memoryEntries.id, content: memoryEntries.content,
+      category: memoryEntries.category, confidence: memoryEntries.confidence }).from(memoryEntries).where(and(
+      eq(memoryEntries.userId, userId), eq(memoryEntries.sensitivity, "normal"), isNull(memoryEntries.deletedAt),
+      or(isNull(memoryEntries.expiresAt), gt(memoryEntries.expiresAt, now)),
+      ...terms.map(term => ilike(memoryEntries.content, `%${term}%`)),
+    )).orderBy(desc(memoryEntries.confidence), desc(memoryEntries.lastConfirmedAt), desc(memoryEntries.createdAt), desc(memoryEntries.id))
+      .limit(Math.max(1, Math.min(limit, 21)));
+  }
+
   async retrieveRelevant(userId: string, now: Date, limit: number) {
     const rows = await this.database.select({
       id: memoryEntries.id,

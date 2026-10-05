@@ -1,3 +1,4 @@
+import { scopedDatabase } from "../database-scope";
 import { Buffer } from "node:buffer";
 import { readdir, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
@@ -7,6 +8,7 @@ import { drizzle } from "drizzle-orm/pglite";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { TestSmsTransport } from "../../adapters/sms/sms-transport";
 import { TaskIntentParser } from "../../adapters/llm/task-intent-parser";
+import { WRITE_COMMANDS } from "../../domain/turn-write-policy";
 import { recordWebConsent } from "../../domain/consent";
 import { ConversationOrchestrator } from "../../domain/conversation-orchestrator";
 import { evaluateUserContext } from "../../domain/context-evaluation-service";
@@ -50,7 +52,7 @@ describe("provider-free V1 journey", () => {
     for (const file of (await readdir(resolve(process.cwd(), "drizzle"))).filter((name) => /^\d+.*\.sql$/.test(name)).sort()) {
       await client.exec((await readFile(resolve(process.cwd(), "drizzle", file), "utf8")).replaceAll("--> statement-breakpoint", ""));
     }
-    database = drizzle(client, { schema }) as unknown as TempoDatabase;
+    database = scopedDatabase(drizzle(client, { schema }) as unknown as TempoDatabase);
   });
 
   afterAll(async () => client.close());
@@ -75,6 +77,7 @@ describe("provider-free V1 journey", () => {
     let now = new Date("2026-08-18T16:00:00Z");
     const outcomes = new OutcomeTracker(new DrizzleOutcomeRepository(database));
     const parser: TaskIntentParser = {
+      authorizer: { authorize: async () => ({ mode: "write", commands: [...WRITE_COMMANDS] }) },
       parse: vi.fn(async () => ({ kind: "conversation" as const, reply: "Tell me what you want to do next." })),
     };
     const coach = new ConversationOrchestrator(

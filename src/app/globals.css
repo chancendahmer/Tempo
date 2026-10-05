@@ -1676,7 +1676,7 @@ select {
   border-radius: 999px;
   color: #596360;
   background: #edf0ee;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -1684,6 +1684,10 @@ select {
 
 .extension-status.connected { color: #08796f; background: #d9f3ec; }
 .extension-status.available { color: #065f57; background: #dff5ef; }
+.extension-status.reauthorize { color: #714500; background: #fff0cf; }
+.extension-load-error { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; color: #7a2630; font-size: 14px; line-height: 1.5; }
+.extension-load-error button { min-height: 44px; border: 1px solid #c9d7d1; border-radius: 10px; background: #fff; padding: 8px 14px; color: #193d38; font: inherit; font-weight: 700; cursor: pointer; }
+.extension-load-error button:focus-visible { outline: 3px solid #08796f; outline-offset: 3px; }
 .extension-provider { margin: 0 0 8px; color: var(--teal-dark); font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; }
 .extension-card h2 { margin: 0 0 14px; font-size: 31px; letter-spacing: -0.045em; }
 .extension-card > div > p:last-child { margin: 0; color: #56615f; line-height: 1.65; }

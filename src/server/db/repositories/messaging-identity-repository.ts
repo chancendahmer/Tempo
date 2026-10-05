@@ -9,6 +9,7 @@ import {
   providerConversations,
   providerLines,
   userIdentities,
+  users,
 } from "../schema";
 
 export type EnsureDirectConversationInput = {
@@ -43,6 +44,12 @@ export async function ensureDirectConversation(
   database: TempoDatabase,
   input: EnsureDirectConversationInput,
 ): Promise<DirectConversationIdentity> {
+  return database.transaction(async transaction => {
+  const database = transaction as unknown as TempoDatabase;
+  // The phone has two unique constraints. Serialize account identity creation
+  // so simultaneous webhook replays cannot conflict on the non-arbiter index.
+  const [owner] = await database.select({ id: users.id }).from(users).where(eq(users.id, input.userId)).for("update");
+  if (!owner) throw new Error("Tempo identity owner not found");
   const phoneE164 = normalizeE164(input.phoneE164);
   const [createdIdentity] = await database.insert(userIdentities).values({
     userId: input.userId,
@@ -171,4 +178,5 @@ export async function ensureDirectConversation(
     providerConversationId: providerConversation.id,
     providerExternalKey: externalKey,
   };
+  });
 }

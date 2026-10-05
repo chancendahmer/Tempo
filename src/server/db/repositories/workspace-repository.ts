@@ -5,6 +5,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { getDatabase, TempoDatabase } from "../client";
 import { conversationMessages, goals, lifeItems, lifeActionReceipts, scheduledActions, tasks, users } from "../schema";
 import { lifeItemSchema, localDay } from "../../domain/life-items";
+import { applyLifePatch, lifePatchSchema, lifeSavedReply } from "../../domain/life-patch";
 import { taskCommandSchema } from "../../domain/task-commands";
 import { goalCommandSchema } from "../../domain/goal-commands";
 import { executeTaskCommand } from "../../domain/task-service";
@@ -17,6 +18,7 @@ import { readBoard } from "./board-repository";
 export const workspaceActionSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("add_groceries"), items: z.array(z.string().trim().min(1).max(240)).min(1).max(20) }),
   z.object({ action: z.literal("save"), id: z.uuid(), version: z.number().int().min(0), data: lifeItemSchema }),
+  z.object({ action: z.literal("patch"), id: z.uuid(), version: z.number().int().min(1), patch: lifePatchSchema }).strict(),
   z.object({ action: z.literal("delete"), id: z.uuid(), version: z.number().int().min(1) }),
   z.object({ action: z.literal("task"), requestId: z.uuid(), command: taskCommandSchema }),
   z.object({ action: z.literal("goal"), requestId: z.uuid(), command: goalCommandSchema }),
@@ -84,6 +86,16 @@ export async function mutateWorkspace(userId: string, input: WorkspaceAction, da
       }
       await transaction.delete(lifeItems).where(eq(lifeItems.id, focus.id));
       return { message: "Step completed. Take a breath before the next." };
+    }
+    if (input.action === "patch") {
+      const [existing] = await transaction.select().from(lifeItems).where(and(eq(lifeItems.id, input.id), eq(lifeItems.userId, userId), eq(lifeItems.version, input.version))).limit(1);
+      if (!existing) throw new WorkspaceConflict("This item changed elsewhere or is unavailable. Read it again before editing.");
+      let data;
+      try { data = applyLifePatch(existing.data, input.patch, randomUUID); }
+      catch (error) { throw new WorkspaceConflict(error instanceof Error ? error.message : "That edit is invalid."); }
+      const rows = await transaction.update(lifeItems).set({ data, version: sql`${lifeItems.version} + 1`, updatedAt: new Date() }).where(and(eq(lifeItems.id, input.id), eq(lifeItems.userId, userId), eq(lifeItems.version, input.version))).returning();
+      if (!rows.length) throw new WorkspaceConflict("This item changed elsewhere. Read it again before editing.");
+      return { message: lifeSavedReply(data, true) };
     }
     if (input.action === "save") {
       const [existing] = await transaction.select().from(lifeItems).where(and(eq(lifeItems.id, input.id), eq(lifeItems.userId, userId))).limit(1);

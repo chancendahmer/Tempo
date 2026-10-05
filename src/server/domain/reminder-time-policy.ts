@@ -38,7 +38,20 @@ export function reminderTimeIssue(command: ReminderCommand, input: { message: st
   // In a move "from 5 PM to 12 PM", the source clock is not a permitted target.
   const targetClause = input.message.split(/\bto\b/i).at(-1) ?? "";
   const currentClocks = requestedClocks(editing && requestedClocks(targetClause).length ? targetClause : input.message);
-  if (editing && currentClocks.length > 1) return "What new time should I use for these reminders?";
+  if (editing && currentClocks.length > 1) {
+    if (command.type !== "reschedule_reminders" || command.changes.length !== currentClocks.length
+      || new Set(command.changes.map(item => localDate(new Date(item.expectedRemindAt), input.timezone))).size !== 1) {
+      return "Which new time belongs to each reminder? Please pair each day with its time.";
+    }
+    // Same-day reminders have a natural chronological order. Reject swapped or
+    // duplicate assignments instead of trusting a model's arbitrary ID ordering.
+    const ordered = [...command.changes].sort((a,b) => new Date(a.expectedRemindAt).getTime() - new Date(b.expectedRemindAt).getTime());
+    const proposed = ordered.map(item => {
+      const parts = new Intl.DateTimeFormat("en-GB", {timeZone:input.timezone,hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).format(new Date(item.remindAt)).split(":").map(Number);
+      return parts[0]*60+parts[1];
+    });
+    if (JSON.stringify(proposed) !== JSON.stringify([...currentClocks].sort((a,b)=>a-b))) return "Which new time belongs to each reminder? Nothing was changed.";
+  }
   const previous = input.inheritSchedule ? exchange?.request : undefined;
   const clocks = currentClocks.length ? currentClocks : requestedClocks(previous?.content ?? "");
   const currentDates = datesIn(input.message, input.now, input.timezone);

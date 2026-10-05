@@ -2,7 +2,7 @@ import { MessagingProvider, MessagingTransport, SendMessageResult } from "../ada
 
 import { plainSmsText } from "./sms-text";
 
-export type OutboundBlockReason = "missing_consent" | "opted_out" | "paused" | "deleted" | "duplicate";
+export type OutboundBlockReason = "missing_consent" | "opted_out" | "paused" | "deleted" | "duplicate" | "suppressed";
 
 export type MessagingPermission = {
   phoneE164: string;
@@ -14,7 +14,12 @@ export type MessagingPermission = {
 export type OutboundReservation = {
   messageId: string;
   duplicate: boolean;
+  state: "reserved" | "submitting" | "accepted" | "ambiguous" | "suppressed";
 };
+
+export class OutboundDeliveryPendingError extends Error {
+  constructor() { super("Outbound provider acceptance needs reconciliation; automatic resend is blocked"); }
+}
 
 export interface OutboundMessageRepository {
   getPermission(userId: string): Promise<MessagingPermission | null>;
@@ -26,7 +31,9 @@ export interface OutboundMessageRepository {
     relatedInterventionId?: string;
     relatedReminderId?: string;
     replyToMessageId?: string;
+    sourceMessageId?: string;
   }): Promise<OutboundReservation>;
+  beginSubmission(messageId: string): Promise<boolean>;
   cancel(messageId: string, reason: OutboundBlockReason): Promise<void>;
   markSubmitted(
     messageId: string,
@@ -50,6 +57,10 @@ export type SendSafeSmsInput = {
   relatedInterventionId?: string;
   relatedReminderId?: string;
   replyToMessageId?: string;
+  sourceMessageId?: string;
+  signal?: AbortSignal;
+  runOwned?: <T>(operation: () => Promise<T>) => Promise<T>;
+  assertOwnership?: () => Promise<void>;
 };
 
 export type SendSafeSmsResult =
@@ -81,8 +92,11 @@ export class SafeSmsSender {
     const initialPermission = evaluateMessagingPermission(await this.repository.getPermission(input.userId), this.now());
     if (!initialPermission.allowed) return { sent: false, reason: initialPermission.reason };
 
-    const reservation = await this.repository.reserve(input);
-    if (reservation.duplicate) return { sent: false, reason: "duplicate", messageId: reservation.messageId };
+    const owned = input.runOwned ?? (async <T>(operation: () => Promise<T>) => operation());
+    const reservation = await owned(() => this.repository.reserve(input));
+    if (reservation.state === "accepted") return { sent: false, reason: "duplicate", messageId: reservation.messageId };
+    if (reservation.state === "suppressed") return { sent: false, reason: "suppressed", messageId: reservation.messageId };
+    if (reservation.state !== "reserved") throw new OutboundDeliveryPendingError();
 
     const latestPermission = await this.repository.getPermission(input.userId);
     const dispatchPermission = evaluateMessagingPermission(latestPermission, this.now());
@@ -91,13 +105,22 @@ export class SafeSmsSender {
       return { sent: false, reason: dispatchPermission.reason, messageId: reservation.messageId };
     }
 
+    // This committed transition distinguishes a reservation from an attempt that
+    // may have reached the provider. A crashed submitting attempt is never resent.
+    input.signal?.throwIfAborted();
+    await input.assertOwnership?.();
+    if (!await owned(() => this.repository.beginSubmission(reservation.messageId))) throw new OutboundDeliveryPendingError();
+    let providerInvoked = false;
     try {
+      input.signal?.throwIfAborted();
+      providerInvoked = true;
       const result = await this.transport.send({
         to: latestPermission!.phoneE164,
         body: input.body,
         idempotencyKey: input.idempotencyKey,
         statusCallbackUrl: input.statusCallbackUrl,
         ...(input.mediaUrl ? { mediaUrl: input.mediaUrl } : {}),
+        ...(input.signal ? { signal: input.signal } : {}),
       });
       if (result.providerConversationId || result.providerThreadId || result.providerLineAddress) {
         await this.repository.markSubmitted(
@@ -125,7 +148,8 @@ export class SafeSmsSender {
         service: result.service,
       };
     } catch (error) {
-      await this.repository.markFailed(reservation.messageId, error);
+      await this.repository.markFailed(reservation.messageId, providerInvoked ? error
+        : Object.assign(new Error("Submission cancelled before contacting the provider"), { submissionOutcome: "not_accepted" }));
       throw error;
     }
   }
