@@ -259,6 +259,8 @@ describe("messaging repositories with migrated PostgreSQL", () => {
       eq(scheduledActions.userId, user.id),
       eq(scheduledActions.kind, "send_compliance"),
     ));
+    const [handledHelp] = await database.select().from(conversationMessages).where(eq(conversationMessages.providerMessageSid,"SENDBLUE_HELP"));
+    expect(handledHelp.status).toBe("processed");
     expect(helpActions).toHaveLength(1);
     expect(helpActions[0].idempotencyKey).toBe("help:sendblue:SENDBLUE_HELP");
   });
@@ -285,6 +287,8 @@ describe("messaging repositories with migrated PostgreSQL", () => {
     const [message] = await database.select().from(conversationMessages)
       .where(eq(conversationMessages.providerMessageSid, "SENDBLUE_WEB_START"));
     expect(message).toMatchObject({ provider: "sendblue", providerService: "iMessage", kind: "compliance" });
+    const [handled] = await database.select().from(conversationMessages).where(eq(conversationMessages.userId,user.id));
+    expect(handled.status).toBe("processed");
     expect(user.phoneVerifiedAt).toBeInstanceOf(Date);
     expect(actions.map((action) => action.kind).sort()).toEqual(["evaluate_context", "send_welcome"]);
   });

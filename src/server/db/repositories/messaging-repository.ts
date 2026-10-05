@@ -155,6 +155,7 @@ export class DrizzleMessagingRepository implements MessagingRepository {
       }
 
       if (complianceKeyword === "STOP" || complianceKeyword === "START") {
+        await transaction.update(conversationMessages).set({status:"processed",updatedAt:now}).where(eq(conversationMessages.id,message.id));
         const granted = complianceKeyword === "START";
         await transaction.insert(consentRecords).values({
           userId: user.id,
@@ -271,6 +272,7 @@ export class DrizzleMessagingRepository implements MessagingRepository {
       }
 
       if (complianceKeyword === "HELP") {
+        await transaction.update(conversationMessages).set({status:"processed",updatedAt:now}).where(eq(conversationMessages.id,message.id));
         await transaction
           .insert(scheduledActions)
           .values({
@@ -282,6 +284,7 @@ export class DrizzleMessagingRepository implements MessagingRepository {
           })
           .onConflictDoNothing({ target: scheduledActions.idempotencyKey });
       } else if (user.lastInboundAt === null && user.onboardingState === "introduction") {
+        await transaction.update(conversationMessages).set({status:"processed",updatedAt:now}).where(eq(conversationMessages.id,message.id));
         await transaction.insert(scheduledActions).values([
           {
             userId: user.id,
