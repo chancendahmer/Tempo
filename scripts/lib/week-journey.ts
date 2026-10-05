@@ -1,6 +1,7 @@
 import { isDeepStrictEqual } from "node:util";
 import type { CoachingCommand, TaskIntentParser } from "../../src/server/adapters/llm/task-intent-parser";
-import type { LifeItem, SavedLifeItem } from "../../src/server/domain/life-items";
+import type { SavedLifeItem } from "../../src/server/domain/life-items";
+import { lifePatchSchema } from "../../src/server/domain/life-patch";
 import type { AssistantSimulator } from "./assistant-simulator";
 import { workspaceProductState } from "./workspace-evaluation";
 import { scriptedWorkspaceParser, workspaceJourney, type Step, type Workspace } from "./workspace-journey";
@@ -52,12 +53,12 @@ async function commandFor(input: Parameters<TaskIntentParser["parse"]>[0]): Prom
   if (step.create) return { kind: "command", command: { type: "life_save", data: step.create } };
   if (step.edit || step.remove) {
     const kind = step.edit?.kind ?? step.remove!;
-    const rows = JSON.parse(await input.execute!({ type: "life_list", kind })) as SavedLifeItem[];
+    const { items: rows } = JSON.parse(await input.execute!({ type: "life_list", kind })) as { items: SavedLifeItem[] };
     const row = rows[0];
     if (!row) return { kind: "conversation", reply: "[SCRIPTED FIXTURE] No item found." };
     return { kind: "command", command: step.remove
       ? { type: "life_remove", id: row.id, version: row.version }
-      : { type: "life_save", id: row.id, version: row.version, data: { ...row.data, ...step.edit!.patch } as LifeItem } };
+      : { type: "life_patch", id: row.id, version: row.version, patch: lifePatchSchema.parse({ kind: row.data.kind, ...step.edit!.patch }) } };
   }
   const commands: Record<string, CoachingCommand> = {
     "Remind me tomorrow at 9 AM to pack lunch.": { type: "create_reminder", text: "pack lunch", remindAt: "2027-01-13T09:00:00-05:00" },
@@ -75,9 +76,9 @@ async function commandFor(input: Parameters<TaskIntentParser["parse"]>[0]): Prom
     "Add a note: remember to buy basil.": { type: "life_save", data: { kind: "note", title: "Shopping", body: "Remember to buy basil." } },
   };
   if (input.message === "Make my morning routine include a 3 minute breathing exercise.") {
-    const rows = JSON.parse(await input.execute!({ type: "life_list", kind: "routine" })) as SavedLifeItem[];
+    const { items: rows } = JSON.parse(await input.execute!({ type: "life_list", kind: "routine" })) as { items: SavedLifeItem[] };
     const row = rows.find(item => item.data.kind === "routine");
-    if (row?.data.kind === "routine") return { kind: "command", command: { type: "life_save", id: row.id, version: row.version, data: { ...row.data, steps: [...row.data.steps, { id: "00000000-0000-4000-8000-000000000083", title: "Breathing exercise", minutes: 3, completedOn: null }] } } };
+    if (row?.data.kind === "routine") return { kind: "command", command: { type: "life_patch", id: row.id, version: row.version, patch: { kind: "routine", stepChanges: [{ operation: "add", title: "Breathing exercise", minutes: 3 }] } } };
   }
   const command = commands[input.message];
   if (command) return { kind: "command", command };

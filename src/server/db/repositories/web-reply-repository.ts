@@ -7,13 +7,16 @@ import type { SendSafeSmsInput } from "../../domain/outbound-messaging";
 export class WebReplySender {
   constructor(private readonly sourceMessageId: string, private readonly database: TempoDatabase = getDatabase()) {}
   async send(input: SendSafeSmsInput) {
+    const owned = input.runOwned ?? (async <T>(operation: () => Promise<T>) => operation());
+    return owned(async () => {
     const [source] = await this.database.select().from(conversationMessages).where(and(eq(conversationMessages.id, this.sourceMessageId), eq(conversationMessages.userId, input.userId))).limit(1);
     if (!source?.idempotencyKey?.startsWith(`web-chat:${input.userId}:`)) throw new Error("Invalid web reply source");
     await this.database.transaction(async transaction => {
-      await transaction.insert(conversationMessages).values({ userId: input.userId, conversationId: source.conversationId, direction: "outbound", kind: "coach", status: "delivered", body: input.body, idempotencyKey: input.idempotencyKey, deliveredAt: new Date() }).onConflictDoNothing({ target: conversationMessages.idempotencyKey });
+      await transaction.insert(conversationMessages).values({ userId: input.userId, conversationId: source.conversationId, direction: "outbound", kind: "coach", status: "delivered", outboundState: "accepted", body: input.body, idempotencyKey: input.idempotencyKey, deliveredAt: new Date() }).onConflictDoNothing({ target: conversationMessages.idempotencyKey });
       const [reply] = await transaction.select().from(conversationMessages).where(and(eq(conversationMessages.idempotencyKey, input.idempotencyKey), eq(conversationMessages.userId, input.userId))).limit(1);
       if (!reply || !source.conversationId || reply.conversationId !== source.conversationId || reply.body !== input.body || reply.direction !== "outbound") throw new Error("Conflicting web reply");
       await transaction.insert(messageRelations).values({ conversationId: source.conversationId, sourceMessageId: reply.id, targetMessageId: source.id, type: "reply" }).onConflictDoNothing();
+    });
     });
   }
 }

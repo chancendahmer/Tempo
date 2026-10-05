@@ -20,7 +20,7 @@ it("stores one account-owned reply link atomically and rejects conflicting dupli
     const repository = new DrizzleOutboundMessageRepository(simulation.database);
     const input = { userId: person.id, body: "Want one at 5 PM too?", kind: "coach" as const, idempotencyKey: "reply-link-test", replyToMessageId: parents[0].id };
     const first = await repository.reserve(input);
-    expect(await repository.reserve(input)).toEqual({ messageId: first.messageId, duplicate: true });
+    expect(await repository.reserve(input)).toEqual({ messageId: first.messageId, duplicate: true, state: "reserved" });
     await expect(repository.reserve({ ...input, replyToMessageId: parents[1].id })).rejects.toThrow("Conflicting outbound reply source");
     await expect(repository.reserve({ ...input, idempotencyKey: "invalid-foreign", replyToMessageId: parents[2].id })).rejects.toThrow("Invalid outbound reply source");
     await expect(repository.reserve({ ...input, idempotencyKey: "invalid-outbound", replyToMessageId: first.messageId })).rejects.toThrow("Invalid outbound reply source");

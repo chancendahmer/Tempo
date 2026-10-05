@@ -1,3 +1,4 @@
+import { scopedDatabase } from "../../src/server/db/database-scope";
 import { readdir, readFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
@@ -5,6 +6,7 @@ import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
 import { and, eq } from "drizzle-orm";
 import type { TaskIntentParser, CoachingCommand } from "../../src/server/adapters/llm/task-intent-parser";
+import { WRITE_COMMANDS } from "../../src/server/domain/turn-write-policy";
 import { TestSmsTransport } from "../../src/server/adapters/sms/sms-transport";
 import { parseSendblueWebhook } from "../../src/server/adapters/sms/sendblue-webhook";
 import { ConversationOrchestrator } from "../../src/server/domain/conversation-orchestrator";
@@ -30,7 +32,10 @@ import { createSimulatedCalendar } from "./simulated-calendar";
 
 export type TranscriptTurn = {
   input: string; replies: string[]; providerId: string; duplicate: boolean;
-  parserCalled: boolean; tools: string[]; elapsedMs: number;
+  decisionAt: string; parserCalled: boolean; tools: string[]; elapsedMs: number;
+  // Synthetic-account evidence only: retain arguments/results so a failed
+  // lookup can be distinguished from a clock, query, or persistence defect.
+  toolTrace?: { command: CoachingCommand; result: string }[];
   channel?: "sms" | "web";
 };
 
@@ -42,7 +47,7 @@ export async function createAssistantSimulator(parser: TaskIntentParser) {
       await client.exec((await readFile(resolve("drizzle", file), "utf8")).replaceAll("--> statement-breakpoint", ""));
     }
   } catch (error) { await client.close(); throw error; }
-  const database = drizzle(client, { schema }) as unknown as TempoDatabase;
+  const database = scopedDatabase(drizzle(client, { schema }) as unknown as TempoDatabase);
   const transport = new TestSmsTransport("SIMULATED");
   const calendarWrites: Array<{ userId: string; change: CalendarChange }> = [];
   const calendar = createSimulatedCalendar();
@@ -95,19 +100,31 @@ export async function createAssistantSimulator(parser: TaskIntentParser) {
             ? (await mutateWorkspace(user.id, { action: "chat", requestId: providerId, text: body }, database), { duplicate: Boolean(prior) })
             : await new DrizzleMessagingRepository(database).ingestInbound(parsed.input);
           const [message] = await database.select().from(schema.conversationMessages).where(and(eq(schema.conversationMessages.userId, user.id), channel === "web" ? eq(schema.conversationMessages.idempotencyKey, webKey) : eq(schema.conversationMessages.providerMessageSid, providerId))).limit(1);
+          // Keep persisted history on the same injected clock as model decisions.
+          // Otherwise a future-date fixture inherits the real machine's date.
+          if (!receipt.duplicate) {
+            clock = new Date(clock.getTime() + 1);
+            await database.update(schema.conversationMessages).set({createdAt:clock,receivedAt:clock}).where(eq(schema.conversationMessages.id,message.id));
+          }
           const [job] = await database.select().from(schema.scheduledActions).where(and(
             eq(schema.scheduledActions.userId, user.id),
             eq(schema.scheduledActions.idempotencyKey, channel === "web" ? `web-process:${message.id}` : `inbound:sendblue:${providerId}`),
             eq(schema.scheduledActions.status, "scheduled"),
           )).limit(1);
-          const turn: TranscriptTurn = { input: body, replies: [], providerId, duplicate: receipt.duplicate, parserCalled: false, tools: [], elapsedMs: 0, channel };
+          const turn: TranscriptTurn = { decisionAt: clock.toISOString(), input: body, replies: [], providerId, duplicate: receipt.duplicate, parserCalled: false, tools: [], elapsedMs: 0, channel };
           const beforeWeb = channel === "web" ? (await readWorkspace(user.id, database)).messages.map(row => row.id) : [];
           const before = transport.sent.length;
-          const observedParser: TaskIntentParser = { parse: async (input) => {
+          const observedParser: TaskIntentParser = {
+            // Live parsers retain their real authorization adapter. Scripted
+            // fixtures isolate code paths and do not evaluate semantic permission.
+            authorizer: parser.authorizer ?? { authorize: async () => ({ mode: "write", commands: [...WRITE_COMMANDS] }) },
+            parse: async (input) => {
             turn.parserCalled = true;
             const result = await parser.parse({ ...input, execute: async (command: CoachingCommand) => {
               turn.tools.push(command.type);
-              return input.execute!(command);
+              const result = await input.execute!(command);
+              (turn.toolTrace ??= []).push({ command, result });
+              return result;
             } });
             if (result.kind === "command") turn.tools.push(result.command.type);
             return result;
@@ -121,6 +138,8 @@ export async function createAssistantSimulator(parser: TaskIntentParser) {
           );
           if (!receipt.duplicate && job && message.status === "received") {
             await orchestrator.process(message.id);
+            clock = new Date(clock.getTime() + 1);
+            await database.update(schema.conversationMessages).set({createdAt:clock}).where(eq(schema.conversationMessages.idempotencyKey,`reply:${message.id}`));
             await database.update(schema.scheduledActions).set({ status: "completed", completedAt: new Date() }).where(eq(schema.scheduledActions.id, job.id));
           }
           turn.replies = channel === "web"

@@ -10,6 +10,7 @@ import { DrizzleCalendarSyncRepository } from "../../db/repositories/calendar-sy
 import { AssistantIntegrations, CalendarChange, calendarChangeSchema } from "../../domain/assistant-commands";
 import { formatReminderTime } from "../../domain/reminder-service";
 import { decryptField, encryptField } from "../../security/field-encryption";
+import { CalendarAuthorizationError } from "./calendar-provider";
 
 export const CALENDAR_EVENTS_SCOPE = "https://www.googleapis.com/auth/calendar.events.owned";
 const proposalSchema = z.object({
@@ -34,6 +35,11 @@ function providerCode(error: unknown) {
   return (error as { code?: number; response?: { status?: number } })?.response?.status ?? (error as { code?: number })?.code;
 }
 
+function isCalendarAuthorizationFailure(error: unknown) {
+  const message = error instanceof Error ? error.message : String((error as { message?: unknown })?.message ?? "");
+  return providerCode(error) === 401 || (providerCode(error) === 403 && /insufficient.?permissions?/i.test(message)) || /invalid_grant|unauthorized/i.test(message);
+}
+
 export class CalendarAssistantIntegrations implements AssistantIntegrations {
   constructor(private readonly database: TempoDatabase = getDatabase()) {}
 
@@ -44,12 +50,28 @@ export class CalendarAssistantIntegrations implements AssistantIntegrations {
   private async calendar(userId: string) {
     const env = requireEnv(["FIELD_ENCRYPTION_KEY", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GOOGLE_REDIRECT_URI"]);
     const connection = await new DrizzleCalendarSyncRepository(this.database).getActiveConnection(userId);
-    if (!connection || !connection.scopes.includes(CALENDAR_EVENTS_SCOPE)) {
+    if (!connection) {
       throw new Error("Connect or reconnect Google Calendar with event access on the Extensions page first.");
+    }
+    if (!connection.scopes.includes(CALENDAR_EVENTS_SCOPE)) {
+      await new DrizzleCalendarSyncRepository(this.database).markRequiresReauth(connection.id);
+      throw new CalendarAuthorizationError("Google Calendar needs updated event access. Reconnect to continue.");
     }
     const auth = new google.auth.OAuth2(env.GOOGLE_CLIENT_ID, env.GOOGLE_CLIENT_SECRET, env.GOOGLE_REDIRECT_URI);
     auth.setCredentials({ refresh_token: decryptField(connection.encryptedRefreshToken, env.FIELD_ENCRYPTION_KEY!) });
     return google.calendar({ version: "v3", auth });
+  }
+
+  private async authorizedCalendarRequest<T>(userId: string, request: () => Promise<T>): Promise<T> {
+    try {
+      return await request();
+    } catch (error) {
+      if (!isCalendarAuthorizationFailure(error)) throw error;
+      const repository = new DrizzleCalendarSyncRepository(this.database);
+      const connection = await repository.getActiveConnection(userId);
+      if (connection) await repository.markRequiresReauth(connection.id);
+      throw new CalendarAuthorizationError();
+    }
   }
 
   async status(userId: string) {
@@ -79,7 +101,7 @@ export class CalendarAssistantIntegrations implements AssistantIntegrations {
   async agenda(userId: string, start: string, end: string) {
     validateCalendarRange(start, end);
     const calendar = await this.calendar(userId);
-    const { data } = await calendar.events.list({ calendarId: "primary", timeMin: start, timeMax: end, singleEvents: true, orderBy: "startTime", maxResults: 30 }, { timeout: 15_000 });
+    const { data } = await this.authorizedCalendarRequest(userId, () => calendar.events.list({ calendarId: "primary", timeMin: start, timeMax: end, singleEvents: true, orderBy: "startTime", maxResults: 30 }, { timeout: 15_000 }));
     return JSON.stringify({ events: (data.items ?? []).map((event) => ({
       id: event.id, title: event.summary ?? "Untitled event", start: event.start, end: event.end,
       editable: !event.attendees?.length && !event.recurringEventId && !!event.start?.dateTime && event.organizer?.self !== false,
@@ -90,7 +112,7 @@ export class CalendarAssistantIntegrations implements AssistantIntegrations {
     const calendar = await this.calendar(userId);
     let event: z.infer<typeof proposalSchema>["event"];
     if (change.operation !== "create") {
-      const { data } = await calendar.events.get({ calendarId: "primary", eventId: change.eventId }, { timeout: 15_000 });
+      const { data } = await this.authorizedCalendarRequest(userId, () => calendar.events.get({ calendarId: "primary", eventId: change.eventId }, { timeout: 15_000 }));
       assertEditable(data);
       if (!data.etag || !data.id) throw new Error("Could not verify this calendar event. Please try again.");
       event = { id: data.id, etag: data.etag, title: data.summary ?? "Untitled event", start: data.start!.dateTime!, end: data.end!.dateTime! };
@@ -118,12 +140,12 @@ export class CalendarAssistantIntegrations implements AssistantIntegrations {
       if (new Date(change.start) <= now) throw new Error("That start time has passed. Please choose a future time.");
       const id = `tempo${createHash("sha256").update(`${userId}:${proposal.sourceMessageId}`).digest("hex").slice(0, 40)}`;
       try {
-        await calendar.events.insert({ calendarId: "primary", sendUpdates: "none", requestBody: {
+        await this.authorizedCalendarRequest(userId, () => calendar.events.insert({ calendarId: "primary", sendUpdates: "none", requestBody: {
           id, summary: change.title, start: { dateTime: change.start }, end: { dateTime: change.end },
-        } }, { timeout: 15_000 });
+        } }, { timeout: 15_000 }));
       } catch (error) {
         if (providerCode(error) !== 409) throw error;
-        const { data } = await calendar.events.get({ calendarId: "primary", eventId: id }, { timeout: 15_000 });
+        const { data } = await this.authorizedCalendarRequest(userId, () => calendar.events.get({ calendarId: "primary", eventId: id }, { timeout: 15_000 }));
         assertEditable(data);
         if (data.status === "cancelled" || data.summary !== change.title
           || new Date(data.start!.dateTime!).getTime() !== new Date(change.start).getTime()
@@ -136,7 +158,7 @@ export class CalendarAssistantIntegrations implements AssistantIntegrations {
     if (!event) throw new Error("Missing calendar confirmation details.");
     let current: calendar_v3.Schema$Event;
     try {
-      current = (await calendar.events.get({ calendarId: "primary", eventId: event.id }, { timeout: 15_000 })).data;
+      current = (await this.authorizedCalendarRequest(userId, () => calendar.events.get({ calendarId: "primary", eventId: event.id }, { timeout: 15_000 }))).data;
     } catch (error) {
       if (change.operation === "delete" && [404, 410].includes(providerCode(error) ?? 0)) return `Removed from Google Calendar: ${event.title}.`;
       throw error;
@@ -148,13 +170,13 @@ export class CalendarAssistantIntegrations implements AssistantIntegrations {
     if (current.etag !== event.etag) throw new Error("That event changed since I asked. Please request the change again so you can confirm the latest version.");
     const options = { timeout: 15_000, headers: { "If-Match": event.etag } };
     if (change.operation === "delete") {
-      await calendar.events.delete({ calendarId: "primary", eventId: event.id, sendUpdates: "none" }, options);
+      await this.authorizedCalendarRequest(userId, () => calendar.events.delete({ calendarId: "primary", eventId: event.id, sendUpdates: "none" }, options));
       return `Removed from Google Calendar: ${event.title}.`;
     }
     if (new Date(desired!.start) <= now) throw new Error("That start time has passed. Please choose a future time.");
-    await calendar.events.patch({ calendarId: "primary", eventId: event.id, sendUpdates: "none", requestBody: {
+    await this.authorizedCalendarRequest(userId, () => calendar.events.patch({ calendarId: "primary", eventId: event.id, sendUpdates: "none", requestBody: {
       summary: desired!.title, start: { dateTime: desired!.start }, end: { dateTime: desired!.end },
-    } }, options);
+    } }, options));
     return `Updated Google Calendar: ${desired!.title}.`;
   }
 

@@ -41,7 +41,9 @@ import { ReminderRepository, executeReminderCommand, requestedReminderTime } fro
 import { AssistantCommand, AssistantIntegrations } from "./assistant-commands";
 import { buildRundown, parseRundownRequest, isRundownQuestion } from "./rundown";
 import { connectionStatusReply } from "./connection-status-reply";
-import { normalizeTaskDeadline } from "./task-deadline";
+import { assessTaskDeadline } from "./task-deadline";
+import { CHECKIN_CONSENT_REPLY, hasExplicitNoWriteRequest, isReadOnlyAssistantCommand, NO_WRITE_REPLY, requestedCheckinConsent, TurnWritePolicy } from "./turn-write-policy";
+import { inOwnedExecution, ownedService } from "./inbound-execution";
 
 export type InboundConversationContext = {
   messageId: string;
@@ -50,6 +52,9 @@ export type InboundConversationContext = {
   body: string;
   timezone: string;
   profileInstructions: string | null;
+  processingToken: string;
+  replyBody: string | null;
+  signal?: AbortSignal;
   onboardingState:
     | "awaiting_consent"
     | "introduction"
@@ -90,8 +95,10 @@ function isMemoryCommand(command: CoachingCommand): command is MemoryCommand {
 
 export interface ConversationRepository {
   claimInbound(messageId: string, now: Date): Promise<InboundConversationContext | null>;
-  releaseInbound(messageId: string): Promise<void>;
-  markProcessed(userId: string, messageId: string): Promise<void>;
+  releaseInbound(messageId: string, processingToken: string): Promise<void>;
+  markProcessed(userId: string, messageId: string, processingToken: string): Promise<void>;
+  withOwnership<T>(context: InboundConversationContext, operation: () => Promise<T>): Promise<T>;
+  persistReply(context: InboundConversationContext, body: string): Promise<string>;
   getPendingAction(userId: string): Promise<StoredPendingAction | null>;
   savePendingAction(userId: string, action: StoredPendingAction): Promise<void>;
   clearPendingAction(userId: string): Promise<void>;
@@ -122,16 +129,30 @@ export class ConversationOrchestrator {
     private readonly history?: ConversationHistoryRepository,
     private readonly reminders?: ReminderRepository,
     private readonly integrations?: AssistantIntegrations,
-    private readonly life?: { execute(userId: string, sourceMessageId: string, command: Extract<AssistantCommand, { type: "food_search" | "life_list" | "life_save" | "life_remove" | "grocery_add" }>): Promise<string> },
-  ) {}
+    private readonly life?: { execute(userId: string, sourceMessageId: string, command: Extract<AssistantCommand, { type: "food_search" | "life_list" | "life_save" | "life_patch" | "life_remove" | "grocery_add" }>): Promise<string> },
+  ) {
+    this.conversations = ownedService(conversations);
+    this.tasks = ownedService(tasks);
+    this.goals = ownedService(goals);
+    this.scheduling = ownedService(scheduling);
+    this.outcomes = outcomes && ownedService(outcomes);
+    this.memories = memories && ownedService(memories);
+    this.reminders = reminders && ownedService(reminders);
+    this.integrations = integrations && ownedService(integrations);
+    this.life = life && ownedService(life);
+  }
 
-  async process(messageId: string): Promise<{ processed: boolean }> {
+  async process(messageId: string, signal?: AbortSignal): Promise<{ processed: boolean }> {
+    signal?.throwIfAborted();
     const now = this.now();
     const context = await this.conversations.claimInbound(messageId, now);
     if (!context) return { processed: false };
+    context.signal = signal;
 
     try {
-      const reply = await this.decideReply(context, now);
+      const reply = context.replyBody ?? await this.conversations.persistReply(context,
+        await inOwnedExecution({ run: operation => this.conversations.withOwnership(context, operation) },
+          () => this.decideReply(context, now)) ?? "");
       if (reply) {
         await this.sms.send({
           userId: context.userId,
@@ -139,17 +160,22 @@ export class ConversationOrchestrator {
           kind: "coach",
           idempotencyKey: `reply:${context.messageId}`,
           replyToMessageId: context.messageId,
+          sourceMessageId: context.messageId,
+          assertOwnership: () => this.conversations.withOwnership(context, async () => undefined),
+          runOwned: operation => this.conversations.withOwnership(context, operation),
+          signal,
         });
       }
-      await this.conversations.markProcessed(context.userId, context.messageId);
+      signal?.throwIfAborted();
+      await this.conversations.markProcessed(context.userId, context.messageId, context.processingToken);
       return { processed: true };
     } catch (error) {
-      await this.conversations.releaseInbound(context.messageId);
+      await this.conversations.releaseInbound(context.messageId, context.processingToken);
       throw error;
     }
   }
 
-  private async decideReply(context: InboundConversationContext, now: Date): Promise<string | undefined> {
+  private async decideInitialReply(context: InboundConversationContext, now: Date): Promise<string | undefined> {
     if (context.onboardingState === "calendar" || context.onboardingState === "complete") {
       const priorAction = await this.tasks.findActionBySourceMessage(context.messageId);
       if (priorAction) {
@@ -172,7 +198,7 @@ export class ConversationOrchestrator {
       }
     }
 
-    let pending = await this.conversations.getPendingAction(context.userId);
+    let pending = hasExplicitNoWriteRequest(context.body) ? null : await this.conversations.getPendingAction(context.userId);
     if (pending && pending.createdByMessageId !== context.messageId) {
       if (/^(?:cancel|never mind|nevermind|nope|no)[.!\s]*$/i.test(context.body.trim())) {
         await this.conversations.clearPendingAction(context.userId);
@@ -313,28 +339,48 @@ export class ConversationOrchestrator {
 
     const rundown = parseRundownRequest(context.body, now, context.timezone);
     if (rundown) return buildRundown({ tasks: this.tasks, goals: this.goals, reminders: this.reminders, integrations: this.integrations }, { ...context, now }, rundown);
+    return undefined;
+  }
+
+  private async recordResult(context: InboundConversationContext, operation: () => Promise<string | null | undefined>) {
+    return this.conversations.withOwnership(context, async () => {
+      const result = await operation();
+      if (result !== undefined && result !== null) await this.conversations.persistReply(context, result);
+      return result;
+    });
+  }
+
+  private async decideReply(context: InboundConversationContext, now: Date): Promise<string | undefined> {
+    const initial = await this.recordResult(context, () => this.decideInitialReply(context, now));
+    if (initial !== undefined && initial !== null) return initial;
+    const history = await this.history?.getRecent({ conversationId: context.conversationId, beforeMessageId: context.messageId, limit: 12 }) ?? [];
+    const writePolicy = new TurnWritePolicy({ message: context.body, history }, this.intentParser.authorizer
+      ?? { authorize: async () => ({ mode: "uncertain", commands: [] }) });
+    const executeAuthorized = async (command: CoachingCommand) =>
+      await writePolicy.denial(command) ?? this.executeCommand(context, now, command);
     const lifeRequest = isLifeWorkspaceRequest(context.body);
-    const memoryReply = lifeRequest ? null : await this.memories?.tryHandleCorrection({
+    const noWrites = hasExplicitNoWriteRequest(context.body);
+    const memoryReply = lifeRequest || noWrites ? null : await this.recordResult(context, async () => this.memories?.tryHandleCorrection({
       userId: context.userId,
       messageId: context.messageId,
       body: context.body,
       now,
-    });
+    }, type => writePolicy.denial({ type })));
     if (memoryReply) return memoryReply;
 
     // Broad task heuristics ("move", "cancel", "completed") must not consume
     // requests for a different entity before the assistant can resolve them.
     const otherEntity = lifeRequest || isExplicitReminderRequest(context.body) || /\b(reminders?|calendar|appointments?|events?|breakfast|lunch|dinner|snack)\b/i.test(context.body);
-    const heuristicCommand = isRundownQuestion(context.body) || needsConversationalRouting(context.body) ? null : parseGoalCommandHeuristically(context.body)
+    const heuristicCommand = noWrites || isRundownQuestion(context.body) || needsConversationalRouting(context.body) ? null : parseGoalCommandHeuristically(context.body)
       ?? (otherEntity ? null : parseRescheduleHeuristically(context.body)
         ?? parseTaskCommandHeuristically(context.body, now));
-    if (!heuristicCommand) {
-      const feedbackReply = await this.outcomes?.tryHandleStandaloneReply({
+    if (!heuristicCommand && !noWrites && !needsConversationalRouting(context.body)) {
+      const feedbackReply = await this.recordResult(context, async () => this.outcomes?.tryHandleStandaloneReply({
         userId: context.userId,
         messageId: context.messageId,
         body: context.body,
         now,
-      });
+      }));
       if (feedbackReply) return feedbackReply;
     }
     const intent = heuristicCommand
@@ -343,12 +389,7 @@ export class ConversationOrchestrator {
           this.tasks.listForResolution(context.userId),
           this.goals.listForResolution(context.userId),
           this.memories?.retrieveRelevant(context.userId, now, 12) ?? Promise.resolve([]),
-          this.history?.getRecent({
-            conversationId: context.conversationId,
-            beforeMessageId: context.messageId,
-            limit: 12,
-          }) ?? Promise.resolve([]),
-        ]).then(([openTasks, openGoals, memories, history]) => this.intentParser.parse({
+        ]).then(([openTasks, openGoals, memories]) => this.intentParser.parse({
           message: context.body,
           timezone: context.timezone,
           now,
@@ -357,29 +398,47 @@ export class ConversationOrchestrator {
           memories: memories.map((memory) => memory.content),
           customInstructions: context.profileInstructions ?? undefined,
           history,
-          execute: (command) => this.executeCommand(context, now, command),
+          writePolicy,
+          execute: executeAuthorized,
         })).catch((error: unknown) => ({ kind: "conversation" as const, reply: assistantProviderFailureReply(error) }));
 
     if (intent.kind === "conversation") return intent.reply;
-    return this.executeCommand(context, now, intent.command);
+    return executeAuthorized(intent.command);
   }
 
   private async executeCommand(context: InboundConversationContext, now: Date, command: CoachingCommand): Promise<string> {
+    if (isReadOnlyAssistantCommand(command.type)) return this.executeCommandOwned(context, now, command);
+    // Commit a verified action result with the mutation. If the process dies
+    // during the model's follow-up, replay this receipt instead of asking the
+    // model to regenerate a potentially different write.
+    return this.conversations.withOwnership(context, async () => {
+      const result = await this.executeCommandOwned(context, now, command);
+      await this.conversations.persistReply(context, result);
+      return result;
+    });
+  }
+
+  private async executeCommandOwned(context: InboundConversationContext, now: Date, command: CoachingCommand): Promise<string> {
+    if (!isReadOnlyAssistantCommand(command.type) && hasExplicitNoWriteRequest(context.body)) return NO_WRITE_REPLY;
+    if (command.type === "set_checkins" && requestedCheckinConsent(context.body) !== command.enabled) {
+      return CHECKIN_CONSENT_REPLY;
+    }
     if (command.type === "get_rundown") return buildRundown({ tasks: this.tasks, goals: this.goals, reminders: this.reminders, integrations: this.integrations }, { ...context, now }, command);
-    if (command.type === "grocery_add" || command.type === "food_search" || command.type === "life_list" || command.type === "life_save" || command.type === "life_remove") {
+    if (command.type === "grocery_add" || command.type === "food_search" || command.type === "life_list" || command.type === "life_save" || command.type === "life_patch" || command.type === "life_remove") {
       return this.life?.execute(context.userId, context.messageId, command) ?? "Your life workspace is not configured in this environment.";
     }
     if (command.type === "recall_memories") {
-      const memories = await this.memories?.retrieveRelevant(context.userId, now, 20) ?? [];
+      const search = await this.memories?.searchRelevant(context.userId, now, command.query, 20)
+        ?? { items: [], truncated: false, coverage: "Saved fact search is unavailable." };
+      const facts = search.items.map(memory => memory.content);
       if (command.query) {
-        const terms = command.query.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
-        const facts = memories.filter(memory => terms.length && terms.every(term => memory.content.toLowerCase().includes(term))).map(({ content }) => content);
         const rawNotes = await this.life?.execute(context.userId, context.messageId, { type: "life_list", kind: "note", query: command.query });
         let noteSearch: unknown = { items: [], notice: "Note search is unavailable; do not claim no note exists." };
         if (rawNotes) { try { noteSearch = JSON.parse(rawNotes); } catch { /* Preserve the explicit unavailable notice. */ } }
-        return JSON.stringify({ facts, noteSearch, factSearchNotice: "Search covers up to 20 retrieved facts; no match does not prove the information was never saved." });
+        return JSON.stringify({ facts, factsTruncated: search.truncated, factsCoverage: search.coverage, noteSearch });
       }
-      return memories.length ? JSON.stringify(memories.map(({ content }) => content)) : "No saved memory facts found. Thought inbox notes have not been searched; use recall_memories with specific query keywords before answering a personal recall question.";
+      return JSON.stringify({ facts, factsTruncated: search.truncated, factsCoverage: search.coverage,
+        noteSearchNotice: "Thought inbox notes have not been searched; use specific query keywords before answering a personal recall question." });
     }
     if (command.type === "forget_memory") {
       return await this.memories?.tryHandleCorrection({ userId: context.userId, messageId: context.messageId, body: `forget ${command.query}`, now }) ?? "Memory is temporarily unavailable.";
@@ -444,7 +503,9 @@ export class ConversationOrchestrator {
         forModel: command.type === "list_reminders",
       });
     }
-    const result = await executeTaskCommand(this.tasks, normalizeTaskDeadline(intent.command, context.body, now, context.timezone), {
+    const deadline = assessTaskDeadline(intent.command, context.body, now, context.timezone);
+    if (deadline.clarification) return deadline.clarification;
+    const result = await executeTaskCommand(this.tasks, deadline.command, {
       userId: context.userId,
       sourceMessageId: context.messageId,
       timezone: context.timezone,

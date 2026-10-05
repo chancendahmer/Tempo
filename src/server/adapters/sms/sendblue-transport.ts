@@ -18,6 +18,7 @@ const sendblueErrorSchema = z.object({
 }).passthrough();
 
 export class SendblueApiError extends Error {
+  get submissionOutcome() { return [400, 401, 402, 403, 404, 405, 413, 415, 422, 429].includes(this.status) ? "not_accepted" : "unknown"; }
   constructor(
     message: string,
     readonly status: number,
@@ -44,6 +45,7 @@ export class SendblueMessagingTransport implements MessagingTransport {
     ]);
     const response = await this.request(`${env.SENDBLUE_API_BASE_URL}/api/send-message`, {
       method: "POST",
+      signal: input.signal ? AbortSignal.any([input.signal, AbortSignal.timeout(30_000)]) : AbortSignal.timeout(30_000),
       headers: {
         "Content-Type": "application/json",
         "sb-api-key-id": env.SENDBLUE_API_KEY!,

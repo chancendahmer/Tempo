@@ -357,6 +357,11 @@ export const conversationMessages = pgTable(
     providerErrorMessage: text("provider_error_message"),
     receivedAt: timestamp("received_at", { withTimezone: true }),
     processingStartedAt: timestamp("processing_started_at", { withTimezone: true }),
+    processingToken: uuid("processing_token"),
+    replyBody: text("reply_body"),
+    outboundState: text("outbound_state").$type<"reserved" | "submitting" | "accepted" | "ambiguous" | "suppressed">(),
+    submissionToken: uuid("submission_token"),
+    submissionStartedAt: timestamp("submission_started_at", { withTimezone: true }),
     sentAt: timestamp("sent_at", { withTimezone: true }),
     deliveredAt: timestamp("delivered_at", { withTimezone: true }),
     ...timestamps,
@@ -543,6 +548,7 @@ export const taskEvents = pgTable(
 export const reminders = pgTable(
   "reminders",
   {
+    contentMode: text("content_mode").$type<"text" | "daily_rundown">().default("text").notNull(),
     sourceOperation: integer("source_operation").default(0).notNull(),
     id: uuid("id").defaultRandom().primaryKey(),
     userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
@@ -803,6 +809,8 @@ export const scheduledActions = pgTable(
     idempotencyKey: text("idempotency_key").notNull(),
     queueJobId: text("queue_job_id"),
     status: scheduledActionStatus("status").default("scheduled").notNull(),
+    attemptToken: uuid("attempt_token"),
+    attemptExpiresAt: timestamp("attempt_expires_at", { withTimezone: true }),
     runAt: timestamp("run_at", { withTimezone: true }).notNull(),
     attempts: integer("attempts").default(0).notNull(),
     lastError: text("last_error"),

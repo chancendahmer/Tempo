@@ -23,12 +23,20 @@ export async function dispatchDueActions(
 ): Promise<number> {
   return database.transaction(async (transaction) => {
     const result = await transaction.execute<DispatchableAction>(sql`
-      select id, user_id as "userId", intervention_id as "interventionId", reminder_id as "reminderId", idempotency_key as "idempotencyKey", kind, payload, run_at as "runAt"
-      from ${scheduledActions}
-      where status = 'scheduled'
-        and kind in ('send_signin', 'send_welcome', 'send_compliance', 'process_inbound_message', 'deliver_reminder', 'sync_calendar', 'evaluate_context', 'deliver_intervention', 'accountability_followup', 'feedback_followup', 'feedback_timeout')
-        and run_at <= now()
-      order by run_at asc
+      select candidate.id, candidate.user_id as "userId", candidate.intervention_id as "interventionId", candidate.reminder_id as "reminderId", candidate.idempotency_key as "idempotencyKey", candidate.kind, candidate.payload, candidate.run_at as "runAt"
+      from ${scheduledActions} as candidate
+      where candidate.status = 'scheduled'
+        and candidate.kind in ('send_signin', 'send_welcome', 'send_compliance', 'process_inbound_message', 'deliver_reminder', 'sync_calendar', 'evaluate_context', 'deliver_intervention', 'accountability_followup', 'feedback_followup', 'feedback_timeout')
+        and candidate.run_at <= now()
+        -- Concurrent dispatchers must not enqueue a later same-account message
+        -- while the earlier row is locked by another dispatcher.
+        and (candidate.kind <> 'process_inbound_message' or not exists (
+          select 1 from ${scheduledActions} earlier
+          where earlier.user_id = candidate.user_id and earlier.kind = 'process_inbound_message'
+            and earlier.status = 'scheduled'
+            and (earlier.run_at, earlier.created_at, earlier.id) < (candidate.run_at, candidate.created_at, candidate.id)
+        ))
+      order by candidate.run_at asc, candidate.created_at asc, candidate.id asc
       for update skip locked
       limit ${limit}
     `);

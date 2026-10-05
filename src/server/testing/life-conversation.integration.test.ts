@@ -13,7 +13,7 @@ it("recalls account-owned notes across channels using separated search words (sc
     const reply = (await owner.send("Where did I leave my spare keys?")).replies.join(" ");
     expect(reply).toContain("blue bowl");
     expect(reply).not.toContain("Neighbor's private hiding place");
-    expect(reply).toContain("factSearchNotice");
+    expect(reply).toContain("factsCoverage");
     const noMatch = (await empty.send("Where did I leave my spare keys?")).replies.join(" ");
     expect(noMatch).not.toContain("blue bowl");
     expect(noMatch).not.toContain("Neighbor's private hiding place");
@@ -44,7 +44,9 @@ it("routes an SMS recipe request to the structured library, then retrieves it wi
 it("routes dinner rescheduling through the meal record instead of task shortcuts (scripted parser)", async () => {
   let recordId = "";
   const meal = { kind: "meal" as const, title: "Rice bowl", date: "2026-09-28", meal: "Dinner" as const, ingredients: "Rice and beans" };
-  const simulation = await createAssistantSimulator({ parse: async input => ({ kind: "command", command: { type: "life_save", ...(recordId ? { id: recordId, version: 1 } : {}), data: { ...meal, date: /tomorrow/i.test(input.message) ? "2026-09-29" : meal.date } } }) });
+  const simulation = await createAssistantSimulator({ parse: async input => ({ kind: "command", command: recordId
+    ? { type: "life_patch", id: recordId, version: 1, patch: { kind: "meal", date: /tomorrow/i.test(input.message) ? "2026-09-29" : meal.date } }
+    : { type: "life_save", data: meal } }) });
   try {
     const user = await simulation.user();
     await user.send("Plan rice bowl for dinner on September 28");

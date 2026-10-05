@@ -103,3 +103,12 @@ it("confirms the saved reminder once without a model rewrite that can contradict
   expect(result).toEqual({ kind: "conversation", reply: saved });
   expect(create).toHaveBeenCalledTimes(1);
 });
+
+it("asks for a missing briefing time before consulting semantic write authority", async () => {
+  const message="Give me a morning reminder tomorrow of my current plan";
+  authorize.mockResolvedValue({mode:"read_only",commands:[]});
+  create.mockResolvedValueOnce(tool("create_reminder",message,{text:"My current plan",remindAt:"2026-10-03T09:00:00-04:00",contentMode:"daily_rundown"}));
+  const execute=vi.fn();
+  expect(await new AnthropicTaskIntentParser().parse({...input,message,execute})).toEqual({kind:"conversation",reply:"What time would you like that reminder?"});
+  expect(execute).not.toHaveBeenCalled(); expect(authorize).not.toHaveBeenCalled();
+});

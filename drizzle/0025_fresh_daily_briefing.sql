@@ -1,0 +1,1 @@
+ALTER TABLE "reminders" ADD COLUMN "content_mode" text DEFAULT 'text' NOT NULL;

@@ -8,6 +8,7 @@ export class TwilioSmsTransport implements SmsTransport {
   }
 
   async send(input: SendSmsInput) {
+    input.signal?.throwIfAborted();
     const env = requireEnv([
       "TWILIO_ACCOUNT_SID",
       "TWILIO_API_KEY_SID",
@@ -16,6 +17,7 @@ export class TwilioSmsTransport implements SmsTransport {
     ]);
     const client = twilio(env.TWILIO_API_KEY_SID!, env.TWILIO_API_KEY_SECRET!, {
       accountSid: env.TWILIO_ACCOUNT_SID!,
+      timeout: 30_000,
     });
     const message = await client.messages.create({
       to: input.to,

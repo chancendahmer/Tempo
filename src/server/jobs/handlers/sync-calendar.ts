@@ -1,3 +1,4 @@
+import { inOwnedExecution, ownedService } from "../../domain/inbound-execution";
 import { PgBoss } from "pg-boss";
 import { GoogleCalendarProvider } from "../../adapters/calendar/google-calendar-provider";
 import { requireEnv } from "../../config/env";
@@ -12,20 +13,22 @@ export async function registerSyncCalendarHandler(boss: PgBoss) {
   await boss.work<SyncCalendarJob>(JOB_NAMES.syncCalendar, { localConcurrency: 2 }, async (jobs) => {
     for (const job of jobs) {
       const actions = new ScheduledActionRepository();
-      if (!(await actions.markRunning(job.data.scheduledActionId))) continue;
+      const ownership = await actions.claimRecurring(job.data.scheduledActionId, job.signal, job.expireInSeconds * 1000);
+      if (!ownership) continue;
       try {
         const env = requireEnv(["FIELD_ENCRYPTION_KEY", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GOOGLE_REDIRECT_URI"]);
-        const result = await syncCalendar({
+        const result = await inOwnedExecution(ownership, () => syncCalendar({
           userId: job.data.userId,
-          repository: new DrizzleCalendarSyncRepository(),
-          signalRepository: new DrizzleExtensionSignalRepository(),
+          repository: ownedService(new DrizzleCalendarSyncRepository()),
+          signalRepository: ownedService(new DrizzleExtensionSignalRepository()),
           provider: new GoogleCalendarProvider(),
           encryptionKey: env.FIELD_ENCRYPTION_KEY!,
-        });
+        }));
         if (result.synced) {
           await actions.completeAndScheduleCalendarSync(job.data.scheduledActionId, job.data.userId, new Date(Date.now() + 15 * 60_000));
         } else await actions.markCompleted(job.data.scheduledActionId);
       } catch (error) {
+        if (job.signal.aborted) throw error;
         await actions.markFailed(job.data.scheduledActionId, error);
         await actions.scheduleRecurringRecovery({
           failedActionId: job.data.scheduledActionId,

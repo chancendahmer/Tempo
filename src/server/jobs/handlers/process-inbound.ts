@@ -22,6 +22,7 @@ import { ScheduledActionRepository } from "../scheduled-action-repository";
 import { CalendarAssistantIntegrations } from "../../adapters/calendar/calendar-assistant";
 import { isWebMessage, WebReplySender } from "../../db/repositories/web-reply-repository";
 import { LifeAssistant } from "../../db/repositories/life-assistant";
+import { InboundOwnershipLostError } from "../../domain/inbound-execution";
 
 export async function registerProcessInboundHandler(boss: PgBoss) {
   await boss.work<ProcessInboundJob>(JOB_NAMES.processInbound, { localConcurrency: 4 }, async (jobs) => {
@@ -47,10 +48,10 @@ export async function registerProcessInboundHandler(boss: PgBoss) {
           new CalendarAssistantIntegrations(),
           new LifeAssistant(),
         );
-        await orchestrator.process(job.data.messageId);
+        await orchestrator.process(job.data.messageId, job.signal);
         await actions.markCompleted(job.data.scheduledActionId);
       } catch (error) {
-        await actions.markFailed(job.data.scheduledActionId, error);
+        if (!job.signal?.aborted && !(error instanceof InboundOwnershipLostError)) await actions.markFailed(job.data.scheduledActionId, error);
         logger.error({ err: error, jobId: job.id }, "inbound conversation job failed");
         throw error;
       }

@@ -2,6 +2,7 @@ import { ReminderCommand } from "./reminder-commands";
 import { relativeReminderTime } from "./reminder-commands";
 
 export type ReminderRecord = {
+  contentMode?: "text" | "daily_rundown";
   id: string;
   text: string;
   remindAt: Date;
@@ -12,7 +13,7 @@ export type ReminderRecord = {
 };
 
 export interface ReminderRepository {
-  createMany?(input: { userId: string; sourceMessageId: string; timezone: string; items: Array<{ text: string; remindAt: Date; recurrence?: "daily" | "weekdays" | "weekly"; taskId?: string }> }): Promise<ReminderRecord[]>;
+  createMany?(input: { userId: string; sourceMessageId: string; timezone: string; items: Array<{ contentMode?: "text" | "daily_rundown"; text: string; remindAt: Date; recurrence?: "daily" | "weekdays" | "weekly"; taskId?: string }> }): Promise<ReminderRecord[]>;
   updateMany?(input: { userId: string; sourceMessageId: string; now: Date; changes: Array<{ reminderId: string; expectedRemindAt: Date; remindAt: Date }> }): Promise<{ kind: "updated"; reminders: ReminderRecord[] } | { kind: "stale" }>;
 
   update?(input: { userId: string; sourceMessageId: string; reminderId?: string; reminderQuery?: string; remindAt?: Date; now: Date }): Promise<
@@ -22,6 +23,7 @@ export interface ReminderRepository {
   >;
   findBySourceMessage(sourceMessageId: string): Promise<ReminderRecord | null>;
   create(input: {
+    contentMode?: "text" | "daily_rundown";
     userId: string;
     sourceMessageId: string;
     text: string;
@@ -175,13 +177,14 @@ export async function executeReminderCommand(
       userId: context.userId,
       sourceMessageId: context.sourceMessageId,
       text: command.text,
+      contentMode: command.contentMode,
       remindAt,
       timezone: context.timezone,
       recurrence: command.recurrence,
       taskId: command.taskId,
     });
     const prefix = reminder.recurrence ? `${recurrenceLabel(reminder.recurrence)} reminder starts` : "Reminder set for";
-    return `${prefix} ${formatReminderTime(reminder.remindAt, reminder.timezone)}: ${reminder.text}`;
+    return `${prefix} ${formatReminderTime(reminder.remindAt, reminder.timezone)}: ${reminder.text}${reminder.contentMode === "daily_rundown" ? " — I’ll read your current tasks, goals, reminders and Calendar when it’s time to send." : ""}`;
   }
 
   if (command.type === "list_reminders") {

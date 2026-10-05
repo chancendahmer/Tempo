@@ -17,6 +17,7 @@ import { ScheduledActionRepository } from "../server/jobs/scheduled-action-repos
 import { JOB_NAMES } from "../server/jobs/names";
 import { logger } from "../server/observability/logger";
 import { OperationalRepository } from "../server/db/repositories/operational-repository";
+import { queueHealthProblems } from "../server/domain/queue-health";
 
 export async function runWorker() {
   const messagingProvider = getServerEnv().MESSAGING_PROVIDER;
@@ -168,7 +169,13 @@ export async function runWorker() {
     scheduledActionRepository.seedMissingCalendarSyncs(),
   ]);
   const operations = new OperationalRepository();
-  const heartbeat = () => operations.heartbeat("tempo-worker", { workerId: env.WORKER_ID, pid: process.pid });
+  const heartbeat = async () => {
+    const [messages, blocked] = await Promise.all([operations.messageHealth(), boss.getBlockedKeys(JOB_NAMES.processInbound)]);
+    const queueHealth = { ...messages, blockedAccounts: blocked.length };
+    const problems = queueHealthProblems(queueHealth);
+    if (problems.length) logger.error({ queueHealth, problems }, "inbound queue requires recovery");
+    await operations.heartbeat("tempo-worker", { workerId: env.WORKER_ID, pid: process.pid, queueHealth });
+  };
   const cleanup = () => operations.cleanupExpiredData();
   await heartbeat();
   await cleanup();

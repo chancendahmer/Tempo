@@ -10,6 +10,7 @@ import { ConversationOrchestrator } from "../../domain/conversation-orchestrator
 import { SafeSmsSender } from "../../domain/outbound-messaging";
 import { MemoryService } from "../../domain/memory-service";
 import { TempoDatabase } from "../client";
+import { scopedDatabase } from "../database-scope";
 import * as schema from "../schema";
 import {
   calendarBusyWindows,
@@ -36,6 +37,7 @@ import { DrizzleReminderRepository } from "./reminder-repository";
 import { DrizzleTaskRepository } from "./task-repository";
 import type { AssistantIntegrations } from "../../domain/assistant-commands";
 import { ScheduledActionRepository } from "../../jobs/scheduled-action-repository";
+import { WRITE_COMMANDS } from "../../domain/turn-write-policy";
 
 describe("inbound conversation orchestration", () => {
   let client: PGlite;
@@ -50,7 +52,7 @@ describe("inbound conversation orchestration", () => {
       );
       await client.exec(migration);
     }
-    database = drizzle(client, { schema }) as unknown as TempoDatabase;
+    database = scopedDatabase(drizzle(client, { schema }) as unknown as TempoDatabase);
   });
 
   afterAll(async () => {
@@ -77,7 +79,9 @@ describe("inbound conversation orchestration", () => {
       new DrizzleTaskRepository(database),
       new DrizzleGoalRepository(database),
       new DrizzleSchedulingRepository(database),
-      parser ?? { parse: vi.fn(async () => ({ kind: "conversation" as const, reply: "Tell me more." })) },
+      { ...parser, parse: parser?.parse ?? vi.fn(async () => ({ kind: "conversation" as const, reply: "Tell me more." })),
+        // Scripted grants isolate orchestration from the provider classifier.
+        authorizer: parser?.authorizer ?? { authorize: async () => ({ mode: "write", commands: [...WRITE_COMMANDS] }) } },
       new SafeSmsSender(new DrizzleOutboundMessageRepository(database), transport),
       () => new Date("2026-08-18T12:00:00Z"),
       undefined,
@@ -88,6 +92,52 @@ describe("inbound conversation orchestration", () => {
       integrations,
     );
   }
+
+  it.each([true, false])("enforces check-in consent at domain dispatch, even for a fabricated parser command (allowed=%s)", async allowed => {
+    const user = await consentedUser(allowed ? "+12025550891" : "+12025550892", "complete");
+    const setCheckins = vi.fn(async () => "Check-ins enabled.");
+    const integrations: AssistantIntegrations = { status: vi.fn(), agenda: vi.fn(), proposeCalendarChange: vi.fn(), confirmCalendarChange: vi.fn(), setCheckins };
+    const parser: TaskIntentParser = { parse: vi.fn(async () => ({ kind: "command" as const, command: { type: "set_checkins" as const, enabled: true, dailyCap: 2 } })) };
+    const [message] = await database.insert(conversationMessages).values({ userId: user.id, conversationId: user.conversationId, direction: "inbound", kind: "user", status: "received", body: allowed ? "Please enable proactive check-ins" : "Please do not enable proactive check-ins" }).returning();
+    await orchestrator(new TestSmsTransport(`CONSENT${allowed}`), parser, integrations).process(message.id);
+    expect(setCheckins).toHaveBeenCalledTimes(allowed ? 1 : 0);
+    if (allowed) expect(setCheckins).toHaveBeenCalledWith(user.id, true, 2);
+  });
+
+  it("does not let memory or task shortcuts bypass an explicit no-write turn", async () => {
+    const user = await consentedUser("+12025550893", "complete");
+    const transport = new TestSmsTransport("NOWRITE");
+    for (const body of ["Remember pizza. Do not save anything.", "Add task report. Do not change anything."]) {
+      const [message] = await database.insert(conversationMessages).values({ userId: user.id, conversationId: user.conversationId, direction: "inbound", kind: "user", status: "received", body }).returning();
+      await orchestrator(transport).process(message.id);
+    }
+    expect(await database.select().from(memoryEntries).where(eq(memoryEntries.userId, user.id))).toHaveLength(0);
+    expect(await database.select().from(tasks).where(eq(tasks.userId, user.id))).toHaveLength(0);
+  });
+
+  it("applies semantic read-only policy before a matching memory shortcut", async () => {
+    const user = await consentedUser("+12025550894", "complete");
+    const authorize = vi.fn(async () => ({ mode: "read_only" as const, commands: [] }));
+    const parser: TaskIntentParser = { authorizer: { authorize }, parse: vi.fn() };
+    const [message] = await database.insert(conversationMessages).values({ userId: user.id, conversationId: user.conversationId, direction: "inbound", kind: "user", status: "received", body: "Would it help to keep a log of my favorite foods?" }).returning();
+    await orchestrator(new TestSmsTransport("MEMORYADVICE"), parser).process(message.id);
+    expect(await database.select().from(memoryEntries).where(eq(memoryEntries.userId, user.id))).toHaveLength(0);
+    expect(authorize).toHaveBeenCalledTimes(1);
+  });
+
+  it("enforces the same grant on callback execution and returned commands", async () => {
+    const user = await consentedUser("+12025550895", "complete");
+    const authorize = vi.fn(async () => ({ mode: "read_only" as const, commands: [] }));
+    const parser: TaskIntentParser = { authorizer: { authorize }, parse: async input => {
+      await input.execute!({ type: "create_task", title: "Unrequested task" });
+      return { kind: "command", command: { type: "create_goal", title: "Unrequested goal" } };
+    } };
+    const [message] = await database.insert(conversationMessages).values({ userId: user.id, conversationId: user.conversationId, direction: "inbound", kind: "user", status: "received", body: "What should I do this week?" }).returning();
+    await orchestrator(new TestSmsTransport("POLICYADVICE"), parser).process(message.id);
+    expect(await database.select().from(tasks).where(eq(tasks.userId, user.id))).toHaveLength(0);
+    expect(await database.select().from(goals).where(eq(goals.userId, user.id))).toHaveLength(0);
+    expect(authorize).toHaveBeenCalledTimes(1);
+  });
 
   it.each([true, false])("finishes preferences with persisted calendar connection=%s", async connected => {
     const user = await consentedUser(connected ? "+12025550971" : "+12025550972", "introduction");

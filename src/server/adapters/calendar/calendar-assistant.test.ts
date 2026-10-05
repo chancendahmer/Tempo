@@ -1,16 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CalendarAssistantIntegrations, CALENDAR_EVENTS_SCOPE } from "./calendar-assistant";
+import { CalendarAuthorizationError } from "./calendar-provider";
 import { encryptField } from "../../security/field-encryption";
 import { TempoDatabase } from "../../db/client";
 
-const mocks = vi.hoisted(() => ({ get: vi.fn(), list: vi.fn(), insert: vi.fn(), patch: vi.fn(), remove: vi.fn(), connection: vi.fn(), config: { INTERVENTION_SHADOW_MODE: true, AUTONOMOUS_SENDING_ENABLED: false, PROACTIVE_CANARY_USER_IDS: ["00000000-0000-4000-8000-000000000001"] } }));
+const mocks = vi.hoisted(() => ({ get: vi.fn(), list: vi.fn(), insert: vi.fn(), patch: vi.fn(), remove: vi.fn(), connection: vi.fn(), markRequiresReauth: vi.fn(), config: { INTERVENTION_SHADOW_MODE: true, AUTONOMOUS_SENDING_ENABLED: false, PROACTIVE_CANARY_USER_IDS: ["00000000-0000-4000-8000-000000000001"] } }));
 const key = Buffer.alloc(32, 7).toString("base64");
 vi.mock("googleapis", () => ({ google: {
   auth: { OAuth2: class { setCredentials() {} } },
   calendar: () => ({ events: { get: mocks.get, list: mocks.list, insert: mocks.insert, patch: mocks.patch, delete: mocks.remove } }),
 } }));
 vi.mock("../../config/env", () => ({ getServerEnv: () => mocks.config, requireEnv: () => ({ FIELD_ENCRYPTION_KEY: Buffer.alloc(32, 7).toString("base64"), GOOGLE_CLIENT_ID: "test", GOOGLE_CLIENT_SECRET: "test", GOOGLE_REDIRECT_URI: "https://example.test/callback" }) }));
-vi.mock("../../db/repositories/calendar-sync-repository", () => ({ DrizzleCalendarSyncRepository: class { getActiveConnection = mocks.connection; } }));
+vi.mock("../../db/repositories/calendar-sync-repository", () => ({ DrizzleCalendarSyncRepository: class { getActiveConnection = mocks.connection; markRequiresReauth = mocks.markRequiresReauth; } }));
 
 describe("confirmation-gated Google Calendar", () => {
   it("reports account opt-in and scoped operator delivery without changing preferences", async () => {
@@ -36,7 +37,7 @@ describe("confirmation-gated Google Calendar", () => {
   const assistant = () => new CalendarAssistantIntegrations({} as TempoDatabase);
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.connection.mockResolvedValue({ scopes: [CALENDAR_EVENTS_SCOPE], encryptedRefreshToken: encryptField("test-refresh", key) });
+    mocks.connection.mockResolvedValue({ id: "calendar-connection", scopes: [CALENDAR_EVENTS_SCOPE], encryptedRefreshToken: encryptField("test-refresh", key) });
     mocks.get.mockResolvedValue({ data: event });
     mocks.patch.mockResolvedValue({ data: { ...event, etag: "v2" } });
     mocks.insert.mockResolvedValue({ data: { id: "created" } });
@@ -79,6 +80,31 @@ describe("confirmation-gated Google Calendar", () => {
   it("reports disconnected calendars truthfully", async () => {
     mocks.connection.mockResolvedValue(null);
     await expect(assistant().agenda(userId, "2026-09-16T00:00:00Z", "2026-09-17T00:00:00Z")).rejects.toThrow("reconnect");
+    expect(mocks.list).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { failure: { response: { status: 401 } }, label: "401" },
+    { failure: { response: { status: 400 }, message: "invalid_grant: token revoked" }, label: "invalid grant" },
+  ])("marks definitive authorization failures as reconnect-required ($label)", async ({ failure }) => {
+    mocks.list.mockRejectedValue(failure);
+    await expect(assistant().agenda(userId, "2026-09-16T00:00:00Z", "2026-09-17T00:00:00Z"))
+      .rejects.toBeInstanceOf(CalendarAuthorizationError);
+    expect(mocks.markRequiresReauth).toHaveBeenCalledWith("calendar-connection");
+  });
+
+  it("leaves transient calendar errors retryable without revoking the connection", async () => {
+    mocks.list.mockRejectedValue(new Error("socket timed out"));
+    await expect(assistant().agenda(userId, "2026-09-16T00:00:00Z", "2026-09-17T00:00:00Z"))
+      .rejects.toThrow("socket timed out");
+    expect(mocks.markRequiresReauth).not.toHaveBeenCalled();
+  });
+
+  it("requires reconnection when an older connection lacks calendar event access", async () => {
+    mocks.connection.mockResolvedValue({ id: "calendar-connection", scopes: ["https://www.googleapis.com/auth/calendar.events.freebusy"], encryptedRefreshToken: encryptField("test-refresh", key) });
+    await expect(assistant().agenda(userId, "2026-09-16T00:00:00Z", "2026-09-17T00:00:00Z"))
+      .rejects.toBeInstanceOf(CalendarAuthorizationError);
+    expect(mocks.markRequiresReauth).toHaveBeenCalledWith("calendar-connection");
     expect(mocks.list).not.toHaveBeenCalled();
   });
 

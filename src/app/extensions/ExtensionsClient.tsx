@@ -4,23 +4,38 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { FiArrowRight, FiCalendar, FiCheck, FiCheckSquare, FiHeart, FiLock } from "react-icons/fi";
 import { useAccountStatus } from "../components/account-state";
+import { calendarConnectionCopy } from "./calendar-status";
 
 type ExtensionData = {
   calendar: { status: "active" | "requires_reauth" | "disconnected"; connectUrl: string; disconnectUrl: string | null };
 };
 
 export function ExtensionsClient() {
-  const { account } = useAccountStatus(6_000);
+  const { account, error: accountError, refresh } = useAccountStatus(6_000);
   const [data, setData] = useState<ExtensionData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [reload, setReload] = useState(0);
 
   useEffect(() => {
     if (!account?.phoneVerified) return;
+    let current = true;
     void fetch("/api/account/extensions", { cache: "no-store" })
-      .then(async (response) => response.ok ? await response.json() as ExtensionData : null)
-      .then(setData)
-      .catch(() => setData(null));
-  }, [account?.phoneVerified, account?.calendarStatus]);
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Could not check your Google Calendar connection.");
+        return await response.json() as ExtensionData;
+      })
+      .then(value => { if (current) { setData(value); setLoadError(""); } })
+      .catch(() => { if (current) { setData(null); setLoadError("Could not check your Google Calendar connection. Try again."); } })
+      .finally(() => { if (current) setLoading(false); });
+    return () => { current = false; };
+  }, [account?.phoneVerified, account?.calendarStatus, reload]);
 
+  if (accountError) return <section className="account-gate extensions-gate" role="alert">
+    <h1>Your account is temporarily unavailable.</h1>
+    <p>{accountError}</p>
+    <button className="black-button" type="button" onClick={() => void refresh()}>Try again</button>
+  </section>;
   if (account === undefined) return <div className="account-loading">Loading extensions…</div>;
   if (!account?.phoneVerified) {
     return (
@@ -34,7 +49,10 @@ export function ExtensionsClient() {
     );
   }
 
-  const calendarActive = data?.calendar.status === "active";
+  const calendarStatus = data?.calendar.status ?? account.calendarStatus ?? "disconnected";
+  const calendarActive = calendarStatus === "active";
+  const calendarNeedsReauth = calendarStatus === "requires_reauth";
+  const calendarCopy = calendarConnectionCopy(calendarActive ? "active" : calendarNeedsReauth ? "requires_reauth" : "disconnected");
   return (
     <>
       <header className="extensions-heading">
@@ -46,21 +64,21 @@ export function ExtensionsClient() {
         <article className="extension-card extension-featured">
           <div className="extension-card-top">
             <span className="extension-icon google-calendar-icon"><FiCalendar /></span>
-            <span className={`extension-status ${calendarActive ? "connected" : "available"}`}>
-              {calendarActive ? <><FiCheck /> Connected</> : "Available"}
+            <span className={`extension-status ${calendarCopy.badgeClass}`}>
+              {calendarActive ? <><FiCheck /> {calendarCopy.badge}</> : calendarCopy.badge}
             </span>
           </div>
           <div>
             <p className="extension-provider">Google Workspace</p>
             <h2>Google Calendar</h2>
-            <p>Lets Tempo read your primary calendar and propose personal event additions, moves, and deletions. Every change needs your confirmation by text. Existing connections need to reconnect to grant event access.</p>
+            <p>{calendarCopy.description}</p>
           </div>
           <div className="extension-actions">
             {data ? (
-              <a className="black-button" href={calendarActive ? data.calendar.connectUrl : data.calendar.connectUrl}>
-                {calendarActive ? "Reconnect" : "Connect"} <FiArrowRight />
+              <a className="black-button" href={data.calendar.connectUrl}>
+                {calendarCopy.action} <FiArrowRight />
               </a>
-            ) : <span className="extension-loading">Loading…</span>}
+            ) : loading ? <span className="extension-loading" role="status">Checking connection…</span> : <div className="extension-load-error" role="alert">{loadError || "Connection details are unavailable."}<button type="button" onClick={() => { setLoading(true); setReload(value => value + 1); }}>Try again</button></div>}
             {calendarActive && data?.calendar.disconnectUrl && <a className="disconnect-link" href={data.calendar.disconnectUrl}>Disconnect</a>}
           </div>
         </article>

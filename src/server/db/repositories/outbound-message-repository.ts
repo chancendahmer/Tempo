@@ -1,4 +1,5 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
+import { randomUUID } from "node:crypto";
 import {
   OutboundBlockReason,
   OutboundMessageRepository,
@@ -38,6 +39,7 @@ export class DrizzleOutboundMessageRepository implements OutboundMessageReposito
   }
 
   async reserve(input: Parameters<OutboundMessageRepository["reserve"]>[0]) {
+    input = { ...input, replyToMessageId: input.replyToMessageId ?? input.sourceMessageId };
     const database = this.database;
     const [user] = await database.select({ phoneE164: users.phoneE164, phoneVerifiedAt: users.phoneVerifiedAt })
       .from(users).where(eq(users.id, input.userId)).limit(1);
@@ -55,14 +57,14 @@ export class DrizzleOutboundMessageRepository implements OutboundMessageReposito
       }
       const [created] = await transaction.insert(conversationMessages).values({
         userId: input.userId, conversationId: identity.conversationId,
-        idempotencyKey: input.idempotencyKey, direction: "outbound", kind: input.kind, status: "queued",
+        idempotencyKey: input.idempotencyKey, direction: "outbound", kind: input.kind, status: "queued", outboundState: "reserved",
         body: input.body, contentParts: [{ type: "text", value: input.body }],
         relatedInterventionId: input.relatedInterventionId, relatedReminderId: input.relatedReminderId,
       }).onConflictDoNothing({ target: conversationMessages.idempotencyKey }).returning({ id: conversationMessages.id });
       // Lock duplicate reservations so the same reply cannot acquire two parents.
       const [message] = await transaction.select().from(conversationMessages)
         .where(eq(conversationMessages.idempotencyKey, input.idempotencyKey)).limit(1).for("update");
-      if (!message || message.userId !== input.userId || message.conversationId !== identity.conversationId || message.direction !== "outbound") {
+      if (!message || message.userId !== input.userId || message.conversationId !== identity.conversationId || message.direction !== "outbound" || message.body !== input.body) {
         throw new Error("Outbound idempotency conflict could not be resolved");
       }
       if (input.replyToMessageId) {
@@ -73,8 +75,20 @@ export class DrizzleOutboundMessageRepository implements OutboundMessageReposito
           sourceMessageId: message.id, targetMessageId: input.replyToMessageId, type: "reply",
         }).onConflictDoNothing();
       }
-      return { messageId: message.id, duplicate: !created };
+      return { messageId: message.id, duplicate: !created, state: message.outboundState ?? "ambiguous" as const };
     });
+  }
+
+  async reservedBody(userId: string, idempotencyKey: string) {
+    const [message] = await this.database.select({ body: conversationMessages.body }).from(conversationMessages)
+      .where(and(eq(conversationMessages.userId, userId), eq(conversationMessages.idempotencyKey, idempotencyKey), eq(conversationMessages.direction, "outbound"))).limit(1);
+    return message?.body;
+  }
+
+  async beginSubmission(messageId: string) {
+    const rows = await this.database.update(conversationMessages).set({ outboundState: "submitting", submissionToken: randomUUID(), submissionStartedAt: new Date(), updatedAt: new Date() })
+      .where(and(eq(conversationMessages.id, messageId), eq(conversationMessages.outboundState, "reserved"))).returning({ id: conversationMessages.id });
+    return rows.length === 1;
   }
 
   async cancel(messageId: string, reason: OutboundBlockReason) {
@@ -82,11 +96,12 @@ export class DrizzleOutboundMessageRepository implements OutboundMessageReposito
       .update(conversationMessages)
       .set({
         status: "cancelled",
+        outboundState: "suppressed",
         providerErrorCode: `TEMPO_BLOCKED_${reason.toUpperCase()}`,
         providerErrorMessage: `Outbound send blocked: ${reason}`,
         updatedAt: new Date(),
       })
-      .where(eq(conversationMessages.id, messageId));
+      .where(and(eq(conversationMessages.id, messageId), eq(conversationMessages.outboundState, "reserved")));
   }
 
   async markSubmitted(
@@ -110,7 +125,7 @@ export class DrizzleOutboundMessageRepository implements OutboundMessageReposito
         .where(eq(conversationMessages.id, messageId)).limit(1);
       await transaction
         .update(conversationMessages)
-        .set({ provider, providerService: service, providerMessageSid, status: "queued", updatedAt: now })
+        .set({ provider, providerService: service, providerMessageSid, outboundState: "accepted", status: "queued", updatedAt: now })
         .where(eq(conversationMessages.id, messageId));
       const providerIdentity = message && providerLineAddress
         ? await ensureDirectConversation(transaction as unknown as TempoDatabase, {
@@ -144,14 +159,16 @@ export class DrizzleOutboundMessageRepository implements OutboundMessageReposito
 
   async markFailed(messageId: string, error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
+    const definitelyRejected = typeof error === "object" && error !== null && "submissionOutcome" in error && error.submissionOutcome === "not_accepted";
     await this.database
       .update(conversationMessages)
       .set({
         status: "failed",
+        outboundState: definitelyRejected ? "reserved" : "ambiguous",
         providerErrorCode: "TEMPO_PROVIDER_ERROR",
         providerErrorMessage: message.slice(0, 500),
         updatedAt: new Date(),
       })
-      .where(eq(conversationMessages.id, messageId));
+      .where(and(eq(conversationMessages.id, messageId), eq(conversationMessages.outboundState, "submitting"), isNull(conversationMessages.providerMessageSid)));
   }
 }

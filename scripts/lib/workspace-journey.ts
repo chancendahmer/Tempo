@@ -1,5 +1,6 @@
 import type { TaskIntentParser } from "../../src/server/adapters/llm/task-intent-parser";
 import type { LifeItem, SavedLifeItem } from "../../src/server/domain/life-items";
+import { lifePatchSchema } from "../../src/server/domain/life-patch";
 import type { AssistantSimulator } from "./assistant-simulator";
 
 export type Workspace = Awaited<ReturnType<Awaited<ReturnType<AssistantSimulator["user"]>>["workspace"]>>;
@@ -29,11 +30,11 @@ export const scriptedWorkspaceParser: TaskIntentParser = { parse: async input =>
   if (step?.create) return { kind: "command", command: { type: "life_save", data: step.create } };
   if (step?.edit || step?.remove) {
     const kind = step.edit?.kind ?? step.remove!;
-    const rows = JSON.parse(await input.execute!({ type: "life_list", kind })) as SavedLifeItem[];
+    const { items: rows } = JSON.parse(await input.execute!({ type: "life_list", kind })) as { items: SavedLifeItem[] };
     const row = rows[0];
     if (!row) return { kind: "conversation", reply: "[SCRIPTED] No item found." };
     if (step.remove) return { kind: "command", command: { type: "life_remove", id: row.id, version: row.version } };
-    return { kind: "command", command: { type: "life_save", id: row.id, version: row.version, data: { ...row.data, ...step.edit!.patch } as LifeItem } };
+    return { kind: "command", command: { type: "life_patch", id: row.id, version: row.version, patch: lifePatchSchema.parse({ kind: row.data.kind, ...step.edit!.patch }) } };
   }
   return { kind: "command", command: { type: "life_list", kind: "recipe" } };
 } };

@@ -69,7 +69,8 @@ export async function executeGoalCommand(
   if (command.type === "list_goals") {
     const goals = await repository.list(context.userId, command.status);
     if (goals.length === 0) return { kind: "executed", reply: "You don’t have any goals in that list." };
-    return { kind: "executed", reply: goals.slice(0, 8).map((goal, index) => `${index + 1}. ${goal.title}`).join("\n") };
+    return { kind: "executed", reply: goals.slice(0, 8).map((goal, index) => `${index + 1}. ${goal.title}`)
+      .concat(goals.length > 8 ? [`Showing 8 of ${goals.length} goals; this list is incomplete. Name the goal you want to work on.`] : []).join("\n") };
   }
   const resolution = resolveGoalReference(await repository.listForResolution(context.userId), command);
   if (resolution.kind === "not_found") {

@@ -21,6 +21,7 @@ const linqErrorSchema = z.object({
 }).passthrough();
 
 export class LinqApiError extends Error {
+  get submissionOutcome() { return [400, 401, 402, 403, 404, 405, 413, 415, 422, 429].includes(this.status) ? "not_accepted" : "unknown"; }
   constructor(
     message: string,
     readonly status: number,
@@ -49,6 +50,7 @@ export class LinqMessagingTransport implements MessagingTransport {
         : `${env.LINQ_API_BASE_URL}/messages`,
       {
       method: "POST",
+      signal: input.signal ? AbortSignal.any([input.signal, AbortSignal.timeout(30_000)]) : AbortSignal.timeout(30_000),
       headers: {
         Authorization: `Bearer ${env.LINQ_API_KEY!}`,
         "Content-Type": "application/json",

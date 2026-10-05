@@ -31,3 +31,13 @@ it("asks for a simpler batch rather than silently swapping day/time pairings", (
     { text: "Library", remindAt: "2026-10-08T14:00:00-04:00" },
   ] }, { now, timezone, message: "Remind me to call the library Wednesday at 2pm and Thursday at 5pm" })).toMatch(/Nothing was added/);
 });
+
+it("allows ordered same-day batch time edits but rejects swapped assignments", () => {
+  const changes = [
+    {reminderId:"00000000-0000-4000-8000-000000000001",expectedRemindAt:"2027-01-16T14:00:00-05:00",remindAt:"2027-01-16T15:00:00-05:00"},
+    {reminderId:"00000000-0000-4000-8000-000000000002",expectedRemindAt:"2027-01-16T17:00:00-05:00",remindAt:"2027-01-16T18:00:00-05:00"},
+  ];
+  const input={message:"Move both charger reminders on Saturday to 3PM and 6PM",timezone:"America/New_York",now:new Date("2027-01-14T15:00:00Z")};
+  expect(reminderTimeIssue({type:"reschedule_reminders",changes},input)).toBeUndefined();
+  expect(reminderTimeIssue({type:"reschedule_reminders",changes:changes.map((item,i)=>({...item,remindAt:changes[1-i].remindAt}))},input)).toContain("Nothing was changed");
+});

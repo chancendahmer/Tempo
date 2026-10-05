@@ -6,7 +6,7 @@ import { requireEnv } from "../../config/env";
 import { TaskCommand, TaskSummary, taskCommandSchema } from "../../domain/task-commands";
 import { GoalCommand, GoalSummary, goalCommandSchema } from "../../domain/goal-commands";
 import { RescheduleCommand, rescheduleCommandSchema } from "../../domain/reschedule-service";
-import { latestLinkedExchange, ConversationHistoryMessage } from "../../domain/conversation-history";
+import { latestLinkedExchange, type ConversationHistoryMessage } from "../../domain/conversation-history";
 import { isExplicitReminderRequest, ReminderCommand, reminderCommandSchema } from "../../domain/reminder-commands";
 import { MemoryCommand, memoryCommandSchema } from "../../domain/memory-service";
 import { AssistantCommand, assistantCommandSchema } from "../../domain/assistant-commands";
@@ -17,16 +17,20 @@ import { AssistantProviderFailure } from "../../domain/assistant-provider-failur
 import { normalizeProviderFailure } from "./provider-failure";
 import { HEALTH_CAPABILITY_LIMIT } from "../../domain/connection-status-reply";
 import { RUNDOWN_HISTORY_LIMIT } from "../../domain/rundown";
+import { TurnWritePolicy, hasExplicitNoWriteRequest, requestedCheckinConsent, type TurnAuthorizer } from "../../domain/turn-write-policy";
+import { AnthropicTurnAuthorizer } from "./turn-authorizer";
+import { assessTaskDeadline } from "../../domain/task-deadline";
 
 import { reminderReference } from "../../domain/reminder-context";
 import { reminderTimeIssue } from "../../domain/reminder-time-policy";
-import { TurnWritePolicy } from "../../domain/turn-write-policy";
-import { AnthropicTurnAuthorizer } from "./turn-authorizer";
+
 
 export type CoachingCommand = TaskCommand | GoalCommand | RescheduleCommand | ReminderCommand | MemoryCommand | AssistantCommand;
 export type TaskIntentResult = { kind: "command"; command: CoachingCommand } | { kind: "conversation"; reply: string };
 
 export interface TaskIntentParser {
+  /** Production parsers supply independent authorization; absence fails closed. */
+  readonly authorizer?: TurnAuthorizer;
   parse(input: {
     message: string;
     timezone: string;
@@ -37,6 +41,7 @@ export interface TaskIntentParser {
     customInstructions?: string;
     history?: ConversationHistoryMessage[];
     execute?: (command: CoachingCommand) => Promise<string>;
+    writePolicy?: TurnWritePolicy;
   }): Promise<TaskIntentResult>;
 }
 
@@ -184,7 +189,8 @@ export const TASK_TOOLS: Tool[] = [
     input_schema: {
       type: "object",
       properties: {
-        text: { type: "string", description: "What Tempo should remind the user about." },
+        contentMode: { type: "string", enum: ["text", "daily_rundown"], description: "Use daily_rundown for a requested scheduled daily plan, morning briefing or to-do rundown. Reads current tasks, goals, reminders and Calendar at delivery; do not copy today’s list into the reminder text. Omit for ordinary reminders. Recurrence still requires explicit consent." },
+        text: { type: "string", description: "What Tempo should remind the user about; for a briefing use their short description of the plan." },
         remindAt: { type: "string", format: "date-time", description: "Exact future ISO 8601 timestamp with an offset derived from the user's timezone." },
         recurrence: {
           type: "string",
@@ -265,7 +271,7 @@ export function parseTaskIntentResponse(blocks: ResponseBlock[]): TaskIntentResu
     if (toolUse.name === "life_save" && commandInput.id === undefined && commandInput.data && typeof commandInput.data === "object") {
       const data = commandInput.data as Record<string, unknown>;
       if (data.kind === "routine" && Array.isArray(data.steps)) {
-        commandInput.data = { ...data, steps: data.steps.map(step => step && typeof step === "object" && !Array.isArray(step)
+        commandInput.data = { ...data, title: data.title ?? (data.period === "morning" ? "Morning routine" : "Evening routine"), steps: data.steps.map(step => step && typeof step === "object" && !Array.isArray(step)
           ? { ...step, id: randomUUID(), completedOn: null } : step) };
       }
     }
@@ -301,7 +307,7 @@ export function parseTaskIntentResponse(blocks: ResponseBlock[]): TaskIntentResu
 
 export class AnthropicTaskIntentParser implements TaskIntentParser {
   private client: Anthropic | undefined;
-  private readonly reminderAuthorizer = new AnthropicTurnAuthorizer();
+  constructor(readonly authorizer: TurnAuthorizer = new AnthropicTurnAuthorizer()) {}
 
   async parse(input: Parameters<TaskIntentParser["parse"]>[0]): Promise<TaskIntentResult> {
     let env: ReturnType<typeof requireEnv>;
@@ -315,8 +321,8 @@ export class AnthropicTaskIntentParser implements TaskIntentParser {
       logger.error({ category: "configuration", operation: "assistant_response" }, "assistant provider configuration unavailable");
       throw new AssistantProviderFailure("configuration");
     }
-    const contextualReminderPolicy = new TurnWritePolicy(input, this.reminderAuthorizer);
     const explicitReminder = isExplicitReminderRequest(input.message);
+    const writePolicy = input.writePolicy ?? new TurnWritePolicy({ message: input.message, history: input.history }, this.authorizer);
     const conversationOnly = isConversationOnlyMessage(input.message);
     const tools = (explicitReminder
       ? TASK_TOOLS.filter((tool) => /_reminders?$/.test(tool.name) || tool.name === "list_reminders" || isReadOnlyAssistantCommand(tool.name))
@@ -368,8 +374,10 @@ export class AnthropicTaskIntentParser implements TaskIntentParser {
         "When the user asks what to do first or how to prioritize their existing plan, use the current deadlines, durations and overdue markers supplied with open tasks. Read current tasks or a current rundown if you need more information. Use the returned deadlines and current time; do not ask for a deadline already present in a tool result. Distinguish overdue work from future planned work. If they ask for advice without edits, make no state-changing call. Offer one immediate small step and, if useful, one alternative rather than a long list.",
         "Never invent a task or goal ID. Use the user's own wording as a query when a deterministic match is uncertain.",
         `Current time: ${input.now.toISOString()}. User timezone: ${input.timezone}.`,
-        `Open tasks: ${JSON.stringify(input.openTasks.map(({ id, title, status, dueAt, estimatedMinutes }) => ({ id, title, status, dueAt: dueAt?.toISOString() ?? null, estimatedMinutes: estimatedMinutes ?? null, overdue: dueAt ? dueAt < input.now : false })))}`,
-        `Active goals: ${JSON.stringify(input.openGoals.map(({ id, title, status }) => ({ id, title, status })))}`,
+        `Open tasks: ${JSON.stringify(input.openTasks.slice(0, 50).map(({ id, title, status, dueAt, estimatedMinutes }) => ({ id, title, status, dueAt: dueAt?.toISOString() ?? null, estimatedMinutes: estimatedMinutes ?? null, overdue: dueAt ? dueAt < input.now : false })))}`,
+        `Task context coverage: ${JSON.stringify({ total: input.openTasks.length, included: Math.min(input.openTasks.length, 50), truncated: input.openTasks.length > 50 })}. When truncated, use current task/rundown tools to answer about omitted work; never imply this is the entire plan.`,
+        `Active goals: ${JSON.stringify(input.openGoals.slice(0, 25).map(({ id, title, status }) => ({ id, title, status })))}`,
+        `Goal context coverage: ${JSON.stringify({ total: input.openGoals.length, included: Math.min(input.openGoals.length, 25), truncated: input.openGoals.length > 25 })}. Use list_goals when more context is needed.`,
         `Relevant user memory: ${JSON.stringify(input.memories.slice(0, 12))}`,
         `User-authored coaching instructions: ${JSON.stringify(input.customInstructions ?? "None provided")}`,
         "For non-task conversation, behave like a useful general personal assistant. You can brainstorm, explain, plan, compare options, suggest meals, and provide concise recipes from general knowledge. Do not falsely claim that Tempo is limited to tasks.",
@@ -382,12 +390,12 @@ export class AnthropicTaskIntentParser implements TaskIntentParser {
         "Keep replies concise and energetic enough for SMS. Emojis are welcome when they add warmth, but usually use no more than one.",
         "Be warm, direct, curious, and practical. Match the user's tone and energy. Answer their question before offering coaching; don't turn every exchange into therapy. Avoid repeated pep talks, stock empathy, excessive praise, or calling everything a tiny step. For a correction, acknowledge it briefly and fix the specific detail. Ask one focused question only when needed to identify the record or missing required information. Don't ask permission again for an ordinary edit the user already requested.",
         "The workspace tabs display account data; you can change records with tools, not redesign pages, navigate the user's screen, or control hardware. Tasks are daily/weekly actions; goals are longer-term outcomes. To start a focus timer, go to Tasks & focus and tap the play button beside a task, or My routines and the play button beside a step. Opening a task title opens its edit form. The fullscreen timer offers Pause, I’m done, and +5 minutes. Recipes are reusable favorites, meal plans are dated intentions, food logs record what was actually eaten, and notes are the thought inbox. Wake & Wind Down supports manual light/sound sessions while the browser stays open; you cannot set a scheduled wake alarm, change hardware brightness, or control a physical light. A text reminder is a different capability; explain the distinction and ask before substituting it for an alarm.",
-        "Use life_list before referring to or editing saved routines, recipes, meals, food logs, workouts, groceries or notes. Resolve pronouns from recent conversation, then verify the record through the current lookup. If multiple records fit, ask which one. For life_save edits preserve all unrelated fields, routine step IDs and completion dates. Use the user's account timezone. Save recipes and logs as structured life items, not generic memory. Never invent food nutrients; use null for unknown values. A suggested meal is not a saved meal or an eaten food log.",
+        "Use life_list before referring to or editing saved routines, recipes, meals, food logs, workouts, groceries or notes. Resolve pronouns from recent conversation, then verify the record through a current id/query lookup. Preserve truncation/coverage notices. If multiple records fit, ask which one. life_save only creates records; existing records must use life_patch with their current id/version and only the requested changed fields. The server merges omitted fields and preserves routine step IDs/completion dates. Never regenerate the whole item for an edit. Use the user's account timezone. Save recipes and logs as structured life items, not generic memory. Never invent food nutrients; use null for unknown values. A suggested meal is not a saved meal or an eaten food log.",
         "For a requested shopping list, use one grocery_add call for all explicitly requested items. This is one atomic change; do not make the user repeat each item in separate messages. When planning a saved recipe, read recipes first and pass its exact sourceRecipeId to preserve every ingredient. Save an explicit meal serving count in data.servings. Do not silently scale ingredient amounts when changing serving counts.",
         "Always execute an explicitly requested grocery addition through grocery_add, even if conversation history says those items were saved earlier. The server checks the current unchecked list and safely skips existing items. Do not infer current grocery state from history or ask the user whether to add duplicates.",
         "Personal recall questions can refer to Thought inbox notes as well as remembered facts. Before saying you have no saved information, call recall_memories with a brief topic query to check both stores. Conversation history alone cannot establish that something was never saved. An empty topic search means no matching result was found, not that the account has no notes.",
         "Moving a task to a user-specified date/time is an update_task deadline edit, not a request to find an arbitrary free slot. Respect the requested date and account timezone; preserve its goal link, title and duration unless the user changes them. Use reschedule_task only when the user wants you to choose an available time.",
-        "Before adding a dated meal plan, read the meal plans. If that dish is already planned for the requested date and meal, update the existing entry using its current id and version instead of adding a duplicate. Ask which entry only when multiple matches are plausible.",
+        "Before adding a dated meal plan, search meal plans by dish/date. If that dish is already planned for the requested date and meal, use life_patch with the existing entry's current id and version instead of adding a duplicate. Ask which entry only when multiple matches are plausible.",
         "A routine requires kind routine, title, period morning or evening, time HH:mm, and steps with UUID id, title, integer minutes from 1 to 180, and completedOn null. For new routines the server assigns step UUIDs and resets completedOn to null; never ask the user for technical IDs. Existing routine edits must preserve their saved UUIDs and completion dates. If the user hasn't given a start time, ask what time they want the routine to start; do not guess a clock time. For a requested simple routine you may suggest reasonable step durations, clearly described as adjustable estimates. Missing user choices need a concise question, not an invalid tool call or a request to repeat the entire routine.",
         "When logging food, follow an explicit fallback such as leave calories unknown if you lack reliable data: save the food with null unknown nutrient fields immediately when its title, date and meal are known. Do not ask the user to choose again between unknown values and estimates they already declined. Do not substitute generic nutrition estimates or claim a USDA/database lookup unless an available tool actually returned that evidence. An Open Food Facts search miss does not prevent saving a manual food entry with unknown nutrients.",
         "Never use guilt, shame, or moralizing.",
@@ -451,10 +459,14 @@ export class AnthropicTaskIntentParser implements TaskIntentParser {
         }
         return { kind: "conversation", reply: actionResult ?? "I couldn’t validate that action. Could you give me its details again?" };
       }
-      // Current permission is independent of the contextual subject and tool output.
-      if (parsed.kind === "command" && (parsed.command.type === "create_reminders" || parsed.command.type === "reschedule_reminders"
-        || (["create_reminder", "create_task"].includes(parsed.command.type) && !hasCurrentActionEvidence(parsed.command, input.message)))) {
-        const denial = await contextualReminderPolicy.denial(parsed.command);
+      // Missing scheduling detail is a clarification, not an attempted write.
+      // Keep explicit no-change requests on the normal authorization path.
+      if (parsed.kind === "command" && /_reminders?$/.test(parsed.command.type) && !hasExplicitNoWriteRequest(input.message)) {
+        const issue = reminderTimeIssue(parsed.command as ReminderCommand, { ...input, inheritSchedule: !hasCurrentActionEvidence(parsed.command, input.message) });
+        if (issue === "What time would you like that reminder?") return {kind:"conversation",reply:issue};
+      }
+      if (parsed.kind === "command") {
+        const denial = await writePolicy.denial(parsed.command);
         if (denial) return { kind: "conversation", reply: actionResult ?? denial };
       }
       if (parsed.kind === "command" && /_reminders?$/.test(parsed.command.type)) {
@@ -473,6 +485,12 @@ export class AnthropicTaskIntentParser implements TaskIntentParser {
       if (parsed.kind === "command") {
         const clarification = taskPartOfDayClarification(parsed.command, input.message, input.timezone);
         if (clarification) return { kind: "conversation", reply: actionResult ?? clarification };
+        if (parsed.command.type === "create_task" || parsed.command.type === "update_task") {
+          const source = taskDeadlineSource(input);
+          const assessed = assessTaskDeadline(parsed.command, source.message, source.now, input.timezone);
+          if (assessed.clarification) return { kind: "conversation", reply: actionResult ?? assessed.clarification };
+          parsed = { kind: "command", command: assessed.command };
+        }
       }
       if (!input.execute || parsed.kind !== "command") return parsed;
       const command = parsed.command;
@@ -482,7 +500,7 @@ export class AnthropicTaskIntentParser implements TaskIntentParser {
       else if (command.type === "reschedule_reminders" && command.changes.some(item => knownReminderTimes.get(item.reminderId) !== new Date(item.expectedRemindAt).toISOString())) result = "No change performed: first list_reminders in this turn and use the exact returned IDs and times.";
       else if (command.type === "reschedule_reminder" && (!command.reminderId || !knownReminderTimes.has(command.reminderId))) result = "No change performed: first list_reminders in this turn and use the exact ID matching the requested subject and date.";
       else if (command.type === "calendar_change" && command.change.operation !== "create" && !knownEventIds.has(command.change.eventId)) result = "No change performed: first look up the event using calendar_agenda in this turn.";
-      else if ((command.type === "life_remove" || command.type === "life_save") && command.id && knownLifeVersions.get(command.id) !== command.version) result = "No change performed: first read life_list in this turn and use the returned id and version.";
+      else if ((command.type === "life_remove" || command.type === "life_patch") && knownLifeVersions.get(command.id) !== command.version) result = "No change performed: first read life_list in this turn and use the returned id and version.";
       else {
         try { result = await input.execute(command); }
         catch { result = "That action could not be verified. Please check its current state before trying again."; }
@@ -509,7 +527,7 @@ export class AnthropicTaskIntentParser implements TaskIntentParser {
       }
       // Preserve completeness and capability limits without ending compound requests.
       if (command.type === "get_rundown" || command.type === "connection_status") {
-        const notice = command.type === "connection_status" ? HEALTH_CAPABILITY_LIMIT
+        const notice = command.type === "connection_status" ? (/\b(?:health|fit|steps|step[- ]count)\b/i.test(input.message) ? HEALTH_CAPABILITY_LIMIT : null)
           : result.includes(RUNDOWN_HISTORY_LIMIT) ? RUNDOWN_HISTORY_LIMIT : null;
         if (notice && !verifiedReports.includes(notice)) verifiedReports.push(notice);
         request.system += "\nThe capability/history limitation from this tool will be appended verbatim. Do not repeat that limitation. Summarize the actual report and answer remaining requests. For a health capability question fully answered by the appended limitation, return ACK_ONLY unless other help was requested. Never contradict the verified capability or completeness limits.";
@@ -538,6 +556,22 @@ function normalizeSourceQuote(value: string) {
   return value.replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/\s+/g, " ").trim().toLowerCase();
 }
 
+/** A clock-only answer inherits the date from its linked request, including the
+ * original local day when the answer arrives after midnight. Human pivots break it. */
+function taskDeadlineSource(input: Parameters<TaskIntentParser["parse"]>[0]) {
+  const exchange = latestLinkedExchange(input.history);
+  const request = exchange?.request, question = exchange?.reply;
+  const clockAnswer = /^(?:at\s+)?\d{1,2}(?::\d{2})?\s*[ap]\.?m\.?(?:\s+(?:UTC|GMT)[+-]\d{2}:?\d{2})?(?:\s+(?:please|works(?: for me)?|is (?:good|fine)))?[.!]?$/i.test(input.message.trim());
+  if (request && question && clockAnswer && /\bwhat time\b/i.test(question.content) && /\?/.test(question.content)) {
+    // A clarified clock replaces the old clock (for example after a DST gap),
+    // while the original date, subject and original local-day anchor survive.
+    const withoutClock = request.content.replace(/\b\d{1,2}(?::\d{2})?\s*[ap]\.?m\.?\b|\b(?:at|by)\s+\d{1,2}:\d{2}(?!\s*[ap]\.?m)\b|\b(?:noon|midnight)\b/gi, "")
+      .replace(/\b(?:UTC|GMT)\s*[+-]\d{2}:?\d{2}\b/gi, "");
+    return { message: `${withoutClock} at ${input.message}`, now: request.createdAt };
+  }
+  return { message: input.message, now: input.now };
+}
+
 /** A part-of-day request must never become a made-up precise due time. */
 function taskPartOfDayClarification(command: CoachingCommand, message: string, timezone: string): string | undefined {
   if (command.type !== "create_task" && command.type !== "update_task") return;
@@ -554,7 +588,8 @@ function taskPartOfDayClarification(command: CoachingCommand, message: string, t
   if (!matches) return `I need to clarify the time ${label} before saving that task. What time should I use?`;
 }
 
-/** Resolve an explicit "save that" or an immediate clarification, never a backlog. */
+/** Ground an already-authorized action in one linked exchange, never a backlog.
+ * This establishes the subject; TurnWritePolicy must grant permission first. */
 function hasLinkedActionReference(command: CoachingCommand, input: Parameters<TaskIntentParser["parse"]>[0]): boolean {
   if (command.type === "create_reminders") return command.reminders.every(item => hasCurrentActionEvidence({ type: "create_reminder", ...item }, input.message) || hasLinkedActionReference({ type: "create_reminder", ...item }, input));
   const referenceReminder = reminderReference(input);
@@ -565,7 +600,7 @@ function hasLinkedActionReference(command: CoachingCommand, input: Parameters<Ta
   const text = input.message;
   const reference = /\b(?:that|this|it|those)\b/i.test(text);
   const explicitSave = /\b(?:save|keep|put|add|plan|log|record|remember|make)\b/i.test(text);
-  if (command.type === "life_save" && command.data.kind === "routine" && !command.id) {
+  if (command.type === "life_save" && command.data.kind === "routine") {
     const answer = normalizeSourceQuote(text);
     const timeAnswer = /^(?:at\s+)?\d{1,2}(?::\d{2})?\s*(?:a\.?m\.?|p\.?m\.?)?(?:\s+(?:please|works(?:\s+for me)?|is (?:good|fine|perfect)|sounds (?:good|fine)))?[.!]?$/.test(answer);
     const asksRoutineTime = /\?/.test(reply.content) && /\b(?:when|what time)\b/i.test(reply.content) && /\broutine\b/i.test(reply.content);
@@ -583,7 +618,7 @@ function hasLinkedActionReference(command: CoachingCommand, input: Parameters<Ta
   }
   if (command.type === "create_task" && !command.dueAt && hasCurrentActionEvidence(command, request.content)) return true;
   if (command.type === "create_task") {
-    const timeReply = normalizeSourceQuote(text).match(/^(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*([ap])\.?m\.?(?:\s+(?:please|works(?: for me)?|is (?:good|fine)))?[.!]?$/);
+    const timeReply = normalizeSourceQuote(text).match(/^(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*([ap])\.?m\.?(?:\s+(?:utc|gmt)[+-]\d{2}:?\d{2})?(?:\s+(?:please|works(?: for me)?|is (?:good|fine)))?[.!]?$/);
     // The linked question need not repeat "task" or "schedule it". Its original
     // request and grounded task title below establish the action being clarified.
     const taskTimeQuestion = /\?/.test(reply.content) && /\bwhat time\b/i.test(reply.content);
@@ -606,21 +641,24 @@ function hasLinkedActionReference(command: CoachingCommand, input: Parameters<Ta
     return hasCurrentActionEvidence(command, reply.content);
   }
   if (command.type === "create_reminder") {
+    // "Set 5 PM too" can accept an offer after a completed 3 PM reminder, not
+    // only answer a "what time?" question. The independent write decision has
+    // the same exchange and authorizes the current request. Do not duplicate
+    // that semantic decision with another phrase whitelist here.
     return hasCurrentActionEvidence(command, request.content) || hasCurrentActionEvidence(command, reply.content);
   }
   return false;
 }
 
-/** Quotes must authorize the payload, not merely contain a generic word like “me”. */
+/** Payload grounding only. TurnWritePolicy separately establishes write authority. */
 export function hasCurrentActionEvidence(command: CoachingCommand, message: string): boolean {
   if (command.type === "create_reminders") return command.reminders.every(item => hasCurrentActionEvidence({ type: "create_reminder", ...item }, message));
   if (command.type === "grocery_add") return command.items.every(title => hasCurrentActionEvidence({ type: "create_task", title }, message));
   if (command.type === "set_checkins") {
-    return /\b(check.?ins?|proactive|reach out|coaching)\b/i.test(message)
-      && (command.enabled ? /\b(enable|opt in|turn on|start|please|want)\b/i.test(message) : /\b(disable|turn off|stop|no|don't|do not)\b/i.test(message));
+    return requestedCheckinConsent(message) === command.enabled;
   }
   const payload = command.type === "create_reminder" ? command.text
-    : command.type === "life_save" && !command.id ? command.data.title
+    : command.type === "life_save" ? command.data.title
     : command.type === "remember_memory" ? command.content
     : command.type === "create_task" || command.type === "create_goal" ? command.title
     : null;

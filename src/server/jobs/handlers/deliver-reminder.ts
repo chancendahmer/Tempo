@@ -2,7 +2,11 @@ import { PgBoss } from "pg-boss";
 import { createMessagingTransport } from "../../adapters/sms/messaging-provider";
 import { DrizzleOutboundMessageRepository } from "../../db/repositories/outbound-message-repository";
 import { DrizzleReminderRepository } from "../../db/repositories/reminder-repository";
-import { SafeSmsSender } from "../../domain/outbound-messaging";
+import { DrizzleTaskRepository } from "../../db/repositories/task-repository";
+import { DrizzleGoalRepository } from "../../db/repositories/goal-repository";
+import { CalendarAssistantIntegrations } from "../../adapters/calendar/calendar-assistant";
+import { reminderDeliveryBody } from "../../domain/reminder-delivery-body";
+import { SafeSmsSender, OutboundDeliveryPendingError } from "../../domain/outbound-messaging";
 import { logger } from "../../observability/logger";
 import { DeliverReminderJob, JOB_NAMES } from "../names";
 import { ScheduledActionRepository } from "../scheduled-action-repository";
@@ -29,11 +33,19 @@ export async function registerDeliverReminderHandler(boss: PgBoss) {
           await actions.markCompleted(job.data.scheduledActionId);
           continue;
         }
-        const result = await new SafeSmsSender(new DrizzleOutboundMessageRepository(), createMessagingTransport()).send({
+        const outbound = new DrizzleOutboundMessageRepository();
+        const idempotencyKey = reminders.getOccurrenceIdempotencyKey(reminder.id, occurrenceAt);
+        // Once reserved, retries reuse the canonical body even if the plan changes.
+        const body = await outbound.reservedBody(reminder.userId, idempotencyKey) ?? await reminderDeliveryBody(reminder, {
+          tasks: new DrizzleTaskRepository(), goals: new DrizzleGoalRepository(), reminders,
+          integrations: new CalendarAssistantIntegrations(),
+        }, new Date());
+        const result = await new SafeSmsSender(outbound, createMessagingTransport()).send({
           userId: reminder.userId,
-          body: `Reminder: ${reminder.text}`,
+          body,
+          signal: job.signal,
           kind: "coach",
-          idempotencyKey: reminders.getOccurrenceIdempotencyKey(reminder.id, occurrenceAt),
+          idempotencyKey,
           relatedReminderId: reminder.id,
         });
         if (result.sent) {
@@ -53,7 +65,7 @@ export async function registerDeliverReminderHandler(boss: PgBoss) {
         await reminders.markFailed(reminder.id, result.reason);
         await actions.markCancelled(job.data.scheduledActionId, result.reason);
       } catch (error) {
-        if (!(error instanceof ReminderDeliveryPendingError)) await reminders.markFailed(job.data.reminderId, error);
+        if (!(error instanceof ReminderDeliveryPendingError) && !(error instanceof OutboundDeliveryPendingError)) await reminders.markFailed(job.data.reminderId, error);
         await actions.markFailed(job.data.scheduledActionId, error);
         if (error instanceof ReminderDeliveryPendingError) logger.warn({ reminderId: job.data.reminderId }, "reminder submission awaiting reconciliation");
         else logger.error({ err: error, reminderId: job.data.reminderId }, "reminder delivery failed");

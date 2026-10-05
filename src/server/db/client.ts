@@ -2,6 +2,7 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import { requireEnv } from "../config/env";
 import * as schema from "./schema";
+import { scopedDatabase } from "./database-scope";
 
 let pool: Pool | undefined;
 export type TempoDatabase = ReturnType<typeof drizzle<typeof schema>>;
@@ -24,7 +25,7 @@ export function getPool(): Pool {
 
 export function getDatabase() {
   if (!database) {
-    database = drizzle(getPool(), { schema });
+    database = scopedDatabase(drizzle(getPool(), { schema }));
   }
   return database;
 }

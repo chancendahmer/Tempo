@@ -25,6 +25,30 @@ describe("shared life workspace", () => {
   afterAll(async () => client.close());
   const recipe: LifeItem = { kind: "recipe", title: "Lemon rice", ingredients: "Rice\nLemon", instructions: "Cook rice, add lemon.", servings: 2, prepMinutes: 20, favorite: true };
 
+  it("finds bounded meal candidates when conversational date words do not match stored dates", async () => {
+    const [person, outsider] = await db.insert(schema.users).values([{ phoneE164: "+12025550641" }, { phoneE164: "+12025550642" }]).returning();
+    const meal = { kind: "meal" as const, title: "Lemon rice", ingredients: "rice and lemon", date: "2027-01-14", meal: "Dinner" as const, servings: 2 };
+    const target = randomUUID();
+    await mutateWorkspace(person.id, {action:"save",id:target,version:0,data:meal},db);
+    await mutateWorkspace(outsider.id, {action:"save",id:randomUUID(),version:0,data:{...meal,title:"FOREIGN Lemon rice"}},db);
+    const assistant = new LifeAssistant(db);
+    const lookup = JSON.parse(await assistant.execute(person.id,randomUUID(),{type:"life_list",kind:"meal",query:"Lemon rice dinner January 14 2027"}));
+    expect(lookup.items.map((row: {id:string})=>row.id)).toEqual([target]);
+    expect(lookup.coverage.match).toBe("partial title candidates");
+    expect(lookup.notice).toContain("Verify");
+    expect(JSON.stringify(lookup)).not.toContain("FOREIGN");
+    const exact = JSON.parse(await assistant.execute(person.id,randomUUID(),{type:"life_list",kind:"meal",query:"Lemon rice"}));
+    expect(exact.coverage.match).toBe("all search words");
+    const foreignId = JSON.parse(await assistant.execute(outsider.id,randomUUID(),{type:"life_list",kind:"meal",id:target,query:"Lemon rice"}));
+    expect(foreignId.items).toEqual([]);
+    const unrelated = JSON.parse(await assistant.execute(person.id,randomUUID(),{type:"life_list",kind:"meal",query:"pasta January 14 2027"}));
+    expect(unrelated.items).toEqual([]);
+    for (let n=0;n<22;n++) await mutateWorkspace(person.id,{action:"save",id:randomUUID(),version:0,data:{...meal,title:"Lemon pasta "+n}},db);
+    const broad = JSON.parse(await assistant.execute(person.id,randomUUID(),{type:"life_list",kind:"meal",query:"Lemon January 14 2027"}));
+    expect(broad.items).toHaveLength(20);
+    expect(broad.truncated).toBe(true);
+  });
+
   it("adds a complete grocery batch once, atomically and only to its account", async () => {
     const [batchUser] = await db.insert(schema.users).values({ phoneE164: "+12025550959" }).returning();
     const assistant = new LifeAssistant(db), source = randomUUID();
@@ -71,7 +95,7 @@ describe("shared life workspace", () => {
     const otherMealId = randomUUID();
     expect(await assistant.execute(other, otherMealId, command)).toContain("couldn’t find");
     expect((await readWorkspace(other, db)).items.some(row => row.id === otherMealId)).toBe(false);
-    await assistant.execute(owner, randomUUID(), { type: "life_save", id: mealId, version: 1, data: { ...data, ingredients, date: "2026-10-02" } });
+    await assistant.execute(owner, randomUUID(), { type: "life_patch", id: mealId, version: 1, patch: { kind: "meal", date: "2026-10-02" } });
     expect((await readWorkspace(owner, db)).items.find(row => row.id === mealId)?.data).toEqual({ ...data, ingredients, date: "2026-10-02" });
     expect(lifeItemSchema.safeParse({ ...data, servings: 0 }).success).toBe(false);
     expect(lifeItemSchema.safeParse({ ...data, servings: 101 }).success).toBe(false);
@@ -107,11 +131,12 @@ describe("shared life workspace", () => {
   ])("shares assistant CRUD for $kind with the app and isolates other accounts", async data => {
     const assistant = new LifeAssistant(db), id = randomUUID();
     await assistant.execute(owner, id, { type: "life_save", data });
-    const rows = JSON.parse(await assistant.execute(owner, randomUUID(), { type: "life_list", kind: data.kind as "routine" }));
+    const { items: rows } = JSON.parse(await assistant.execute(owner, randomUUID(), { type: "life_list", kind: data.kind as "routine" }));
     expect(rows.find((row: { id: string }) => row.id === id)).toMatchObject({ version: 1, data });
-    expect(JSON.parse(await assistant.execute(other, randomUUID(), { type: "life_list", kind: data.kind as "routine" })).some((row: { id: string }) => row.id === id)).toBe(false);
+    expect(JSON.parse(await assistant.execute(other, randomUUID(), { type: "life_list", kind: data.kind as "routine" })).items.some((row: { id: string }) => row.id === id)).toBe(false);
     const updated = { ...data, title: `${data.title} updated` };
-    await assistant.execute(owner, randomUUID(), { type: "life_save", id, version: 1, data: updated });
+    if (data.kind === "focus") throw new Error("Unexpected focus fixture");
+    await assistant.execute(owner, randomUUID(), { type: "life_patch", id, version: 1, patch: { kind: data.kind, title: updated.title } });
     expect((await readWorkspace(owner, db)).items.find(item => item.id === id)).toMatchObject({ version: 2, data: updated });
     await assistant.execute(owner, randomUUID(), { type: "life_remove", id, version: 2 });
     expect((await readWorkspace(owner, db)).items.some(item => item.id === id)).toBe(false);
@@ -123,14 +148,57 @@ describe("shared life workspace", () => {
     await expect(mutateWorkspace(other, { action: "save", id, version: 1, data: recipe }, db)).rejects.toThrow();
     await expect(mutateWorkspace(other, { action: "delete", id, version: 1 }, db)).rejects.toThrow();
     const assistant = new LifeAssistant(db), source = randomUUID();
-    const edit = { type: "life_save" as const, id, version: 1, data: { ...recipe, title: "Lemon rice bowl" } };
+    const edit = { type: "life_patch" as const, id, version: 1, patch: { kind: "recipe" as const, title: "Lemon rice bowl" } };
     await assistant.execute(owner, source, edit);
     expect(await assistant.execute(owner, source, edit)).toBe("Updated: Lemon rice bowl. Serves 2.");
-    expect(await assistant.execute(owner, source, { ...edit, data: { ...recipe, title: "Different mutation" } })).toContain("different change");
+    expect(await assistant.execute(owner, source, { ...edit, patch: { kind: "recipe", title: "Different mutation" } })).toContain("different change");
     await expect(mutateWorkspace(owner, { action: "save", id, version: 1, data: recipe }, db)).rejects.toThrow("changed elsewhere");
     const removal = { type: "life_remove" as const, id, version: 2 }, removeSource = randomUUID();
     expect(await assistant.execute(owner, removeSource, removal)).toBe("Removed.");
     expect(await assistant.execute(owner, removeSource, removal)).toBe("Removed.");
+  });
+
+  it("merges a surgical patch against stored fields and refuses stale or foreign patches", async () => {
+    const assistant = new LifeAssistant(db), id = randomUUID(), source = randomUUID();
+    await assistant.execute(owner, id, { type: "life_save", data: recipe });
+    const patch = { type: "life_patch" as const, id, version: 1, patch: { kind: "recipe" as const, servings: 4 } };
+    expect(await assistant.execute(other, randomUUID(), patch)).toContain("unavailable");
+    expect(await assistant.execute(owner, source, patch)).toBe("Updated: Lemon rice. Serves 4.");
+    expect(await assistant.execute(owner, source, patch)).toBe("Updated: Lemon rice. Serves 4.");
+    expect(await assistant.execute(owner, randomUUID(), patch)).toContain("changed elsewhere");
+    expect((await readWorkspace(owner, db)).items.find(row => row.id === id)).toMatchObject({ version: 2, data: { ...recipe, servings: 4 } });
+  });
+
+  it("searches every kind before limiting and reports ordered bounded lookup coverage", async () => {
+    const [reader] = await db.insert(schema.users).values({ phoneE164: "+12025550956" }).returning();
+    const assistant = new LifeAssistant(db), oldId = randomUUID();
+    await db.insert(schema.lifeItems).values([
+      { id: oldId, userId: reader.id, data: { ...recipe, title: "Old saffron rice" }, createdAt: new Date("2020-01-01T00:00:00Z") },
+      ...Array.from({ length: 105 }, (_, i) => ({ id: randomUUID(), userId: reader.id, data: { ...recipe, title: `New recipe ${i}` }, createdAt: new Date(Date.UTC(2026, 0, i + 1)) })),
+    ]);
+    const all = JSON.parse(await assistant.execute(reader.id, randomUUID(), { type: "life_list", kind: "recipe" }));
+    expect(all).toMatchObject({ truncated: true, coverage: { kind: "recipe", limit: 20, searched: true } });
+    expect(all.items).toHaveLength(20);
+    expect(all.items[0].data.title).toBe("New recipe 104");
+    expect(all.items.some((row: { id: string }) => row.id === oldId)).toBe(false);
+    const found = JSON.parse(await assistant.execute(reader.id, randomUUID(), { type: "life_list", kind: "recipe", query: "saffron" }));
+    expect(found.items).toEqual([expect.objectContaining({ id: oldId })]);
+    expect(found).toMatchObject({ truncated: false, coverage: { query: "saffron" } });
+    expect(JSON.parse(await assistant.execute(reader.id, randomUUID(), { type: "life_list", kind: "recipe", id: oldId })).items).toHaveLength(1);
+    expect(JSON.parse(await assistant.execute(other, randomUUID(), { type: "life_list", kind: "recipe", id: oldId })).items).toHaveLength(0);
+    expect(JSON.parse(await assistant.execute(reader.id, randomUUID(), { type: "life_list", kind: "note", id: oldId })).items).toHaveLength(0);
+  });
+
+  it("retrieves food by meal and date before a cross-channel nutrient correction", async () => {
+    const assistant = new LifeAssistant(db), id = randomUUID();
+    const food = { kind: "food" as const, title: "Yogurt", date: "2027-01-13", meal: "Breakfast" as const, calories: 100, protein: 8, carbs: null, fat: null, fiber: null };
+    await assistant.execute(owner, id, { type: "life_save", data: food });
+    const lookup = { type: "life_list" as const, kind: "food" as const, query: "yogurt breakfast 2027-01-13" };
+    const found = JSON.parse(await assistant.execute(owner, randomUUID(), lookup));
+    expect(found.items).toEqual([expect.objectContaining({ id, version: 1, data: food })]);
+    expect(JSON.parse(await assistant.execute(other, randomUUID(), lookup)).items).toHaveLength(0);
+    await assistant.execute(owner, randomUUID(), { type: "life_patch", id, version: found.items[0].version, patch: { kind: "food", protein: 12 } });
+    expect(JSON.parse(await assistant.execute(owner, randomUUID(), lookup)).items).toEqual([expect.objectContaining({ id, version: 2, data: { ...food, protein: 12 } })]);
   });
 
   it("keeps task creation atomic and idempotent, and clears a paused focus when the task completes", async () => {

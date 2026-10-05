@@ -1,5 +1,8 @@
 import { and, eq, lt, or } from "drizzle-orm";
-import { ConversationRepository, StoredPendingAction } from "../../domain/conversation-orchestrator";
+import { randomUUID } from "node:crypto";
+import { ConversationRepository, InboundConversationContext, StoredPendingAction } from "../../domain/conversation-orchestrator";
+import { InboundOwnershipLostError } from "../../domain/inbound-execution";
+import { inDatabaseTransaction } from "../database-scope";
 import { taskCommandSchema } from "../../domain/task-commands";
 import { goalCommandSchema } from "../../domain/goal-commands";
 import { rescheduleCommandSchema } from "../../domain/reschedule-service";
@@ -69,7 +72,7 @@ export class DrizzleConversationRepository implements ConversationRepository {
       const staleBefore = new Date(now.getTime() - 5 * 60_000);
       const [claimed] = await transaction
         .update(conversationMessages)
-        .set({ status: "processing", processingStartedAt: now, updatedAt: now })
+        .set({ status: "processing", processingStartedAt: now, processingToken: randomUUID(), updatedAt: now })
         .where(
           and(
             eq(conversationMessages.id, messageId),
@@ -88,6 +91,8 @@ export class DrizzleConversationRepository implements ConversationRepository {
           userId: conversationMessages.userId,
           conversationId: conversationMessages.conversationId,
           body: conversationMessages.body,
+          processingToken: conversationMessages.processingToken,
+          replyBody: conversationMessages.replyBody,
         });
       if (!claimed) {
         const [existing] = await transaction.select({ status: conversationMessages.status })
@@ -106,24 +111,50 @@ export class DrizzleConversationRepository implements ConversationRepository {
         .where(eq(users.id, claimed.userId))
         .limit(1);
       if (!user) throw new Error("Inbound message user not found");
-      return { ...claimed, ...user };
+      return { ...claimed, ...user, processingToken: claimed.processingToken! };
     });
   }
 
-  async releaseInbound(messageId: string) {
-    await this.database
-      .update(conversationMessages)
-      .set({ status: "received", processingStartedAt: null, updatedAt: new Date() })
-      .where(eq(conversationMessages.id, messageId));
+  async withOwnership<T>(context: InboundConversationContext, operation: () => Promise<T>): Promise<T> {
+    context.signal?.throwIfAborted();
+    return this.database.transaction(async transaction => {
+      const [owned] = await transaction.select({ id: conversationMessages.id }).from(conversationMessages)
+        .where(and(eq(conversationMessages.id, context.messageId), eq(conversationMessages.userId, context.userId),
+          eq(conversationMessages.status, "processing"), eq(conversationMessages.processingToken, context.processingToken)))
+        .for("update");
+      if (!owned || context.signal?.aborted) throw new InboundOwnershipLostError();
+      const result = await inDatabaseTransaction(this.database, transaction as unknown as TempoDatabase, operation);
+      context.signal?.throwIfAborted();
+      return result;
+    });
   }
 
-  async markProcessed(userId: string, messageId: string) {
+  async persistReply(context: InboundConversationContext, body: string) {
+    return this.withOwnership(context, async () => {
+      const [message] = await this.database.update(conversationMessages)
+        .set({ replyBody: body, updatedAt: new Date() })
+        .where(and(eq(conversationMessages.id, context.messageId), eq(conversationMessages.processingToken, context.processingToken)))
+        .returning({ body: conversationMessages.replyBody });
+      return message.body!;
+    });
+  }
+
+  async releaseInbound(messageId: string, processingToken: string) {
+    await this.database
+      .update(conversationMessages)
+      .set({ status: "received", processingStartedAt: null, processingToken: null, updatedAt: new Date() })
+      .where(and(eq(conversationMessages.id, messageId), eq(conversationMessages.status, "processing"), eq(conversationMessages.processingToken, processingToken)));
+  }
+
+  async markProcessed(userId: string, messageId: string, processingToken: string) {
     const now = new Date();
     await this.database.transaction(async (transaction) => {
-      await transaction
+      const changed = await transaction
         .update(conversationMessages)
-        .set({ status: "processed", processingStartedAt: null, updatedAt: now })
-        .where(eq(conversationMessages.id, messageId));
+        .set({ status: "processed", processingStartedAt: null, processingToken: null, updatedAt: now })
+        .where(and(eq(conversationMessages.id, messageId), eq(conversationMessages.userId, userId), eq(conversationMessages.status, "processing"), eq(conversationMessages.processingToken, processingToken)))
+        .returning({ id: conversationMessages.id });
+      if (!changed.length) throw new InboundOwnershipLostError();
       const [message] = await transaction.select({ conversationId: conversationMessages.conversationId })
         .from(conversationMessages).where(eq(conversationMessages.id, messageId)).limit(1);
       if (!message) throw new Error("Processed message conversation not found");

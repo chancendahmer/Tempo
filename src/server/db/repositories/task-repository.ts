@@ -92,7 +92,7 @@ export class DrizzleTaskRepository implements TaskRepository {
       .select()
       .from(tasks)
       .where(and(eq(tasks.userId, userId), inArray(tasks.status, ["not_started", "in_progress"])))
-      .orderBy(asc(tasks.createdAt));
+      .orderBy(asc(tasks.dueAt), asc(tasks.createdAt), asc(tasks.id));
     return rows.map(asTaskRecord);
   }
 
