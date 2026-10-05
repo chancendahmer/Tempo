@@ -1,5 +1,7 @@
 import { MessagingProvider, MessagingTransport, SendMessageResult } from "../adapters/sms/sms-transport";
 
+import { plainSmsText } from "./sms-text";
+
 export type OutboundBlockReason = "missing_consent" | "opted_out" | "paused" | "deleted" | "duplicate";
 
 export type MessagingPermission = {
@@ -75,6 +77,7 @@ export class SafeSmsSender {
   ) {}
 
   async send(input: SendSafeSmsInput): Promise<SendSafeSmsResult> {
+    input = { ...input, body: plainSmsText(input.body) };
     const initialPermission = evaluateMessagingPermission(await this.repository.getPermission(input.userId), this.now());
     if (!initialPermission.allowed) return { sent: false, reason: initialPermission.reason };
 

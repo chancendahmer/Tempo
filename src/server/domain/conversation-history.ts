@@ -3,6 +3,7 @@ export type ConversationHistoryMessage = {
   role: "user" | "assistant";
   content: string;
   replyToMessageId?: string;
+  relatedReminder?: { id: string; text: string; remindAt: string };
   createdAt: Date;
 };
 

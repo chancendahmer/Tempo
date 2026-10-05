@@ -1,6 +1,8 @@
 import { z } from "zod";
 
 export const reminderCommandSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("create_reminders"), reminders: z.array(z.object({ text: z.string().trim().min(1).max(500), remindAt: z.iso.datetime({ offset: true }) }).strict()).min(2).max(8) }).strict(),
+  z.object({ type: z.literal("reschedule_reminders"), changes: z.array(z.object({ reminderId: z.uuid(), expectedRemindAt: z.iso.datetime({ offset: true }), remindAt: z.iso.datetime({ offset: true }) }).strict()).min(2).max(8) }).strict(),
   z.object({
     type: z.literal("create_reminder"),
     text: z.string().trim().min(1).max(500),
@@ -36,7 +38,7 @@ export function isExplicitReminderRequest(text: string): boolean {
   return [
     /\bremind me\b/,
     /\b(?:text|message|ping|alert|notify) me\b/,
-    /\b(?:send|give) me (?:a )?reminder\b/,
+    /\b(?:send|give) me (?:a )?(?:(?:morning|evening|nightly|daily) )?reminder\b/,
     /\bcheck in with me\b/,
     /\breach out to me\b/,
   ].some((pattern) => pattern.test(normalized));
