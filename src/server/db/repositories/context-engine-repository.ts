@@ -1,4 +1,4 @@
-import { and, desc, eq, gt, gte, inArray, isNull, lte } from "drizzle-orm";
+import { and, desc, eq, gt, gte, inArray, isNull, lte, ne, or } from "drizzle-orm";
 import { ContextEngineRepository } from "../../domain/context-evaluation-service";
 import { ContextPolicy, DEFAULT_CONTEXT_POLICY, contextSettingsSchema, contextWeightsSchema, localTime } from "../../domain/context-engine";
 import { getDatabase, TempoDatabase } from "../client";
@@ -12,6 +12,7 @@ import {
   interventionOutcomes,
   interventionPolicies,
   interventions,
+  itemReviews,
   memoryEntries,
   tasks,
   users,
@@ -43,7 +44,7 @@ export class DrizzleContextEngineRepository implements ContextEngineRepository {
     };
   }
 
-  async loadSignals(userId: string, now: Date) {
+  async loadSignals(userId: string, now: Date, excludeReviewId?: string) {
     const [user] = await this.database.select().from(users).where(eq(users.id, userId)).limit(1);
     if (!user) return null;
     const [latestConsent, openTasks, currentBusy, nextBusy, recentInterventions, pending, learningMemories, calendarConnection, extensionSignals, latestInbound] = await Promise.all([
@@ -98,9 +99,11 @@ export class DrizzleContextEngineRepository implements ContextEngineRepository {
         .orderBy(desc(conversationMessages.createdAt)).limit(1),
     ]);
 
+    const reviews = await this.database.select().from(itemReviews).where(and(eq(itemReviews.userId, userId), inArray(itemReviews.status, ["reserved", "sent", "closed"]), or(gte(itemReviews.createdAt, new Date(now.getTime() - 36 * 3_600_000)), gte(itemReviews.sentAt, new Date(now.getTime() - 36 * 3_600_000))), excludeReviewId ? ne(itemReviews.id, excludeReviewId) : undefined));
     const contactStatuses = new Set(["queued", "sent", "delivered", "responded", "expired"]);
     const contactInterventions = recentInterventions.filter((item) => contactStatuses.has(item.status));
-    const lastIntervention = contactInterventions[0]?.createdAt;
+    const contacts = [...contactInterventions, ...reviews.map(row => ({ createdAt: row.sentAt ?? row.createdAt }))].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    const lastIntervention = contacts[0]?.createdAt;
     const local = localTime(now, user.timezone);
     const responseStats = user.responseStats as { byTimeBucket?: Record<string, number> };
     const bucketRate = responseStats.byTimeBucket?.[local.bucket];
@@ -127,11 +130,11 @@ export class DrizzleContextEngineRepository implements ContextEngineRepository {
       calendarAvailable,
       freeMinutes,
       nextFreeAt: calendarAvailable ? nextBusy[0]?.endsAt ?? null : null,
-      dailyInterventionCount: contactInterventions.filter((item) => localTime(item.createdAt, user.timezone).date === local.date).length,
+      dailyInterventionCount: contacts.filter((item) => localTime(item.createdAt, user.timezone).date === local.date).length,
       dailyInterventionCap: user.dailyInterventionCap,
       minutesSinceLastIntervention: lastIntervention ? Math.floor((now.getTime() - lastIntervention.getTime()) / 60_000) : null,
       interventionCooldownMinutes: user.interventionCooldownMinutes,
-      hasPendingResponse: pending.length > 0,
+      hasPendingResponse: pending.length > 0 || reviews.some(row => row.status !== "closed" && now.getTime() - (row.sentAt ?? row.createdAt).getTime() < 24 * 3_600_000),
       lastUserMessageAt: latestInbound[0]?.createdAt ?? null,
       responseRate: typeof bucketRate === "number" ? bucketRate : 0.5,
       coachingTone: user.coachingTone,

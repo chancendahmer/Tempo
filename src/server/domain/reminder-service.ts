@@ -33,6 +33,7 @@ export interface ReminderRepository {
     taskId?: string;
   }): Promise<ReminderRecord>;
   listUpcoming(userId: string, now: Date): Promise<ReminderRecord[]>;
+  listForManagement?(userId: string): Promise<ReminderRecord[]>;
   listForRundown(userId: string, start: Date, end: Date): Promise<ReminderRecord[]>;
   cancel(input: { userId: string; reminderId?: string; reminderQuery?: string; now: Date }): Promise<
     | { kind: "cancelled"; reminder: ReminderRecord }
@@ -188,7 +189,7 @@ export async function executeReminderCommand(
   }
 
   if (command.type === "list_reminders") {
-    const reminders = await repository.listUpcoming(context.userId, context.now);
+    const reminders = command.includePast && repository.listForManagement ? await repository.listForManagement(context.userId) : await repository.listUpcoming(context.userId, context.now);
     if (context.forModel) return JSON.stringify({ items: reminders, limit: 50, truncated: reminders.length >= 50 });
     if (reminders.length === 0) return "You don’t have any upcoming reminders.";
     return reminders.slice(0, 8).map((reminder, index) =>
@@ -212,7 +213,7 @@ export async function executeReminderCommand(
     reminderQuery: command.reminderQuery,
     now: context.now,
   });
-  if (result.kind === "not_found") return "I couldn’t find that upcoming reminder.";
+  if (result.kind === "not_found") return "I couldn’t find a removable reminder with that description. A reminder currently being sent cannot be recalled.";
   if (result.kind === "ambiguous") {
     return `Which reminder should I cancel?\n${result.reminders.slice(0, 5).map((reminder, index) => `${index + 1}. ${reminder.text}`).join("\n")}`;
   }

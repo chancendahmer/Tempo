@@ -50,6 +50,14 @@ export class TurnWritePolicy {
   private decision?: Promise<TurnAuthorization>;
   constructor(private readonly input: TurnAuthorizationInput, private readonly authorizer: TurnAuthorizer) {}
 
+  /** A shortcut can finish a turn only when it covers the entire write grant.
+   * Other destinations or mixed requests must reach the normal intent parser. */
+  async authorizesOnly(command: { type: string }): Promise<boolean> {
+    if (await this.denial(command)) return false;
+    const decision = await this.decision;
+    return decision?.mode === "write" && decision.commands.every(type => type === command.type);
+  }
+
   async denial(command: { type: string; enabled?: boolean }): Promise<string | undefined> {
     if (isReadOnlyAssistantCommand(command.type)) return;
     if (hasExplicitNoWriteRequest(this.input.message)) return NO_WRITE_REPLY;

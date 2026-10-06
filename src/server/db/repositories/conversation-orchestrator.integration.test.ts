@@ -118,11 +118,12 @@ describe("inbound conversation orchestration", () => {
   it("applies semantic read-only policy before a matching memory shortcut", async () => {
     const user = await consentedUser("+12025550894", "complete");
     const authorize = vi.fn(async () => ({ mode: "read_only" as const, commands: [] }));
-    const parser: TaskIntentParser = { authorizer: { authorize }, parse: vi.fn() };
+    const parser: TaskIntentParser = { authorizer: { authorize }, parse: vi.fn(async () => ({ kind: "conversation" as const, reply: "A list could help with meal ideas." })) };
     const [message] = await database.insert(conversationMessages).values({ userId: user.id, conversationId: user.conversationId, direction: "inbound", kind: "user", status: "received", body: "Would it help to keep a log of my favorite foods?" }).returning();
     await orchestrator(new TestSmsTransport("MEMORYADVICE"), parser).process(message.id);
     expect(await database.select().from(memoryEntries).where(eq(memoryEntries.userId, user.id))).toHaveLength(0);
     expect(authorize).toHaveBeenCalledTimes(1);
+    expect(parser.parse).toHaveBeenCalledTimes(1);
   });
 
   it("enforces the same grant on callback execution and returned commands", async () => {
@@ -434,7 +435,7 @@ describe("inbound conversation orchestration", () => {
       body: "Remember that I usually focus best before lunch",
     }).returning();
     const transport = new TestSmsTransport("REMEMBER");
-    const coach = orchestrator(transport);
+    const coach = orchestrator(transport, { authorizer: { authorize: async () => ({ mode: "write", commands: ["remember_memory"] }) }, parse: vi.fn() });
     expect(await coach.process(message.id)).toEqual({ processed: true });
     expect(await coach.process(message.id)).toEqual({ processed: false });
     const stored = await database.select().from(memoryEntries).where(eq(memoryEntries.sourceMessageId, message.id));
@@ -465,6 +466,7 @@ describe("inbound conversation orchestration", () => {
     ]).returning();
     const transport = new TestSmsTransport("FOODMEMORY");
     const parser: TaskIntentParser = {
+      authorizer: { authorize: async () => ({ mode: "write", commands: ["remember_memory"] }) },
       parse: vi.fn(async () => ({
         kind: "command" as const,
         command: { type: "remember_memory" as const, content: "Favorite food: pizza.", category: "preference" as const },

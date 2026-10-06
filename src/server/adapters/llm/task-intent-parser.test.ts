@@ -14,6 +14,16 @@ vi.mock("../../config/env", async (importOriginal) => ({ ...(await importOrigina
 vi.mock("./turn-authorizer", () => ({ AnthropicTurnAuthorizer: class { authorize = authorize; } }));
 
 describe("current-message routing", () => {
+  it.each(["missing", "wrong-content", "verified"])("requires a fresh memory lookup before ID-based deletion: %s", async scenario => {
+    const message = "Forget the saved fact about my spare keys.";
+    const memoryId = "00000000-0000-4000-8000-000000000092", content = "Spare keys are in the blue bowl.";
+    if (scenario !== "missing") create.mockResolvedValueOnce({ content: [{ type: "tool_use", id: "read", name: "recall_memories", input: { query: "spare keys", sourceQuote: message } }] });
+    create.mockResolvedValueOnce({ content: [{ type: "tool_use", id: "forget", name: "forget_memory", input: { memoryId, expectedContent: scenario === "wrong-content" ? "Invented fact" : content, sourceQuote: message } }] })
+      .mockResolvedValue({ content: [{ type: "text", text: "ACK_ONLY" }] });
+    const execute = vi.fn(async (command: { type: string }) => command.type === "recall_memories" ? JSON.stringify({ memories: [{ id: memoryId, content }] }) : "Removed saved memory.");
+    await new AnthropicTaskIntentParser().parse({ ...input, message, execute });
+    expect(execute.mock.calls.filter(([command]) => command.type === "forget_memory")).toHaveLength(scenario === "verified" ? 1 : 0);
+  });
   it.each(["set 5PM too", "Yes, add the 5 PM one too", "5 PM as well please"])("grounds an authorized extra reminder in the linked exchange: %s", async message => {
     authorize.mockResolvedValue({ mode: "write", commands: ["create_reminder"] });
     create.mockResolvedValueOnce({ content: [{ type: "tool_use", id: "extra", name: "create_reminder", input: { sourceQuote: message, text: "Drink water", remindAt: "2026-09-03T17:00:00-04:00" } }] })

@@ -1,3 +1,4 @@
+import type { ItemReviewResponder } from "./item-review";
 import type { SendSafeSmsInput } from "./outbound-messaging";
 import { handleOnboardingMessage } from "./onboarding";
 import { parseTaskCommandHeuristically, resolveTaskReference } from "./task-commands";
@@ -130,6 +131,7 @@ export class ConversationOrchestrator {
     private readonly reminders?: ReminderRepository,
     private readonly integrations?: AssistantIntegrations,
     private readonly life?: { execute(userId: string, sourceMessageId: string, command: Extract<AssistantCommand, { type: "food_search" | "life_list" | "life_save" | "life_patch" | "life_remove" | "grocery_add" }>): Promise<string> },
+    private readonly itemReviews?: ItemReviewResponder,
   ) {
     this.conversations = ownedService(conversations);
     this.tasks = ownedService(tasks);
@@ -140,6 +142,7 @@ export class ConversationOrchestrator {
     this.reminders = reminders && ownedService(reminders);
     this.integrations = integrations && ownedService(integrations);
     this.life = life && ownedService(life);
+    this.itemReviews = itemReviews && ownedService(itemReviews);
   }
 
   async process(messageId: string, signal?: AbortSignal): Promise<{ processed: boolean }> {
@@ -197,6 +200,9 @@ export class ConversationOrchestrator {
         return replyForGoalAction(priorGoalAction.eventType, priorGoalAction.goal);
       }
     }
+
+    const reviewReply = await this.itemReviews?.respond(context.userId, context.messageId, context.body, now);
+    if (reviewReply) return reviewReply;
 
     let pending = hasExplicitNoWriteRequest(context.body) ? null : await this.conversations.getPendingAction(context.userId);
     if (pending && pending.createdByMessageId !== context.messageId) {
@@ -365,7 +371,7 @@ export class ConversationOrchestrator {
       messageId: context.messageId,
       body: context.body,
       now,
-    }, type => writePolicy.denial({ type })));
+    }, type => writePolicy.authorizesOnly({ type })));
     if (memoryReply) return memoryReply;
 
     // Broad task heuristics ("move", "cancel", "completed") must not consume
@@ -435,12 +441,13 @@ export class ConversationOrchestrator {
         const rawNotes = await this.life?.execute(context.userId, context.messageId, { type: "life_list", kind: "note", query: command.query });
         let noteSearch: unknown = { items: [], notice: "Note search is unavailable; do not claim no note exists." };
         if (rawNotes) { try { noteSearch = JSON.parse(rawNotes); } catch { /* Preserve the explicit unavailable notice. */ } }
-        return JSON.stringify({ facts, factsTruncated: search.truncated, factsCoverage: search.coverage, noteSearch });
+        return JSON.stringify({ facts, memories: search.items.map(({ id, content }) => ({ id, content })), factsTruncated: search.truncated, factsCoverage: search.coverage, noteSearch });
       }
-      return JSON.stringify({ facts, factsTruncated: search.truncated, factsCoverage: search.coverage,
+      return JSON.stringify({ facts, memories: search.items.map(({ id, content }) => ({ id, content })), factsTruncated: search.truncated, factsCoverage: search.coverage,
         noteSearchNotice: "Thought inbox notes have not been searched; use specific query keywords before answering a personal recall question." });
     }
     if (command.type === "forget_memory") {
+      if (command.memoryId && command.expectedContent) return this.memories?.forgetById(context.userId, command.memoryId, command.expectedContent, now) ?? "Memory is temporarily unavailable.";
       return await this.memories?.tryHandleCorrection({ userId: context.userId, messageId: context.messageId, body: `forget ${command.query}`, now }) ?? "Memory is temporarily unavailable.";
     }
     if (command.type === "connection_status") return connectionStatusReply(await this.integrations?.status(context.userId) ?? "Account connections are not configured. Tasks, reminders, and memory are available.");

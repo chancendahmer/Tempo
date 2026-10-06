@@ -1,3 +1,4 @@
+import { DrizzleItemReviewRepository } from "../../db/repositories/item-review-repository";
 import { PgBoss } from "pg-boss";
 import { AnthropicTaskIntentParser } from "../../adapters/llm/task-intent-parser";
 import { createMessagingTransport } from "../../adapters/sms/messaging-provider";
@@ -47,6 +48,7 @@ export async function registerProcessInboundHandler(boss: PgBoss) {
           new DrizzleReminderRepository(),
           new CalendarAssistantIntegrations(),
           new LifeAssistant(),
+          new DrizzleItemReviewRepository(),
         );
         await orchestrator.process(job.data.messageId, job.signal);
         await actions.markCompleted(job.data.scheduledActionId);

@@ -1,3 +1,4 @@
+import { itemReviews } from "../schema";
 import { and, desc, eq, gt, inArray, isNull, lte, ne, or, sql } from "drizzle-orm";
 import { MessagingProvider } from "../../adapters/sms/sms-transport";
 import { InterventionOpportunityPlanner } from "../../domain/context-evaluation-service";
@@ -114,6 +115,8 @@ export class DrizzleInterventionRepository implements InterventionOpportunityPla
         inArray(interventions.status, ["queued", "sent", "delivered", "responded", "expired"]),
         gt(interventions.queuedAt, new Date(now.getTime() - 48 * 3_600_000)),
       ));
+      const reviews = await transaction.select({ at: sql<Date>`coalesce(${itemReviews.sentAt}, ${itemReviews.createdAt})`.mapWith(itemReviews.createdAt) }).from(itemReviews).where(and(eq(itemReviews.userId, current.userId), inArray(itemReviews.status, ["reserved", "sent", "closed"]), or(gt(itemReviews.createdAt, new Date(now.getTime() - 48 * 3_600_000)), gt(itemReviews.sentAt, new Date(now.getTime() - 48 * 3_600_000)))));
+      contacts.push(...reviews);
       if (contacts.filter(({ at }) => at && localTime(at, user.timezone).date === today).length >= Math.min(3, user.dailyInterventionCap)) {
         return { claimed: false as const, reason: "daily_cap_reached" };
       }
@@ -123,7 +126,7 @@ export class DrizzleInterventionRepository implements InterventionOpportunityPla
         inArray(interventions.status, ["queued", "sent", "delivered", "responded", "expired"]),
         gt(interventions.createdAt, new Date(now.getTime() - cooldownMinutes * 60_000)),
       )).orderBy(desc(interventions.createdAt)).limit(1);
-      if (recent) return { claimed: false as const, reason: "cooldown_active" };
+      if (recent || reviews.some(row => row.at > new Date(now.getTime() - cooldownMinutes * 60_000))) return { claimed: false as const, reason: "cooldown_active" };
 
       await transaction.update(interventions).set({ status: "queued", queuedAt: now, updatedAt: now })
         .where(and(eq(interventions.id, current.id), inArray(interventions.status, ["candidate", "queued"])));

@@ -142,20 +142,25 @@ export class DrizzleReminderRepository implements ReminderRepository {
     });
   }
 
+  async listForManagement(userId: string) {
+    return (await this.database.select().from(reminders).where(and(eq(reminders.userId, userId), inArray(reminders.status, ["scheduled", "sent", "failed", "completed"]))).orderBy(asc(reminders.remindAt)).limit(50)).map(asRecord);
+  }
+
   async cancel(input: Parameters<ReminderRepository["cancel"]>[0]) {
     if (!input.reminderId && !input.reminderQuery) return { kind: "not_found" as const };
-    const conditions = [eq(reminders.userId, input.userId), eq(reminders.status, "scheduled")];
+    const conditions = [eq(reminders.userId, input.userId), inArray(reminders.status, input.reminderId ? ["scheduled", "sent", "failed", "completed", "cancelled"] : ["scheduled", "sent", "failed", "completed"])];
     if (input.reminderId) conditions.push(eq(reminders.id, input.reminderId));
-    else if (input.reminderQuery) conditions.push(ilike(reminders.text, `%${input.reminderQuery.replaceAll("%", "\\%").replaceAll("_", "\\_")}%`));
+    else if (input.reminderQuery) conditions.push(ilike(reminders.text, `%${input.reminderQuery.replaceAll("\\", "\\\\").replaceAll("%", "\\%").replaceAll("_", "\\_")}%`));
     const matches = await this.database.select().from(reminders).where(and(...conditions)).orderBy(asc(reminders.remindAt)).limit(6);
     if (matches.length === 0) return { kind: "not_found" as const };
     if (matches.length > 1) return { kind: "ambiguous" as const, reminders: matches.map(asRecord) };
     const [cancelled] = await this.database.transaction(async (transaction) => {
       const changed = await transaction.update(reminders).set({
         status: "cancelled", cancelledAt: input.now, updatedAt: input.now,
-      }).where(and(eq(reminders.id, matches[0].id), eq(reminders.status, "scheduled"))).returning();
+      }).where(and(eq(reminders.id, matches[0].id), eq(reminders.userId, input.userId), eq(reminders.status, matches[0].status))).returning();
+      if (!changed.length) return changed;
       await transaction.update(scheduledActions).set({ status: "cancelled", completedAt: input.now, updatedAt: input.now })
-        .where(and(eq(scheduledActions.reminderId, matches[0].id), eq(scheduledActions.status, "scheduled")));
+        .where(and(eq(scheduledActions.userId, input.userId), eq(scheduledActions.reminderId, matches[0].id), inArray(scheduledActions.status, ["scheduled", "failed"])));
       return changed;
     });
     return cancelled ? { kind: "cancelled" as const, reminder: asRecord(cancelled) } : { kind: "not_found" as const };

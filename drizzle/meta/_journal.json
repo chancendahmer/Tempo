@@ -197,6 +197,13 @@
       "when": 1791244565338,
       "tag": "0027_complete_handled_ingress",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1791302400000,
+      "tag": "0028_item_reviews",
+      "breakpoints": true
     }
   ]
 }

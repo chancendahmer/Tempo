@@ -24,6 +24,7 @@ export type MemoryRecord = {
 };
 
 export interface MemoryRepository {
+  forgetById?(userId: string, id: string, expectedContent: string, now: Date): Promise<boolean>;
   retrieveRelevant(userId: string, now: Date, limit: number): Promise<MemoryRecord[]>;
   searchRelevant?(userId: string, now: Date, query: string | undefined, limit: number): Promise<MemoryRecord[]>;
   forgetMatching(userId: string, query: string, now: Date): Promise<number>;
@@ -48,6 +49,7 @@ export type MemoryCorrection =
 
 export function parseMemoryCorrection(body: string): MemoryCorrection | null {
   const trimmed = body.trim();
+  if (/^forget (?:it|this|that|them|those)[.!\s]*$/i.test(trimmed)) return { type: "forget_recent" };
   const forget = trimmed.match(/^forget(?: that| what you know about)?\s+(.+)$/i);
   if (forget) return { type: "forget", query: forget[1].replace(/[.!]+$/, "").trim() };
   if (/^(that'?s|that is) not true\.?$/i.test(trimmed)) return { type: "forget_recent" };
@@ -83,6 +85,12 @@ export function parseMemoryCorrection(body: string): MemoryCorrection | null {
 export class MemoryService {
   constructor(private readonly repository: MemoryRepository) {}
 
+  async forgetById(userId: string, id: string, expectedContent: string, now: Date) {
+    return await this.repository.forgetById?.(userId, id, expectedContent, now)
+      ? "Removed that saved memory. It will no longer be used as a saved fact; the conversation history is unchanged."
+      : "That memory changed or is unavailable. Look it up again before removing it.";
+  }
+
   async retrieveRelevant(userId: string, now: Date, limit = 8) {
     return this.repository.retrieveRelevant(userId, now, Math.max(1, Math.min(limit, 20)));
   }
@@ -117,23 +125,24 @@ export class MemoryService {
   }
 
   async tryHandleCorrection(input: { userId: string; messageId: string; body: string; now: Date },
-    authorize?: (type: "remember_memory" | "forget_memory") => Promise<string | undefined>) {
+    canHandle?: (type: "remember_memory" | "forget_memory") => Promise<boolean>) {
     if (/^(?:(?:can|could|will|would) you )?remember my favou?rite foods?[?.!\s]*$/i.test(input.body.trim())) {
       return "Yes—I can keep your favorite foods and help you pick something when deciding feels hard. What’s one food you’d like me to remember?";
     }
     const correction = parseMemoryCorrection(input.body);
     if (!correction) return null;
     if ("content" in correction && isSensitiveMemory(correction.content)) return sensitiveMemoryReply;
-    const denial = await authorize?.(correction.type === "forget" || correction.type === "forget_recent" ? "forget_memory" : "remember_memory");
-    if (denial) return denial;
+    // A syntactic match is only a routing candidate. Let the shared assistant
+    // resolve task/goal/workspace requests instead of stopping at memory denial
+    // or consuming a mixed request as a generic fact.
+    if (canHandle && !await canHandle(correction.type === "forget" || correction.type === "forget_recent" ? "forget_memory" : "remember_memory")) return null;
     if (correction.type === "forget") {
       const count = await this.repository.forgetMatching(input.userId, correction.query, input.now);
+      if (!count && canHandle) return null;
       return count > 0 ? "Forgot it." : "I couldn’t find a matching memory to remove.";
     }
     if (correction.type === "forget_recent") {
-      return await this.repository.forgetMostRecent(input.userId, input.now)
-        ? "Thanks for correcting me. I removed that memory."
-        : "Thanks for the correction. I didn’t have a recent memory to remove.";
+      return "Which saved memory should I correct or remove? You can describe it or choose it in Memories.";
     }
     if (correction.type === "start_favorite_food_log") {
       await this.repository.storeExplicit({

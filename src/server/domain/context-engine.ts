@@ -170,25 +170,8 @@ export function evaluateContext(input: {
   const randomizedBucket = interventionBucket(opportunityKey);
   const local = localTime(now, signals.timezone);
   const effectiveCooldownMinutes = Math.max(120, signals.interventionCooldownMinutes);
-  const reasonCodes: string[] = [];
-
-  if (signals.status !== "active") reasonCodes.push(`user_${signals.status}`);
-  if (!signals.hasConsent) reasonCodes.push("consent_missing");
-  if (!signals.proactiveOptIn) reasonCodes.push("proactive_opt_in_missing");
-  if (!signals.onboardingComplete) reasonCodes.push("onboarding_incomplete");
-  if (signals.pausedUntil && signals.pausedUntil > now) reasonCodes.push("user_paused");
-  if (isQuietTime(now, signals.timezone, signals.quietHoursStart, signals.quietHoursEnd)) reasonCodes.push("quiet_hours");
-  if (!signals.calendarAvailable) reasonCodes.push("calendar_unavailable");
-  if (signals.calendarBusy) reasonCodes.push("calendar_busy");
+  const reasonCodes = proactiveBlockReasons(signals, now);
   if (!task) reasonCodes.push("no_actionable_task");
-  if (signals.dailyInterventionCount >= Math.min(3, signals.dailyInterventionCap)) reasonCodes.push("daily_cap_reached");
-  if (signals.hasPendingResponse) reasonCodes.push("pending_response");
-  if (signals.lastUserMessageAt && now.getTime() - signals.lastUserMessageAt.getTime() < 5 * 60_000) reasonCodes.push("recent_conversation");
-  if (
-    signals.minutesSinceLastIntervention !== null &&
-    signals.minutesSinceLastIntervention !== undefined &&
-    signals.minutesSinceLastIntervention < effectiveCooldownMinutes
-  ) reasonCodes.push("cooldown_active");
 
   const urgencySignal = task ? urgency(task, now, policy.settings.dueHorizonHours) : 0;
   const targetFreeMinutes = Math.max(policy.settings.minFreeMinutes, task?.estimatedMinutes ?? 0);
@@ -247,4 +230,22 @@ export function evaluateContext(input: {
     randomizedBucket,
     opportunityKey,
   };
+}
+
+/** The same hard gates apply to every optional proactive contact. */
+export function proactiveBlockReasons(signals: ContextSignals, now: Date): string[] {
+  const reasons: string[] = [];
+  if (signals.status !== "active") reasons.push(`user_${signals.status}`);
+  if (!signals.hasConsent) reasons.push("consent_missing");
+  if (!signals.proactiveOptIn) reasons.push("proactive_opt_in_missing");
+  if (!signals.onboardingComplete) reasons.push("onboarding_incomplete");
+  if (signals.pausedUntil && signals.pausedUntil > now) reasons.push("user_paused");
+  if (isQuietTime(now, signals.timezone, signals.quietHoursStart, signals.quietHoursEnd)) reasons.push("quiet_hours");
+  if (!signals.calendarAvailable) reasons.push("calendar_unavailable");
+  if (signals.calendarBusy) reasons.push("calendar_busy");
+  if (signals.dailyInterventionCount >= Math.min(3, signals.dailyInterventionCap)) reasons.push("daily_cap_reached");
+  if (signals.hasPendingResponse) reasons.push("pending_response");
+  if (signals.lastUserMessageAt && now.getTime() - signals.lastUserMessageAt.getTime() < 5 * 60_000) reasons.push("recent_conversation");
+  if (signals.minutesSinceLastIntervention != null && signals.minutesSinceLastIntervention < Math.max(120, signals.interventionCooldownMinutes)) reasons.push("cooldown_active");
+  return reasons;
 }

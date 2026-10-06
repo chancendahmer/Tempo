@@ -145,8 +145,11 @@ describe("captured SMS acceptance conversations (scripted model; real repositori
   });
 
   it("isolates twenty simultaneous synthetic users and replayed webhooks", async () => {
+    const isolated = await createAssistantSimulator({ ...scriptedScenarioParser,
+      authorizer: { authorize: async () => ({ mode: "write", commands: ["remember_memory"] }) } });
+    try {
     const people = [];
-    for (let index = 0; index < 20; index += 1) people.push(await simulation.user());
+    for (let index = 0; index < 20; index += 1) people.push(await isolated.user());
     await Promise.all(people.map(async (person, index) => {
       const message = `Remember that my preferred project name is project-${index}`;
       const first = await person.send(message);
@@ -156,6 +159,7 @@ describe("captured SMS acceptance conversations (scripted model; real repositori
       expect(state.memories.map((item) => item.content)).toEqual([`The user said: my preferred project name is project-${index}.`]);
       expect(state.user.proactiveOptIn).toBe(false);
     }));
+    } finally { await isolated.close(); }
   }, 30_000);
 
   it("processes STOP through ingestion and suppresses application replies afterward", async () => {
