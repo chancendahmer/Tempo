@@ -21,7 +21,8 @@ export const assistantCommandSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("calendar_change"), change: calendarChangeSchema }),
   z.object({ type: z.literal("connection_status") }),
   z.object({ type: z.literal("recall_memories"), query: z.string().trim().min(1).max(200).optional() }),
-  z.object({ type: z.literal("forget_memory"), query: z.string().trim().min(1).max(500) }),
+  z.object({ type: z.literal("forget_memory"), query: z.string().trim().min(1).max(500).optional(), memoryId: z.uuid().optional(), expectedContent: z.string().min(1).max(2000).optional() })
+    .refine(value => value.memoryId ? Boolean(value.expectedContent) : Boolean(value.query) && !value.expectedContent, "Use a looked-up memoryId with expectedContent, or a specific query."),
   z.object({ type: z.literal("set_checkins"), enabled: z.boolean(), dailyCap: z.number().int().min(1).max(3).default(2) }),
 ]);
 export type AssistantCommand = z.infer<typeof assistantCommandSchema>;

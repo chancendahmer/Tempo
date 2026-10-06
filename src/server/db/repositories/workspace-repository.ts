@@ -1,9 +1,10 @@
 import { isDeepStrictEqual } from "node:util";
-import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, or, gt, sql } from "drizzle-orm";
 import { z } from "zod";
 import { createHash, randomUUID } from "node:crypto";
 import { getDatabase, TempoDatabase } from "../client";
-import { conversationMessages, goals, lifeItems, lifeActionReceipts, scheduledActions, tasks, users } from "../schema";
+import { conversationMessages, goals, lifeItems, lifeActionReceipts, memoryEntries, reminders, scheduledActions, tasks, users } from "../schema";
+import { DrizzleReminderRepository } from "./reminder-repository";
 import { lifeItemSchema, localDay } from "../../domain/life-items";
 import { applyLifePatch, lifePatchSchema, lifeSavedReply } from "../../domain/life-patch";
 import { taskCommandSchema } from "../../domain/task-commands";
@@ -16,6 +17,8 @@ import { ensureDirectConversation } from "./messaging-identity-repository";
 import { readBoard } from "./board-repository";
 
 export const workspaceActionSchema = z.discriminatedUnion("action", [
+  z.object({ action: z.literal("forget_memory"), id: z.uuid(), expectedContent: z.string().min(1).max(2000) }),
+  z.object({ action: z.literal("remove_reminder"), id: z.uuid() }),
   z.object({ action: z.literal("add_groceries"), items: z.array(z.string().trim().min(1).max(240)).min(1).max(20) }),
   z.object({ action: z.literal("save"), id: z.uuid(), version: z.number().int().min(0), data: lifeItemSchema }),
   z.object({ action: z.literal("patch"), id: z.uuid(), version: z.number().int().min(1), patch: lifePatchSchema }).strict(),
@@ -30,15 +33,17 @@ export type WorkspaceAction = z.infer<typeof workspaceActionSchema>;
 export class WorkspaceConflict extends Error {}
 
 export async function readWorkspace(userId: string, database: TempoDatabase = getDatabase()) {
-  const [board, allTasks, allGoals, items, messages, profile] = await Promise.all([
+  const [board, allTasks, allGoals, items, messages, profile, memories, allReminders] = await Promise.all([
     readBoard(userId, new Date(), database),
     database.select({ id: tasks.id, title: tasks.title, status: tasks.status, dueAt: tasks.dueAt, estimatedMinutes: tasks.estimatedMinutes, startedAt: tasks.startedAt, goalId: tasks.goalId }).from(tasks).where(and(eq(tasks.userId, userId), inArray(tasks.status, ["not_started", "in_progress", "completed"]))).orderBy(asc(tasks.dueAt), desc(tasks.createdAt)).limit(200),
     database.select({ id: goals.id, title: goals.title, description: goals.description, status: goals.status }).from(goals).where(and(eq(goals.userId, userId), inArray(goals.status, ["active", "completed"]))).orderBy(desc(goals.createdAt)).limit(100),
     database.select({ id: lifeItems.id, version: lifeItems.version, data: lifeItems.data }).from(lifeItems).where(eq(lifeItems.userId, userId)).orderBy(desc(lifeItems.createdAt)).limit(1000),
     database.select({ id: conversationMessages.id, body: conversationMessages.body, direction: conversationMessages.direction, status: conversationMessages.status, createdAt: conversationMessages.createdAt }).from(conversationMessages).where(and(eq(conversationMessages.userId, userId), inArray(conversationMessages.kind, ["user", "coach"]))).orderBy(desc(conversationMessages.createdAt)).limit(50),
     database.select({ displayName: users.displayName, proactiveOptIn: users.proactiveOptIn, quietHoursStart: users.quietHoursStart, quietHoursEnd: users.quietHoursEnd }).from(users).where(eq(users.id, userId)).limit(1),
+    database.select({ id: memoryEntries.id, content: memoryEntries.content, category: memoryEntries.category }).from(memoryEntries).where(and(eq(memoryEntries.userId, userId), isNull(memoryEntries.deletedAt), or(isNull(memoryEntries.expiresAt), gt(memoryEntries.expiresAt, new Date())))).orderBy(desc(memoryEntries.createdAt)).limit(201),
+    database.select({ id: reminders.id, text: reminders.text, remindAt: reminders.remindAt, status: reminders.status }).from(reminders).where(and(eq(reminders.userId, userId), inArray(reminders.status, ["scheduled", "sending", "sent", "failed"]))).orderBy(asc(reminders.remindAt)).limit(201),
   ]);
-  return { ...board, tasks: allTasks, goals: allGoals, items, messages: messages.reverse(), profile: profile[0] };
+  return { ...board, tasks: allTasks, goals: allGoals, items, messages: messages.reverse(), profile: profile[0], memories: memories.slice(0, 200), memoriesTruncated: memories.length > 200, reminders: allReminders.slice(0, 200), remindersTruncated: allReminders.length > 200 };
 }
 
 export async function mutateWorkspace(userId: string, input: WorkspaceAction, database: TempoDatabase = getDatabase(), receiptId?: string) {
@@ -57,6 +62,17 @@ export async function mutateWorkspace(userId: string, input: WorkspaceAction, da
       }
     }
     const perform = async (): Promise<{ message: string }> => {
+    if (input.action === "forget_memory") {
+      const [memory] = await transaction.select().from(memoryEntries).where(and(eq(memoryEntries.userId, userId), eq(memoryEntries.id, input.id))).limit(1);
+      if (!memory || memory.content !== input.expectedContent) throw new WorkspaceConflict("That memory changed or is unavailable. Refresh before removing it.");
+      await transaction.update(memoryEntries).set({ deletedAt: memory.deletedAt ?? new Date(), updatedAt: new Date() }).where(and(eq(memoryEntries.id, input.id), eq(memoryEntries.userId, userId)));
+      return { message: "Removed that saved memory. Conversation history is unchanged." };
+    }
+    if (input.action === "remove_reminder") {
+      const result = await new DrizzleReminderRepository(transaction as unknown as TempoDatabase).cancel({ userId, reminderId: input.id, now: new Date() });
+      if (result.kind !== "cancelled") throw new WorkspaceConflict("This reminder is unavailable or is already being sent. Refresh and try again.");
+      return { message: "Removed the reminder. Messages already delivered stay in your conversation." };
+    }
     if (input.action === "add_groceries") {
       const normalize = (title: string) => title.trim().replace(/\s+/g, " ").toLowerCase();
       const existing = await transaction.select({ data: lifeItems.data }).from(lifeItems)

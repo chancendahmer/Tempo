@@ -11,7 +11,7 @@ export const reminderCommandSchema = z.discriminatedUnion("type", [
     recurrence: z.enum(["daily", "weekdays", "weekly"]).optional(),
     taskId: z.uuid().optional(),
   }),
-  z.object({ type: z.literal("list_reminders") }),
+  z.object({ type: z.literal("list_reminders"), includePast: z.boolean().optional() }),
   z.object({
     type: z.literal("reschedule_reminder"),
     reminderId: z.uuid().optional(),

@@ -209,3 +209,38 @@ queue recovery under load, and operator monitoring. Provider acceptance followed
 by a lost network response remains an ambiguous-send case; local deduplication
 alone does not prove exactly-once delivery at the carrier. Review before inviting
 paying consumers. Missing adapters are listed above.
+
+## Saved-item synchronization and cleanup reviews (local candidate, 2026-10-06)
+
+Requested task/goal edits must reach their own storage, even when a message starts
+with “remember.” The memory shortcut now requires an exclusive memory write grant;
+other destinations continue through the shared assistant. Tasks opens on All so
+undated additions are visible. The authenticated workspace also exposes Memories
+and past Reminders, with removal controls and refresh on returning to the page.
+Memory removal checks owner and current content; ID-based assistant removal first
+requires a current `recall_memories` lookup. Vague corrections ask which memory.
+Removing a saved fact does not erase the original conversation or backups.
+
+Migration `0028_item_reviews` adds durable review reservations and response receipts.
+Apply it using the normal journaled migration process before updating web/worker.
+The existing `evaluate_context` worker can offer KEEP / REMOVE / LATER for overdue
+tasks or nonrecurring reminders (at least one day), or goals, undated tasks, notes,
+routines and unchecked groceries untouched for two weeks. Recent edits and goal-step
+progress postpone review. Recipes, memories and historical food/workout logs are not
+treated as unfinished work. Maximum one cleanup review per account per rolling week;
+KEEP defers that item 90 days, LATER 14 days, silence 30 days. Nothing is removed on
+timeout. A REMOVE reply must still refer to the latest review and an unchanged item.
+
+Reviews share consent, opt-in, quiet hours, fresh Calendar availability/busy checks,
+recent-conversation protection, daily cap and cooldown with normal coaching. They
+also wait for pending confirmations. Operator shadow/canary controls still apply;
+this change does not enable production autonomous sending. Delivery uses the existing
+SMS adapter and stable reservation key; ambiguous provider acceptance is held for
+reconciliation, not automatically retried under a new key.
+
+Local validation includes migrated PGlite tests for all reviewed record kinds,
+20 fictional accounts, isolation, stale replies, interruption, opt-out, sent-reminder
+removal, memory freshness and accepted-send recovery; rendered/UI preview checks;
+and the free 33-turn scripted assistant journey (zero reported issues). Full suite:
+629 passed, 3 skipped. These results do not establish live Claude interpretation,
+carrier delivery, multi-process PostgreSQL load capacity or real worker-kill recovery.

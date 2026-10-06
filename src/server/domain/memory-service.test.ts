@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import { isSensitiveMemory, parseMemoryCorrection } from "./memory-service";
 
 describe("memory corrections", () => {
+  it.each(["Forget that", "Forget it.", "Forget those"])("does not treat the vague reference %s as a deletion search", body => {
+    expect(parseMemoryCorrection(body)).toEqual({ type: "forget_recent" });
+  });
   it("recognizes a lasting dessert preference and punctuated deletion", () => {
     expect(parseMemoryCorrection("I really like frozen blueberries and yogurt as a dessert.")).toEqual({ type: "favorite_food", content: "Favorite food: frozen blueberries and yogurt." });
     expect(parseMemoryCorrection("Forget yogurt.")).toEqual({ type: "forget", query: "yogurt" });

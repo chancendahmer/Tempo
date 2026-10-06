@@ -1,4 +1,9 @@
 import { inOwnedExecution, ownedService } from "../../domain/inbound-execution";
+import { DrizzleItemReviewRepository } from "../../db/repositories/item-review-repository";
+import { DrizzleOutboundMessageRepository } from "../../db/repositories/outbound-message-repository";
+import { SafeSmsSender } from "../../domain/outbound-messaging";
+import { createMessagingTransport } from "../../adapters/sms/messaging-provider";
+import { deliverItemReview } from "../../domain/item-review-delivery";
 import { PgBoss } from "pg-boss";
 import { getServerEnv } from "../../config/env";
 import { proactiveDeliveryEnabled } from "../../config/proactive-delivery";
@@ -21,6 +26,10 @@ export async function registerEvaluateContextHandler(boss: PgBoss) {
       try {
         const env = getServerEnv();
         const shadowMode = !proactiveDeliveryEnabled(env, job.data.userId);
+        if (!shadowMode && await deliverItemReview({ userId: job.data.userId, enabled: true, repository: new DrizzleItemReviewRepository(), sender: new SafeSmsSender(new DrizzleOutboundMessageRepository(), createMessagingTransport()), runOwned: ownership.run, signal: job.signal })) {
+          await actions.completeAndScheduleContextEvaluation(job.data.scheduledActionId, job.data.userId, new Date(Date.now() + EVALUATION_INTERVAL_MS));
+          continue;
+        }
         const result = await inOwnedExecution(ownership, () => evaluateUserContext({
           userId: job.data.userId,
           repository: ownedService(new DrizzleContextEngineRepository()),

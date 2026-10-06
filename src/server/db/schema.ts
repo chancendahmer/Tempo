@@ -831,6 +831,20 @@ export const serviceHeartbeats = pgTable("service_heartbeats", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
+export const itemReviews = pgTable("item_reviews", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  target: jsonb("target").$type<import("../domain/item-review").ReviewTarget>().notNull(),
+  status: text("status").$type<"reserved" | "sent" | "closed" | "cancelled">().default("reserved").notNull(),
+  messageId: uuid("message_id").references(() => conversationMessages.id, { onDelete: "set null" }),
+  responseMessageId: uuid("response_message_id").references(() => conversationMessages.id, { onDelete: "set null" }),
+  reply: text("reply"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  sentAt: timestamp("sent_at", { withTimezone: true }),
+  nextReviewAt: timestamp("next_review_at", { withTimezone: true }).notNull(),
+  resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+}, table => [index("item_reviews_user_created_idx").on(table.userId, table.createdAt), uniqueIndex("item_reviews_one_reserved_idx").on(table.userId).where(sql`${table.status} = 'reserved'`), check("item_reviews_status_check", sql`${table.status} in ('reserved','sent','closed','cancelled')`)]);
+
 export const rateLimitBuckets = pgTable(
   "rate_limit_buckets",
   {

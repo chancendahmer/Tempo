@@ -1,3 +1,4 @@
+import { DrizzleItemReviewRepository } from "../../src/server/db/repositories/item-review-repository";
 import { scopedDatabase } from "../../src/server/db/database-scope";
 import { readdir, readFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
@@ -134,7 +135,7 @@ export async function createAssistantSimulator(parser: TaskIntentParser) {
             new DrizzleGoalRepository(database), new DrizzleSchedulingRepository(database), observedParser,
             channel === "web" ? new WebReplySender(message.id, database) : new SafeSmsSender(new DrizzleOutboundMessageRepository(database), transport), () => clock,
             undefined, new MemoryService(new DrizzleMemoryRepository(database)), undefined,
-            new DrizzleConversationHistoryRepository(database), new DrizzleReminderRepository(database), integrations, new LifeAssistant(database),
+            new DrizzleConversationHistoryRepository(database), new DrizzleReminderRepository(database), integrations, new LifeAssistant(database), new DrizzleItemReviewRepository(database),
           );
           if (!receipt.duplicate && job && message.status === "received") {
             await orchestrator.process(message.id);

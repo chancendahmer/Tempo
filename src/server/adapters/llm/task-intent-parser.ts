@@ -205,12 +205,12 @@ export const TASK_TOOLS: Tool[] = [
   },
   {
     name: "list_reminders",
-    description: "List the user's upcoming one-time reminders.",
-    input_schema: { type: "object", properties: {}, additionalProperties: false },
+    description: "List reminders with exact IDs. Set includePast to true when finding or removing old, already sent, failed or completed reminders.",
+    input_schema: { type: "object", properties: { includePast: { type: "boolean" } }, additionalProperties: false },
   },
   {
     name: "cancel_reminder",
-    description: "Cancel an upcoming reminder by exact ID or a distinctive phrase from its description.",
+    description: "Remove a reminder (including already sent reminders) by exact ID or a distinctive phrase from its description.",
     input_schema: {
       type: "object",
       properties: {
@@ -414,6 +414,7 @@ export class AnthropicTaskIntentParser implements TaskIntentParser {
     const knownReminderTimes = new Map<string, string>();
     const knownEventIds = new Set<string>();
     const knownLifeVersions = new Map<string, number>();
+    const knownMemories = new Map<string, string>();
     for (let step = 0; step < 6; step += 1) {
     let response;
     try {
@@ -501,10 +502,17 @@ export class AnthropicTaskIntentParser implements TaskIntentParser {
       else if (command.type === "reschedule_reminder" && (!command.reminderId || !knownReminderTimes.has(command.reminderId))) result = "No change performed: first list_reminders in this turn and use the exact ID matching the requested subject and date.";
       else if (command.type === "calendar_change" && command.change.operation !== "create" && !knownEventIds.has(command.change.eventId)) result = "No change performed: first look up the event using calendar_agenda in this turn.";
       else if ((command.type === "life_remove" || command.type === "life_patch") && knownLifeVersions.get(command.id) !== command.version) result = "No change performed: first read life_list in this turn and use the returned id and version.";
+      else if (command.type === "forget_memory" && command.memoryId && knownMemories.get(command.memoryId) !== command.expectedContent) result = "No change performed: first use recall_memories in this turn and copy the matching memory id and content.";
       else {
         try { result = await input.execute(command); }
         catch { result = "That action could not be verified. Please check its current state before trying again."; }
         if (!readOnly) actionResult = result;
+        if (command.type === "recall_memories") {
+          try {
+            const payload = JSON.parse(result) as { memories?: Array<{ id: string; content: string }> };
+            for (const item of payload.memories ?? []) if (typeof item.id === "string" && typeof item.content === "string") knownMemories.set(item.id, item.content);
+          } catch { /* No lookup means no ID-based deletion. */ }
+        }
         if (command.type === "list_reminders") {
           try {
             const payload = JSON.parse(result) as { items?: Array<{ id: string; remindAt: string }> };

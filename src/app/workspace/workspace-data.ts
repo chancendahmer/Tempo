@@ -5,6 +5,9 @@ export type Workspace = {
   tasks: { id: string; title: string; status: string; dueAt: string | null; estimatedMinutes: number | null; startedAt: string | null; goalId: string | null }[];
   goals: { id: string; title: string; description: string | null; status: string }[];
   items: SavedLifeItem[];
+  memories?: { id: string; content: string; category: string }[];
+  memoriesTruncated?: boolean;
+  remindersTruncated?: boolean;
   messages: { id: string; body: string; direction: string; status: string; createdAt: string }[];
   reminders: { id: string; text: string; remindAt: string; status: string }[];
   calendar: { status: string; lastSyncedAt: string | null } | null;
@@ -34,6 +37,7 @@ export function previewWorkspace(): Workspace {
       { id: demoId(50), version: 1, data: { kind: "note", title: "A thought for later", body: "Try a Sunday reset: groceries, a little laundry, and something nice to look forward to." } },
       { id: demoId(60), version: 1, data: { kind: "workout", title: "A walk around the neighborhood", date, minutes: 20, activity: "Walk" } },
     ],
+    memories: [{ id: demoId(90), content: "I prefer gentle check-ins and small next steps.", category: "preference" }],
     messages: [{ id: demoId(80), body: "This is a sample workspace. Explore your day, try a focus timer, or build a routine. Changes here reset when you reload; no messages are sent.", direction: "outbound", status: "delivered", createdAt: now.toISOString() }],
     reminders: [{ id: demoId(70), text: "Take a proper lunch break", remindAt: at(12), status: "scheduled" }],
     calendar: { status: "active", lastSyncedAt: now.toISOString() }, busy: [{ id: demoId(71), startsAt: at(14), endsAt: at(15) }],

@@ -7,7 +7,9 @@ import type { SavedLifeItem } from "../domain/life-items";
 
 it("twenty accounts keep SMS, dashboard edits, assistant context and replies separate (scripted parser)", async () => {
   const observations: Parameters<TaskIntentParser["parse"]>[0][] = [];
-  const simulation = await createAssistantSimulator({ parse: async input => {
+  const simulation = await createAssistantSimulator({
+    authorizer: { authorize: async input => input.message.startsWith("Remember that my preferred project name is ") ? { mode: "write", commands: ["remember_memory"] } : { mode: "read_only", commands: [] } },
+    parse: async input => {
     observations.push(input);
     const { items: notes } = JSON.parse(await input.execute!({ type: "life_list", kind: "note" })) as { items: SavedLifeItem[] };
     return { kind: "conversation", reply: `[SCRIPTED] ${notes.map(note => note.data.title).join(", ")}` };
@@ -15,7 +17,9 @@ it("twenty accounts keep SMS, dashboard edits, assistant context and replies sep
   try {
     const people: Awaited<ReturnType<typeof simulation.user>>[] = [];
     for (let index = 0; index < 20; index++) people.push(await simulation.user());
-    await Promise.all(people.map(async (person, index) => {
+    // Settle all concurrent operations before closing the single WASM database,
+    // including when one assertion fails; closing during queued writes can hang.
+    const results = await Promise.allSettled(people.map(async (person, index) => {
       const marker = `PRIVATE_ACCOUNT_${index}_ONLY`;
       await person.send(`Remember that my preferred project name is ${marker}`);
       await mutateWorkspace(person.id, { action: "save", id: randomUUID(), version: 0, data: { kind: "note", title: marker, body: "Created in dashboard" } }, simulation.database);
@@ -36,6 +40,7 @@ it("twenty accounts keep SMS, dashboard edits, assistant context and replies sep
         expect(JSON.stringify(workspace)).not.toContain(foreign);
       }
     }));
+    for (const result of results) if (result.status === "rejected") throw result.reason;
     // Web conversations were captured in shared history, never sent to a carrier.
     expect(simulation.transport.sent).toHaveLength(40);
   } finally { await simulation.close(); }

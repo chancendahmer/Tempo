@@ -2,6 +2,27 @@ import { describe, expect, it, vi } from "vitest";
 import { authorizationContext, hasExplicitNoWriteRequest, requestedCheckinConsent, TurnWritePolicy, type TurnAuthorization } from "./turn-write-policy";
 
 describe("turn write policy", () => {
+  it.each([
+    { mode: "write", commands: ["remember_memory"], expected: true },
+    { mode: "write", commands: ["create_goal"], expected: false },
+    { mode: "write", commands: ["remember_memory", "create_task"], expected: false },
+    { mode: "read_only", commands: [], expected: false },
+    { mode: "uncertain", commands: [], expected: false },
+  ] as const)("only short-circuits memory for an exclusive grant: $mode $commands", async ({ mode, commands, expected }) => {
+    const authorize = vi.fn(async () => ({ mode, commands: [...commands] }));
+    const policy = new TurnWritePolicy({ message: "Remember what I asked" }, { authorize });
+    expect(await policy.authorizesOnly({ type: "remember_memory" })).toBe(expected);
+    await policy.denial({ type: "remember_memory" });
+    expect(authorize).toHaveBeenCalledTimes(1);
+  });
+
+  it("never short-circuits a no-edit request or a failed classifier", async () => {
+    const authorize = vi.fn(async (): Promise<TurnAuthorization> => { throw new Error("unavailable"); });
+    expect(await new TurnWritePolicy({ message: "Remember pizza. Do not save anything." }, { authorize }).authorizesOnly({ type: "remember_memory" })).toBe(false);
+    expect(authorize).not.toHaveBeenCalled();
+    expect(await new TurnWritePolicy({ message: "Remember pizza" }, { authorize }).authorizesOnly({ type: "remember_memory" })).toBe(false);
+  });
+
   it("caches one scoped decision for a turn, without authorizing other commands", async () => {
     const authorize = vi.fn(async (): Promise<TurnAuthorization> => ({ mode: "write", commands: ["update_task"] }));
     const policy = new TurnWritePolicy({ message: "Move my report to tomorrow" }, { authorize });
