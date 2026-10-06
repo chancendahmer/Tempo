@@ -93,6 +93,15 @@ describe("provider-free V1 journey", () => {
       createSecureActionLinks("https://tempo.example", Buffer.alloc(32, 7).toString("base64")),
     );
 
+    // Phone activation is handled by ingestion and queues its welcome; it must
+    // never be run through the coach as an ordinary command.
+    await new DrizzleMessagingRepository(database).ingestInbound({provider:"twilio",providerMessageId:"SMJOURNEYSTART",from:"+12025550199",to:"+12025550000",body:"START",complianceKeyword:"START"});
+    const [activation] = await database.select().from(conversationMessages).where(eq(conversationMessages.providerMessageSid,"SMJOURNEYSTART"));
+    await database.update(conversationMessages).set({createdAt:now,receivedAt:now}).where(eq(conversationMessages.id,activation.id));
+    expect(activation.status).toBe("processed");
+    expect(await coach.process(activation.id)).toEqual({processed:false});
+    expect(transport.sent).toHaveLength(0);
+
     let inboundSequence = 0;
     async function reply(body: string) {
       inboundSequence += 1;
