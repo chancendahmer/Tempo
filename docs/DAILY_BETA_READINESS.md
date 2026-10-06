@@ -33,3 +33,7 @@ No new real carrier delivery, real Calendar edit, backup restore, full-day proac
 ## Reproduction
 
 Run npm run check and npm run simulate:assistant -- --scripted. For database checks, set TEST_DATABASE_URL to a disposable local PostgreSQL database and run the inbound-concurrency.postgres.test.ts test and scripts/reliability-smoke.ts. The restart drill takes over five minutes. Use TEMPO_RECOVERY_TEST_DATABASE_URL for recover-inbound.postgres.test.ts; never point these commands at production. Paid replay uses scripts/daily-beta-live.ts and requires a new approved budget if the existing cumulative ledger is exhausted. Credentials are loaded at runtime, never printed.
+
+## Production verification follow-up
+
+PR22 deployed both services on October 5. New queue diagnostics identified 35 legacy outbound failures with unknown provider acceptance and three stale consent/onboarding records. The three inbound records had durable consent/delegation evidence and no assistant processing job: migration 0027 corrects that bookkeeping and ingress now marks these paths complete transactionally. Unknown or worker-owned requests are excluded. The 35 outbound attempts remain held unless an operator explicitly retires them without resending or reconciles provider receipts; deployment success alone is not a green pilot gate.
