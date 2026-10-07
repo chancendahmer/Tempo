@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { SectionArt, MealIllustration } from "./SectionArt";
 import { FoodSearch } from "./FoodSearch";
 import { TasksView, GoalsView } from "./PlanningViews";
@@ -12,7 +13,7 @@ import { ChatMessage } from "./ChatMessage";
 import { SavedContextViews } from "./SavedContextViews";
 import { WakeExperience } from "./WakeExperience";
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
-import { FiArrowLeft, FiArrowRight, FiBookOpen, FiCalendar, FiCheck, FiCheckCircle, FiClock, FiCoffee, FiEdit2, FiGrid, FiHeart, FiInbox, FiMaximize, FiMenu, FiMessageCircle, FiMoon, FiMoreHorizontal, FiPause, FiPlay, FiPlus, FiSend, FiSettings, FiShoppingBag, FiSun, FiTarget, FiTrash2, FiX, FiZap } from "react-icons/fi";
+import { FiArrowLeft, FiArrowRight, FiBookOpen, FiCalendar, FiCheck, FiCheckCircle, FiClock, FiCoffee, FiEdit2, FiGrid, FiHeart, FiInbox, FiLogOut, FiMaximize, FiMenu, FiMessageCircle, FiMoon, FiMoreHorizontal, FiPause, FiPlay, FiPlus, FiSend, FiSettings, FiShoppingBag, FiSun, FiTarget, FiTrash2, FiX, FiZap } from "react-icons/fi";
 import { lifeItemSchema, localDay, type LifeItem, type SavedLifeItem } from "@/server/domain/life-items";
 import type { WorkspaceAction } from "@/server/db/repositories/workspace-repository";
 import { previewWorkspace, type Workspace } from "./workspace-data";
@@ -29,6 +30,7 @@ type Editor = { title: string; subtitle: string; fields: Field[]; submit: (value
 type FocusData = Extract<LifeItem, { kind: "focus" }>;
 
 export function WorkspaceClient({ preview = false }: { preview?: boolean }) {
+  const router = useRouter();
   const [data, setData] = useState<Workspace | null>(null);
   const [section, setSection] = useState<Section>("today");
   const [error, setError] = useState("");
@@ -111,6 +113,22 @@ export function WorkspaceClient({ preview = false }: { preview?: boolean }) {
   const totals = foods.reduce((acc, item) => { if (item.data.kind === "food") { acc.calories += item.data.calories ?? 0; acc.protein += item.data.protein ?? 0; acc.carbs += item.data.carbs ?? 0; acc.fat += item.data.fat ?? 0; acc.fiber += item.data.fiber ?? 0; } return acc; }, { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 });
   const time = (value: string) => new Intl.DateTimeFormat(undefined, { timeZone: data?.timezone ?? "UTC", hour: "numeric", minute: "2-digit" }).format(new Date(value));
   const go = (value: Section) => { setSection(value); setMobile(false); setNotice(""); };
+
+  async function switchAccount() {
+    if (busyRef.current) return;
+    busyRef.current = true; setSaving(true); requestSequence.current++;
+    try {
+      const response = await fetch("/api/auth/logout", { method: "POST" });
+      if (!response.ok) throw new Error("Sign-out failed");
+      setData(null);
+      localStorage.removeItem("tempo-early-access-submitted");
+      router.push("/login");
+      router.refresh();
+    } catch {
+      setNotice("Could not sign out. Please try again.");
+      busyRef.current = false; setSaving(false);
+    }
+  }
 
   async function act(action: WorkspaceAction): Promise<boolean> {
     if (busyRef.current) return false;
@@ -255,10 +273,10 @@ export function WorkspaceClient({ preview = false }: { preview?: boolean }) {
   };
 
   return <div className={s.app} data-section={section}>
-    <aside className={`${s.sidebar} ${mobile ? s.sidebarOpen : ""}`}><Link href={preview ? "/workspace/preview" : "/workspace"} className={s.brand}><Image src="/images/tempo-avatar.png" alt="" width={39} height={37} />Tempo</Link><div className={s.spaceLabel}>A LITTLE SPACE FOR YOU</div><nav aria-label="Your workspace">{sections.map(([key, label, Icon], i) => <button key={key} onClick={() => go(key)} aria-current={section === key ? "page" : undefined} className={`${section === key ? s.activeNav : ""} ${i === 4 || i === 9 ? s.navDivider : ""}`}><Icon /><span>{label}</span>{key === "inbox" && items.filter(item => item.data.kind === "note").length > 0 && <span className={s.navCount}>{items.filter(item => item.data.kind === "note").length}</span>}{key === "assistant" && <span className={s.spark}>✦</span>}</button>)}</nav><div className={s.sidebarBottom}><div className={s.sidebarNote}><FiMessageCircle /><strong>A thought? A change of plan?</strong><button onClick={() => go("assistant")}>Talk to Tempo <FiArrowRight /></button></div><button className={s.person} onClick={() => go("settings")}><span>{data?.profile.displayName?.[0] ?? "Y"}</span><div><strong>{data?.profile.displayName ?? "Your workspace"}</strong><small>{preview ? "Preview account" : "Your personal space"}</small></div><FiMoreHorizontal /></button></div></aside>
+    <aside className={`${s.sidebar} ${mobile ? s.sidebarOpen : ""}`}><Link href={preview ? "/workspace/preview" : "/workspace"} className={s.brand}><Image src="/images/tempo-avatar.png" alt="" width={39} height={37} />Tempo</Link><div className={s.spaceLabel}>A LITTLE SPACE FOR YOU</div><nav aria-label="Your workspace">{sections.map(([key, label, Icon], i) => <button key={key} onClick={() => go(key)} aria-current={section === key ? "page" : undefined} className={`${section === key ? s.activeNav : ""} ${i === 4 || i === 9 ? s.navDivider : ""}`}><Icon /><span>{label}</span>{key === "inbox" && items.filter(item => item.data.kind === "note").length > 0 && <span className={s.navCount}>{items.filter(item => item.data.kind === "note").length}</span>}{key === "assistant" && <span className={s.spark}>✦</span>}</button>)}</nav><div className={s.sidebarBottom}><div className={s.sidebarNote}><FiMessageCircle /><strong>A thought? A change of plan?</strong><button onClick={() => go("assistant")}>Talk to Tempo <FiArrowRight /></button></div><button className={s.person} onClick={() => go("settings")}><span>{data?.profile.displayName?.[0] ?? "Y"}</span><div><strong>{data?.profile.displayName ?? "Your workspace"}</strong><small>{preview ? "Preview account" : data?.profile.phoneLast4 ? `Texting number •••• ${data.profile.phoneLast4}` : "Your personal space"}</small></div><FiMoreHorizontal /></button>{!preview && <button className={s.textButton} disabled={saving} onClick={() => void switchAccount()}><FiLogOut /> Switch account / Log out</button>}</div></aside>
     {mobile && <button className={s.scrim} aria-label="Close navigation" onClick={() => setMobile(false)} />}
     <div className={s.main}>
-      <header className={s.topbar}><div className={s.row}><button className={`${s.iconButton} ${s.menuButton}`} aria-label="Open navigation" onClick={() => setMobile(!mobile)}><FiMenu /></button><span>{sections.find(([key]) => key === section)?.[1]}</span></div><div className={s.row}><span className={s.dateLabel}>{now ? new Intl.DateTimeFormat(undefined, { timeZone: data?.timezone, weekday: "short", month: "short", day: "numeric" }).format(now) : ""}</span><button className={s.iconButton} title="Hide private content" aria-label="Hide private content" onClick={() => { setHidden(!hidden); window.speechSynthesis?.cancel(); }}><FiMoon /></button><button className={s.primary} onClick={() => itemEditor("note")} disabled={!data}><FiPlus /> Quick capture</button></div></header>
+      <header className={s.topbar}><div className={s.row}><button className={`${s.iconButton} ${s.menuButton}`} aria-label="Open navigation" onClick={() => setMobile(!mobile)}><FiMenu /></button><span>{sections.find(([key]) => key === section)?.[1]}</span></div><div className={s.row}><span className={s.dateLabel}>{now ? new Intl.DateTimeFormat(undefined, { timeZone: data?.timezone, weekday: "short", month: "short", day: "numeric" }).format(now) : ""}</span><button className={s.iconButton} title="Hide private content" aria-label="Hide private content" onClick={() => { setHidden(!hidden); window.speechSynthesis?.cancel(); }}><FiMoon /></button>{!preview && data && <button className={s.textButton} disabled={saving} title={`Sign out of texting number ending ${data.profile.phoneLast4 ?? "unknown"}`} onClick={() => void switchAccount()}>Log out <FiLogOut /></button>}<button className={s.primary} onClick={() => itemEditor("note")} disabled={!data}><FiPlus /> Quick capture</button></div></header>
       {preview && <div className={s.previewBanner}><span>Preview workspace · sample data · changes reset on reload</span><Link href="/workspace">Open my workspace <FiArrowRight /></Link></div>}
       {notice && <div className={s.toast} role="status"><span>{notice}</span><button className={s.iconButton} aria-label="Dismiss message" onClick={() => setNotice("")}><FiX /></button></div>}
       {hidden ? <div className={s.gate}><FiMoon /><h1>A little privacy.</h1><button className={s.primary} onClick={() => setHidden(false)}>Show my workspace</button></div> : !data ? <div className={s.gate}><span className={s.gateIcon}><FiSun /></span><p className={s.eyebrow}>YOUR LIFE, A LITTLE LIGHTER</p><h1>Everything you need.<br />Room to breathe.</h1><p>{error || "Getting your space ready…"}</p><div className={s.row}><Link className={s.primary} href="/login">Log in to Tempo <FiArrowRight /></Link><Link className={s.secondary} href="/workspace/preview">Explore the workspace</Link></div>{error && <button className={s.textButton} onClick={() => void refresh()}>Try again</button>}</div> : <div className={s.content}>

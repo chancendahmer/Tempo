@@ -37,7 +37,7 @@ import { DrizzleReminderRepository } from "./reminder-repository";
 import { DrizzleTaskRepository } from "./task-repository";
 import type { AssistantIntegrations } from "../../domain/assistant-commands";
 import { ScheduledActionRepository } from "../../jobs/scheduled-action-repository";
-import { WRITE_COMMANDS } from "../../domain/turn-write-policy";
+import { scriptedAuthorizer } from "../../testing/scripted-authorizer";
 
 describe("inbound conversation orchestration", () => {
   let client: PGlite;
@@ -81,7 +81,7 @@ describe("inbound conversation orchestration", () => {
       new DrizzleSchedulingRepository(database),
       { ...parser, parse: parser?.parse ?? vi.fn(async () => ({ kind: "conversation" as const, reply: "Tell me more." })),
         // Scripted grants isolate orchestration from the provider classifier.
-        authorizer: parser?.authorizer ?? { authorize: async () => ({ mode: "write", commands: [...WRITE_COMMANDS] }) } },
+        authorizer: parser?.authorizer ?? scriptedAuthorizer },
       new SafeSmsSender(new DrizzleOutboundMessageRepository(database), transport),
       () => new Date("2026-08-18T12:00:00Z"),
       undefined,

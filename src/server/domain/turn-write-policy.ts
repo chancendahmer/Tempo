@@ -58,7 +58,12 @@ export class TurnWritePolicy {
     return decision?.mode === "write" && decision.commands.every(type => type === command.type);
   }
 
-  async denial(command: { type: string; enabled?: boolean }): Promise<string | undefined> {
+  async denial(command: { type: string; enabled?: boolean; destination?: string }): Promise<string | undefined> {
+    if (command.type === "capture_with_reminder") {
+      const type = command.destination === "note" ? "life_save" : command.destination === "task" ? "create_task" : command.destination === "goal" ? "create_goal" : null;
+      if (!type) return NO_WRITE_REPLY;
+      return await this.denial({ type }) ?? await this.denial({ type: "create_reminder" });
+    }
     if (isReadOnlyAssistantCommand(command.type)) return;
     if (hasExplicitNoWriteRequest(this.input.message)) return NO_WRITE_REPLY;
     if (command.type === "set_checkins" && requestedCheckinConsent(this.input.message) !== command.enabled) {

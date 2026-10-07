@@ -6,9 +6,13 @@ import { mutateWorkspace, WorkspaceConflict } from "./workspace-repository";
 import { foodCatalog } from "./food-catalog";
 import { isSensitiveMemory } from "../../domain/memory-service";
 import { lifeSavedReply } from "../../domain/life-patch";
+import { captureWithReminder } from "./capture-reminder";
 
 export class LifeAssistant {
   constructor(private readonly database: TempoDatabase = getDatabase()) {}
+  captureWithReminder(userId: string, sourceMessageId: string, command: Extract<AssistantCommand, {type: "capture_with_reminder"}>, now: Date, timezone: string) {
+    return captureWithReminder(this.database, userId, sourceMessageId, command, now, timezone);
+  }
   async execute(userId: string, sourceMessageId: string, command: Extract<AssistantCommand, { type: "food_search" | "life_list" | "life_save" | "life_patch" | "life_remove" | "grocery_add" }>) {
     if (command.type === "food_search") return JSON.stringify(await foodCatalog(userId, command, this.database));
     if (command.type === "life_list") {

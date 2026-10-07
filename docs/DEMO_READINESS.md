@@ -3,6 +3,36 @@
 Status: a live single-account demo under iterative evaluation, not a verified
 consumer release. Passing mocked tests does not prove live release gates passed.
 
+## October 7 feedback fixes
+
+- Scheduling uses an explicit user-local date reference. The validator ignores
+  quoted reminder content, understands weekday/day-of-month pairs, and allows
+  one internal timestamp repair before asking the user again.
+- `capture_with_reminder` saves a new Thought inbox note, task, or goal plus
+  one reminder atomically. Both constituent permissions are required. Its
+  durable receipt rejects changed retries; a reminder write failure rolls back
+  the tab item. This does not enable arbitrary multi-tool write sequences.
+- The workspace shows the signed-in texting number's last four digits and
+  provides Log out in its header plus Switch account in the sidebar.
+- Calendar input and authorization errors are distinguished from transient
+  failures. A disconnected personal account still requires its own connection;
+  signing another account into Google does not share Calendar access.
+- Product research uses the existing bounded hosted web-search adapter;
+  purchasing and unsupported integrations remain unavailable.
+- `CLEANUP_CHECKINS_ENABLED=true` independently releases cleanup outreach while
+  other coaching can remain in shadow mode. User opt-in, consent, account
+  activity, quiet hours, fresh Calendar availability, cooldowns, shared caps,
+  the weekly cleanup limit and explicit removal replies remain mandatory.
+
+Validation: `npm run check` passed (645 tests, 3 skipped; lint, typecheck,
+production and operations builds). The 33-scenario **scripted** assistant run
+reported zero state-check issues. The skipped tests require real PostgreSQL;
+PGlite concurrency fixtures do not prove real worker throughput. No new paid
+model, live search, or real SMS delivery evaluation was performed for this
+checkpoint. The affected personal dashboard still needs authenticated browser
+readback. These results do not establish five-person launch readiness or
+justify a higher product rating.
+
 September 30 live checkpoint: [LIVE_DEMO_JOURNEY.md](LIVE_DEMO_JOURNEY.md)
 records a real phone-verified demo account, connected Google Calendar and
 confirmed event creation/rescheduling with dashboard readback. Real scheduled

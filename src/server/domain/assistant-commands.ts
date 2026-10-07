@@ -10,6 +10,7 @@ export const calendarChangeSchema = z.discriminatedUnion("operation", [
 ]);
 export type CalendarChange = z.infer<typeof calendarChangeSchema>;
 export const assistantCommandSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("capture_with_reminder"), destination: z.enum(["task", "goal", "note"]), title: z.string().trim().min(1).max(200), details: z.string().max(4000).optional(), remindAt: instant }).strict(),
   z.object({ type: z.literal("get_rundown"), startDate: z.iso.date(), days: z.number().int().min(1).max(7) }),
   z.object({ type: z.literal("food_search"), term: z.string().trim().min(2).max(100).optional(), barcode: z.string().regex(/^\d{8,14}$/).optional() }),
   z.object({ type: z.literal("life_list"), kind: z.enum(["routine", "food", "meal", "recipe", "workout", "note", "grocery"]), id: z.uuid().optional(), query: z.string().trim().min(1).max(200).optional() }).strict(),

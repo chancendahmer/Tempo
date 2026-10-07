@@ -1,4 +1,6 @@
 import type { ItemReviewResponder } from "./item-review";
+import { reminderScheduleText } from "./reminder-time-policy";
+import { calendarRequestFailureReply } from "./calendar-request-error";
 import type { SendSafeSmsInput } from "./outbound-messaging";
 import { handleOnboardingMessage } from "./onboarding";
 import { parseTaskCommandHeuristically, resolveTaskReference } from "./task-commands";
@@ -130,7 +132,8 @@ export class ConversationOrchestrator {
     private readonly history?: ConversationHistoryRepository,
     private readonly reminders?: ReminderRepository,
     private readonly integrations?: AssistantIntegrations,
-    private readonly life?: { execute(userId: string, sourceMessageId: string, command: Extract<AssistantCommand, { type: "food_search" | "life_list" | "life_save" | "life_patch" | "life_remove" | "grocery_add" }>): Promise<string> },
+    private readonly life?: { execute(userId: string, sourceMessageId: string, command: Extract<AssistantCommand, { type: "food_search" | "life_list" | "life_save" | "life_patch" | "life_remove" | "grocery_add" }>): Promise<string>;
+      captureWithReminder?(userId: string, sourceMessageId: string, command: Extract<AssistantCommand, {type:"capture_with_reminder"}>, now: Date, timezone: string): Promise<string> },
     private readonly itemReviews?: ItemReviewResponder,
   ) {
     this.conversations = ownedService(conversations);
@@ -389,8 +392,9 @@ export class ConversationOrchestrator {
       }));
       if (feedbackReply) return feedbackReply;
     }
-    const intent = heuristicCommand
-      ? { kind: "command" as const, command: heuristicCommand }
+    const standaloneHeuristic = heuristicCommand && (isReadOnlyAssistantCommand(heuristicCommand.type) || await writePolicy.authorizesOnly(heuristicCommand)) ? heuristicCommand : null;
+    const intent = standaloneHeuristic
+      ? { kind: "command" as const, command: standaloneHeuristic }
       : await Promise.all([
           this.tasks.listForResolution(context.userId),
           this.goals.listForResolution(context.userId),
@@ -429,6 +433,7 @@ export class ConversationOrchestrator {
     if (command.type === "set_checkins" && requestedCheckinConsent(context.body) !== command.enabled) {
       return CHECKIN_CONSENT_REPLY;
     }
+    if (command.type === "capture_with_reminder") return this.life?.captureWithReminder?.(context.userId, context.messageId, command, now, context.timezone) ?? "Saving a plan with its reminder is temporarily unavailable. Nothing was saved.";
     if (command.type === "get_rundown") return buildRundown({ tasks: this.tasks, goals: this.goals, reminders: this.reminders, integrations: this.integrations }, { ...context, now }, command);
     if (command.type === "grocery_add" || command.type === "food_search" || command.type === "life_list" || command.type === "life_save" || command.type === "life_patch" || command.type === "life_remove") {
       return this.life?.execute(context.userId, context.messageId, command) ?? "Your life workspace is not configured in this environment.";
@@ -459,8 +464,8 @@ export class ConversationOrchestrator {
         const proposal = await this.integrations.proposeCalendarChange(context.userId, context.messageId, command.change, context.timezone, now);
         await this.conversations.savePendingAction(context.userId, { entity: "calendar_confirmation", ...proposal, createdByMessageId: context.messageId, expiresAt: new Date(now.getTime() + 15 * 60_000) });
         return proposal.summary;
-      } catch {
-        return "I couldn’t access or validate that calendar request. Reconnect Google Calendar on the Extensions page and use a specific personal event, date, and time. Shared, all-day, and recurring event edits aren’t supported in this demo.";
+      } catch (error) {
+        return calendarRequestFailureReply(error);
       }
     }
     // Narrow before the existing task/goal/reminder handlers.
@@ -500,7 +505,7 @@ export class ConversationOrchestrator {
     if (isReminderCommand(intent.command)) {
       if (!this.reminders) return "Reminder scheduling is temporarily unavailable.";
       const reminderCommand = intent.command.type === "create_reminder" || intent.command.type === "reschedule_reminder"
-        ? { ...intent.command, remindAt: requestedReminderTime(context.body, now, context.timezone) ?? intent.command.remindAt }
+        ? { ...intent.command, remindAt: requestedReminderTime(reminderScheduleText(context.body), now, context.timezone) ?? intent.command.remindAt }
         : intent.command;
       return executeReminderCommand(this.reminders, reminderCommand, {
         userId: context.userId,

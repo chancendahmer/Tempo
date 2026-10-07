@@ -15,6 +15,7 @@ export function GET() {
       environment: env.NODE_ENV,
       shadowMode: env.INTERVENTION_SHADOW_MODE,
       autonomousSendingEnabled: env.AUTONOMOUS_SENDING_ENABLED,
+      cleanupCheckinsEnabled: env.CLEANUP_CHECKINS_ENABLED,
       timestamp: new Date().toISOString(),
     },
     {

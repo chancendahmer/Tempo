@@ -14,6 +14,32 @@ vi.mock("../../config/env", async (importOriginal) => ({ ...(await importOrigina
 vi.mock("./turn-authorizer", () => ({ AnthropicTurnAuthorizer: class { authorize = authorize; } }));
 
 describe("current-message routing", () => {
+  it("repairs a UTC-midnight tomorrow error internally before any write", async () => {
+    const message = 'Remind me at 12pm tomorrow about "innovation center"';
+    authorize.mockResolvedValue({mode: "write", commands: ["create_reminder"]});
+    const call = (remindAt: string) => ({content: [{type: "tool_use", id: remindAt, name: "create_reminder", input: {sourceQuote: message, text: "innovation center", remindAt}}]});
+    create.mockResolvedValueOnce(call("2026-10-08T12:00:00-04:00"))
+      .mockResolvedValueOnce(call("2026-10-07T12:00:00-04:00"))
+      .mockResolvedValueOnce({content: [{type: "text", text: "ACK_ONLY"}]});
+    const execute = vi.fn(async () => "Reminder set for Wednesday, October 7 at noon.");
+    await new AnthropicTaskIntentParser().parse({...input, now: new Date("2026-10-07T00:44:00Z"), message, execute});
+    expect(execute).toHaveBeenCalledExactlyOnceWith({type: "create_reminder", text: "innovation center", remindAt: "2026-10-07T12:00:00-04:00"});
+    expect(create.mock.calls[0][0].system).toContain('"today":"2026-10-06"');
+  });
+
+  it("keeps compound capture subject and date through a linked time clarification", async () => {
+    const message = "12pm works";
+    authorize.mockResolvedValue({mode: "write", commands: ["life_save", "create_reminder"]});
+    create.mockResolvedValueOnce({content: [{type: "tool_use", id: "capture", name: "capture_with_reminder", input: {sourceQuote: message, destination: "note", title: "Innovation center", remindAt: "2026-10-07T12:00:00-04:00"}}]})
+      .mockResolvedValueOnce({content: [{type: "text", text: "ACK_ONLY"}]});
+    const execute = vi.fn(async () => "Saved to Thought inbox and reminder set.");
+    await new AnthropicTaskIntentParser().parse({...input, now: new Date("2026-10-07T00:44:00Z"), message, execute, history: [
+      {id: "request", role: "user", content: "Save Innovation center in my thought box and remind me tomorrow", createdAt: new Date("2026-10-07T00:42:00Z")},
+      {id: "question", role: "assistant", replyToMessageId: "request", content: "What time tomorrow?", createdAt: new Date("2026-10-07T00:43:00Z")},
+    ]});
+    expect(execute).toHaveBeenCalledTimes(1);
+    expect(execute.mock.calls[0]).toEqual([expect.objectContaining({type: "capture_with_reminder", destination: "note", title: "Innovation center"})]);
+  });
   it.each(["missing", "wrong-content", "verified"])("requires a fresh memory lookup before ID-based deletion: %s", async scenario => {
     const message = "Forget the saved fact about my spare keys.";
     const memoryId = "00000000-0000-4000-8000-000000000092", content = "Spare keys are in the blue bowl.";

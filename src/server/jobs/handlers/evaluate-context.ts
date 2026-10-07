@@ -6,7 +6,7 @@ import { createMessagingTransport } from "../../adapters/sms/messaging-provider"
 import { deliverItemReview } from "../../domain/item-review-delivery";
 import { PgBoss } from "pg-boss";
 import { getServerEnv } from "../../config/env";
-import { proactiveDeliveryEnabled } from "../../config/proactive-delivery";
+import { cleanupDeliveryEnabled, proactiveDeliveryEnabled } from "../../config/proactive-delivery";
 import { DrizzleContextEngineRepository } from "../../db/repositories/context-engine-repository";
 import { DrizzleInterventionRepository } from "../../db/repositories/intervention-repository";
 import { AnthropicInterventionDecisionReviewer } from "../../adapters/llm/intervention-decision-reviewer";
@@ -26,7 +26,7 @@ export async function registerEvaluateContextHandler(boss: PgBoss) {
       try {
         const env = getServerEnv();
         const shadowMode = !proactiveDeliveryEnabled(env, job.data.userId);
-        if (!shadowMode && await deliverItemReview({ userId: job.data.userId, enabled: true, repository: new DrizzleItemReviewRepository(), sender: new SafeSmsSender(new DrizzleOutboundMessageRepository(), createMessagingTransport()), runOwned: ownership.run, signal: job.signal })) {
+        if (cleanupDeliveryEnabled(env, job.data.userId) && await deliverItemReview({ userId: job.data.userId, enabled: true, repository: new DrizzleItemReviewRepository(), sender: new SafeSmsSender(new DrizzleOutboundMessageRepository(), createMessagingTransport()), runOwned: ownership.run, signal: job.signal })) {
           await actions.completeAndScheduleContextEvaluation(job.data.scheduledActionId, job.data.userId, new Date(Date.now() + EVALUATION_INTERVAL_MS));
           continue;
         }
