@@ -29,8 +29,9 @@ production and operations builds). The 33-scenario **scripted** assistant run
 reported zero state-check issues. The skipped tests require real PostgreSQL;
 PGlite concurrency fixtures do not prove real worker throughput. No new paid
 model, live search, or real SMS delivery evaluation was performed for this
-checkpoint. The affected personal dashboard still needs authenticated browser
-readback. These results do not establish five-person launch readiness or
+checkpoint. Authenticated personal-dashboard readback subsequently confirmed
+the reported note and goal after switching out of the Demo account; the user
+also confirmed the items were visible. These results do not establish five-person launch readiness or
 justify a higher product rating.
 
 September 30 live checkpoint: [LIVE_DEMO_JOURNEY.md](LIVE_DEMO_JOURNEY.md)
