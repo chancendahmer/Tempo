@@ -1,11 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { serverEnvSchema } from "./env";
-import { proactiveDeliveryEnabled } from "./proactive-delivery";
+import { cleanupDeliveryEnabled, proactiveDeliveryEnabled } from "./proactive-delivery";
 
 const demo = "00000000-0000-4000-8000-000000000001";
 const other = "00000000-0000-4000-8000-000000000002";
 
 describe("account-scoped proactive canary", () => {
+  it("releases cleanup independently without enabling other automatic coaching", () => {
+    const disabled = serverEnvSchema.parse({});
+    expect(cleanupDeliveryEnabled(disabled, other)).toBe(false);
+    const enabled = serverEnvSchema.parse({CLEANUP_CHECKINS_ENABLED: "true"});
+    expect(cleanupDeliveryEnabled(enabled, other)).toBe(true);
+    expect(proactiveDeliveryEnabled(enabled, other)).toBe(false);
+  });
   it("defaults to shadow and rejects malformed or broad allowlists", () => {
     expect(serverEnvSchema.parse({}).PROACTIVE_CANARY_USER_IDS).toEqual([]);
     for (const value of ["*", "all", `${demo},`, "not-a-uuid"]) {

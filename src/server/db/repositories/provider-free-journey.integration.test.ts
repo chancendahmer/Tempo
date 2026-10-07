@@ -8,7 +8,7 @@ import { drizzle } from "drizzle-orm/pglite";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { TestSmsTransport } from "../../adapters/sms/sms-transport";
 import { TaskIntentParser } from "../../adapters/llm/task-intent-parser";
-import { WRITE_COMMANDS } from "../../domain/turn-write-policy";
+import { scriptedAuthorizer } from "../../testing/scripted-authorizer";
 import { recordWebConsent } from "../../domain/consent";
 import { ConversationOrchestrator } from "../../domain/conversation-orchestrator";
 import { evaluateUserContext } from "../../domain/context-evaluation-service";
@@ -77,7 +77,7 @@ describe("provider-free V1 journey", () => {
     let now = new Date("2026-08-18T16:00:00Z");
     const outcomes = new OutcomeTracker(new DrizzleOutcomeRepository(database));
     const parser: TaskIntentParser = {
-      authorizer: { authorize: async () => ({ mode: "write", commands: [...WRITE_COMMANDS] }) },
+      authorizer: scriptedAuthorizer,
       parse: vi.fn(async () => ({ kind: "conversation" as const, reply: "Tell me what you want to do next." })),
     };
     const coach = new ConversationOrchestrator(

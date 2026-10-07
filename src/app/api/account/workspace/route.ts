@@ -15,7 +15,10 @@ async function handle(request: NextRequest, write: boolean) {
     if (!token) return NextResponse.json({ error: "Please log in to your workspace." }, { status: 401, headers });
     const account = await new WebSessionService().findAccount(token);
     if (!account?.phoneVerified) return NextResponse.json({ error: "Please verify your phone to open your workspace." }, { status: 401, headers });
-    if (!write) return NextResponse.json(await readWorkspace(account.userId), { headers });
+    if (!write) {
+      const workspace = await readWorkspace(account.userId);
+      return NextResponse.json({ ...workspace, profile: { ...workspace.profile, phoneLast4: account.phoneLast4 } }, { headers });
+    }
     const limit = await new OperationalRepository().consumeRateLimit({ key: `workspace-write:${account.userId}`, limit: 30, windowMs: 60000 });
     if (!limit.allowed) return NextResponse.json({ error: "A lot changed at once. Please try again in a minute." }, { status: 429, headers: { ...headers, "Retry-After": String(limit.retryAfterSeconds) } });
     if (Number(request.headers.get("content-length") ?? 0) > 32000) return NextResponse.json({ error: "This request is too large." }, { status: 413, headers });

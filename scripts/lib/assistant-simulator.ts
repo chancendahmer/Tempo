@@ -7,7 +7,7 @@ import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
 import { and, eq } from "drizzle-orm";
 import type { TaskIntentParser, CoachingCommand } from "../../src/server/adapters/llm/task-intent-parser";
-import { WRITE_COMMANDS } from "../../src/server/domain/turn-write-policy";
+import { scriptedAuthorizer } from "../../src/server/testing/scripted-authorizer";
 import { TestSmsTransport } from "../../src/server/adapters/sms/sms-transport";
 import { parseSendblueWebhook } from "../../src/server/adapters/sms/sendblue-webhook";
 import { ConversationOrchestrator } from "../../src/server/domain/conversation-orchestrator";
@@ -118,7 +118,7 @@ export async function createAssistantSimulator(parser: TaskIntentParser) {
           const observedParser: TaskIntentParser = {
             // Live parsers retain their real authorization adapter. Scripted
             // fixtures isolate code paths and do not evaluate semantic permission.
-            authorizer: parser.authorizer ?? { authorize: async () => ({ mode: "write", commands: [...WRITE_COMMANDS] }) },
+            authorizer: parser.authorizer ?? scriptedAuthorizer,
             parse: async (input) => {
             turn.parserCalled = true;
             const result = await parser.parse({ ...input, execute: async (command: CoachingCommand) => {

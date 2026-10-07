@@ -9,7 +9,7 @@ export function connectionStatusReply(status: string): string {
   } catch { /* Plain-text availability failures are preserved below. */ }
   const lines: string[] = [];
   const labels = {
-    calendar: "Google Calendar", webSearch: "Web search", proactiveCoaching: "Proactive check-ins",
+    calendar: "Google Calendar", webSearch: "Web search", proactiveCoaching: "Proactive check-ins", cleanupCheckins: "Cleanup check-ins",
     memory: "Memory", tasksAndReminders: "Tasks and reminders", workspace: "Workspace",
     wakeAndWindDown: "Wake & Wind Down", otherAccounts: "Other accounts",
   };

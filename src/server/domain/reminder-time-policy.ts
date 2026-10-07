@@ -11,10 +11,20 @@ export function requestedClocks(text: string): number[] {
   return [...new Set(clocks)];
 }
 
-function localDate(date: Date, timezone: string) {
+export function localDate(date: Date, timezone: string) {
   const parts = new Intl.DateTimeFormat("en-CA", { timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(date);
   const get = (key: string) => parts.find(item => item.type === key)!.value;
   return `${get("year")}-${get("month")}-${get("day")}`;
+}
+/** Quoted reminder text is payload, not a second set of scheduling constraints. */
+export function reminderScheduleText(text: string) {
+  return text.replace(/"[^"\n]*"|“[^”\n]*”/g, " ");
+}
+
+export function localTimeContext(now: Date, timezone: string) {
+  const today = localDate(now, timezone);
+  return { timezone, localNow: new Intl.DateTimeFormat("en-US", { timeZone: timezone, dateStyle: "full", timeStyle: "long" }).format(now),
+    today, tomorrow: new Date(new Date(today + "T12:00:00Z").getTime() + 86400000).toISOString().slice(0, 10) };
 }
 function datesIn(text: string, anchor: Date, timezone: string): string[] {
   const current = new Date(localDate(anchor, timezone) + "T12:00:00Z");
@@ -23,6 +33,15 @@ function datesIn(text: string, anchor: Date, timezone: string): string[] {
   const explicit = [...text.matchAll(/\b(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{1,2})(?:st|nd|rd|th)?(?:,?\s+(20\d{2}))?\b/gi)].map(match => `${match[3] ?? current.getUTCFullYear()}-${String(months.indexOf(match[1].toLowerCase()) + 1).padStart(2,"0")}-${match[2].padStart(2,"0")}`);
   if (explicit.length) return [...new Set(explicit)];
   const weekdays = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+  // A named weekday with a day-of-month means that calendar date, not the
+  // first occurrence of that weekday. Keep inconsistent pairs unexecutable.
+  const ordinal = text.match(/\b(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\s+(?:the\s+)?(\d{1,2})(?:st|nd|rd|th)\b/i);
+  if (ordinal) {
+    const candidate = new Date(Date.UTC(current.getUTCFullYear(), current.getUTCMonth(), Number(ordinal[2]), 12));
+    if (candidate < current) candidate.setUTCMonth(candidate.getUTCMonth() + 1);
+    if (candidate.getUTCDate() !== Number(ordinal[2]) || candidate.getUTCDay() !== weekdays.indexOf(ordinal[1].toLowerCase())) return ["inconsistent-weekday-date"];
+    return [candidate.toISOString().slice(0, 10)];
+  }
   const dates = [...text.matchAll(/\b(sunday|monday|tuesday|wednesday|thursday|friday|saturday)\b/gi)].map(match => day((weekdays.indexOf(match[1].toLowerCase()) - current.getUTCDay() + 7) % 7));
   if (/\btomorrow\b/i.test(text)) dates.push(day(1));
   else if (/\b(?:today|tonight)\b/i.test(text)) dates.push(day(0));
@@ -33,6 +52,7 @@ function datesIn(text: string, anchor: Date, timezone: string): string[] {
  * not write permission. Unknown time wording is left for the model to clarify. */
 export function reminderTimeIssue(command: ReminderCommand, input: { message: string; now: Date; timezone: string; history?: ConversationHistoryMessage[]; inheritSchedule?: boolean }): string | undefined {
   if (!["create_reminder", "create_reminders", "reschedule_reminder", "reschedule_reminders"].includes(command.type)) return;
+  input = { ...input, message: reminderScheduleText(input.message), history: input.history?.map(item => ({ ...item, content: reminderScheduleText(item.content) })) };
   const exchange = latestLinkedExchange(input.history);
   const editing = command.type === "reschedule_reminder" || command.type === "reschedule_reminders";
   // In a move "from 5 PM to 12 PM", the source clock is not a permitted target.
@@ -75,4 +95,9 @@ export function reminderTimeIssue(command: ReminderCommand, input: { message: st
     if (new Set(times.map(time => new Date(time).toISOString())).size !== times.length) return "Please choose distinct reminder times. Nothing was added.";
   }
   if (command.type === "create_reminder" && Math.max(clocks.length, dates.length) > 1 && !command.recurrence && !relativeReminderTime(input.message, input.now)) return "Use create_reminders to save all the explicitly requested times together.";
+}
+
+export function reminderScheduleConstraints(input: { message: string; now: Date; timezone: string }) {
+  const text = reminderScheduleText(input.message);
+  return { ...localTimeContext(input.now, input.timezone), dates: datesIn(text, input.now, input.timezone), minutesAfterMidnight: requestedClocks(text) };
 }

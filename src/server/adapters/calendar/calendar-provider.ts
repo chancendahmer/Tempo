@@ -1,3 +1,5 @@
+import { CalendarRequestError } from "../../domain/calendar-request-error";
+
 export type CalendarTokens = {
   accessToken?: string | null;
   refreshToken?: string | null;
@@ -7,8 +9,8 @@ export type CalendarTokens = {
 
 export type BusyWindow = { start: Date; end: Date };
 
-export class CalendarAuthorizationError extends Error {
-  constructor(message = "Calendar authorization is no longer valid") {
+export class CalendarAuthorizationError extends CalendarRequestError {
+  constructor(message = "Google Calendar needs to be reconnected. Open Extensions and reconnect it, then ask me again. No calendar change was made.") {
     super(message);
     this.name = "CalendarAuthorizationError";
   }

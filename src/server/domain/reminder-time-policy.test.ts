@@ -7,6 +7,26 @@ const history = [
   { id: "reply", role: "assistant" as const, replyToMessageId: "request", content: "What time would you like?", createdAt: now },
 ];
 
+it("treats quoted reminder content as content, and resolves a weekday with a day of month", () => {
+  expect(reminderTimeIssue({ type: "create_reminder", text: "Doctors appointment at 11:45 tomorrow", remindAt: "2026-10-15T18:00:00-04:00" }, {
+    now: new Date("2026-10-06T18:00:00Z"), timezone,
+    message: 'Set a reminder for Thursday the 15th at 6PM "Doctors appointment at 11:45 tomorrow"',
+  })).toBeUndefined();
+});
+
+it("does not accept the next weekday when the user specified a later day of the month", () => {
+  expect(reminderTimeIssue({ type: "create_reminder", text: "Visit the library", remindAt: "2026-10-08T18:00:00-04:00" }, {
+    now: new Date("2026-10-06T18:00:00Z"), timezone,
+    message: "Remind me Thursday the 15th at 6PM to visit the library",
+  })).toMatch(/day does not match/);
+});
+
+it("uses the user's local tomorrow during the UTC midnight boundary", () => {
+  const input = { now: new Date("2026-10-07T00:44:00Z"), timezone, message: 'Set a reminder for 12pm tomorrow named "Innovation center"' };
+  expect(reminderTimeIssue({type:"create_reminder",text:"Innovation center",remindAt:"2026-10-07T12:00:00-04:00"}, input)).toBeUndefined();
+  expect(reminderTimeIssue({type:"create_reminder",text:"Innovation center",remindAt:"2026-10-08T12:00:00-04:00"}, input)).toMatch(/day does not match/);
+});
+
 it("does not apply the previous request's morning or date constraint to a new explicit subject", () => {
   expect(reminderTimeIssue({ type: "create_reminder", text: "Stretch", remindAt: "2026-10-05T18:02:00Z" },
     { now, timezone, history, message: "Remind me in two minutes to stretch", inheritSchedule: false })).toBeUndefined();

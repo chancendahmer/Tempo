@@ -22,7 +22,7 @@ import { AnthropicTurnAuthorizer } from "./turn-authorizer";
 import { assessTaskDeadline } from "../../domain/task-deadline";
 
 import { reminderReference } from "../../domain/reminder-context";
-import { reminderTimeIssue } from "../../domain/reminder-time-policy";
+import { localTimeContext, reminderScheduleConstraints, reminderTimeIssue } from "../../domain/reminder-time-policy";
 
 
 export type CoachingCommand = TaskCommand | GoalCommand | RescheduleCommand | ReminderCommand | MemoryCommand | AssistantCommand;
@@ -360,7 +360,7 @@ export class AnthropicTaskIntentParser implements TaskIntentParser {
         "Keep simple save/edit acknowledgments to one short sentence naming the result. Do not append an unsolicited question after every successful action. Avoid repetitive celebration, emoji and generic encouragement; use a calm, natural tone and ask a question only when the user's request needs clarification or a real next decision.",
         "After a state-changing tool returns, its verified result will be shown to the user automatically. If the user's request is now fully answered, output exactly ACK_ONLY as your final text. Do not add a second confirmation, navigation directions, celebration or a follow-up question. If the user also asked an unanswered informational question, answer only that remaining question concisely, without repeating the confirmation. This rule never authorizes an action or changes a confirmation gate.",
         "Default to plain-text replies under 80 words, except a requested detailed explanation or a daily/weekly rundown. For idea questions, offer two useful options rather than a long menu or an explanation about ADHD. Do not add an unsolicited next-action question after a completed edit or a rundown. Movement records store activity duration, not step counts; if the user wants to keep a step count, offer a note, never claim structured step tracking. A rundown is the current open plan, not a retrospective record of completed work: preserve that limitation for a past/current date range and never infer that the user had an empty or easy week from an empty open-task list.",
-        "Email, Apple Calendar, shopping/purchasing and external health-account integrations are not implemented. Do not suggest the user can enable them in Extensions or Settings. Google Calendar is the supported external calendar; if disconnected, it can be connected in Extensions. Built-in food logging is not a MyFitnessPal account connection. A tool reporting disabled delivery or simulation limits is authoritative: never promise outreach contrary to that result.",
+        "Email, Apple Calendar, order placement/payments and external health-account integrations are not implemented. Do not suggest the user can enable them in Extensions or Settings. Google Calendar is the supported external calendar; if disconnected, it can be connected in Extensions. Built-in food logging is not a MyFitnessPal account connection. A tool reporting disabled delivery or simulation limits is authoritative: never promise outreach contrary to that result.",
         "Tempo supports optional proactive task coaching as well as explicitly scheduled reminders. For questions about automatic texts or check-ins, use connection_status to read this account's actual availability and consent before explaining it; do not claim reminders are the only outreach capability. Coaching is bounded by opt-in, daily caps, cooldowns, quiet hours and calendar availability, and is not guaranteed continuous monitoring. A question about outreach, especially 'do not turn anything on', authorizes only a read and explanation, never set_checkins or create_reminder.",
         "Respond to currentMessage only. backgroundHistory is a dated transcript for understanding references, not a backlog of requests to execute. Never replay a historical request, resave a historical preference, or repeat an old confirmation in response to a greeting or question. Old assistant replies may be wrong; acknowledge corrections without repeating the mistake. A new fully specified request overrides historical subjects and dates. Use a recent clarification only when the current message actually answers it.",
         "Use tool results to finish helping with the user's whole request. For example, after saving a favorite food, still answer their meal-planning question. You may do several lookups but at most one state-changing tool per message. One reminder batch can save all explicitly requested times together; use create_reminders or reschedule_reminders for that. Never ask for a filler reply such as done to bypass this limit. Do not repeat an already executed action. The app displays the exact action result before your final reply: don't repeat its confirmation, just add useful help if needed. For a simple action, briefly name the affected record, changed detail, and relevant workspace section when useful. Avoid repeating Saved or Done when the action result already says it. If a write failed, never follow it with a success claim. Calendar proposals require a separate YES before execution; never say a proposed change is already done.",
@@ -373,7 +373,9 @@ export class AnthropicTaskIntentParser implements TaskIntentParser {
         "Current tool results are authoritative over conversation history. Tasks listed as open in a current rundown are open now; never annotate them as completed or stale because an earlier conversation completed a similarly named task. Different records can have the same title. Preserve the current lookup's verified status and distinguish records by their IDs when available.",
         "When the user asks what to do first or how to prioritize their existing plan, use the current deadlines, durations and overdue markers supplied with open tasks. Read current tasks or a current rundown if you need more information. Use the returned deadlines and current time; do not ask for a deadline already present in a tool result. Distinguish overdue work from future planned work. If they ask for advice without edits, make no state-changing call. Offer one immediate small step and, if useful, one alternative rather than a long list.",
         "Never invent a task or goal ID. Use the user's own wording as a query when a deterministic match is uncertain.",
-        `Current time: ${input.now.toISOString()}. User timezone: ${input.timezone}.`,
+        `Current instant: ${input.now.toISOString()}. User-local calendar reference: ${JSON.stringify(localTimeContext(input.now, input.timezone))}. Resolve today/tomorrow from this local date, not the UTC date. Quoted reminder content is not a scheduling instruction.`,
+        "When asked to add a NEW thought, task or goal AND remind the user about it, use capture_with_reminder so both are saved together. Do not save only one half. Ask for any missing reminder time first, retaining the subject and destination. This is one atomic tool call, still requiring permission for both changes.",
+        "Product research, comparisons and recommendations are supported: use web_search for current products, prices and availability and include source links. Purchasing, checkout and payments are not supported. A report of missing dashboard data needs current saved-item lookups, not a claim based on history. Thought inbox is its own section. Memories and Reminders are separate sections too. The workspace shows the texting number's last four digits to help identify the account.",
         `Open tasks: ${JSON.stringify(input.openTasks.slice(0, 50).map(({ id, title, status, dueAt, estimatedMinutes }) => ({ id, title, status, dueAt: dueAt?.toISOString() ?? null, estimatedMinutes: estimatedMinutes ?? null, overdue: dueAt ? dueAt < input.now : false })))}`,
         `Task context coverage: ${JSON.stringify({ total: input.openTasks.length, included: Math.min(input.openTasks.length, 50), truncated: input.openTasks.length > 50 })}. When truncated, use current task/rundown tools to answer about omitted work; never imply this is the entire plan.`,
         `Active goals: ${JSON.stringify(input.openGoals.slice(0, 25).map(({ id, title, status }) => ({ id, title, status })))}`,
@@ -407,6 +409,7 @@ export class AnthropicTaskIntentParser implements TaskIntentParser {
     } satisfies MessageCreateParamsNonStreaming;
     let actionResult: string | undefined;
     let validationRepairUsed = false;
+    let timeRepairUsed = false;
     const verifiedReports: string[] = [];
     const withVerifiedReports = (reply: string): string => [reply, ...verifiedReports.filter(report => !reply.includes(report))].filter(Boolean).join("\n\n");
     let searchFallbackUsed = false;
@@ -463,7 +466,7 @@ export class AnthropicTaskIntentParser implements TaskIntentParser {
       // Missing scheduling detail is a clarification, not an attempted write.
       // Keep explicit no-change requests on the normal authorization path.
       if (parsed.kind === "command" && /_reminders?$/.test(parsed.command.type) && !hasExplicitNoWriteRequest(input.message)) {
-        const issue = reminderTimeIssue(parsed.command as ReminderCommand, { ...input, inheritSchedule: !hasCurrentActionEvidence(parsed.command, input.message) });
+        const issue = reminderTimeIssue(schedulingCommand(parsed.command), { ...input, inheritSchedule: !hasCurrentActionEvidence(parsed.command, input.message) });
         if (issue === "What time would you like that reminder?") return {kind:"conversation",reply:issue};
       }
       if (parsed.kind === "command") {
@@ -471,13 +474,22 @@ export class AnthropicTaskIntentParser implements TaskIntentParser {
         if (denial) return { kind: "conversation", reply: actionResult ?? denial };
       }
       if (parsed.kind === "command" && /_reminders?$/.test(parsed.command.type)) {
-        const issue = reminderTimeIssue(parsed.command as ReminderCommand, { ...input, inheritSchedule: !hasCurrentActionEvidence(parsed.command, input.message) });
+        const issue = reminderTimeIssue(schedulingCommand(parsed.command), { ...input, inheritSchedule: !hasCurrentActionEvidence(parsed.command, input.message) });
         if (issue?.startsWith("Use create_reminders") && tool.id && !actionResult) {
           messages.push({ role: "assistant", content: response.content });
           messages.push({ role: "user", content: [{ type: "tool_result", tool_use_id: tool.id, is_error: true, content: "No action performed. " + issue }] });
           continue;
         }
-        if (issue) return { kind: "conversation", reply: actionResult ?? issue };
+        if (issue) {
+          if (!timeRepairUsed && !actionResult && tool.id) {
+            timeRepairUsed = true;
+            messages.push({ role: "assistant", content: response.content });
+            messages.push({ role: "user", content: [{ type: "tool_result", tool_use_id: tool.id, is_error: true,
+              content: `No change was made. ${issue} Repair the timestamp using current-message constraints: ${JSON.stringify(reminderScheduleConstraints(input))}. Retain the original subject and day/time from the linked clarification. Do not ask the user to repeat an unambiguous date. If the user's own constraints conflict or remain incomplete, ask one focused question.` }] });
+            continue;
+          }
+          return { kind: "conversation", reply: actionResult ?? issue };
+        }
       }
       if (parsed.kind === "command" && !hasCurrentActionEvidence(parsed.command, input.message)
         && !hasLinkedActionReference(parsed.command, input)) {
@@ -599,6 +611,7 @@ function taskPartOfDayClarification(command: CoachingCommand, message: string, t
 /** Ground an already-authorized action in one linked exchange, never a backlog.
  * This establishes the subject; TurnWritePolicy must grant permission first. */
 function hasLinkedActionReference(command: CoachingCommand, input: Parameters<TaskIntentParser["parse"]>[0]): boolean {
+  if (command.type === "capture_with_reminder") return hasLinkedActionReference({type: "create_reminder", text: command.title, remindAt: command.remindAt}, input);
   if (command.type === "create_reminders") return command.reminders.every(item => hasCurrentActionEvidence({ type: "create_reminder", ...item }, input.message) || hasLinkedActionReference({ type: "create_reminder", ...item }, input));
   const referenceReminder = reminderReference(input);
   if (command.type === "create_reminder" && referenceReminder && hasCurrentActionEvidence(command, referenceReminder.text)) return true;
@@ -659,6 +672,12 @@ function hasLinkedActionReference(command: CoachingCommand, input: Parameters<Ta
 }
 
 /** Payload grounding only. TurnWritePolicy separately establishes write authority. */
+function schedulingCommand(command: CoachingCommand): ReminderCommand {
+  return command.type === "capture_with_reminder"
+    ? {type: "create_reminder", text: command.title, remindAt: command.remindAt}
+    : command as ReminderCommand;
+}
+
 export function hasCurrentActionEvidence(command: CoachingCommand, message: string): boolean {
   if (command.type === "create_reminders") return command.reminders.every(item => hasCurrentActionEvidence({ type: "create_reminder", ...item }, message));
   if (command.type === "grocery_add") return command.items.every(title => hasCurrentActionEvidence({ type: "create_task", title }, message));
@@ -668,7 +687,7 @@ export function hasCurrentActionEvidence(command: CoachingCommand, message: stri
   const payload = command.type === "create_reminder" ? command.text
     : command.type === "life_save" ? command.data.title
     : command.type === "remember_memory" ? command.content
-    : command.type === "create_task" || command.type === "create_goal" ? command.title
+    : command.type === "create_task" || command.type === "create_goal" || command.type === "capture_with_reminder" ? command.title
     : null;
   if (!payload) return true;
   const stop = new Set(["the", "user", "said", "favorite", "food", "foods", "prefers", "likes", "that", "this", "with", "and", "for", "remind", "remember", "task", "goal", "please"]);
