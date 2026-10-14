@@ -1,4 +1,5 @@
 "use client";
+import { loopDialogTab } from "./dialog-keyboard";
 import { useEffect, useRef, useState } from "react";
 import { FiCamera, FiCheck, FiCoffee, FiSearch, FiX } from "react-icons/fi";
 import { foodProductSchema, scaleFood, type FoodProduct } from "@/server/domain/food";
@@ -78,7 +79,7 @@ export function FoodSearch({ date, preview, recent, onSave, onClose, onManual }:
     } catch (error) { stopCamera(); setMessage(error instanceof Error && error.name !== "NotAllowedError" ? error.message : "Camera permission was not granted. You can still enter or scan the barcode with a USB scanner."); }
   }
   const nutrients = selected && amount > 0 && amount <= 10000 ? scaleFood(selected, amount) : null;
-  return <dialog ref={dialog} className={`${s.dialog} ${s.foodDialog}`} onCancel={onClose}>
+  return <dialog onKeyDown={loopDialogTab} ref={dialog} className={`${s.dialog} ${s.foodDialog}`} onCancel={onClose}>
     <div className={s.between}><div><p className={s.eyebrow}>YOUR FOOD DIARY</p><h2>What’s on your plate?</h2></div><button className={s.iconButton} aria-label="Close food search" onClick={onClose}><FiX /></button></div>
     <div className={s.tabs}>{(["search", "barcode", "recent"] as const).map(tab => <button key={tab} aria-pressed={mode === tab} onClick={() => { stopCamera(); setMode(tab); setSelected(null); setQuery(""); setMessage(""); }}>{tab === "search" ? "Search foods" : tab === "barcode" ? "Scan barcode" : "Recent foods"}</button>)}</div>
     <div className={s.formFields}><label><span>Add to</span><select value={meal} onChange={e => setMeal(e.target.value as typeof meal)}>{["Breakfast", "Lunch", "Dinner", "Snack"].map(value => <option key={value}>{value}</option>)}</select></label></div>

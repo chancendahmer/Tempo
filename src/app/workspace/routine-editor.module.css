@@ -1,0 +1,56 @@
+.dialog { --ink: #251d35; --muted: #686172; --line: #ded6d0; box-sizing: border-box; width: min(740px, calc(100% - 32px)); max-height: calc(100dvh - 32px); margin: auto; padding: 0; border: 1px solid var(--line); border-radius: 18px; background: #fffdfa; color: var(--ink); box-shadow: 0 24px 100px #241b352b; overflow: hidden; }
+.dialog::backdrop { background: #221c354f; }
+.dialog .form { display: flex; flex-direction: column; max-height: calc(100dvh - 34px); }
+.dialog button, .dialog input { font: inherit; }
+.dialog button { cursor: pointer; }
+.dialog button:disabled, .dialog fieldset:disabled button { opacity: .45; cursor: default; }
+.dialog button:focus-visible, .dialog input:focus-visible { outline: 3px solid #68509b; outline-offset: 3px; }
+.dialog .header { padding: 24px 27px 20px; display: flex; gap: 16px; justify-content: space-between; border-bottom: 1px solid var(--line); flex-shrink: 0; }
+.dialog .header h2 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-weight: 500; font-size: 31px; line-height: 1.25; }
+.dialog .header p { margin: 7px 0 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
+.dialog .body { padding: 24px 27px; overflow-y: auto; overscroll-behavior: contain; }
+.dialog .fields { border: 0; margin: 0; padding: 0; min-width: 0; }
+.dialog .field { display: flex; flex-direction: column; gap: 7px; font-size: 13px; font-weight: 600; min-width: 0; }
+.dialog .field input { box-sizing: border-box; width: 100%; min-width: 0; min-height: 46px; padding: 11px 12px; color: var(--ink); border: 1px solid #a89dab; border-radius: 8px; background: white; font-size: 15px; font-weight: 400; }
+.dialog .field input::placeholder { color: #817886; }
+.dialog .field small { color: var(--muted); font-size: 11px; font-weight: 400; }
+.dialog .schedule { display: grid; grid-template-columns: minmax(0, 1fr) 175px; gap: 25px; margin-top: 22px; }
+.dialog .period { display: flex; align-items: flex-start; flex-wrap: wrap; gap: 7px; border: 0; padding: 0; margin: 0; min-width: 0; }
+.dialog .period legend { font-size: 13px; font-weight: 600; padding: 0; margin-bottom: 7px; }
+.dialog .period label { display: flex; align-items: center; justify-content: center; gap: 7px; padding: 11px; min-height: 46px; box-sizing: border-box; border: 1px solid var(--line); border-radius: 8px; color: var(--muted); cursor: pointer; font-size: 13px; }
+.dialog .period label[data-selected="true"] { background: #faeadd; border-color: #bd7756; color: #813a25; }
+.dialog .period input { width: 15px; height: 15px; margin: 0; accent-color: #ad452b; }
+.dialog .stepsHeading { display: flex; align-items: center; justify-content: space-between; gap: 15px; margin: 28px 0 14px; }
+.dialog .stepsHeading h3 { font-family: Georgia, "Times New Roman", serif; font-size: 23px; font-weight: 500; margin: 0; }
+.dialog .stepsHeading span { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; }
+.dialog .steps { padding: 0; margin: 0; list-style: none; }
+.dialog .step { display: grid; grid-template-columns: 25px minmax(0, 1fr); gap: 10px; padding: 15px; border: 1px solid #e5dcd4; background: #fbf7f0; border-radius: 10px; margin-bottom: 12px; }
+.dialog .number { display: grid; place-items: center; height: 25px; border-radius: 50%; margin-top: 31px; color: #8a4c2c; background: #f0deca; font-size: 12px; }
+.dialog .stepFields { display: grid; grid-template-columns: minmax(0, 1fr) 82px; gap: 12px; }
+.dialog .stepControls { grid-column: 2; display: flex; justify-content: flex-end; gap: 4px; }
+.dialog .iconButton, .dialog .removeButton { display: grid; place-items: center; width: 44px; height: 44px; flex-shrink: 0; padding: 0; background: transparent; color: #62586b; border: 1px solid transparent; border-radius: 8px; font-size: 18px; }
+.dialog .iconButton:hover:not(:disabled) { background: #ebe5f3; border-color: #d9cfe4; color: #514079; }
+.dialog .removeButton { color: #925037; }
+.dialog .removeButton:hover:not(:disabled) { background: #f8e5d9; border-color: #e4c6b4; }
+.dialog .addStep { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 46px; width: 100%; padding: 11px 15px; border: 1px dashed #a895b6; border-radius: 8px; background: #f5f0fa; color: #594572; font-weight: 600; font-size: 14px; }
+.dialog .emptySteps, .dialog .limit { color: var(--muted); font-size: 13px; margin: 14px 0; line-height: 1.6; }
+.dialog .error { padding: 13px 15px; margin: 0 0 20px; background: #fff1e9; color: #8d3c25; border: 1px solid #d9a086; border-radius: 8px; font-size: 14px; line-height: 1.5; }
+.dialog .footer { display: flex; justify-content: flex-end; gap: 10px; padding: 17px 27px; background: #fffdfa; border-top: 1px solid var(--line); flex-shrink: 0; }
+.dialog .cancelButton, .dialog .saveButton { min-height: 46px; padding: 11px 19px; border-radius: 8px; border: 1px solid var(--line); color: var(--ink); background: white; font-size: 14px; font-weight: 600; }
+.dialog .saveButton { background: #ad452b; color: white; border-color: #ad452b; }
+.dialog .saveButton:hover:not(:disabled) { background: #923a24; }
+@media (max-width: 560px) {
+  .dialog { width: calc(100% - 16px); max-height: calc(100dvh - 16px); border-radius: 13px; }
+  .dialog .form { max-height: calc(100dvh - 18px); }
+  .dialog .header { padding: 20px 17px 17px; }
+  .dialog .header h2 { font-size: 27px; }
+  .dialog .body { padding: 20px 17px; }
+  .dialog .schedule { grid-template-columns: 1fr; gap: 17px; }
+  .dialog .period label { flex: 1; }
+  .dialog .step { padding: 12px; gap: 7px; grid-template-columns: 20px minmax(0, 1fr); }
+  .dialog .stepFields { grid-template-columns: minmax(0, 1fr) 70px; gap: 8px; }
+  .dialog .field input { padding: 11px 9px; font-size: 16px; }
+  .dialog .number { width: 20px; height: 20px; font-size: 10px; }
+  .dialog .footer { padding: 15px 17px; }
+  .dialog .saveButton { flex: 1; }
+}
