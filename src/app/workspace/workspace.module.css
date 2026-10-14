@@ -647,3 +647,19 @@
   .sectionHeading h2{font-size:24px;}
   .weekStrip{margin-bottom:16px;}
 }
+/* Direct destinations: grouped for scanning, without an extra landing page. */
+.sidebar { padding:24px 12px 16px; overflow:hidden; }
+.sidebar nav { flex:1; }
+.sidebarBottom { padding:12px 8px 0; flex-shrink:0; border-top:1px solid var(--line); }
+.sidebarBottom>.textButton { min-height:36px; padding:5px 0; }
+.app[data-section=recipes] { --section-ink:#785513; --section-tint:#fbefc9; --section-line:#dcc784; }
+.app[data-section=groceries] { --section-ink:#416b48; --section-tint:#e8f1e2; --section-line:#b5cda9; }
+.app[data-section=goals] { --section-ink:#416b48; --section-tint:#e8f1e2; --section-line:#b5cda9; }
+.app[data-section=wake] { --section-ink:#67498a; --section-tint:#eee6f8; --section-line:#cab6e3; }
+.navigationClose { display:none; }
+@media(max-width:760px) {
+  .sidebar { width:min(360px,calc(100vw - 24px)); padding:20px 12px 12px; visibility:hidden; }
+  .sidebarOpen { visibility:visible; }
+  .navigationClose { display:inline-flex; position:absolute; right:12px; top:16px; }
+  .sidebarBottom { padding-top:8px; }
+}

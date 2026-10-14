@@ -66,3 +66,18 @@ The final source/final-screenshot comparison found no remaining actionable P0/P1
 ## Follow-up polish
 
 P3: test secondary-label readability at the actual wall-monitor viewing distance; recruit people with different sensory and executive-function preferences; consider a user-controlled larger-text density. These require real-user/device evidence rather than another simulated score.
+
+
+## Navigation and goal-card refinement — 2026-10-14
+
+**final result: passed** for this scoped UI refinement.
+
+User requested clearer functional groups, fewer navigation clicks, visible unselected tab colors, To-do naming, Brain dump, and illustrated goal headers. The prior four-destination sidebar is intentionally superseded by Today/Ask Tempo plus four visible directory groups: Planner, Daily rhythm, Food & fitness, Brain dump. Food log, recipes, groceries, and meals are direct destinations rather than nested meal tabs. Existing backend identifiers and hashes remain supported.
+
+Evidence: `qa/calm-ui/44-navigation-goals.jpg` (desktop) and `45-mobile-navigation.jpg` (390 × 844 CSS viewport menu). The supplied goal-card reference (`C:/Users/chanc/AppData/Local/Temp/codex-clipboard-be35f3b9-9dee-4b6b-bc8e-95a14833c3dd.png`) and screenshot 44 were opened together for comparison. This is an adaptation of its illustrated header idea, not an exact whole-screen recreation: the reference is a cropped single card, and the implementation contains fictional preview goals and the new navigation. The hills, path, flag, separate readable goal title, progress, and next-step hierarchy are preserved. Typography/colors intentionally follow the selected warm workspace theme.
+
+Desktop all 15 main destinations were opened and their URL/heading checked. Browser Back returned to the previous section. New grocery and recipe direct views retained their forms: created and checked Oats; saved Overnight oats; planned it into Breakfast and verified the resulting meal. Phone menu showed all groups; Shift+Tab/Tab wrap, Escape close, focus restoration, and hidden-background inertness were verified. No viewport overflow at 390 CSS pixels. Independent agent inspection of code and both screenshots: 8.4/10, no blocking issues. Short desktop screens still need sidebar scrolling; all goals currently share one illustration. Those are follow-up polish, not reasons to hide destinations again.
+
+Asset: `public/images/goal-path.png`, generated with the built-in ImageGen tool and copied into the repository. Final prompt: “Use case: stylized-concept. Create one production UI illustration asset, a wide 3:1 banner, 1536 by 512. It will be the background header of a goal card in Tempo, a warm ivory productivity app. Calm, refined flat editorial landscape: three softly rolling sage-green hills, a short winding path made from ivory stepping stones rising from the bottom center toward a small simple dark sage outline flag on a hill in the right half. Flat solid muted sage tones, pale warm cream sky. Minimal elegant shapes, no texture, no gradients, no shadow, no people, no lettering, no app UI, no border. Keep the upper quarter almost empty so real UI labels can sit there. Landscape and path fill lower two thirds. Image should feel quietly optimistic and polished, not like children's clipart. Banner proportions are important; one standalone illustration, not a grid or mockup.” Generated output is 2172 × 724; the UI uses Next Image responsive sizing.
+
+No live providers or real account data were used. Handwriting input and workout-program scheduling were deliberately deferred. The navigation reflects capabilities that exist today.

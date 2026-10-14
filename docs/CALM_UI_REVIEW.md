@@ -4,12 +4,14 @@
 
 ## What changed
 
-The workspace and room board now share the selected warm ivory/orange visual direction. Four primary destinations organize all existing sections:
+The workspace and room board now share the selected warm ivory/orange visual direction. Today and Ask Tempo remain direct destinations. Four visible groups organize the rest, with one-click links on desktop and a compact two-column phone menu:
 
-- **Today:** account-local timeline, current action, routine/to-do checklist, persistent focus, and composer.
-- **Plan:** tasks, long-term goals, Calendar, routines, reminders, sunrise/sunset.
-- **Library:** meals, recipes, groceries, nutrition, fitness, thoughts, saved memories.
-- **Ask Tempo:** the existing account conversation, with shortcuts that prepare editable requests.
+- **Planner:** To-do, Calendar, Goals, Reminders.
+- **Daily rhythm:** Routines, Sunrise & sunset.
+- **Food & fitness:** Meal plan, Recipes, Groceries, Food log, Fitness.
+- **Brain dump:** Thoughts, Memories.
+
+Section pills keep their individual color before selection, with a stronger border/underline for the current page. Recipe and grocery views now have their own hashes; previous links remain valid. Goal cards regain illustrated landscape headers. Handwriting and structured workout programs are deferred, not represented as working features.
 
 Account settings and an optional tour sit at the bottom of navigation. Login/profile/extensions use a matching shell. Original backend APIs, action validation, confirmation gates, provider adapters, and durable state remain unchanged.
 
@@ -25,11 +27,12 @@ Preview uses fictional in-memory records, resets on reload, and makes no AI, SMS
 
 - `design-qa.md`: reference comparison, fix history, implementation boundaries.
 - `qa/calm-ui/customer-review.md`: independent customer-style review and all 19 section scores.
-- `qa/calm-ui/43-final-today.jpg`: final desktop overview.
+- `qa/calm-ui/43-final-today.jpg`: original iteration desktop overview.
+- `qa/calm-ui/44-navigation-goals.jpg` and `45-mobile-navigation.jpg`: latest navigation and goal cards.
 - `qa/calm-ui/39-mobile-routine-editor.jpg`: phone routine editor.
 - `qa/calm-ui/browser-console-final.json`: fresh browser warnings/errors, empty.
 
-Independent UI/preview score: **8.2/10** overall; sections **8.1–8.4**. This is not a commercial-readiness score.
+Initial independent UI/preview score: **8.2/10** overall; sections **8.1–8.4**. The subsequent navigation/goal-card review scored **8.4/10**, based on code and screenshots; see `qa/calm-ui/navigation-review.md`. Neither is a commercial-readiness score.
 
 ## Actual validation
 

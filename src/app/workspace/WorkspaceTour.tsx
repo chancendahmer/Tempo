@@ -6,8 +6,8 @@ import s from "./workspace.module.css";
 
 const steps = [
   { title: "Start with today", body: "See what’s next, check off a routine step, or give one task a few focused minutes.", icon: FiSun, destination: "today", action: "Go to Today" },
-  { title: "Make room for your plans", body: "Calendar, tasks, goals, routines, and reminders live in Plan. You can change a plan whenever you need.", icon: FiCalendar, destination: "tasks", action: "Open Plan" },
-  { title: "Keep it all in one place", body: "Library holds meals, groceries, nutrition, fitness, and thoughts you want to come back to.", icon: FiBookOpen, destination: "meals", action: "Open Library" },
+  { title: "Make room for your plans", body: "To-do, Calendar, Goals, and Reminders live in Planner. Daily rhythm holds your routines and sunrise or sunset sessions.", icon: FiCalendar, destination: "tasks", action: "Open Planner" },
+  { title: "Keep it all in one place", body: "Food & fitness holds meals, groceries, your food log, and workouts. Brain dump keeps your thoughts and saved memories together.", icon: FiBookOpen, destination: "meals", action: "Open Food & fitness" },
   { title: "You can just ask", body: "Text Tempo or use the message box. Ask for a task, a change of plan, or help getting started. Check-ins are always your choice.", icon: FiMessageCircle, destination: "assistant", action: "Ask Tempo" },
 ] as const;
 export function WorkspaceTour({ onClose, onGo }: { onClose: () => void; onGo: (value: "today" | "tasks" | "meals" | "assistant") => void }) {

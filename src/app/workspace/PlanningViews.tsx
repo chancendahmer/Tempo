@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { useState } from "react";
 import { FiArrowUpRight, FiCheck, FiCheckCircle, FiClock, FiEdit2, FiFlag, FiInbox, FiPlus, FiPlay, FiSun, FiTarget, FiTrash2 } from "react-icons/fi";
 import { localDay } from "../../server/domain/life-items";
@@ -35,10 +36,10 @@ export function TasksView({ data, today, saving, edit, start, complete, remove }
 
   return <div className={s.planning}>
     <div className={s.toolbar}>
-      <div className={s.tabs} role="group" aria-label="Task view">
+      <div className={s.tabs} role="group" aria-label="To-do view">
         {(["All", "Today", "Next 7 days", "Done"] as const).map(option => <button key={option} aria-pressed={view === option} onClick={() => setView(option)}>{option}</button>)}
       </div>
-      <button className={s.addButton} disabled={saving} onClick={() => edit()}><FiPlus aria-hidden="true" /> Add task</button>
+      <button className={s.addButton} disabled={saving} onClick={() => edit()}><FiPlus aria-hidden="true" /> Add to-do</button>
     </div>
     <div className={s.listSummary} aria-live="polite"><span>{shown.length} {view === "Done" ? "completed" : "open"} {shown.length === 1 ? "task" : "tasks"}</span><span>Tap a task to edit it</span></div>
     {groups.filter(group => group.tasks.length).map(group => <section className={s.taskGroup} data-tone={group.tone} key={group.label} aria-label={group.label}>
@@ -62,8 +63,8 @@ export function TasksView({ data, today, saving, edit, start, complete, remove }
       <h2>{view === "Done" ? "Your completed tasks go here" : view === "All" ? "Start with one small task" : view === "Today" ? "Nothing due today" : "Nothing due this week"}</h2>
       <p>{view === "Done" ? "Check off a task when it’s finished." : view === "All" ? "Add it here or send Tempo a text." : "Add a task, or look at the rest of your list."}</p>
       <div className={s.emptyActions}>
-        {view !== "Done" && <button className={s.addButton} disabled={saving} onClick={() => edit()}><FiPlus aria-hidden="true" /> Add task</button>}
-        {view !== "All" && <button className={s.textButton} onClick={() => setView("All")}>View all tasks <FiArrowUpRight aria-hidden="true" /></button>}
+        {view !== "Done" && <button className={s.addButton} disabled={saving} onClick={() => edit()}><FiPlus aria-hidden="true" /> Add to-do</button>}
+        {view !== "All" && <button className={s.textButton} onClick={() => setView("All")}>View all to-dos <FiArrowUpRight aria-hidden="true" /></button>}
       </div>
     </div>}
     {view !== "All" && view !== "Done" && undated.length > 0 && <button className={s.unscheduled} onClick={() => setView("All")}><FiInbox aria-hidden="true" />{undated.length} {undated.length === 1 ? "task has" : "tasks have"} no date yet<span>View all <FiArrowUpRight aria-hidden="true" /></span></button>}
@@ -96,6 +97,7 @@ export function GoalsView({ data, saving, edit, addStep, editStep, achieve, remo
 
       return <article className={s.goal} data-tone={tone} key={goal.id}>
         <div className={s.goalHeader}>
+          <Image className={s.goalLandscape} src="/images/goal-path.png" alt="" fill sizes="(max-width: 760px) 100vw, (min-width: 1600px) 33vw, 50vw" />
           <span className={s.goalIcon} aria-hidden="true">{completed ? <FiCheckCircle /> : <FiFlag />}</span>
           <span className={s.goalLabel}>{completed ? "Achieved" : "Long-term goal"}</span>
           <button className={s.editGoal} disabled={saving} aria-label={`Edit ${goal.title}`} onClick={() => edit(goal)}><FiEdit2 aria-hidden="true" /><span>Edit</span></button>
