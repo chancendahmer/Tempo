@@ -25,7 +25,7 @@ export function todayModel(data: Workspace, now: Date) {
   const events: TodayEvent[] = [
     ...tasks.filter(t => t.dueAt && localDay(new Date(t.dueAt), data.timezone) === day).map(t => ({ id: t.id, at: t.dueAt!, title: t.title, detail: `${t.estimatedMinutes ?? 25} min`, kind: "task" as const, ongoing: false })),
     ...data.reminders.filter(r => ["scheduled", "sending"].includes(r.status) && localDay(new Date(r.remindAt), data.timezone) === day).map(r => ({ id: r.id, at: r.remindAt, title: r.text, detail: "Reminder", kind: "reminder" as const, ongoing: false })),
-    ...data.busy.filter(b => localDay(new Date(b.startsAt), data.timezone) <= day && localDay(new Date(b.endsAt), data.timezone) >= day).map(b => ({ id: b.id, at: b.startsAt, endsAt: b.endsAt, title: "Calendar time", detail: "Open Calendar for event details", kind: "calendar" as const, ongoing: Date.parse(b.startsAt) <= now.getTime() && Date.parse(b.endsAt) > now.getTime() })),
+    ...data.busy.filter(b => localDay(new Date(b.startsAt), data.timezone) <= day && localDay(new Date(b.endsAt), data.timezone) >= day).map(b => ({ id: b.id, at: b.startsAt, endsAt: b.endsAt, title: data.demoCalendarEvents?.find(event => event.id === b.id)?.title ?? "Calendar time", detail: "Open Calendar for event details", kind: "calendar" as const, ongoing: Date.parse(b.startsAt) <= now.getTime() && Date.parse(b.endsAt) > now.getTime() })),
   ].sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
   return { day, routine, activeRoutine, nextTask, tasks, events, focus };
 }

@@ -663,3 +663,6 @@
   .navigationClose { display:inline-flex; position:absolute; right:12px; top:16px; }
   .sidebarBottom { padding-top:8px; }
 }
+
+/* Expanded recipe instructions should not stretch the neighboring card. */
+.recipeGrid { align-items:start; }
