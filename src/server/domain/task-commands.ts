@@ -27,6 +27,10 @@ export const taskCommandSchema = z
       ...taskReference,
     }),
     z.object({
+      type: z.literal("reopen_task"),
+      ...taskReference,
+    }),
+    z.object({
       type: z.literal("abandon_task"),
       ...taskReference,
     }),
@@ -102,6 +106,9 @@ export function parseTaskCommandHeuristically(text: string, _reference = new Dat
 
   const complete = trimmed.match(/^(?:i(?:'m|\s+am)?\s+)?(?:done\s+with|finished|completed)\s+(.+)$/i);
   if (complete) return taskCommandSchema.parse({ type: "complete_task", taskQuery: cleanReference(complete[1]) });
+
+  const reopen = trimmed.match(/^reopen\s+(.+)$/i);
+  if (reopen) return taskCommandSchema.parse({ type: "reopen_task", taskQuery: cleanReference(reopen[1]) });
 
   const start = trimmed.match(/^(?:start|begin|i(?:'m|\s+am)\s+starting)\s+(.+)$/i);
   if (start) return taskCommandSchema.parse({ type: "start_task", taskQuery: cleanReference(start[1]) });

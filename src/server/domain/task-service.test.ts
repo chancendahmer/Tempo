@@ -81,6 +81,16 @@ describe("task service", () => {
     );
   });
 
+  it("reopens a completed task without replacing its title, effort or deadline", async () => {
+    const completed = { ...task("1", "Finish Q3 report"), status: "completed" as const, dueAt: new Date("2026-08-19T12:00:00Z"), estimatedMinutes: 30 };
+    const store = repository([completed]);
+    const result = await executeTaskCommand(store, { type: "reopen_task", taskId: "1" }, context);
+    expect(store.list).toHaveBeenCalledWith(context.userId, "completed");
+    expect(store.listForResolution).not.toHaveBeenCalled();
+    expect(store.mutate).toHaveBeenCalledWith(expect.objectContaining({ expectedStatus: "completed", eventType: "updated", changes: { status: "not_started", startedAt: null, completedAt: null, abandonedAt: null } }));
+    expect(result).toMatchObject({ kind: "executed", task: { ...completed, status: "not_started" } });
+  });
+
   it("resolves a pending choice by number or unique title", () => {
     const pending: PendingTaskAction = {
       command: { type: "complete_task", taskQuery: "Q3" },

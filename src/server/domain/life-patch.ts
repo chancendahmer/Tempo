@@ -15,10 +15,13 @@ export const lifePatchSchema = z.discriminatedUnion("kind", [
   lifeItemSchema.options[1].omit({ steps: true }).partial().extend({ kind: z.literal("routine"), stepChanges: z.array(stepChangeSchema).min(1).max(30).optional() }).strict(),
   lifeItemSchema.options[2].partial().extend({ kind: z.literal("food") }).strict(),
   lifeItemSchema.options[3].partial().extend({ kind: z.literal("recipe") }).strict(),
-  lifeItemSchema.options[4].partial().extend({ kind: z.literal("meal") }).strict(),
+  lifeItemSchema.options[4].omit({ ingredientServings: true }).partial().extend({ kind: z.literal("meal") }).strict(),
   lifeItemSchema.options[5].partial().extend({ kind: z.literal("workout") }).strict(),
   lifeItemSchema.options[6].partial().extend({ kind: z.literal("note") }).strict(),
-  lifeItemSchema.options[7].partial().extend({ kind: z.literal("grocery") }).strict(),
+  lifeItemSchema.options[7].omit({ mealSources: true }).partial().extend({ kind: z.literal("grocery") }).strict(),
+  lifeItemSchema.options[8].partial().extend({ kind: z.literal("pantry") }).strict(),
+  lifeItemSchema.options[9].partial().extend({ kind: z.literal("workout_plan") }).strict(),
+  lifeItemSchema.options[10].partial().extend({ kind: z.literal("nutrition_target") }).strict(),
 ]).refine(value => Object.keys(value).some(key => key !== "kind"), "Specify at least one changed field");
 export type LifePatch = z.infer<typeof lifePatchSchema>;
 

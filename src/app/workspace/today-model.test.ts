@@ -12,6 +12,7 @@ function renderToday(data: ReturnType<typeof previewWorkspace>, now: Date) {
 function fixture() {
   const data = previewWorkspace();
   data.timezone = "America/New_York";
+  data.calendar = { status: "active", lastSyncedAt: null };
   data.tasks = [
     { ...data.tasks[0], id: "tomorrow", dueAt: "2026-10-15T14:00:00Z" },
     { ...data.tasks[0], id: "today", dueAt: "2026-10-14T15:00:00Z" },

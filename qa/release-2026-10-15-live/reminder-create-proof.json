@@ -1,0 +1,105 @@
+{
+  "passed": true,
+  "mode": "real-postgres-pg-boss-live-model-web-only",
+  "messageId": "5006f07d-b140-4fde-8331-9e80a29f4521",
+  "userId": "85ffcfc2-4e73-4ddd-8772-888ce8cb1caf",
+  "actionId": "617b28f8-ba72-43b5-800d-93268c14e431",
+  "queueSchema": "pgboss_web_qa",
+  "queue": "qa-web-5006f07d-b140-4fde-8331-9e80a29f4521",
+  "parserCalls": 1,
+  "tools": [
+    "create_reminders"
+  ],
+  "reminderProof": {
+    "text": "QA stretch break",
+    "count": 2,
+    "timezone": "America/New_York",
+    "expectedHours": [
+      14,
+      17
+    ],
+    "expectedDate": "2026-10-16",
+    "identityPreserved": false,
+    "beforeReminders": [],
+    "reminders": [
+      {
+        "id": "0a6d1855-57ba-44ef-9748-f1fe31593b04",
+        "text": "QA stretch break",
+        "remindAt": "2026-10-16T21:00:00.000Z",
+        "timezone": "America/New_York",
+        "status": "scheduled",
+        "sourceMessageId": "5006f07d-b140-4fde-8331-9e80a29f4521",
+        "recurrence": null,
+        "provider": null,
+        "providerMessageSid": null,
+        "sentAt": null
+      },
+      {
+        "id": "f7266edd-cc3a-488c-b877-e24af4677660",
+        "text": "QA stretch break",
+        "remindAt": "2026-10-16T18:00:00.000Z",
+        "timezone": "America/New_York",
+        "status": "scheduled",
+        "sourceMessageId": "5006f07d-b140-4fde-8331-9e80a29f4521",
+        "recurrence": null,
+        "provider": null,
+        "providerMessageSid": null,
+        "sentAt": null
+      }
+    ],
+    "localTimes": [
+      {
+        "id": "f7266edd-cc3a-488c-b877-e24af4677660",
+        "date": "2026-10-16",
+        "hour": 14,
+        "minute": 0,
+        "second": 0
+      },
+      {
+        "id": "0a6d1855-57ba-44ef-9748-f1fe31593b04",
+        "date": "2026-10-16",
+        "hour": 17,
+        "minute": 0,
+        "second": 0
+      }
+    ],
+    "actions": [
+      {
+        "id": "a81f4fee-0521-4742-9aaf-feafc6d4709e",
+        "reminderId": "f7266edd-cc3a-488c-b877-e24af4677660",
+        "status": "scheduled",
+        "runAt": "2026-10-16T18:00:00.000Z",
+        "payload": {
+          "reminderId": "f7266edd-cc3a-488c-b877-e24af4677660",
+          "occurrenceAt": "2026-10-16T18:00:00.000Z"
+        },
+        "queueJobId": null,
+        "attempts": 0
+      },
+      {
+        "id": "f892b8bc-e815-4f72-9cde-b3b4d12cadd5",
+        "reminderId": "0a6d1855-57ba-44ef-9748-f1fe31593b04",
+        "status": "scheduled",
+        "runAt": "2026-10-16T21:00:00.000Z",
+        "payload": {
+          "reminderId": "0a6d1855-57ba-44ef-9748-f1fe31593b04",
+          "occurrenceAt": "2026-10-16T21:00:00.000Z"
+        },
+        "queueJobId": null,
+        "attempts": 0
+      }
+    ]
+  },
+  "reply": {
+    "id": "7165ce31-0eb9-414a-951b-0d1aca4cacee",
+    "body": "Reminders set:\nFri, Oct 16, 2:00 PM EDT — QA stretch break\nFri, Oct 16, 5:00 PM EDT — QA stretch break"
+  },
+  "sourceStatus": "processed",
+  "actionStatus": "completed",
+  "budget": {
+    "spent": 4.990613999999999,
+    "committed": 5.173898999999999,
+    "stopped": false,
+    "cap": 7
+  }
+}

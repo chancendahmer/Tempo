@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { RoutineEditor, buildRoutineDraft, type RoutineDraft } from "./RoutineEditor";
+import { RoutineEditor, buildRoutineDraft, createRoutineStepIds, type RoutineDraft } from "./RoutineEditor";
 import type { SavedLifeItem } from "../../server/domain/life-items";
+import { WorkspaceMutationAttempts } from "./workspace-mutation-attempts";
 
 const first = "00000000-0000-4000-8000-000000000001";
 const second = "00000000-0000-4000-8000-000000000002";
@@ -33,6 +34,43 @@ describe("routine conflict recovery", () => {
 });
 
 describe("routine editor draft", () => {
+  it("reuses the create operation after an unknown result with stable new-step IDs", () => {
+    let count = 10;
+    const newId = () => `00000000-0000-4000-8000-${String(++count).padStart(12, "0")}`;
+    const stepIds = createRoutineStepIds(newId);
+    const value = draft();
+    const attempts = new WorkspaceMutationAttempts();
+    const original = attempts.begin({ action: "save", id: newId(), version: 0, data: buildRoutineDraft(value, undefined, stepIds) });
+    attempts.settle(original, 503); // The server may have committed before its response was lost.
+    const retry = attempts.begin({ action: "save", id: newId(), version: 0, data: buildRoutineDraft(structuredClone(value), undefined, stepIds) });
+    expect(retry).toBe(original);
+    expect(attempts.pendingCount).toBe(1);
+
+    attempts.settle(retry, 200);
+    const freshEditor = buildRoutineDraft(value, undefined, createRoutineStepIds(newId));
+    const intentional = attempts.begin({ action: "save", id: newId(), version: 0, data: freshEditor });
+    expect(intentional).not.toBe(original);
+    const saved = original.action.action === "save" && original.action.data.kind === "routine" ? original.action.data : null;
+    expect(freshEditor.steps.map(step => step.id)).not.toEqual(saved?.steps.map(step => step.id));
+  });
+
+  it("retains generated IDs for renamed and added steps across retries and reorders", () => {
+    let count = 2;
+    const stepIds = createRoutineStepIds(() => `00000000-0000-4000-8000-${String(++count).padStart(12, "0")}`);
+    const value = draft();
+    value.steps[0].title = "Open curtains";
+    value.steps.push({ key: "new", title: "Pack bag", minutes: "3" });
+    const firstSave = buildRoutineDraft(value, item, stepIds);
+    expect(buildRoutineDraft(structuredClone(value), item, stepIds)).toEqual(firstSave);
+    value.steps.reverse();
+    value.steps[0].minutes = "5";
+    const reordered = buildRoutineDraft(value, item, stepIds);
+    expect(reordered.steps.map(step => step.id)).toEqual(firstSave.steps.map(step => step.id).reverse());
+    expect(reordered.steps[2].completedOn).toBeNull();
+    value.steps[2].title = "Make the bed";
+    expect(buildRoutineDraft(value, item, stepIds).steps[2].id).not.toBe(firstSave.steps[0].id);
+  });
+
   it("preserves identities and completion history after reordering and duration edits", () => {
     const value = draft();
     value.steps.reverse();

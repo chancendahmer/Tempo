@@ -11,7 +11,7 @@ import { mutateWorkspace, readWorkspace } from "./workspace-repository";
 import { LifeAssistant } from "./life-assistant";
 import { WebReplySender, isWebMessage } from "./web-reply-repository";
 import { DrizzleConversationHistoryRepository } from "./conversation-history-repository";
-import { lifeItemSchema, type LifeItem } from "../../domain/life-items";
+import { lifeItemSchema, localDay, type LifeItem } from "../../domain/life-items";
 
 describe("shared life workspace", () => {
   let client: PGlite, db: TempoDatabase, owner: string, other: string;
@@ -24,6 +24,100 @@ describe("shared life workspace", () => {
   }, 30000);
   afterAll(async () => client.close());
   const recipe: LifeItem = { kind: "recipe", title: "Lemon rice", ingredients: "Rice\nLemon", instructions: "Cook rice, add lemon.", servings: 2, prepMinutes: 20, favorite: true };
+
+  it("retains durable settings independently of diary growth and loads the complete requested old day", async () => {
+    const [reader, neighbor] = await db.insert(schema.users).values([{ phoneE164: "+12025550644" }, { phoneE164: "+12025550645" }]).returning();
+    const old = new Date("2020-01-01T00:00:00Z"), recent = new Date("2026-10-01T00:00:00Z");
+    const food = { kind: "food" as const, title: "Oats", date: "2020-01-01", meal: "Breakfast" as const, calories: 120, protein: 4, carbs: null, fat: null, fiber: null };
+    const oldFoods = [randomUUID(), randomUUID()], oldWorkout = randomUUID(), routine = randomUUID(), target = randomUUID();
+    const diaryRows: (typeof schema.lifeItems.$inferInsert)[] = [
+      { id: routine, userId: reader.id, createdAt: old, data: { kind: "routine", title: "Morning", period: "morning", time: "08:00", steps: [{ id: randomUUID(), title: "Water", minutes: 2, completedOn: null }] } },
+      { id: target, userId: reader.id, createdAt: old, data: { kind: "nutrition_target", title: "My targets", calories: null, protein: 90, carbs: null, fat: null, fiber: null } },
+      ...oldFoods.map(id => ({ id, userId: reader.id, createdAt: old, data: food })),
+      { id: oldWorkout, userId: reader.id, createdAt: old, data: { kind: "workout", title: "Walk", date: food.date, minutes: 20, activity: "Walk" } },
+      ...Array.from({ length: 1000 }, (_, n) => ({ id: randomUUID(), userId: reader.id, createdAt: recent, data: { ...food, title: `Recent oats ${n}`, date: "2026-10-01" } })),
+      ...Array.from({ length: 501 }, (_, n) => ({ id: randomUUID(), userId: reader.id, createdAt: recent, data: { kind: "workout" as const, title: `Recent walk ${n}`, date: "2026-10-01", minutes: 10, activity: "Walk" as const } })),
+      { id: randomUUID(), userId: neighbor.id, createdAt: old, data: { ...food, title: "Foreign food" } },
+    ];
+    await db.insert(schema.lifeItems).values(diaryRows);
+    const history = await readWorkspace(reader.id, db, { diaryDate: "1999-01-01" });
+    expect(history.items.map(row => row.id)).toEqual(expect.arrayContaining([routine, target]));
+    expect(history.items.some(row => oldFoods.some(id => id === row.id) || row.id === oldWorkout)).toBe(false);
+    expect(history.itemsTruncated).toBe(true);
+    expect(history.itemCoverage.food).toEqual({ included: 500, total: 1002, limit: 1500, truncated: true });
+    expect(history.itemCoverage.workout).toEqual({ included: 500, total: 502, limit: 1500, truncated: true });
+    expect(history.diaryCoverage?.date).toBe("1999-01-01");
+    const selected = await readWorkspace(reader.id, db, { diaryDate: food.date });
+    expect(selected.items.map(row => row.id)).toEqual(expect.arrayContaining([routine, target, oldWorkout, ...oldFoods]));
+    expect(selected.items.filter(row => row.data.kind === "food" && row.data.date === food.date).reduce((sum, row) => sum + (row.data.kind === "food" ? row.data.calories ?? 0 : 0), 0)).toBe(240);
+    expect(selected.itemCoverage.food).toEqual({ included: 502, total: 1002, limit: 1500, truncated: true });
+    expect(selected.diaryCoverage).toEqual({ date: food.date, food: { included: 2, total: 2, limit: 1000, truncated: false }, workout: { included: 1, total: 1, limit: 1000, truncated: false } });
+    expect(JSON.stringify(selected)).not.toContain("Foreign food");
+    await expect(readWorkspace(reader.id, db, { diaryDate: "2026-02-30" })).rejects.toThrow();
+  });
+
+  it("reports the exact partial-day boundary independently of other diary history", async () => {
+    const [reader] = await db.insert(schema.users).values({ phoneE164: "+12025550646" }).returning();
+    const food = { kind: "food" as const, title: "Diary entry", date: "2020-02-01", meal: "Snack" as const, calories: 1, protein: null, carbs: null, fat: null, fiber: null };
+    await db.insert(schema.lifeItems).values([
+      ...Array.from({ length: 1001 }, () => ({ id: randomUUID(), userId: reader.id, data: food })),
+      { id: randomUUID(), userId: reader.id, data: { ...food, date: "2026-10-01" } },
+    ]);
+    const result = await readWorkspace(reader.id, db, { diaryDate: food.date });
+    expect(result.items.filter(row => row.data.kind === "food" && row.data.date === food.date)).toHaveLength(1000);
+    expect(result.itemCoverage.food).toEqual({ included: 1001, total: 1002, limit: 1500, truncated: true });
+    expect(result.diaryCoverage).toEqual({ date: food.date, food: { included: 1000, total: 1001, limit: 1000, truncated: true }, workout: { included: 0, total: 0, limit: 1000, truncated: false } });
+    const empty = await readWorkspace(reader.id, db, { diaryDate: "1999-01-01" });
+    expect(empty.diaryCoverage?.food).toEqual({ included: 0, total: 0, limit: 1000, truncated: false });
+  });
+
+  it("defaults an undated read to account-local today, keeping its diary complete or explicitly partial", async () => {
+    const now = new Date(), utcDay = localDay(now, "UTC");
+    const timezone = localDay(now, "Pacific/Kiritimati") !== utcDay ? "Pacific/Kiritimati" : "Etc/GMT+12";
+    const today = localDay(now, timezone);
+    expect(today).not.toBe(utcDay);
+    const [person] = await db.insert(schema.users).values({ phoneE164: "+12025550650", timezone }).returning();
+    const food = { kind: "food" as const, title: "Today's older logged meal", date: today, meal: "Snack" as const, calories: 1, protein: null, carbs: null, fat: null, fiber: null };
+    await db.insert(schema.lifeItems).values([
+      ...Array.from({ length: 600 }, () => ({ id: randomUUID(), userId: person.id, createdAt: new Date("2020-01-01T00:00:00Z"), data: food })),
+      ...Array.from({ length: 1001 }, () => ({ id: randomUUID(), userId: person.id, createdAt: now, data: { ...food, date: "1999-01-01" } })),
+      { id: randomUUID(), userId: person.id, data: { kind: "workout", title: "Today's walk", date: today, minutes: 10, activity: "Walk" } },
+    ]);
+    const complete = await readWorkspace(person.id, db);
+    expect(complete.diaryCoverage).toEqual({ date: today, food: { included: 600, total: 600, limit: 1000, truncated: false }, workout: { included: 1, total: 1, limit: 1000, truncated: false } });
+    expect(complete.items.filter(row => row.data.kind === "food" && row.data.date === today)).toHaveLength(600);
+    expect(complete.itemCoverage.food).toMatchObject({ total: 1601, included: 1100, truncated: true });
+    await db.insert(schema.lifeItems).values(Array.from({ length: 401 }, () => ({ id: randomUUID(), userId: person.id, data: food })));
+    const partial = await readWorkspace(person.id, db);
+    expect(partial.diaryCoverage?.food).toEqual({ included: 1000, total: 1001, limit: 1000, truncated: true });
+    expect(partial.items.filter(row => row.data.kind === "food" && row.data.date === today)).toHaveLength(1000);
+    expect(partial.itemsTruncated).toBe(true);
+  });
+
+  it("keeps active records ahead of bounded completed history and reports truncation", async () => {
+    const [person] = await db.insert(schema.users).values({ phoneE164: "+12025550643" }).returning();
+    const completed = new Date("2020-01-01T00:00:00Z"), upcoming = new Date("2030-01-01T12:00:00Z");
+    await db.insert(schema.tasks).values([
+      ...Array.from({ length: 205 }, (_, index) => ({ userId: person.id, title: `Completed ${index}`, status: "completed" as const, dueAt: completed, updatedAt: completed })),
+      { userId: person.id, title: "Still to do", status: "not_started", dueAt: upcoming },
+    ]);
+    await db.insert(schema.goals).values([
+      ...Array.from({ length: 105 }, (_, index) => ({ userId: person.id, title: `Old goal ${index}`, status: "completed" as const })),
+      { userId: person.id, title: "Current goal", status: "active" },
+    ]);
+    await db.insert(schema.reminders).values([
+      ...Array.from({ length: 205 }, (_, index) => ({ userId: person.id, text: `Sent ${index}`, status: "sent" as const, remindAt: completed, timezone: "UTC", idempotencyKey: `workspace-history:${person.id}:${index}` })),
+      { userId: person.id, text: "Upcoming reminder", status: "scheduled", remindAt: upcoming, timezone: "UTC", idempotencyKey: `workspace-upcoming:${person.id}` },
+    ]);
+    const workspace = await readWorkspace(person.id, db);
+    expect(workspace.tasks).toHaveLength(200);
+    expect(workspace.tasks[0].title).toBe("Still to do");
+    expect(workspace.goals).toHaveLength(100);
+    expect(workspace.goals[0].title).toBe("Current goal");
+    expect(workspace.reminders).toHaveLength(200);
+    expect(workspace.reminders[0].text).toBe("Upcoming reminder");
+    expect(workspace).toMatchObject({ tasksTruncated: true, goalsTruncated: true, remindersTruncated: true });
+  });
 
   it("finds bounded meal candidates when conversational date words do not match stored dates", async () => {
     const [person, outsider] = await db.insert(schema.users).values([{ phoneE164: "+12025550641" }, { phoneE164: "+12025550642" }]).returning();
@@ -89,14 +183,14 @@ describe("shared life workspace", () => {
     const data = { kind: "meal" as const, title: "Chickpea salad", date: "2026-10-01", meal: "Dinner" as const, ingredients: "chickpeas (4 servings)", servings: 4 };
     const command = { type: "life_save" as const, sourceRecipeId: recipeId, data };
     expect(await assistant.execute(owner, mealId, command)).toContain("Saved");
-    expect((await readWorkspace(owner, db)).items.find(row => row.id === mealId)?.data).toEqual({ ...data, ingredients });
+    expect((await readWorkspace(owner, db)).items.find(row => row.id === mealId)?.data).toEqual({ ...data, ingredients, ingredientServings: 2, groceriesEnabled: true });
     await assistant.execute(owner, mealId, command);
     expect((await readWorkspace(owner, db)).items.filter(row => row.id === mealId)).toHaveLength(1);
     const otherMealId = randomUUID();
     expect(await assistant.execute(other, otherMealId, command)).toContain("couldn’t find");
     expect((await readWorkspace(other, db)).items.some(row => row.id === otherMealId)).toBe(false);
     await assistant.execute(owner, randomUUID(), { type: "life_patch", id: mealId, version: 1, patch: { kind: "meal", date: "2026-10-02" } });
-    expect((await readWorkspace(owner, db)).items.find(row => row.id === mealId)?.data).toEqual({ ...data, ingredients, date: "2026-10-02" });
+    expect((await readWorkspace(owner, db)).items.find(row => row.id === mealId)?.data).toEqual({ ...data, ingredients, ingredientServings: 2, groceriesEnabled: true, date: "2026-10-02" });
     expect(lifeItemSchema.safeParse({ ...data, servings: 0 }).success).toBe(false);
     expect(lifeItemSchema.safeParse({ ...data, servings: 101 }).success).toBe(false);
     expect(lifeItemSchema.safeParse({ ...data, servings: 1.5 }).success).toBe(false);
@@ -216,6 +310,15 @@ describe("shared life workspace", () => {
     expect(after.tasks.find(t => t.id === taskId)?.status).toBe("completed");
     expect(after.items.some(item => item.id === id)).toBe(false);
     await expect(mutateWorkspace(other, { action: "task", requestId: randomUUID(), command: { type: "complete_task", taskId } }, db)).rejects.toThrow();
+    const reopen = { action: "task" as const, requestId: randomUUID(), command: { type: "reopen_task" as const, taskId } };
+    await expect(mutateWorkspace(other, reopen, db)).rejects.toThrow();
+    await mutateWorkspace(owner, reopen, db);
+    await mutateWorkspace(owner, reopen, db);
+    const reopened = (await db.select().from(schema.tasks).where(eq(schema.tasks.id, taskId)))[0];
+    expect(reopened).toMatchObject({ title: "Do the dishes", estimatedMinutes: 10, status: "not_started", startedAt: null, completedAt: null });
+    expect((await readWorkspace(owner, db)).items.some(item => item.id === id)).toBe(false);
+    expect((await db.select().from(schema.taskEvents).where(eq(schema.taskEvents.taskId, taskId))).filter(event => event.changes.status === "not_started")).toHaveLength(1);
+    await expect(mutateWorkspace(owner, { ...reopen, requestId: randomUUID() }, db)).rejects.toThrow("find that task");
   });
 
   it("finishes a routine step and its timer atomically, preserves neighboring steps, and validates ownership", async () => {
@@ -232,6 +335,51 @@ describe("shared life workspace", () => {
     if (routine?.kind !== "routine") throw new Error("Missing routine");
     expect(routine.steps[0].completedOn).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(routine.steps[1].completedOn).toBeNull();
+  });
+
+  it("stops task focus atomically, rejects stale and foreign sessions, and permits a later focus", async () => {
+    const [person, neighbor] = await db.insert(schema.users).values([{ phoneE164: "+12025550647" }, { phoneE164: "+12025550648" }]).returning();
+    const startedAt = new Date("2026-10-15T12:00:00Z"), dueAt = new Date("2027-01-01T12:00:00Z");
+    const [task] = await db.insert(schema.tasks).values({ userId: person.id, title: "Write letter", estimatedMinutes: 20, dueAt, status: "in_progress", startedAt }).returning();
+    const id = randomUUID();
+    const focus = { kind: "focus" as const, title: task.title, taskId: task.id, endsAt: null, remaining: 600 };
+    await mutateWorkspace(person.id, { action: "save", id, version: 0, data: focus }, db);
+    const stop = { action: "stop_focus" as const, requestId: randomUUID(), focus: { id, version: 1 }, task: { id: task.id, startedAt: startedAt.toISOString() } };
+    await expect(mutateWorkspace(neighbor.id, stop, db)).rejects.toThrow("changed");
+    await expect(mutateWorkspace(person.id, { ...stop, focus: { id, version: 2 } }, db)).rejects.toThrow("changed");
+    await expect(mutateWorkspace(person.id, { ...stop, task: { id: task.id, startedAt: new Date(startedAt.getTime() - 1).toISOString() } }, db)).rejects.toThrow("changed");
+    expect((await readWorkspace(person.id, db)).items.some(row => row.id === id)).toBe(true);
+    await mutateWorkspace(person.id, stop, db);
+    await mutateWorkspace(person.id, stop, db);
+    const stopped = (await db.select().from(schema.tasks).where(eq(schema.tasks.id, task.id)))[0];
+    expect(stopped).toMatchObject({ title: task.title, estimatedMinutes: 20, dueAt, status: "not_started", startedAt: null, completedAt: null, abandonedAt: null });
+    expect((await readWorkspace(person.id, db)).items.some(row => row.id === id)).toBe(false);
+    expect(await db.select().from(schema.taskEvents).where(eq(schema.taskEvents.taskId, task.id))).toHaveLength(1);
+    await mutateWorkspace(person.id, { action: "task", requestId: randomUUID(), command: { type: "start_task", taskId: task.id } }, db);
+    const [resumed] = await db.select().from(schema.tasks).where(eq(schema.tasks.id, task.id));
+    await mutateWorkspace(person.id, stop, db);
+    expect((await readWorkspace(person.id, db)).tasks.find(row => row.id === task.id)?.status).toBe("in_progress");
+    await expect(mutateWorkspace(person.id, { action: "stop_focus", requestId: randomUUID(), task: stop.task }, db)).rejects.toThrow("changed");
+    await mutateWorkspace(person.id, { action: "stop_focus", requestId: randomUUID(), task: { id: task.id, startedAt: resumed.startedAt!.toISOString() } }, db);
+    expect((await readWorkspace(person.id, db)).tasks.find(row => row.id === task.id)?.status).toBe("not_started");
+  });
+
+  it("stops routine focus without completing the step and rejects stale fallback task stops", async () => {
+    const [person] = await db.insert(schema.users).values({ phoneE164: "+12025550649" }).returning();
+    const routineId = randomUUID(), stepId = randomUUID(), focusId = randomUUID();
+    const routine = { kind: "routine" as const, title: "Evening", period: "evening" as const, time: "20:00", steps: [{ id: stepId, title: "Journal", minutes: 5, completedOn: null }] };
+    await mutateWorkspace(person.id, { action: "save", id: routineId, version: 0, data: routine }, db);
+    await mutateWorkspace(person.id, { action: "save", id: focusId, version: 0, data: { kind: "focus", title: "Journal", routineId, stepId, remaining: 200, endsAt: null } }, db);
+    const stop = { action: "stop_focus" as const, requestId: randomUUID(), focus: { id: focusId, version: 1 } };
+    await expect(mutateWorkspace(person.id, { action: "stop_focus", requestId: randomUUID(), task: { id: randomUUID(), startedAt: null } }, db)).rejects.toThrow("changed");
+    await mutateWorkspace(person.id, stop, db);
+    await mutateWorkspace(person.id, stop, db);
+    const workspace = await readWorkspace(person.id, db);
+    expect(workspace.items.find(row => row.id === routineId)).toMatchObject({ version: 1, data: routine });
+    expect(workspace.items.some(row => row.data.kind === "focus")).toBe(false);
+    await mutateWorkspace(person.id, { action: "save", id: randomUUID(), version: 0, data: { kind: "focus", title: "Journal", routineId, stepId, remaining: 300, endsAt: null } }, db);
+    await expect(mutateWorkspace(person.id, { ...stop, requestId: randomUUID() }, db)).rejects.toThrow("changed");
+    expect((await readWorkspace(person.id, db)).items.filter(row => row.data.kind === "focus")).toHaveLength(1);
   });
 
   it("enqueues web messages once and stores a shared-history reply without an SMS provider", async () => {

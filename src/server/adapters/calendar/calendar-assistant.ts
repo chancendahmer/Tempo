@@ -91,7 +91,7 @@ export class CalendarAssistantIntegrations implements AssistantIntegrations {
       webSearch: env.ASSISTANT_WEB_SEARCH_ENABLED ? "enabled; requires provider account access" : "disabled by operator",
       memory: "available", tasksAndReminders: "available",
         workspace: "Tempo routines, recipes, meal plans, food logs, workouts, groceries and notes; edits appear after refresh",
-        wakeAndWindDown: "manual sunrise/sunset screen sessions with optional synthesized birds/waves; start in Wake & Wind Down; no scheduled wake alarms, background reliability or hardware brightness/light control",
+        wakeAndWindDown: "manual sunrise/sunset screen sessions with optional synthesized birds/waves; start in Daily rhythm > Sunrise & sunset; no scheduled wake alarms, background reliability or hardware brightness/light control",
       proactiveCoaching: coaching,
       cleanupCheckins: cleanupDeliveryEnabled(env, userId) && preferences?.proactiveOptIn && accountActive
         ? "Occasional overdue or untouched-item reviews are enabled, at most once a week. Quiet hours, consent, calendar checks and delivery limits apply. Tempo asks before removing anything"

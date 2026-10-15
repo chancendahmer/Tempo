@@ -1,0 +1,12 @@
+{
+  "passed": true,
+  "mode": "actual-authenticated-http-no-date-query",
+  "timezone": "Pacific/Kiritimati",
+  "utcDay": "2026-10-15",
+  "accountDay": "2026-10-16",
+  "empty": { "included": 0, "total": 0, "limit": 1000, "truncated": false },
+  "complete": { "included": 600, "total": 600, "limit": 1000, "truncated": false },
+  "partial": { "included": 1000, "total": 1001, "limit": 1000, "truncated": true },
+  "syntheticOnly": true,
+  "providerCalls": 0
+}

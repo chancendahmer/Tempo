@@ -449,7 +449,7 @@ export class ConversationOrchestrator {
         return JSON.stringify({ facts, memories: search.items.map(({ id, content }) => ({ id, content })), factsTruncated: search.truncated, factsCoverage: search.coverage, noteSearch });
       }
       return JSON.stringify({ facts, memories: search.items.map(({ id, content }) => ({ id, content })), factsTruncated: search.truncated, factsCoverage: search.coverage,
-        noteSearchNotice: "Thought inbox notes have not been searched; use specific query keywords before answering a personal recall question." });
+        noteSearchNotice: "Thoughts notes have not been searched; use specific query keywords before answering a personal recall question." });
     }
     if (command.type === "forget_memory") {
       if (command.memoryId && command.expectedContent) return this.memories?.forgetById(context.userId, command.memoryId, command.expectedContent, now) ?? "Memory is temporarily unavailable.";

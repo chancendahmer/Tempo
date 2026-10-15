@@ -1,47 +1,20 @@
 "use client";
 import { taskDueLabel } from "./task-due-label";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
+import { useCalendarEvents } from "./use-calendar-events";
+import { calendarEventOccursOnDay } from "./calendar-event-model";
 import { FiArrowRight, FiCalendar, FiChevronLeft, FiChevronRight, FiPlus, FiRefreshCw } from "react-icons/fi";
 import type { Workspace } from "./workspace-data";
-import { localDay } from "@/server/domain/life-items";
+import { localDay } from "../../server/domain/life-items";
 import s from "./workspace.module.css";
 
-type CalendarEvent = { id: string; title: string; start: { dateTime?: string; date?: string }; end: { dateTime?: string; date?: string }; editable: boolean };
 export function CalendarView({ data, preview, ask, editTask }: { data: Workspace; preview: boolean; ask: (text: string) => void; editTask: (task: Workspace["tasks"][number]) => void }) {
   const [day, setDay] = useState(() => localDay(new Date(), data.timezone));
-  const [events, setEvents] = useState<CalendarEvent[]>([]);
-  const [error, setError] = useState("");
-  const [requiresReconnect, setRequiresReconnect] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [fetched, setFetched] = useState("");
-  const [truncated, setTruncated] = useState(false);
   const [refresh, setRefresh] = useState(0);
-  const sequence = useRef(0);
-  useEffect(() => {
-    const controller = new AbortController();
-    const version = ++sequence.current;
-    const load = async () => {
-      setLoading(true); setError(""); setEvents([]);
-      if (preview) { setEvents((data.demoCalendarEvents ?? []).map(event => ({ id: event.id, title: event.title, start: { dateTime: event.startsAt }, end: { dateTime: event.endsAt }, editable: false }))); setLoading(false); setFetched(new Date().toISOString()); return; }
-      try {
-        // Fetch a generous UTC envelope; filter events using the user's local date below.
-        const center = new Date(`${day}T12:00:00Z`).getTime();
-        const response = await fetch(`/api/account/calendar/events?start=${encodeURIComponent(new Date(center - 36 * 3600000).toISOString())}&end=${encodeURIComponent(new Date(center + 36 * 3600000).toISOString())}`, { cache: "no-store", signal: controller.signal });
-        const payload = await response.json();
-        if (!response.ok) {
-          if (version === sequence.current && !controller.signal.aborted) setRequiresReconnect(payload.code === "calendar_reauth_required");
-          throw new Error(payload.error);
-        }
-        if (version === sequence.current && !controller.signal.aborted) { setEvents(payload.events); setFetched(payload.fetchedAt); setTruncated(payload.truncated); setRequiresReconnect(false); }
-      } catch (e) { if (!controller.signal.aborted) setError(e instanceof Error ? e.message : "Calendar unavailable."); }
-      finally { if (!controller.signal.aborted) setLoading(false); }
-    };
-    void load(); const interval = setInterval(() => { void load(); }, 60000);
-    return () => { controller.abort(); clearInterval(interval); };
-  }, [day, data.timezone, data.demoCalendarEvents, preview, refresh]);
+  const { events = [], error, requiresReconnect, loading, fetched, truncated, disconnected } = useCalendarEvents(data, day, preview, refresh);
   const time = (value: string) => new Intl.DateTimeFormat(undefined, { timeZone: data.timezone, hour: "numeric", minute: "2-digit" }).format(new Date(value));
-  const dayEvents = events.filter(event => event.start.date ? event.start.date <= day && (event.end.date ?? event.start.date) > day : event.start.dateTime && localDay(new Date(event.start.dateTime), data.timezone) <= day && localDay(new Date(new Date(event.end.dateTime ?? event.start.dateTime).getTime() - 1), data.timezone) >= day);
+  const dayEvents = events.filter(event => calendarEventOccursOnDay(event, day, data.timezone));
   const tasks = data.tasks.filter(task => task.dueAt && localDay(new Date(task.dueAt), data.timezone) === day);
   const reminders = data.reminders.filter(r => localDay(new Date(r.remindAt), data.timezone) === day);
   const agenda = [
@@ -53,9 +26,9 @@ export function CalendarView({ data, preview, ask, editTask }: { data: Workspace
   const days = Array.from({ length: 7 }, (_, index) => { const d = new Date(`${day}T12:00:00Z`); d.setUTCDate(d.getUTCDate() - 3 + index); return { date: d.toISOString().slice(0, 10), weekday: new Intl.DateTimeFormat(undefined, { weekday: "short", timeZone: "UTC" }).format(d), number: d.getUTCDate() }; });
   return <><div className={s.sectionHeading}><div className={s.row}><button className={s.iconButton} aria-label="Previous day" onClick={() => move(-1)}><FiChevronLeft /></button><input className={s.dateInput} type="date" aria-label="Calendar date" value={day} onChange={e => { if (e.target.value) setDay(e.target.value); }} /><button className={s.iconButton} aria-label="Next day" onClick={() => move(1)}><FiChevronRight /></button><button className={s.textButton} onClick={() => setDay(localDay(new Date(), data.timezone))}>Today</button></div><button className={s.primary} onClick={() => ask(`Help me schedule an event on ${day}.`)}><FiPlus /> Plan with Tempo</button></div>
     <div className={s.weekStrip}>{days.map(d => <button key={d.date} aria-pressed={d.date === day} onClick={() => setDay(d.date)}><span>{d.weekday}</span><strong>{d.number}</strong><i /></button>)}</div>
-    <div className={s.calendarLayout}><article className={s.card}><div className={s.sectionHeading}><h2>Your day, together</h2><button className={s.iconButton} aria-label={preview ? "Refresh sample calendar" : "Refresh Google Calendar"} disabled={loading} onClick={() => setRefresh(n => n + 1)}><FiRefreshCw /></button></div><small>{data.timezone} · {preview ? "Sample calendar" : "Google primary calendar"}</small>{loading && <p role="status">Refreshing your calendar…</p>}{error && <div role="alert" className={s.foodNotice}>{requiresReconnect || data.calendar?.status === "requires_reauth" ? <>Your Google Calendar connection needs attention. Reconnect to see current events. <Link href="/extensions">Reconnect Google Calendar</Link></> : data.calendar?.status === "disconnected" ? <>Google Calendar isn’t connected, so events aren’t shown. <Link href="/extensions">Connect Google Calendar</Link></> : error}</div>}{truncated && <p className={s.foodNotice}>Google returned more events than this view can display. Open Google Calendar for the full schedule.</p>}
+    <div className={s.calendarLayout}><article className={s.card}><div className={s.sectionHeading}><h2>Your day, together</h2>{!disconnected && <button className={s.iconButton} aria-label={preview ? "Refresh sample calendar" : "Refresh Google Calendar"} disabled={loading} onClick={() => setRefresh(n => n + 1)}><FiRefreshCw /></button>}</div><small>{data.timezone} · {preview ? "Sample calendar" : disconnected ? "Tasks and reminders" : "Google primary calendar"}</small>{disconnected && <p className={s.muted}>Add calendar events alongside your tasks whenever you’re ready. <Link className={s.textButton} href="/extensions">Connect Google Calendar</Link></p>}{loading && <p role="status">Refreshing your calendar…</p>}{error && <div role="alert" className={s.foodNotice}>{requiresReconnect || data.calendar?.status === "requires_reauth" ? <>Your Google Calendar connection needs attention. Reconnect to see current events. <Link href="/extensions">Reconnect Google Calendar</Link></> : error}</div>}{truncated && <p className={s.foodNotice}>Google returned more events than this view can display. Open Google Calendar for the full schedule.</p>}
       {agenda.map(entry => <div key={entry.id}>{entry.content}</div>)}
-      {!loading && !error && !agenda.length && <div className={s.empty}><FiSunPlaceholder /><h3>A little room to breathe</h3><p>No calendar events, tasks, or reminders on this day.</p></div>}
+      {!loading && !error && !agenda.length && <div className={s.empty}><FiSunPlaceholder /><h3>A little room to breathe</h3><p>{disconnected ? "No tasks or reminders on this day." : "No calendar events, tasks, or reminders on this day."}</p></div>}
     </article><aside><article className={s.card}><span className={`${s.tileIcon} ${s.lavender}`}><FiCalendar /></span><h3>Your Google Calendar</h3><p>{preview ? "Sample events for exploring the calendar. Your Google account is not connected to this preview." : data.calendar?.status === "active" ? "Connected to your Tempo account." : data.calendar?.status === "requires_reauth" ? "Reconnect Google Calendar to refresh your events." : "Connect your calendar to see events here."}</p><small>{fetched && !error ? preview ? "Fictional events for this demo week." : `Events refreshed at ${time(fetched)}` : "Event access requires Google authorization."}</small><details className={s.inlineDetails}><summary>How calendar edits work</summary><p>Tempo asks you to confirm changes. Shared, recurring, and all-day event edits stay in Google Calendar.</p></details><Link className={s.secondary} href="/extensions">{data.calendar?.status === "requires_reauth" ? "Reconnect Google Calendar" : "Manage connection"} <FiArrowRight /></Link><a className={s.textButton} href="https://calendar.google.com" target="_blank" rel="noreferrer">Open Google Calendar <FiArrowRight /></a></article></aside></div></>;
 }
 function FiSunPlaceholder() { return <FiCalendar />; }

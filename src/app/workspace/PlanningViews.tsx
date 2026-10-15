@@ -10,9 +10,9 @@ type Task = Workspace["tasks"][number];
 type Goal = Workspace["goals"][number];
 type TaskView = "All" | "Today" | "Next 7 days" | "Done";
 
-export function TasksView({ data, today, saving, edit, start, complete, remove }: {
+export function TasksView({ data, today, saving, edit, start, complete, reopen, remove }: {
   data: Workspace; today: string; saving: boolean; edit: (task?: Task) => void;
-  start: (task: Task) => void; complete: (task: Task) => void; remove: (task: Task) => void;
+  start: (task: Task) => void; complete: (task: Task) => void; reopen: (task: Task) => void; remove: (task: Task) => void;
 }) {
   // Include undated tasks captured by text in the initial view.
   const [view, setView] = useState<TaskView>("All");
@@ -20,11 +20,11 @@ export function TasksView({ data, today, saving, edit, start, complete, remove }
   const end = new Date(`${today}T12:00:00Z`);
   end.setUTCDate(end.getUTCDate() + 6);
   const weekEnd = end.toISOString().slice(0, 10);
-  const active = data.tasks.filter(task => task.status !== "completed");
+  const active = data.tasks.filter(task => !["completed", "abandoned"].includes(task.status));
   const undated = active.filter(task => !task.dueAt);
   const matches = (task: Task) => view === "Done"
     ? task.status === "completed"
-    : task.status !== "completed" && (view === "All" || task.status === "in_progress" || Boolean(due(task) && due(task)! <= (view === "Today" ? today : weekEnd)));
+    : !["completed", "abandoned"].includes(task.status) && (view === "All" || task.status === "in_progress" || Boolean(due(task) && due(task)! <= (view === "Today" ? today : weekEnd)));
   const shown = data.tasks.filter(matches).sort((a, b) => (a.dueAt ?? "z").localeCompare(b.dueAt ?? "z"));
   const groups = view === "Done" ? [{ label: "Completed", icon: <FiCheckCircle />, tone: "done", tasks: shown }] : [
     { label: "In progress", icon: <FiPlay />, tone: "focus", tasks: shown.filter(task => task.status === "in_progress") },
@@ -41,18 +41,19 @@ export function TasksView({ data, today, saving, edit, start, complete, remove }
       </div>
       <button className={s.addButton} disabled={saving} onClick={() => edit()}><FiPlus aria-hidden="true" /> Add to-do</button>
     </div>
+    {data.tasksTruncated && <p role="status">Showing up to 200 tasks, with active tasks first. Ask Tempo to find older completed items.</p>}
     <div className={s.listSummary} aria-live="polite"><span>{shown.length} {view === "Done" ? "completed" : "open"} {shown.length === 1 ? "task" : "tasks"}</span><span>Tap a task to edit it</span></div>
     {groups.filter(group => group.tasks.length).map(group => <section className={s.taskGroup} data-tone={group.tone} key={group.label} aria-label={group.label}>
       <h2><span className={s.groupIcon} aria-hidden="true">{group.icon}</span>{group.label}<span className={s.groupCount}>{group.tasks.length}</span></h2>
       <ul className={s.checklist}>
         {group.tasks.map(task => <li className={`${s.task} ${task.status === "completed" ? s.finished : ""}`} key={task.id}>
-          <button className={s.checkbox} disabled={saving || task.status === "completed"} aria-label={task.status === "completed" ? `Completed: ${task.title}` : `Complete ${task.title}`} onClick={() => complete(task)}><span>{task.status === "completed" && <FiCheck aria-hidden="true" />}</span></button>
+          <button className={s.checkbox} disabled={saving} aria-label={task.status === "completed" ? `Reopen ${task.title}` : `Complete ${task.title}`} onClick={() => task.status === "completed" ? reopen(task) : complete(task)}><span>{task.status === "completed" && <FiCheck aria-hidden="true" />}</span></button>
           <button className={s.taskTitle} disabled={saving} onClick={() => edit(task)} aria-label={`Edit ${task.title}`}>
             <strong>{task.title}</strong>
             <span>{task.dueAt ? taskDueLabel(task.dueAt, data.timezone, due(task) !== today) : "Choose a date when you need one"}{task.estimatedMinutes ? <><i aria-hidden="true" /><FiClock aria-hidden="true" />{task.estimatedMinutes} min</> : null}{task.goalId && <><i aria-hidden="true" /><FiTarget aria-hidden="true" />Goal step</>}</span>
           </button>
           <div className={s.taskActions}>
-            {task.status !== "completed" && <button className={s.focusButton} disabled={saving} onClick={() => start(task)} aria-label={`Focus on ${task.title}`}><FiPlay aria-hidden="true" /><span>Focus</span></button>}
+            {!["completed", "abandoned"].includes(task.status) && <button className={s.focusButton} disabled={saving} onClick={() => start(task)} aria-label={`Focus on ${task.title}`}><FiPlay aria-hidden="true" /><span>Focus</span></button>}
             <button className={s.iconButton} disabled={saving} onClick={() => remove(task)} aria-label={`Remove ${task.title}`} title={`Remove ${task.title}`}><FiTrash2 aria-hidden="true" /></button>
           </div>
         </li>)}
@@ -81,6 +82,7 @@ export function GoalsView({ data, saving, edit, addStep, editStep, achieve, remo
   const achievedCount = data.goals.filter(goal => goal.status === "completed").length;
 
   return <div className={s.planning}>
+    {data.goalsTruncated && <p role="status">Showing up to 100 goals, with active goals first. Ask Tempo to find older goals.</p>}
     <div className={s.toolbar}>
       <div className={s.tabs} role="group" aria-label="Goal view">
         <button aria-pressed={!showAchieved} onClick={() => setShowAchieved(false)}>In progress <span>{activeCount}</span></button>
@@ -92,7 +94,7 @@ export function GoalsView({ data, saving, edit, addStep, editStep, achieve, remo
       const tone = [...goal.id].reduce((sum, character) => sum + character.charCodeAt(0), 0) % 4;
       const linked = data.tasks.filter(task => task.goalId === goal.id);
       const done = linked.filter(task => task.status === "completed").length;
-      const next = linked.find(task => task.status === "in_progress") ?? linked.find(task => task.status !== "completed");
+      const next = linked.find(task => task.status === "in_progress") ?? linked.find(task => !["completed", "abandoned"].includes(task.status));
       const completed = goal.status === "completed";
 
       return <article className={s.goal} data-tone={tone} key={goal.id}>

@@ -14,8 +14,19 @@ export type RoutineDraft = {
   steps: { key: string; sourceId?: string; title: string; minutes: string }[];
 };
 
+/** Keep generated IDs for this editor's draft so an uncertain save can be retried. */
+export function createRoutineStepIds(newId: () => string = () => crypto.randomUUID()) {
+  const ids = new Map<string, string>();
+  return (step: RoutineDraft["steps"][number]) => {
+    const identity = JSON.stringify([step.key, step.title.trim()]);
+    let id = ids.get(identity);
+    if (!id) { id = newId(); ids.set(identity, id); }
+    return id;
+  };
+}
+
 /** Keep step identity through reordering; a renamed step starts fresh. */
-export function buildRoutineDraft(draft: RoutineDraft, item?: SavedLifeItem, newId: () => string = () => crypto.randomUUID()): Routine {
+export function buildRoutineDraft(draft: RoutineDraft, item?: SavedLifeItem, newId: (step: RoutineDraft["steps"][number]) => string = () => crypto.randomUUID()): Routine {
   if (item && item.data.kind !== "routine") throw new Error("This item is not a routine. Close this editor and try again.");
   if (!draft.title.trim()) throw new Error("Give your routine a name.");
   if (draft.title.trim().length > 240) throw new Error("Keep the routine name under 241 characters.");
@@ -32,7 +43,7 @@ export function buildRoutineDraft(draft: RoutineDraft, item?: SavedLifeItem, new
     if (!step.minutes.trim() || !Number.isInteger(minutes) || minutes < 1 || minutes > 180) throw new Error(`Choose a whole number from 1 to 180 minutes for step ${index + 1}.`);
     const original = previous.find(value => value.id === step.sourceId && value.title.trim() === title && !retained.has(value.id));
     if (original) retained.add(original.id);
-    return { id: original?.id ?? newId(), title, minutes, completedOn: original?.completedOn ?? null };
+    return { id: original?.id ?? newId(step), title, minutes, completedOn: original?.completedOn ?? null };
   });
   return lifeItemSchema.parse({ kind: "routine", title: draft.title.trim(), period: draft.period, time: draft.time, steps }) as Routine;
 }
@@ -66,6 +77,7 @@ export function RoutineEditor({ item, latestItem, saveError, timezone, saving, o
   const errorMessage = useRef<HTMLParagraphElement>(null);
   const addedStep = useRef<string | null>(null);
   const nextKey = useRef(0);
+  const stepIds = useRef(createRoutineStepIds());
   const id = useId();
   const busy = saving || pending;
   const conflict = Boolean(item && (!latestItem || latestItem.version !== item.version));
@@ -103,7 +115,7 @@ export function RoutineEditor({ item, latestItem, saveError, timezone, saving, o
     if (submitting.current || saving || conflict) return;
     setError("");
     let value: Routine;
-    try { value = buildRoutineDraft(draft, item); }
+    try { value = buildRoutineDraft(draft, item, stepIds.current); }
     catch (cause) { setError(cause instanceof Error ? cause.message : "Check the routine name and each step, then try again."); return; }
     submitting.current = true;
     setPending(true);

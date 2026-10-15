@@ -1,13 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { FiArrowRight, FiCheck, FiMessageCircle, FiUserPlus } from "react-icons/fi";
 import { ACCOUNT_EVENT, useAccountStatus } from "./account-state";
 
 const STORAGE_KEY = "tempo-early-access-submitted";
 const STORAGE_EVENT = "tempo-signup-change";
+
+export async function resetPhoneSignup() {
+  // Revoke the pending browser claim before forgetting it or accepting another number.
+  const response = await fetch("/api/auth/logout", { method: "POST" });
+  if (!response.ok) throw new Error("We couldn’t reset this sign-in attempt. Please try again.");
+  window.localStorage.removeItem(STORAGE_KEY);
+  window.dispatchEvent(new Event(STORAGE_EVENT));
+  window.dispatchEvent(new Event(ACCOUNT_EVENT));
+}
 
 function subscribeToSubmittedState(callback: () => void) {
   window.addEventListener("storage", callback);
@@ -83,21 +92,49 @@ export function PhoneSignup() {
   const [phone, setPhone] = useState("");
   const [consented, setConsented] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const [abandoned, setAbandoned] = useState(false);
+  const abandoning = useRef(false);
+  const areaInput = useRef<HTMLInputElement>(null);
   const [error, setError] = useState("");
   const submittedState = useSyncExternalStore(subscribeToSubmittedState, getSubmittedState, () => null);
   const submitted = submittedState !== null;
-  const { account } = useAccountStatus(submitted ? 4_000 : 0);
+  const { account, suspend } = useAccountStatus(submitted ? 4_000 : 0, !abandoned);
   const onboarding = parseStoredAssignment(submittedState);
   useEffect(() => {
-    if (submitted && account?.phoneVerified) router.replace("/workspace");
-  }, [submitted, account?.phoneVerified, router]);
+    if (submitted && !abandoning.current && account?.phoneVerified) router.replace("/workspace");
+  }, [submitted, abandoned, account?.phoneVerified, router]);
+  useEffect(() => {
+    if (abandoned && !submitted && !resetting) areaInput.current?.focus();
+  }, [abandoned, submitted, resetting]);
   const country = useMemo(
     () => countries.find((item) => item.code === countryCode) ?? countries[0],
     [countryCode],
   );
 
+  async function restart(destination: "phone" | "login") {
+    if (resetting) return;
+    abandoning.current = true;
+    setAbandoned(true);
+    setResetting(true);
+    setError("");
+    suspend();
+    try {
+      await resetPhoneSignup();
+      setAreaCode("");
+      setPhone("");
+      setConsented(false);
+      if (destination === "login") router.push("/login");
+    } catch {
+      setError("We couldn’t reset this sign-in attempt. Please try again.");
+    } finally {
+      setResetting(false);
+    }
+  }
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (submitting || resetting) return;
     const digits = phone.replace(/\D/g, "");
     if (areaCode.length < country.areaMinLength || areaCode.length > country.areaMaxLength) {
       setError(`Enter a valid ${country.areaMinLength === country.areaMaxLength ? country.areaMinLength : `${country.areaMinLength}–${country.areaMaxLength}`}-digit area code.`);
@@ -132,6 +169,8 @@ export function PhoneSignup() {
       if (!response.ok) throw new Error(payload.error ?? "Could not complete signup.");
 
       window.localStorage.setItem(STORAGE_KEY, payload.onboarding ? JSON.stringify(payload.onboarding) : "true");
+      abandoning.current = false;
+      setAbandoned(false);
       window.dispatchEvent(new Event(STORAGE_EVENT));
       window.dispatchEvent(new Event(ACCOUNT_EVENT));
     } catch (submissionError) {
@@ -141,7 +180,7 @@ export function PhoneSignup() {
     }
   }
 
-  if (account?.phoneVerified) {
+  if (!abandoned && account?.phoneVerified) {
     return (
       <div className="signup-success signup-account-ready" role="status">
         <div className="signup-success-heading">
@@ -174,11 +213,11 @@ export function PhoneSignup() {
                   : "You’re in. Tempo will text you to start setup."}
           </span>
         </div>
-        {onboarding && (
-          <div className="signup-success-actions">
+        <div className="signup-success-actions">
+          {onboarding && <>
             {onboarding.signInLinkQueued ? (
               <p className="signup-verification-note">
-                Your sign-in text is queued. Open its link and confirm within 15 minutes. This page will take you to your dashboard automatically. If it expires, request another link below.
+                Your sign-in text is queued. Open its link and confirm within 15 minutes. This page will take you to your dashboard automatically. If it expires, return to sign in to request another link.
               </p>
             ) : onboarding.alreadyVerified && (
               <p className="signup-verification-note">
@@ -199,12 +238,15 @@ export function PhoneSignup() {
                 <FiUserPlus aria-hidden="true" /> Save Tempo contact
               </a>
             )}
-            <button type="button" className="signup-contact-link" onClick={() => {
-              window.localStorage.removeItem(STORAGE_KEY);
-              window.dispatchEvent(new Event(STORAGE_EVENT));
-            }}>Request another sign-in link</button>
-          </div>
-        )}
+          </>}
+          <button type="button" className="signup-contact-link" disabled={resetting} onClick={() => void restart("phone")}>
+            {resetting ? "Resetting sign-in…" : "Use a different number"}
+          </button>
+          <button type="button" className="signup-contact-link" disabled={resetting} onClick={() => void restart("login")}>
+            Back to sign in
+          </button>
+          {error && <p className="form-error" role="alert">{error}</p>}
+        </div>
       </div>
     );
   }
@@ -243,6 +285,7 @@ export function PhoneSignup() {
           <label className="sr-only" htmlFor="area-code">Area code</label>
           <input
             className="area-code-input"
+            ref={areaInput}
             id="area-code"
             inputMode="numeric"
             autoComplete="tel-area-code"

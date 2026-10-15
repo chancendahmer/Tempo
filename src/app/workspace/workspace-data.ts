@@ -6,9 +6,14 @@ export type Workspace = {
   tasks: { id: string; title: string; status: string; dueAt: string | null; estimatedMinutes: number | null; startedAt: string | null; goalId: string | null }[];
   goals: { id: string; title: string; description: string | null; status: string }[];
   items: SavedLifeItem[];
+  itemsTruncated?: boolean;
+  itemCoverage?: Record<string, { included: number; total: number; limit: number; truncated: boolean }>;
+  diaryCoverage?: { date: string; food: { included: number; total: number; limit: number; truncated: boolean }; workout: { included: number; total: number; limit: number; truncated: boolean } } | null;
   memories?: { id: string; content: string; category: string }[];
   memoriesTruncated?: boolean;
   remindersTruncated?: boolean;
+  tasksTruncated?: boolean;
+  goalsTruncated?: boolean;
   messages: { id: string; body: string; direction: string; status: string; createdAt: string }[];
   reminders: { id: string; text: string; remindAt: string; status: string }[];
   calendar: { status: string; lastSyncedAt: string | null } | null;

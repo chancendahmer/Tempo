@@ -4,9 +4,9 @@ import { latestLinkedExchange, type ConversationHistoryMessage } from "./convers
 
 // Closed by default: adding a tool never implicitly grants it write authority.
 export const WRITE_COMMANDS = [
-  "create_task", "update_task", "start_task", "complete_task", "abandon_task",
+  "create_task", "update_task", "start_task", "complete_task", "reopen_task", "abandon_task",
   "create_goal", "update_goal", "complete_goal", "abandon_goal", "reschedule_task",
-  "create_reminders", "reschedule_reminders", "create_reminder", "cancel_reminder", "reschedule_reminder", "complete_reminder",
+  "create_reminders", "reschedule_reminders", "cancel_reminders", "create_reminder", "cancel_reminder", "reschedule_reminder", "complete_reminder",
   "remember_memory", "forget_memory", "grocery_add", "life_save", "life_patch", "life_remove",
   "calendar_change", "set_checkins",
 ] as const;
