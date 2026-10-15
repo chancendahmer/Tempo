@@ -666,3 +666,39 @@
 
 /* Expanded recipe instructions should not stretch the neighboring card. */
 .recipeGrid { align-items:start; }
+
+/* Family foundations. Individual sections keep their own task-specific layouts. */
+.app:is([data-section=tasks],[data-section=calendar],[data-section=goals],[data-section=reminders]) {
+  --bg:#faf8f2; --line:#dedbd3; --soft:#62616f;
+}
+.app:is([data-section=routines],[data-section=wake]) {
+  --bg:#fff8ec; --text:#4c3825; --soft:#70604c; --line:#eadbbd;
+  --accent:#93621e; --green:#93621e; --pale:#faedcc;
+}
+.app:is([data-section=meals],[data-section=recipes],[data-section=groceries],[data-section=nutrition],[data-section=movement]) {
+  --bg:#f1f7fc; --text:#17374d; --soft:#536d7f; --line:#d4e4ef;
+  --accent:#246c95; --green:#246c95; --pale:#e2f0fa;
+}
+.app:is([data-section=meals],[data-section=recipes],[data-section=groceries],[data-section=nutrition],[data-section=movement]) :is(h1,h2) {
+  font-family:"Manrope Variable","Avenir Next",Arial,sans-serif; font-weight:700;
+}
+.app:is([data-section=meals],[data-section=recipes],[data-section=groceries],[data-section=nutrition],[data-section=movement]) h1 {
+  font-size:clamp(32px,3.5vw,46px); letter-spacing:-1.3px;
+}
+.app:is([data-section=meals],[data-section=recipes],[data-section=groceries],[data-section=nutrition],[data-section=movement]) .card {
+  border-radius:20px;
+}
+.app:is([data-section=meals],[data-section=recipes],[data-section=groceries],[data-section=nutrition],[data-section=movement]) .pageHeading {
+  min-height:0; padding-block:12px 16px; margin-bottom:12px;
+}
+.app[data-section=nutrition] { --section-ink:#246c95; --section-tint:#e0edf7; --section-line:#b9d4e6; }
+.app:is([data-section=inbox],[data-section=memories]) {
+  --bg:#f6f3fc; --text:#352c49; --soft:#696078; --line:#ded5ed;
+  --accent:#6b4e8b; --green:#6b4e8b; --pale:#eee7f7;
+}
+.app:is([data-section=routines],[data-section=wake],[data-section=meals],[data-section=recipes],[data-section=groceries],[data-section=nutrition],[data-section=movement],[data-section=inbox],[data-section=memories]) :is(.primary,.darkButton,.startButton) {
+  border-color:var(--accent);
+}
+.app:is([data-section=routines],[data-section=wake],[data-section=meals],[data-section=recipes],[data-section=groceries],[data-section=nutrition],[data-section=movement],[data-section=inbox],[data-section=memories]) :is(.primary,.darkButton,.startButton):hover {
+  background:color-mix(in srgb,var(--accent),#000 12%);
+}

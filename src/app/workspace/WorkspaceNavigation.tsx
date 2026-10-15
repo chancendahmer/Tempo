@@ -9,7 +9,7 @@ export const sections = [
   ["reminders", "Reminders", FiClock, "amber"], ["routines", "Routines", FiSun, "amber"],
   ["wake", "Sunrise & sunset", FiSun, "lavender"], ["meals", "Meal plan", FiCoffee, "orange"],
   ["recipes", "Recipes", FiBookOpen, "amber"], ["groceries", "Groceries", FiShoppingBag, "sage"],
-  ["nutrition", "Food log", FiHeart, "rose"], ["movement", "Fitness", FiZap, "teal"],
+  ["nutrition", "Nutrition Tracker", FiHeart, "blue"], ["movement", "Fitness", FiZap, "teal"],
   ["inbox", "Thoughts", FiInbox, "amber"], ["memories", "Memories", FiBookOpen, "lavender"],
   ["assistant", "Ask Tempo", FiMessageCircle, "rose"], ["settings", "Settings", FiSettings, "blue"],
 ] as const;

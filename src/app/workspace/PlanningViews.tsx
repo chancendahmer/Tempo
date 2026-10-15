@@ -34,7 +34,7 @@ export function TasksView({ data, today, saving, edit, start, complete, reopen, 
     { label: "No date yet", icon: <FiInbox />, tone: "undated", tasks: shown.filter(task => task.status !== "in_progress" && !due(task)) },
   ];
 
-  return <div className={s.planning}>
+  return <div className={`${s.planning} ${s.taskSheet}`}>
     <div className={s.toolbar}>
       <div className={s.tabs} role="group" aria-label="To-do view">
         {(["All", "Today", "Next 7 days", "Done"] as const).map(option => <button key={option} aria-pressed={view === option} onClick={() => setView(option)}>{option}</button>)}

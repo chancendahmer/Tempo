@@ -58,6 +58,24 @@ describe("nutrition diary data", () => {
 });
 
 describe("nutrition UI truthfulness and conflict handling", () => {
+  it("shows remaining calories only for complete known intake and an explicit target", () => {
+    const target = { id: "target", version: 1, data: buildNutritionTarget({ calories: "200", protein: "", carbs: "", fat: "", fiber: "" }) };
+    const render = (items: Parameters<typeof NutritionView>[0]["items"]) => renderToStaticMarkup(createElement(NutritionView, { items, date: food.date, today: food.date, setDate: () => {}, saving: false, preview: false, save: async () => true, remove: () => {} }));
+    const complete = render([saved(food), target]);
+    expect(complete).toContain("80 kcal remaining");
+    expect(complete).toContain('aria-label="Calories: 120 of 200 target"');
+    const partial = render([saved(food), saved({ ...food, calories: null }, "unknown"), target]);
+    expect(partial).toContain("Remaining unknown");
+    expect(partial).not.toContain("80 kcal remaining");
+    const noTarget = render([saved(food)]);
+    expect(noTarget).toContain("No daily target");
+    expect(noTarget).not.toContain("<progress");
+    const zeroTarget = { ...target, data: { ...target.data, calories: 0 } };
+    expect(render([saved({ ...food, calories: 0 }), zeroTarget])).toContain("0 kcal remaining");
+    expect(render([saved(food), zeroTarget])).toContain("120 kcal over target");
+    expect(render([saved(food), zeroTarget])).not.toContain("<progress");
+  });
+
   it("credits saved and copied catalog entries only when they appear on the selected day", () => {
     const render = (items: SavedFood[], date = food.date) => renderToStaticMarkup(createElement(NutritionView, { items, date, today: food.date, setDate: () => {}, saving: false, preview: false, save: async () => true, remove: () => {} }));
     for (const html of [render([saved(food)]), render([saved(repeatFood(food, "2026-10-15", "Lunch"))], "2026-10-15")]) {

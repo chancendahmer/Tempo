@@ -1,32 +1,33 @@
 .planning { --ink: #251d35; --muted: #656173; --line: #e2ddd8; --orange: #ad452b; color: var(--ink); min-width: 0; }
+.planning.taskSheet { padding: 22px 26px 8px; border: 1px solid #e3ddd3; border-radius: 14px; background: #fffdf8; }
 .planning button, .planning summary { cursor: pointer; font: inherit; }
 .planning button:disabled { cursor: default; opacity: .55; }
 .planning button:focus-visible, .planning summary:focus-visible { outline: 3px solid #6653a0; outline-offset: 3px; }
 .planning button svg { flex-shrink: 0; }
 .planning .toolbar { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 18px; }
 .planning .tabs { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; }
-.planning .tabs button { min-height: 44px; padding: 10px 15px; border: 1px solid transparent; border-radius: 10px; color: var(--muted); background: transparent; display: flex; align-items: center; gap: 9px; font-size: 14px; font-weight: 600; }
-.planning .tabs button[aria-pressed="true"] { color: #82351f; border-color: #e9bbaa; background: #fae9df; }
+.planning .tabs button { min-height: 44px; padding: 10px 15px; border: 0; border-bottom: 3px solid transparent; border-radius: 0; color: var(--muted); background: transparent; display: flex; align-items: center; gap: 9px; font-size: 14px; font-weight: 600; }
+.planning .tabs button[aria-pressed="true"] { color: #82351f; border-bottom-color: var(--orange); background: transparent; }
 .planning .tabs button:hover { background: #f4eee8; }
-.planning .tabs button[aria-pressed="true"]:hover { background: #fae9df; }
+.planning .tabs button[aria-pressed="true"]:hover { background: #f8f0e6; }
 .planning .tabs button span { font-size: 12px; font-variant-numeric: tabular-nums; }
 .planning .addButton { min-height: 46px; padding: 11px 17px; border: 1px solid var(--orange); border-radius: 10px; background: var(--orange); color: white; display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-size: 14px; font-weight: 650; }
 .planning .addButton:hover:not(:disabled) { background: #923a24; }
-.planning .listSummary { display: flex; justify-content: space-between; gap: 12px; padding: 0 0 22px; color: var(--muted); font-size: 13px; }
+.planning .listSummary { display: flex; justify-content: space-between; gap: 12px; padding: 0 0 18px; margin-bottom: 6px; border-bottom: 1px solid var(--line); color: var(--muted); font-size: 13px; }
 .planning .taskGroup { --accent: #6d5b9c; --tint: #f0ebfa; margin-bottom: 27px; }
 .planning .taskGroup[data-tone="carry"] { --accent: #a7652e; --tint: #fbefdf; }
 .planning .taskGroup[data-tone="today"] { --accent: #ad452b; --tint: #fbece3; }
 .planning .taskGroup[data-tone="upcoming"] { --accent: #436776; --tint: #eaf2f5; }
 .planning .taskGroup[data-tone="undated"] { --accent: #6d617d; --tint: #f0ecf4; }
 .planning .taskGroup[data-tone="done"] { --accent: #3b735d; --tint: #e9f1eb; }
-.planning .taskGroup h2 { display: flex; align-items: center; gap: 11px; font-family: Georgia, "Times New Roman", serif; font-size: 23px; font-weight: 600; line-height: 1.25; margin: 0 0 12px; }
-.planning .groupIcon { display: grid; place-items: center; width: 35px; height: 35px; border-radius: 50%; background: var(--tint); color: var(--accent); font-size: 17px; flex-shrink: 0; }
-.planning .groupCount { color: var(--muted); font-family: inherit; font-size: 16px; font-weight: 400; }
-.planning .checklist { margin: 0; padding: 0; list-style: none; border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 13px; background: #fffdfa; }
-.planning .task { display: flex; align-items: center; gap: 12px; padding: 13px 17px 13px 9px; min-height: 88px; border-bottom: 1px solid #ece7e2; }
-.planning .task:last-child { border-bottom: none; }
+.planning .taskGroup h2 { display: flex; align-items: center; gap: 9px; font-family: inherit; font-size: 12px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; line-height: 1.4; margin: 20px 0 7px; color: var(--muted); }
+.planning .groupIcon { display: grid; place-items: center; width: 25px; height: 25px; color: var(--accent); font-size: 16px; flex-shrink: 0; }
+.planning .groupCount { margin-left: 2px; color: var(--muted); font-size: 12px; font-weight: 500; letter-spacing: 0; }
+.planning .checklist { margin: 0; padding: 0; list-style: none; }
+.planning .task { display: flex; align-items: center; gap: 12px; padding: 11px 0; min-height: 79px; border-bottom: 1px solid #ece7de; }
+.planning .task:last-child { border-bottom-color: var(--line); }
 .planning .checkbox { width: 44px; min-height: 44px; display: grid; place-items: center; border: 0; padding: 6px; background: none; flex-shrink: 0; }
-.planning .checkbox > span { display: grid; place-items: center; width: 29px; height: 29px; border: 2px solid #8c8594; border-radius: 7px; color: white; font-size: 19px; }
+.planning .checkbox > span { display: grid; place-items: center; width: 24px; height: 24px; border: 1.5px solid #8c8594; border-radius: 6px; color: white; font-size: 17px; }
 .planning .checkbox:hover:not(:disabled) > span { border-color: var(--accent); background: var(--tint); }
 .planning .finished .checkbox { opacity: 1; }
 .planning .finished .checkbox > span { background: #3b735d; border-color: #3b735d; }
@@ -34,11 +35,11 @@
 .planning .taskTitle { min-height: 44px; flex: 1; min-width: 0; padding: 5px 0; border: 0; background: transparent; text-align: left; color: var(--ink); }
 .planning .taskTitle strong { display: block; font-size: 16px; font-weight: 600; line-height: 1.45; overflow-wrap: anywhere; }
 .planning .taskTitle:hover strong { text-decoration: underline; text-underline-offset: 3px; }
-.planning .taskTitle > span { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; color: var(--muted); font-size: 12px; line-height: 1.55; margin-top: 5px; }
+.planning .taskTitle > span { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; color: var(--muted); font-size: 13px; line-height: 1.55; margin-top: 5px; }
 .planning .taskTitle i { width: 3px; height: 3px; border-radius: 50%; background: #99919b; margin: 0 2px; }
 .planning .taskActions { display: flex; align-items: center; gap: 8px; }
-.planning .focusButton { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 44px; padding: 10px 13px; border: 1px solid #d6cbeb; border-radius: 9px; background: #f0ebfa; color: #514079; font-size: 13px; font-weight: 600; }
-.planning .focusButton:hover:not(:disabled) { background: #e7def5; }
+.planning .focusButton { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 44px; padding: 10px 13px; border: 1px solid #e0d9cf; border-radius: 8px; background: transparent; color: #544e59; font-size: 13px; font-weight: 600; }
+.planning .focusButton:hover:not(:disabled) { background: #f7eee3; border-color: #cfb59e; color: #82351f; }
 .planning .iconButton { display: grid; place-items: center; width: 44px; min-height: 44px; border: 1px solid transparent; border-radius: 9px; background: transparent; color: #756c78; }
 .planning .iconButton:hover:not(:disabled) { color: #923a24; background: #faece4; border-color: #ebd4c9; }
 .planning .clearState { padding: 46px 24px; border: 1px dashed #d9d0c9; border-radius: 16px; text-align: center; background: #fcf9f3; }
@@ -93,13 +94,13 @@
 
 @media (min-width: 1600px) { .planning .goalGrid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 760px) {
+  .planning.taskSheet { padding: 16px 14px 4px; }
   .planning .goalGrid { grid-template-columns: 1fr; }
   .planning .toolbar { gap: 12px; }
   .planning .tabs { gap: 0; }
   .planning .tabs button { padding: 10px 12px; font-size: 13px; }
-  .planning .task { padding: 12px 9px 12px 5px; gap: 7px; }
+  .planning .task { padding: 11px 0; gap: 7px; }
   .planning .taskTitle strong { font-size: 15px; }
-  .planning .taskTitle > span { font-size: 11px; }
   .planning .taskActions { gap: 1px; }
   .planning .focusButton { min-width: 44px; padding: 10px; }
   .planning .focusButton > span { display: none; }
