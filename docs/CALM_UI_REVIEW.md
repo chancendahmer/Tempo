@@ -4,7 +4,7 @@
 
 ## What changed
 
-The workspace and room board now share the selected warm ivory/orange visual direction. Today and Ask Tempo remain direct destinations. Four visible groups organize the rest, with one-click links on desktop and a compact two-column phone menu:
+The workspace and room board now share the selected warm ivory/orange visual direction. Today and Ask Tempo remain direct destinations. Four clickable sidebar groups organize the rest, with hover/click flyouts on desktop and expandable lists on phones:
 
 - **Planner:** To-do, Calendar, Goals, Reminders.
 - **Daily rhythm:** Routines, Sunrise & sunset.
@@ -53,3 +53,9 @@ Alex’s preview now contains a coherent student week: 9 tasks, 3 goals, 2 routi
 Independent rendered review: **8.3/10**, up from 7.8 after fixes; no remaining blockers for a guided fictional investor demonstration. Read `qa/investor-demo/review.md` and the five-minute walkthrough in `docs/INVESTOR_DEMO.md`. This is not a live integration/commercial score.
 
 Actual validation: full `npm run check` exited 0 with clean lint/typecheck, **91 test files passed, 2 skipped; 674 tests passed, 3 skipped**, production Next build and operations build. After minor final accessibility/date-shortcut styling changes, lint and typecheck passed again and the nearest two test files passed **15 tests**. Parent browser checks verified recipe → selected-date menu, workout → To-do without increasing logged minutes, Today date reset, no mobile horizontal overflow at 390 × 844, and a fresh console without warnings/errors. The reviewer independently tested groceries, routine Undo, sunrise start/end and other sections. Exercise numerals are now explicit `aria-hidden` decoration; the parent’s final AX snapshot has no duplicate numeric labels. A real screen-reader/device audit remains unperformed.
+
+## Sidebar flyouts — 2026-10-15
+
+Planner, Daily rhythm, Food & fitness and Brain dump are now sidebar buttons. Desktop pointer entry opens a flyout with the existing destination colors/icons. A click holds it open; a second click, outside click or Escape closes it. Keyboard users can open with Enter/Space or use Arrow Down/Right to focus the first destination, then Tab through it. Choosing a destination restores focus to its group button. Phones use inline expandable lists inside the existing navigation drawer. Section pills and URL hashes are unchanged.
+
+Validation for this localized follow-up: `npm run lint`, `npm run typecheck` and all **42 workspace tests in 8 files** passed. Browser checks exercised all four group disclosures, section selection, keyboard focus/Escape, outside dismissal, and a 390 × 844 phone layout with no horizontal overflow. Mobile Escape closes the submenu before the drawer; choosing Fitness closes the drawer and restores the navigation opener. Desktop screenshot: `qa/calm-ui/sidebar-flyout.png`. The browser tool does not expose a pure pointer-hover action, so pointer-only opening/leave timing was inspected in code, not independently exercised. Physical touch and screen-reader testing remain outstanding. The full release check was not repeated for this navigation-only change.
