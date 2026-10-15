@@ -15,6 +15,16 @@ this run. The old UI remains in production.
 
 ## Completed implementation
 
+Latest visual follow-up: sidebar groups now have distinct blue/gold/teal/lavender
+badges; Today has larger colored agenda icons and clearer routine/To-do styling.
+This is a four-file presentation change with no backend or schema changes.
+The independent visual review scored it 8.5/10, limited to this polish. Root
+checked mobile navigation and keyboard flyouts; `npm run check` passed again
+(804 passed, 3 skipped, lint/typecheck/production/ops builds passed).
+See [current design QA](../design-qa.md) for captures and the corrected tablet
+button overflow. No additional API budget was spent and no release gate was
+closed solely by this review.
+
 - Warm grouped workspace is connected to authenticated account state, with
   visible account identity, logout, empty states, tour, mobile navigation and
   persistent assistant access. Preview fixtures remain explicitly separate.

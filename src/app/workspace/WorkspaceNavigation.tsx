@@ -4,21 +4,21 @@ import s from "./navigation.module.css";
 
 // Stable destinations keep existing links working, including links from SMS.
 export const sections = [
-  ["today", "Today", FiHome, "orange"], ["tasks", "To-do", FiCheckCircle, "orange"],
+  ["today", "Today", FiHome, "coral"], ["tasks", "To-do", FiCheckCircle, "orange"],
   ["calendar", "Calendar", FiCalendar, "blue"], ["goals", "Goals", FiTarget, "sage"],
   ["reminders", "Reminders", FiClock, "amber"], ["routines", "Routines", FiSun, "amber"],
   ["wake", "Sunrise & sunset", FiSun, "lavender"], ["meals", "Meal plan", FiCoffee, "orange"],
   ["recipes", "Recipes", FiBookOpen, "amber"], ["groceries", "Groceries", FiShoppingBag, "sage"],
   ["nutrition", "Food log", FiHeart, "rose"], ["movement", "Fitness", FiZap, "teal"],
   ["inbox", "Thoughts", FiInbox, "amber"], ["memories", "Memories", FiBookOpen, "lavender"],
-  ["assistant", "Ask Tempo", FiMessageCircle, "lavender"], ["settings", "Settings", FiSettings, "blue"],
+  ["assistant", "Ask Tempo", FiMessageCircle, "rose"], ["settings", "Settings", FiSettings, "blue"],
 ] as const;
 export type Section = typeof sections[number][0];
-export const navigationGroups: { id: string; label: string; sections: Section[] }[] = [
-  { id: "planner", label: "Planner", sections: ["tasks", "calendar", "goals", "reminders"] },
-  { id: "rhythm", label: "Daily rhythm", sections: ["routines", "wake"] },
-  { id: "food", label: "Food & fitness", sections: ["meals", "recipes", "groceries", "nutrition", "movement"] },
-  { id: "brain", label: "Brain dump", sections: ["inbox", "memories"] },
+export const navigationGroups: { id: string; label: string; icon: typeof FiCalendar; tone: typeof sections[number][3]; sections: Section[] }[] = [
+  { id: "planner", label: "Planner", icon: FiCalendar, tone: "blue", sections: ["tasks", "calendar", "goals", "reminders"] },
+  { id: "rhythm", label: "Daily rhythm", icon: FiSun, tone: "amber", sections: ["routines", "wake"] },
+  { id: "food", label: "Food & fitness", icon: FiHeart, tone: "teal", sections: ["meals", "recipes", "groceries", "nutrition", "movement"] },
+  { id: "brain", label: "Brain dump", icon: FiInbox, tone: "lavender", sections: ["inbox", "memories"] },
 ];
 export function groupForSection(section: Section) {
   return navigationGroups.find(group => group.sections.includes(section));
@@ -93,7 +93,7 @@ export function WorkspaceSidebarNav({ current, go }: { current: Section; go: (se
   }}>
     <div className={s.shortcuts}><Destination destination="today" current={current} go={navigate} /><Destination destination="assistant" current={current} go={navigate} /></div>
     <div className={s.groups}>{navigationGroups.map(group => {
-      const [, , Icon, tone] = sections.find(([key]) => key === group.sections[0])!;
+      const { icon: Icon, tone } = group;
       const expanded = open?.id === group.id;
       const active = group.sections.includes(current);
       return <section key={group.id} className={s.group} onPointerEnter={event => {

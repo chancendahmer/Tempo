@@ -1,93 +1,52 @@
-# Tempo calm workspace design QA
+# Tempo sidebar and Today polish — design QA
 
-Date: 2026-10-14.
+Date: October 15, 2026. Candidate: codex/tempo-calm-ui, based on 40125df.
 
 **final result: passed**
 
-This accepts the requested visual direction and tested local UI flows. It does not certify live integrations, production reliability, medical effectiveness, or hardware alarms.
+This accepts a narrow visual refinement, not a new release or an end-to-end readiness rating. The [prior report](qa/today-polish-2026-10-15/prior-design-qa.md) is preserved. Release gates in [UI_RELEASE_CHECKPOINT.md](docs/UI_RELEASE_CHECKPOINT.md) remain open.
 
 ## Comparison target and evidence
 
-- Source visual truth: `qa/calm-ui/reference-today.png`, copied unchanged from the user's selected Tempo mockup.
-- Original source: `C:/Users/chanc/AppData/Local/Temp/codex-clipboard-67777a1a-7094-4a18-b72e-9d39e758ee67.png`.
-- Rendered implementation: `http://localhost:3100/workspace/preview`.
-- Final screenshot: `qa/calm-ui/43-final-today.jpg`. Earlier comparison: `35-today-reference-size.jpg`.
-- Source pixels: 1487 × 1058. Browser CSS viewport: 1487 × 1058, DPR 1, document client width 1472. Browser screenshot output is 1472 × 1047, apparently scaled to client width. Comparison used the full frames at matched displayed width; the approximately 1% capture-size difference is not treated as design drift or a pixel-accuracy measurement.
-- Mobile CSS viewport: 390 × 844, DPR 1, client width 375. Output screenshots: 375 × 812. Compact desktop: 1264 × 712.
-- State: light theme, Today, Routine selected, two steps checked. Source shows Thursday morning; implementation shows the actual Wednesday afternoon with fictional preview records, so its current action is a task. Dates, task names, event contents, and unavailable live-event titles intentionally differ.
-- Source and implementation were opened together in the same comparison input, first with screenshot 35, then again with final screenshot 43. Full-frame inspection covered the navigation, heading, current card, routine list, and composer. Those regions and their labels were legible at full resolution, so additional cropped images were not needed.
+- Source visual truth: [reference-today.png](qa/today-polish-2026-10-15/reference-today.png), copied unchanged from the user's supplied codex-clipboard-13bbe2b7-3df4-48d5-bba9-55b7ac903408.png.
+- Implementation: http://localhost:3101/workspace#today, authenticated isolated PostgreSQL account Local QA Alex, phone ending 0199. No personal account was changed.
+- Reference: 1107 × 791 pixels. Matched CSS viewport: 1107 × 791, DPR 1. Full-page implementation: [reference-size-fixed.jpg](qa/today-polish-2026-10-15/reference-size-fixed.jpg), 1092 × 1049 pixels. The 15 px width difference is the scrollbar; extra height is actual content. Frames were viewed at matching readable scale, not treated as a pixel-accuracy measurement.
+- Desktop CSS viewport after reset: 1625 × 884, DPR 1; document width 1610. [desktop-final.jpg](qa/today-polish-2026-10-15/desktop-final.jpg) is 1610 × 1127 full-page pixels.
+- Mobile CSS viewport: 390 × 844, DPR 1. [mobile-routine.jpg](qa/today-polish-2026-10-15/mobile-routine.jpg) is 375 × 1665 full-page pixels. [mobile-navigation.jpg](qa/today-polish-2026-10-15/mobile-navigation.jpg) is 390 × 844 with the navigation overlay open. No density upscaling was performed. Browser captures are JPEG and use the corresponding extension.
+- Source state is a fictional Thursday morning with short labels. Implementation state is Thursday afternoon, with longer saved task/routine labels and a disconnected local Calendar. The routine panel is selected manually; the default afternoon panel remains To-do. No fake upcoming events or success notice was added to match the picture.
+- Reference and implementation were opened together in the same image comparison input before and after the tablet fix. Full-view comparison covered sidebar, title, current card, routine panel, and composer; all labels were readable, so separate region crops were unnecessary.
 
 ## Fidelity surfaces
 
-**Typography:** Georgia display headings recreate the serif hierarchy; the existing Manrope UI font remains for controls and body text. Titles wrap without clipping. Body text and navigation are more compact than the concept image to accommodate real variable-length content. Inputs remain 16px on phones. Small secondary labels need an eventual arm's-length test on the chosen physical display.
+- **Typography:** Retains Georgia display headings and the existing Manrope interface text. Reduced the oversized desktop day heading slightly, retaining hierarchy and allowing real task titles to wrap. Long labels remain readable on phones.
+- **Layout:** Retains the reference's cream canvas, left navigation, timeline/current action, right checklist, and bottom assistant. Four approved groups and the capture/privacy bar intentionally remain. At narrower widths the start controls wrap inside the card; mobile stacks the checklist below the agenda. The composer may be below the initial fold with long content.
+- **Color:** Planner is blue, Daily rhythm gold, Food & fitness teal, Brain dump lavender; Today uses coral and Ask Tempo rose. Larger bordered badges distinguish them even when unselected. Today adds colored heading, routine, task, reminder, and Calendar icons. Lavender current action, orange primary button, peach next step, and green completed steps preserve the reference direction. Text and shape accompany color.
+- **Assets:** Existing Tempo raster logo and standard Feather interface icons are retained; no custom imitation logo, generated imagery, or decorative photos were added. Captured JPEG softness is not a UI font defect.
+- **Content:** Real saved records, clock, routine progress, Calendar availability, account identity, and controls are retained. No invented activity, completed task, or provider connection is presented as real.
 
-**Spacing/layout:** Four main destinations, a dominant current action, timeline, right-hand routine/to-do panel, and bottom composer preserve the reference structure. The sidebar is 228px instead of approximately 243px. The live product adds a small capture/privacy bar; preview adds an explicit sample-data banner. These intentional additions explain the lower heading position. Mobile stacks the panels and exposes section navigation in two rows. Secondary detail is progressively disclosed.
+## Findings and repair history
 
-**Colors/tokens:** Warm ivory, dark plum text, lavender current action, orange primary controls, peach selected navigation, and green checked states preserve the chosen palette. Primary orange is darker than the illustration for readable white button text. Calendar, goals, routines, food, movement, and thoughts have distinct restrained secondary colors. Labels and icons accompany color; color is not the only status cue.
+1. **P2, corrected: tablet action row overflow.** At 1107 px, the initial [reference-size.jpg](qa/today-polish-2026-10-15/reference-size.jpg) showed “Make it smaller” extending beyond the lavender card. The wrapped action group had no width constraint. The tablet CSS now constrains that group's width and restores the normal layout at smaller breakpoints. [reference-size-fixed.jpg](qa/today-polish-2026-10-15/reference-size-fixed.jpg), captured at the same viewport and selected routine state, shows both actions inside the card. The post-fix comparison has no remaining P0/P1/P2 finding.
+2. **P3, optional:** Real labels and the Calendar connection notice create a taller layout than the reference, so the composer sits below the first tablet viewport. The control remains reachable and the dominant action remains visible. Further density tuning is optional.
 
-**Assets/icons:** The existing Tempo raster logo is used at its native aspect ratio through WorkspaceAvatar. Feather icons replace only conventional interface icons; no custom imitation logo or generated photo was introduced. Section icons now match their destinations. JPEG evidence is slightly softer than the actual browser-rendered text.
+## Independent review
 
-**Copy/content:** Short action labels and ordinary form fields replace pipe-delimited routine instructions. Preview data, unsupported scheduled alarms, sample Calendar connection, and disabled preview AI are disclosed. The app does not claim a save for a preview AI request. Delivered reminders are described as removable rather than offering a nonexistent completion action.
+The release_customer_review agent inspected the reference, desktop/tablet/mobile captures and four-file diff. Score: **8.5/10 for this visual pass only**. No reproducible P1/P2 findings. The reviewer calculated sidebar ink/tint contrast at 5.04–5.98:1 and key secondary/primary-button text near 5:1. Checkbox tick contrast was 4.3:1. Review was screenshot/source based, not an independent backend or assistive-technology test.
 
-## Findings, fixes, and comparison history
+## Interaction and technical validation
 
-The first customer review was blocked on these actionable issues:
-
-1. **P2 — compact focus controls below the fold.** The first desktop timer capture (02) required scrolling to reach primary actions. Reduced timer dimensions and spacing; final desktop screenshot 42 shows Pause, Done, and extra-time controls within the viewport. Mobile screenshot 20 confirms the same.
-2. **P2 — navigation preserved old page scroll.** Screenshot 16/17 showed Settings starting halfway down the page. Navigation now resets scroll; screenshot 36 and DOM scrollY=0 confirm the heading and controls appear.
-3. **P2 — excessive mobile navigation height.** Three rows of tabs crowded the first useful content (21/25). Two-row grid and tighter heading spacing are verified in 38/40.
-4. **P2 — routine editor required formatting syntax.** Replaced with named steps, minutes, reorder/remove controls, and sticky Save. Screenshot 39 and saved 2-of-5 state verify the revised editor. A native time-field keyboard edit persisted; an automation-only fill discrepancy was not misreported as a product defect.
-5. **P2 — misleading or missing entry points.** Added reminder/memory creation and change drafts, corrected reminder copy, and replaced recipe dinner-only saving with date/meal/servings selection. Review verified breakfast planning and explicit draft handoff to the assistant.
-6. **P2 — modal keyboard wrap.** A shared boundary handler keeps Tab/Shift+Tab within controls. Both routine and general editors were rechecked in both directions; Escape still dismisses.
-7. **P2 — schedule/session accuracy.** Chronological Calendar rendering was browser-verified. Ongoing Calendar windows and future-due active focus sessions now retain precedence in Today; regression tests failed first and pass after fixes.
-8. **P2 — routine version conflicts.** A newer or deleted routine disables stale saving inside the editor, preserves the visible draft, and offers explicit discard-and-load recovery. Server 409 refreshes saved state. Rendering tests cover stale, deleted, and current versions; no silent rebase is performed.
-9. **P3 — logo aspect-ratio warning.** Intrinsic dimensions fixed the warning. Final fresh console JSON has zero warnings/errors.
-
-The final source/final-screenshot comparison found no remaining actionable P0/P1/P2 visual differences for this requested adaptation. The source is a direction, not a claim of exact pixel identity or identical fictional content.
-
-## Validation and limits
-
-- Independent novice-customer review: **8.2/10** overall UI/preview usability; 19 section scores **8.1–8.4**. Full evidence: `qa/calm-ui/customer-review.md`.
-- Final `npm run check`: lint, typecheck, 668 passing tests / 3 skipped, Next production build, and operations build passed.
-- Nearest workspace tests: 36 passed.
-- Browser interactions include task/goal creation, completion, focus start/pause/done, routine step edits/reordering/checkmarks, meal/recipe planning, groceries, manual/recent food logging, movement logs, thoughts-to-tasks, memory/reminder removal, privacy, tour, navigation, and keyboard dialogs.
-- No live SMS, AI, Google authorization/read/write, authenticated persistence, barcode camera, audio audibility, screen brightness hardware, or wake-from-sleep validation. No physical touchscreen, screen-reader session, or full WCAG audit.
-- Foreground sunrise/sunset sessions are available. Reliable scheduled hardware alarms remain future work.
+- Root used the actual browser to switch Routine/To-do, expand earlier agenda entries, open mobile Food & fitness, and navigate to Fitness; the menu dismissed and the destination rendered.
+- Keyboard ArrowDown opened Planner and focused its first destination. Escape dismissed it and returned focus to Planner. Evidence: [desktop-planner-menu.jpg](qa/today-polish-2026-10-15/desktop-planner-menu.jpg).
+- Browser warning/error log was empty during these checks. The viewport override was reset afterward.
+- Nearest Today tests: 15/15 passed.
+- Full npm run check: exit 0; lint and typecheck passed; **804 tests passed, 3 skipped** across 106 passed/2 skipped files; production Next.js and operations TypeScript builds passed.
+- No paid model calls, provider deliveries, or production mutations were made in this visual pass. Hover handlers were unchanged; touch-style click and keyboard behavior were checked, but no new screen-reader certification or physical touchscreen test is claimed.
 
 ## Implementation checklist
 
-- [x] Reference-based app structure and responsive section themes.
-- [x] Fix and independently recheck actionable customer findings.
-- [x] Preserve existing API paths, consent choices, and backend confirmation boundaries.
-- [x] Run full repository checks and record actual results.
-- [x] Preserve old UI in the original checkout; isolate this branch/worktree.
-- [ ] Before production rollout, test the new UI with authenticated fictional accounts against real persistence and integrations.
-
-## Follow-up polish
-
-P3: test secondary-label readability at the actual wall-monitor viewing distance; recruit people with different sensory and executive-function preferences; consider a user-controlled larger-text density. These require real-user/device evidence rather than another simulated score.
-
-
-## Navigation and goal-card refinement — 2026-10-14
-
-**final result: passed** for this scoped UI refinement.
-
-User requested clearer functional groups, fewer navigation clicks, visible unselected tab colors, To-do naming, Brain dump, and illustrated goal headers. The prior four-destination sidebar is intentionally superseded by Today/Ask Tempo plus four visible directory groups: Planner, Daily rhythm, Food & fitness, Brain dump. Food log, recipes, groceries, and meals are direct destinations rather than nested meal tabs. Existing backend identifiers and hashes remain supported.
-
-Evidence: `qa/calm-ui/44-navigation-goals.jpg` (desktop) and `45-mobile-navigation.jpg` (390 × 844 CSS viewport menu). The supplied goal-card reference (`C:/Users/chanc/AppData/Local/Temp/codex-clipboard-be35f3b9-9dee-4b6b-bc8e-95a14833c3dd.png`) and screenshot 44 were opened together for comparison. This is an adaptation of its illustrated header idea, not an exact whole-screen recreation: the reference is a cropped single card, and the implementation contains fictional preview goals and the new navigation. The hills, path, flag, separate readable goal title, progress, and next-step hierarchy are preserved. Typography/colors intentionally follow the selected warm workspace theme.
-
-Desktop all 15 main destinations were opened and their URL/heading checked. Browser Back returned to the previous section. New grocery and recipe direct views retained their forms: created and checked Oats; saved Overnight oats; planned it into Breakfast and verified the resulting meal. Phone menu showed all groups; Shift+Tab/Tab wrap, Escape close, focus restoration, and hidden-background inertness were verified. No viewport overflow at 390 CSS pixels. Independent agent inspection of code and both screenshots: 8.4/10, no blocking issues. Short desktop screens still need sidebar scrolling; all goals currently share one illustration. Those are follow-up polish, not reasons to hide destinations again.
-
-Asset: `public/images/goal-path.png`, generated with the built-in ImageGen tool and copied into the repository. Final prompt: “Use case: stylized-concept. Create one production UI illustration asset, a wide 3:1 banner, 1536 by 512. It will be the background header of a goal card in Tempo, a warm ivory productivity app. Calm, refined flat editorial landscape: three softly rolling sage-green hills, a short winding path made from ivory stepping stones rising from the bottom center toward a small simple dark sage outline flag on a hill in the right half. Flat solid muted sage tones, pale warm cream sky. Minimal elegant shapes, no texture, no gradients, no shadow, no people, no lettering, no app UI, no border. Keep the upper quarter almost empty so real UI labels can sit there. Landscape and path fill lower two thirds. Image should feel quietly optimistic and polished, not like children's clipart. Banner proportions are important; one standalone illustration, not a grid or mockup.” Generated output is 2172 × 724; the UI uses Next Image responsive sizing.
-
-No live providers or real account data were used. Handwriting input and workout-program scheduling were deliberately deferred. The navigation reflects capabilities that exist today.
-
-## Filled investor demo — 2026-10-14
-
-**final result: passed** for the fictional, guided workspace demo. The subsequent task supersedes the earlier workout deferral: general templates now expose six sessions across three programs, each schedulable as a To-do. Adaptive progression, recurrence and personalized coaching remain outside this implementation.
-
-The fixture connects goals/tasks, routines, three sample events, notes/preferences, a week of meals, groceries, nutrition estimates and workout history. Four new food images use the built-in ImageGen tool; prompts, provenance and paths are in `public/images/meals/README.md`. WebP output is 1200 × 800 and about 790 KiB total. No generated assets are referenced from outside the repository.
-
-Independent reviewer: 7.8 → **8.3/10** after correcting false pending-chat notices and unclear Fitness count scope. Calendar refresh has a sample-specific accessible label. Subsequent polish adds Today shortcuts in Fitness/Food log, independent-height recipe cards, and decorative workout numerals hidden from accessibility labels. Evidence: `qa/investor-demo/review.md`, its four screenshots, `mobile-fitness.jpg`, and `final-recipes.jpg`. Phone view was checked at 390 × 844; no horizontal overflow. No actual screen-reader speech validation was performed.
-
-Full check: lint/typecheck, 674 passing tests (3 skipped), Next build and operations build. Final small UI changes were followed by clean lint/typecheck and 15 passing nearby tests. Live accounts, provider integrations and hardware remain outside this run. The preview always identifies fictional data and reset-on-reload behavior; AI messages and nutrition values are explicitly examples.
+- [x] Distinct colors and icons for the four sidebar groups.
+- [x] Colored Today/agenda/checklist cues without additional dashboard panels.
+- [x] Preserve existing account actions, progress, and navigation.
+- [x] Correct tablet overflow and inspect phone/desktop layouts.
+- [x] Independent review and complete local validation.
+- [x] Keep the production release decision separate from this visual score.
