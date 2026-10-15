@@ -38,6 +38,7 @@ export interface TaskRepository {
     sourceMessageId: string;
     eventType: "updated" | "started" | "completed" | "abandoned";
     changes: TaskMutation;
+    expectedStatus?: TaskRecord["status"];
   }): Promise<TaskRecord>;
 }
 
@@ -108,7 +109,7 @@ export async function executeTaskCommand(
     };
   }
 
-  const tasks = await repository.listForResolution(context.userId);
+  const tasks = command.type === "reopen_task" ? await repository.list(context.userId, "completed") : await repository.listForResolution(context.userId);
   const resolution = resolveTaskReference(tasks, command);
   if (resolution.kind === "not_found") {
     return { kind: "not_found", reply: "I couldn’t find that task. Text “list my tasks” to see the current list." };
@@ -152,6 +153,10 @@ export async function executeResolvedTaskCommand(
       eventType = "completed";
       changes = { status: "completed", completedAt: context.now };
       break;
+    case "reopen_task":
+      eventType = "updated";
+      changes = { status: "not_started", startedAt: null, completedAt: null, abandonedAt: null };
+      break;
     case "abandon_task":
       eventType = "abandoned";
       changes = { status: "abandoned", abandonedAt: context.now };
@@ -176,6 +181,7 @@ export async function executeResolvedTaskCommand(
     sourceMessageId: context.sourceMessageId,
     eventType,
     changes,
+    ...(command.type === "reopen_task" ? { expectedStatus: "completed" as const } : {}),
   });
   return { kind: "executed", task, reply: replyForTaskAction(eventType, task) };
 }

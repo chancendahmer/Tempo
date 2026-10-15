@@ -16,7 +16,8 @@ async function handle(request: NextRequest, write: boolean) {
     const account = await new WebSessionService().findAccount(token);
     if (!account?.phoneVerified) return NextResponse.json({ error: "Please verify your phone to open your workspace." }, { status: 401, headers });
     if (!write) {
-      const workspace = await readWorkspace(account.userId);
+      const diaryDate = z.iso.date().optional().parse(request.nextUrl.searchParams.get("date") ?? undefined);
+      const workspace = await readWorkspace(account.userId, undefined, { diaryDate });
       return NextResponse.json({ ...workspace, profile: { ...workspace.profile, phoneLast4: account.phoneLast4 } }, { headers });
     }
     const limit = await new OperationalRepository().consumeRateLimit({ key: `workspace-write:${account.userId}`, limit: 30, windowMs: 60000 });

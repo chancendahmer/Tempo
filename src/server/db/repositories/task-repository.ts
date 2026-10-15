@@ -108,7 +108,7 @@ export class DrizzleTaskRepository implements TaskRepository {
       const [updated] = await transaction
         .update(tasks)
         .set({ ...input.changes, updatedAt: new Date() })
-        .where(and(eq(tasks.id, input.taskId), eq(tasks.userId, input.userId)))
+        .where(and(eq(tasks.id, input.taskId), eq(tasks.userId, input.userId), input.expectedStatus ? eq(tasks.status, input.expectedStatus) : undefined))
         .returning();
       if (!updated) throw new Error("Task not found or not owned by user");
 

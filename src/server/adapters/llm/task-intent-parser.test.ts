@@ -5,6 +5,7 @@ import { AssistantProviderFailure } from "../../domain/assistant-provider-failur
 import { HEALTH_CAPABILITY_LIMIT } from "../../domain/connection-status-reply";
 import { RUNDOWN_HISTORY_LIMIT } from "../../domain/rundown";
 import { WRITE_COMMANDS } from "../../domain/turn-write-policy";
+import { navigationGroups, sections } from "../../../app/workspace/WorkspaceNavigation";
 
 const { create, authorize, settings } = vi.hoisted(() => ({ create: vi.fn(), authorize: vi.fn(), settings: { webSearch: false } }));
 vi.mock("@anthropic-ai/sdk", () => ({ default: class { messages = { create }; } }));
@@ -32,7 +33,7 @@ describe("current-message routing", () => {
     authorize.mockResolvedValue({mode: "write", commands: ["life_save", "create_reminder"]});
     create.mockResolvedValueOnce({content: [{type: "tool_use", id: "capture", name: "capture_with_reminder", input: {sourceQuote: message, destination: "note", title: "Innovation center", remindAt: "2026-10-07T12:00:00-04:00"}}]})
       .mockResolvedValueOnce({content: [{type: "text", text: "ACK_ONLY"}]});
-    const execute = vi.fn(async () => "Saved to Thought inbox and reminder set.");
+    const execute = vi.fn(async () => "Saved to Thoughts and reminder set.");
     await new AnthropicTaskIntentParser().parse({...input, now: new Date("2026-10-07T00:44:00Z"), message, execute, history: [
       {id: "request", role: "user", content: "Save Innovation center in my thought box and remind me tomorrow", createdAt: new Date("2026-10-07T00:42:00Z")},
       {id: "question", role: "assistant", replyToMessageId: "request", content: "What time tomorrow?", createdAt: new Date("2026-10-07T00:43:00Z")},
@@ -106,6 +107,60 @@ describe("current-message routing", () => {
     create.mockReset(); settings.webSearch = false;
     // Existing tests isolate grounding/schema behavior after an independent grant.
     authorize.mockReset().mockResolvedValue({ mode: "write", commands: [...WRITE_COMMANDS] });
+  });
+
+  it("describes the actual sidebar destinations and groups without promising hardware or alarm control", async () => {
+    create.mockResolvedValueOnce({ content: [{ type: "text", text: "Open Food & fitness, then Groceries or Fitness." }] });
+    const execute = vi.fn();
+    await new AnthropicTaskIntentParser().parse({ ...input, message: "Where can I find my groceries and workout plan?", execute });
+    const system = create.mock.calls[0][0].system as string;
+    for (const [, label] of sections) expect(system).toContain(label);
+    for (const group of navigationGroups) expect(system).toContain(group.label);
+    expect(JSON.stringify(create.mock.calls[0][0].tools)).not.toContain("Thought inbox");
+    for (const obsolete of ["Tasks & focus", "My routines", "Meal planner", "Food & nutrition", "Movement", "Thought inbox", "Wake & Wind Down", "Do not invent Recipes"]) expect(system).not.toContain(obsolete);
+    expect(system).toContain("only mention navigation when it helps");
+    expect(system).toContain("you cannot set a scheduled wake alarm");
+    expect(system).toContain("control a physical light");
+    expect(system).toContain("does not schedule an alarm, create outreach, or control hardware");
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it.each([false, true])("sets only explicit nutrition targets after current lookup (existing=%s)", async existing => {
+    const message = "Set my daily protein target to 90 grams. Leave calories, carbs, fat and fiber targets unknown.";
+    const id = "00000000-0000-4000-8000-000000000093";
+    const data = { kind: "nutrition_target" as const, title: "Daily protein target", calories: null, protein: 90, carbs: null, fat: null, fiber: null };
+    authorize.mockResolvedValue({ mode: "write", commands: ["life_save", "life_patch"] });
+    create.mockResolvedValueOnce({ content: [{ type: "tool_use", id: "read-target", name: "life_list", input: { kind: "nutrition_target", sourceQuote: message } }] })
+      .mockResolvedValueOnce({ content: [{ type: "tool_use", id: "set-target", name: existing ? "life_patch" : "life_save", input: { sourceQuote: message, ...(existing ? { id, version: 3, patch: { kind: "nutrition_target", protein: 90, calories: null, carbs: null, fat: null, fiber: null } } : { data }) } }] })
+      .mockResolvedValueOnce({ content: [{ type: "text", text: "ACK_ONLY" }] });
+    const execute = vi.fn(async (command: { type: string }) => command.type === "life_list" ? JSON.stringify({ items: existing ? [{ id, version: 3, data: { ...data, protein: 80 } }] : [] }) : "Saved your protein target.");
+    await new AnthropicTaskIntentParser().parse({ ...input, message, execute });
+    expect(execute.mock.calls).toHaveLength(2);
+    expect(execute.mock.calls[0][0]).toEqual({ type: "life_list", kind: "nutrition_target" });
+    expect(execute.mock.calls[1][0]).toEqual(existing ? { type: "life_patch", id, version: 3, patch: { kind: "nutrition_target", protein: 90, calories: null, carbs: null, fat: null, fiber: null } } : { type: "life_save", data });
+    expect(authorize).toHaveBeenCalledTimes(1);
+  });
+
+  it("requires a current target lookup even when the model tries to create directly", async () => {
+    const message = "Set my daily protein target to 90 grams.";
+    create.mockResolvedValueOnce({ content: [{ type: "tool_use", id: "unread-target", name: "life_save", input: { sourceQuote: message, data: { kind: "nutrition_target", title: "Daily protein target", calories: null, protein: 90, carbs: null, fat: null, fiber: null } } }] })
+      .mockResolvedValueOnce({ content: [{ type: "text", text: "ACK_ONLY" }] });
+    const execute = vi.fn();
+    await new AnthropicTaskIntentParser().parse({ ...input, message, execute });
+    expect(execute).not.toHaveBeenCalled();
+    expect(create.mock.calls[1][0].messages.at(-1).content[0].content).toContain("first read life_list kind nutrition_target");
+  });
+
+  it.each([
+    ["Would a protein target of 90 grams make sense?", "read_only"],
+    ["Do not change my protein target to 90 grams.", "write"],
+  ])("never treats target advice or negation as permission: %s", async (message, mode) => {
+    authorize.mockResolvedValue({ mode, commands: mode === "write" ? ["life_save", "life_patch"] : [] });
+    create.mockResolvedValueOnce({ content: [{ type: "tool_use", id: "read-target", name: "life_list", input: { kind: "nutrition_target", sourceQuote: message } }] })
+      .mockResolvedValueOnce({ content: [{ type: "tool_use", id: "set-target", name: "life_save", input: { sourceQuote: message, data: { kind: "nutrition_target", title: "Protein target", calories: null, protein: 90, carbs: null, fat: null, fiber: null } } }] });
+    const execute = vi.fn(async () => JSON.stringify({ items: [] }));
+    await new AnthropicTaskIntentParser().parse({ ...input, message, execute });
+    expect(execute).toHaveBeenCalledExactlyOnceWith({ type: "life_list", kind: "nutrition_target" });
   });
 
   it("cannot delete a routine during an explicit no-change question after a valid lookup", async () => {

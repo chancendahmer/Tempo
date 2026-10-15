@@ -36,23 +36,29 @@ function ProfileEditor({ account }: { account: PublicAccount }) {
     event.preventDefault();
     setSaving(true);
     setMessage("");
-    const response = await fetch("/api/account/me", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ displayName, profileInstructions: instructions }),
-    });
-    const payload = (await response.json()) as { error?: string };
-    setSaving(false);
-    setMessage(response.ok ? "Saved. Tempo will use these instructions in future coaching." : payload.error ?? "Could not save your profile.");
-    if (response.ok) window.dispatchEvent(new Event(ACCOUNT_EVENT));
+    try {
+      const response = await fetch("/api/account/me", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ displayName, profileInstructions: instructions }),
+      });
+      const payload = (await response.json()) as { error?: string };
+      setMessage(response.ok ? "Saved. Tempo will use these instructions in future coaching." : payload.error ?? "Could not save your profile.");
+      if (response.ok) window.dispatchEvent(new Event(ACCOUNT_EVENT));
+    } catch { setMessage("Could not confirm your save. Check your connection and try again."); }
+    finally { setSaving(false); }
   }
 
   async function logout() {
-    await fetch("/api/auth/logout", { method: "POST" });
-    window.localStorage.removeItem("tempo-early-access-submitted");
-    window.dispatchEvent(new Event(ACCOUNT_EVENT));
-    router.push("/");
-    router.refresh();
+    setSaving(true);
+    try {
+      const response = await fetch("/api/auth/logout", { method: "POST" });
+      if (!response.ok) throw new Error("Sign-out failed");
+      window.localStorage.removeItem("tempo-early-access-submitted");
+      window.dispatchEvent(new Event(ACCOUNT_EVENT));
+      router.push("/login");
+      router.refresh();
+    } catch { setMessage("Could not sign out. Please try again."); setSaving(false); }
   }
 
   return (
@@ -90,7 +96,7 @@ function ProfileEditor({ account }: { account: PublicAccount }) {
         </label>
         <div className="profile-actions">
           <button className="black-button" type="submit" disabled={saving}>{saving ? "Saving…" : "Save profile"}</button>
-          <button className="text-action" type="button" onClick={logout}><FiLogOut /> Log out</button>
+          <button className="text-action" type="button" disabled={saving} onClick={logout}><FiLogOut /> Log out</button>
         </div>
         {message && <p className="profile-save-message" role="status">{message}</p>}
       </form>

@@ -3,6 +3,7 @@ import { z } from "zod";
 export const reminderCommandSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("create_reminders"), reminders: z.array(z.object({ text: z.string().trim().min(1).max(500), remindAt: z.iso.datetime({ offset: true }) }).strict()).min(2).max(8) }).strict(),
   z.object({ type: z.literal("reschedule_reminders"), changes: z.array(z.object({ reminderId: z.uuid(), expectedRemindAt: z.iso.datetime({ offset: true }), remindAt: z.iso.datetime({ offset: true }) }).strict()).min(2).max(8) }).strict(),
+  z.object({ type: z.literal("cancel_reminders"), reminders: z.array(z.object({ reminderId: z.uuid(), expectedRemindAt: z.iso.datetime({ offset: true }) }).strict()).min(2).max(8) }).strict(),
   z.object({
     type: z.literal("create_reminder"),
     contentMode: z.enum(["text", "daily_rundown"]).optional(),

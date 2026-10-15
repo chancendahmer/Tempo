@@ -85,4 +85,21 @@ describe("phone-linked web sessions", () => {
     await sessions.revoke(created.token, new Date("2026-08-20T12:05:00Z"));
     expect(await sessions.findAccount(created.token, new Date("2026-08-20T12:06:00Z"))).toBeNull();
   });
+
+  it("cannot activate or redeem an abandoned number's revoked browser claim", async () => {
+    const now = new Date();
+    const key = randomBytes(32).toString("base64");
+    const [wrong] = await database.insert(users).values({ phoneE164: "+12025550181" }).returning();
+    const [correct] = await database.insert(users).values({ phoneE164: "+12025550182" }).returning();
+    const sessions = new WebSessionService(database);
+    const abandoned = await sessions.create(wrong.id, now);
+    const oldLink = issueActionToken({ userId: wrong.id, scope: "account:signin", sessionId: abandoned.id }, key, now);
+    await sessions.revoke(abandoned.token, now);
+    const replacement = await sessions.create(correct.id, now);
+    await database.update(users).set({ phoneVerifiedAt: now }).where(eq(users.id, wrong.id));
+    await sessions.activatePending(wrong.id, now);
+    expect(await sessions.findAccount(abandoned.token, now)).toBeNull();
+    await expect(sessions.redeemSignIn(oldLink, key, now)).rejects.toThrow();
+    expect(await sessions.findAccount(replacement.token, now)).toMatchObject({ userId: correct.id, phoneVerified: false });
+  });
 });

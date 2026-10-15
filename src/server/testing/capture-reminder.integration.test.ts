@@ -18,6 +18,7 @@ it.each(["note", "task", "goal"] as const)("saves a %s and reminder together to 
     expect(destination === "note" ? state.items : destination === "goal" ? state.goals : state.tasks).toHaveLength(1);
     expect(state.reminders).toEqual([expect.objectContaining({text: "Visit the innovation center", remindAt: new Date("2026-10-07T16:00:00Z")})]);
     expect(turn.replies.join(" ")).toContain("Reminder set");
+    expect(turn.replies.join(" ")).toContain(`Saved to ${{ note: "Thoughts", task: "To-do", goal: "Goals" }[destination]}:`);
     expect((await other.workspace()).reminders).toHaveLength(0);
     const sourceId = state.messages.find(row => row.direction === "inbound")!.id;
     const life = new LifeAssistant(simulation.database);

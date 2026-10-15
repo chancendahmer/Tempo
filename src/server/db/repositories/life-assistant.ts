@@ -7,6 +7,7 @@ import { foodCatalog } from "./food-catalog";
 import { isSensitiveMemory } from "../../domain/memory-service";
 import { lifeSavedReply } from "../../domain/life-patch";
 import { captureWithReminder } from "./capture-reminder";
+import { refreshMealGroceries } from "./meal-groceries";
 
 export class LifeAssistant {
   constructor(private readonly database: TempoDatabase = getDatabase()) {}
@@ -16,6 +17,7 @@ export class LifeAssistant {
   async execute(userId: string, sourceMessageId: string, command: Extract<AssistantCommand, { type: "food_search" | "life_list" | "life_save" | "life_patch" | "life_remove" | "grocery_add" }>) {
     if (command.type === "food_search") return JSON.stringify(await foodCatalog(userId, command, this.database));
     if (command.type === "life_list") {
+      if (command.kind === "grocery") await refreshMealGroceries(this.database, userId);
       const terms = [...new Set(command.query?.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [])];
       if (command.query && (!terms.length || terms.length > 12)) return JSON.stringify({ items: [], truncated: false, coverage: { kind: command.kind, query: command.query, searched: false }, notice: "Use 1–12 search words for this lookup." });
       let rows = await this.database.select({ id: lifeItems.id, version: lifeItems.version, data: lifeItems.data }).from(lifeItems)
@@ -56,15 +58,7 @@ export class LifeAssistant {
       if ("id" in command || "version" in command) return "Existing items require life_patch with their current id and version; no change was made.";
       if (command.data.kind === "focus") return "Start or pause a focus session using the workspace controls, or start its task.";
       if (isSensitiveMemory(JSON.stringify(command.data))) return "I can save everyday plans and preferences, but not secrets or sensitive medical details.";
-      if (command.sourceRecipeId) {
-        if (command.data.kind !== "meal") return "A saved recipe can only supply ingredients for a meal plan.";
-        const [source] = await this.database.select({ data: lifeItems.data }).from(lifeItems)
-          .where(and(eq(lifeItems.userId, userId), eq(lifeItems.id, command.sourceRecipeId))).limit(1);
-        if (!source || source.data.kind !== "recipe") return "I couldn’t find that saved recipe in your account. Read your recipes before planning it.";
-        if (source.data.ingredients.length > 4000) return "That recipe’s ingredients are too long for a meal plan. Please shorten the saved ingredient list first.";
-        command = { ...command, data: { ...command.data, ingredients: source.data.ingredients } };
-      }
-      const result = await mutateWorkspace(userId, { action: "save", id: sourceMessageId, version: 0, data: command.data }, this.database, sourceMessageId);
+      const result = await mutateWorkspace(userId, { action: "save", id: sourceMessageId, version: 0, data: command.data, sourceRecipeId: command.sourceRecipeId }, this.database, sourceMessageId);
       if (result.message !== "Saved.") return result.message;
       return lifeSavedReply(command.data);
     } catch (error) {
