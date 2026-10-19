@@ -16,20 +16,31 @@
 .primary:hover { background:#933a24; }
 .sheet { overflow:hidden; border:1px solid var(--calendar-line); border-radius:14px; background:#fffdf8; }
 .weekStrip { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); padding:12px 24px 0; border-bottom:1px solid var(--calendar-line); background:#f8f6ef; }
-.weekStrip button { display:flex; flex-direction:column; align-items:center; gap:5px; min-width:0; min-height:82px; padding:10px 4px 14px; border:0; border-bottom:3px solid transparent; background:transparent; color:#6a6871; }
+.weekStrip button { display:flex; flex-direction:column; align-items:center; gap:5px; min-width:0; min-height:82px; padding:10px 4px 9px; border:0; border-bottom:3px solid transparent; background:transparent; color:#6a6871; }
 .weekStrip button:hover { background:#edf1f3; }
 .weekStrip button[aria-pressed=true] { border-bottom-color:var(--calendar-ink); color:#284e73; background:#eaf0f4; }
 .weekStrip span { font-size:12px; }
 .weekStrip strong { font-size:24px; line-height:1.25; font-weight:500; font-variant-numeric:tabular-nums; }
 .weekStrip button[aria-pressed=true] strong { font-weight:700; }
+.weekStrip i { width:4px; height:4px; border-radius:50%; background:transparent; }
+.weekStrip button[aria-current=date] i { background:var(--calendar-ink); }
 .weekStrip button:focus-visible { outline-offset:-4px; }
 .agenda { padding:22px 30px 8px; }
 .agendaHeader { display:flex; justify-content:space-between; gap:18px; align-items:center; margin-bottom:18px; }
 .kicker { display:block; margin-bottom:6px; color:var(--calendar-ink); font-size:13px; font-weight:700; letter-spacing:1px; text-transform:uppercase; }
 .calendar .agendaHeader h2 { margin:0; font:500 clamp(22px,2vw,29px)/1.3 Georgia,serif; letter-spacing:-.5px; }
 .calendar .agendaHeader p { margin:8px 0 0; color:#6a6571; font-size:13px; line-height:1.6; }
+.agendaSummary { display:flex; align-items:center; flex-wrap:wrap; gap:12px 22px; padding:0 0 18px; color:#65616a; font-size:12px; }
+.agendaSummary>span { display:inline-flex; align-items:center; gap:6px; }
+.agendaSummary>span:first-child svg { color:#577b9d; }
+.agendaSummary>span:nth-child(2) svg { color:#60745b; }
+.agendaSummary>span:nth-child(3) svg { color:#916b28; }
 .notice { padding:13px 15px; border:1px solid #d8e1e5; border-radius:8px; margin:0 0 16px; background:#f1f5f6; color:#526372; font-size:13px; line-height:1.6; }
 .notice a { color:#345c80; text-decoration:underline; text-underline-offset:3px; }
+.errorNotice { border-color:#e4cbbb; background:#fcf3eb; color:#7d533d; }
+.errorNotice strong { display:block; font-weight:650; }
+.errorNotice p { margin:5px 0 0; }
+.errorNotice .textButton { color:#7d533d; }
 .entries { border-top:1px solid var(--calendar-line); }
 .entries:empty { border:0; }
 .entry { display:grid; grid-template-columns:102px 22px minmax(0,1fr); gap:15px; width:100%; padding:18px 0; border:0; border-bottom:1px solid var(--calendar-line); background:transparent; text-align:left; color:inherit; }
@@ -39,6 +50,8 @@
 .entry[data-kind=reminder] .entryIcon { color:#916b28; }
 .task .entryIcon { color:#60745b; }
 .entryBody { display:block; min-width:0; }
+.entry[data-kind=event] .entryBody { padding-left:12px; border-left:3px solid #a7bfd2; }
+.entry[data-kind=reminder] .entryBody { padding-left:12px; border-left:3px solid #d1b779; }
 .source { display:block; margin-bottom:6px; font-size:13px; font-weight:600; letter-spacing:.3px; color:#687988; }
 .task .source { color:#64745d; }
 .entry[data-kind=reminder] .source { color:#8b702e; }
@@ -49,8 +62,9 @@
 .task { border-radius:0; cursor:pointer; }
 .task:hover { background:#f5f2e9; }
 .task:focus-visible { outline-offset:-3px!important; }
+.task[data-completed=true] .entryBody>strong { color:#77717b; text-decoration:line-through; }
 .empty { padding:36px 16px 44px; text-align:center; }
-.empty>svg { width:28px; height:28px; margin-bottom:15px; color:#6685a0; }
+.empty>svg { display:block; width:28px; height:28px; margin:0 auto 15px; color:#6685a0; }
 .calendar .empty h3 { margin:0; font:500 25px/1.3 Georgia,serif; }
 .calendar .empty p { margin:12px 0 0; font-size:14px; color:#6a6571; line-height:1.6; }
 .connection { padding:19px 30px 20px; border-top:1px solid var(--calendar-line); background:#f7f5ef; }

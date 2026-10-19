@@ -1,5 +1,21 @@
 # Calm UI release checkpoint — October 19, 2026
 
+## Section identities and workflow polish
+
+The next October 19 pass preserves the approved Today screen and refines Planner,
+Nutrition, recipes/meals, Fitness, routines, light sessions and Brain dump using
+primary competitor examples. Notes now have title/body search; calendar weeks
+stay stable; diary totals are more compact; workout defaults are immediately
+saveable. Food/workout dialog focus and goal-step context were repaired after
+independent hands-on review. Final scoped desktop UI score: **8.2/10**.
+
+See [section evidence, scores and resume notes](../qa/section-polish-2026-10-19/README.md).
+This score retains lower/unverified ratings for live assistant-dependent reminder,
+memory and chat workflows. It does not establish every section at 8+, or authorize
+ignoring release gates. Normal local account note and food edits survived reload;
+390px layouts were checked. No production, provider, paid API or migration changes
+were made in this pass. Existing live SMS/Calendar release gates remain open.
+
 ## Today, introduction and activity streak refinement
 
 The October 19 Tiimo comparison pass adds a skippable account-backed setup,

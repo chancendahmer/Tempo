@@ -5,28 +5,28 @@
   color: #261c32;
 }
 .root[data-mode="sunset"] { --wake-accent: #68508b; }
-.choices { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
-.choice { display: flex; align-items: center; gap: 18px; min-width: 0; min-height: 108px; padding: 22px; border: 1px solid #d8d2d9; border-radius: 16px; color: #261c32; text-align: left; font: inherit; cursor: pointer; }
-.sunrise { background: #fff8ea; }
-.sunset { background: #f5f0fc; }
-.choice[aria-pressed="true"] { border: 2px solid var(--wake-accent); padding: 21px; }
+.choices { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; border-bottom: 1px solid #e3dacb; }
+.choice { display: flex; align-items: center; gap: 16px; min-width: 0; min-height: 100px; padding: 16px 10px 22px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: #261c32; text-align: left; font: inherit; cursor: pointer; }
+.choice[aria-pressed="true"] { border-bottom-color: var(--wake-accent); }
+.choice:not([aria-pressed="true"]):hover { background: #ffffff65; }
 .choiceCopy { display: grid; gap: 6px; flex: 1; }
 .choiceCopy strong { font-size: 19px; font-weight: 700; }
 .choiceCopy > span { color: #655a6b; font-size: 14px; line-height: 1.5; }
-.modeIcon { display: grid; place-items: center; flex-shrink: 0; width: 54px; height: 54px; border-radius: 50%; font-size: 25px; }
+.modeIcon { display: grid; place-items: center; flex-shrink: 0; width: 48px; height: 48px; border-radius: 50%; font-size: 25px; }
 .sunrise .modeIcon { color: #99501b; background: #f9e2b7; }
 .sunset .modeIcon { color: #665083; background: #e7dcf5; }
 .selection { display: grid; place-items: center; width: 24px; height: 24px; flex-shrink: 0; border: 1px solid #aea2b6; border-radius: 50%; }
 .choice[aria-pressed="true"] .selection { color: white; background: var(--wake-accent); border-color: var(--wake-accent); }
-.controls { padding: 30px; border: 1px solid #e1dbe1; border-radius: 18px; background: #fffdfa; }
-.sessionIntro { position: relative; display: flex; align-items: center; gap: 28px; justify-content: space-between; padding-bottom: 28px; overflow: hidden; }
+.controls { padding: 32px; border: 1px solid #e8dfcf; border-radius: 12px; background: linear-gradient(115deg, #fffefa 35%, #fff3da); }
+.root[data-mode="sunset"] .controls { border-color: #e3d9e8; background: linear-gradient(115deg, #fffefa 35%, #f2ebf9); }
+.sessionIntro { position: relative; display: flex; align-items: center; gap: 28px; justify-content: space-between; padding-block: 10px 34px; overflow: hidden; }
 .sessionIntro > div { position: relative; z-index: 1; max-width: 620px; }
 .eyebrow { color: #736477; font-size: 11px; font-weight: 700; letter-spacing: 1.8px; margin: 0 0 12px; }
 .sessionIntro h2 { margin: 0 0 12px; font: 500 clamp(27px, 3vw, 38px)/1.15 Georgia, "Times New Roman", serif; letter-spacing: -.8px; }
 .sessionIntro p:not(.eyebrow) { color: #655a6b; font-size: 16px; line-height: 1.6; margin: 0; }
 .miniSun, .miniMoon { display: block; width: 100px; height: 100px; flex-shrink: 0; border-radius: 50%; margin: 0 25px; }
 .miniSun { background: #f6ca73; box-shadow: 0 0 0 13px #fbeacb, 0 0 0 25px #fff6e7; }
-.miniMoon { background: #d4c2e8; box-shadow: 25px -18px 0 0 #fffdfa inset; }
+.miniMoon { background: #d4c2e8; box-shadow: 25px -18px 0 0 #f2ebf9 inset; }
 .startRow { display: flex; align-items: flex-end; gap: 28px; flex-wrap: wrap; }
 .controls label { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; color: #493c51; font-size: 14px; font-weight: 650; min-width: 0; }
 .duration { width: 180px; }
@@ -57,7 +57,7 @@
 .note p { margin: 5px 0 0; max-width: 700px; }
 .note details { margin-top: 8px; }
 .note summary { display: flex; align-items: center; min-height: 44px; color: #655a6b; text-decoration: underline; text-underline-offset: 4px; font-size: 13px; cursor: pointer; }
-.note button { flex-shrink: 0; background: transparent; border: 1px solid #c9becf; color: #493c51; }
+.note button { flex-shrink: 0; background: transparent; border: 0; color: #493c51; padding-inline: 0; }
 .root button:focus-visible, .root summary:focus-visible, .root select:focus-visible, .root input:focus-visible, .session button:focus-visible { outline: 3px solid #76549b; outline-offset: 4px; }
 
 /* The full-screen light remains driven by lightFrame, not a decorative animation. */
@@ -73,6 +73,9 @@
 .session .sessionContent h2 { color: #fff; font: 500 25px/1.2 Georgia, "Times New Roman", serif; letter-spacing: -.3px; margin: 0 0 12px; }
 .timer { font-size: 46px; line-height: 1.15; font-variant-numeric: tabular-nums; letter-spacing: -1px; font-weight: 450; }
 .sessionContent progress { display: block; width: 100%; height: 4px; accent-color: #ffd799; margin: 16px 0; }
+.session .sessionContent progress::-webkit-progress-bar { background: #ffffff40; }
+.session .sessionContent progress::-webkit-progress-value { background: #ffd799; }
+.session .sessionContent progress::-moz-progress-bar { background: #ffd799; }
 .sessionContent > p:last-child { font-size: 13px; line-height: 1.6; color: #fbf3e6; margin: 0; }
 .sessionActions { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; }
 .session button { border: 1px solid #ffffff70; background: #20172be8; color: white; border-radius: 24px; min-height: 48px; padding: 13px 22px; font: inherit; font-size: 14px; display: flex; align-items: center; gap: 8px; cursor: pointer; }
@@ -80,8 +83,7 @@
 
 @media (max-width: 760px) {
   .choices { gap: 12px; }
-  .choice { gap: 12px; padding: 16px; flex-wrap: wrap; }
-  .choice[aria-pressed="true"] { padding: 15px; }
+  .choice { gap: 12px; padding: 16px 0; flex-wrap: wrap; }
   .modeIcon { width: 44px; height: 44px; font-size: 22px; }
   .choiceCopy { flex: 1 1 calc(100% - 70px); }
   .choiceCopy strong { font-size: 17px; }
@@ -104,9 +106,12 @@
   .sessionActions button { padding: 12px 16px; }
 }
 @media (max-width: 480px) {
-  .choices { grid-template-columns: 1fr; }
-  .choice { flex-wrap: nowrap; min-height: 88px; }
+  .choices { gap: 14px; }
+  .choice { flex-wrap: wrap; min-height: 88px; }
   .choiceCopy { flex: 1; }
+  .choiceCopy > span { display: none; }
+  .selection { width: 18px; height: 18px; }
+  .modeIcon { width: 32px; height: 32px; font-size: 19px; }
   .controls { padding: 21px; }
   .miniSun, .miniMoon { display: none; }
   .duration { width: 100%; }

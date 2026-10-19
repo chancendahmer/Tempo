@@ -95,12 +95,12 @@ export function WakeExperience({ onRoutines }: { onRoutines: () => void }) {
     </div>
     <section className={s.controls} aria-label="Session settings">
       <div className={s.sessionIntro}>
-        <div><p className={s.eyebrow}>START WHEN YOU’RE READY</p><h2>{mode === "sunrise" ? "Let a little light in." : "Let the day settle."}</h2><p>{mode === "sunrise" ? "Watch your screen slowly brighten into a warm sunrise." : "Warm light slowly fades through amber into night."}</p></div>
+        <div><p className={s.eyebrow}>ON THIS SCREEN · START WHEN YOU’RE READY</p><h2>{mode === "sunrise" ? "Let a little light in." : "Let the day settle."}</h2><p>{mode === "sunrise" ? "Watch your screen slowly brighten into a warm sunrise." : "Warm light slowly fades through amber into night."}</p></div>
         <span className={mode === "sunrise" ? s.miniSun : s.miniMoon} aria-hidden="true" />
       </div>
       <div className={s.startRow}>
         <label className={s.duration}><span><FiClock aria-hidden="true" /> Duration</span><select value={minutes} onChange={e => setMinutes(Number(e.target.value))}>{[5, 10, 15, 20, 30, 45, 60].map(n => <option key={n} value={n}>{n} minutes</option>)}</select></label>
-        <div className={s.actions}><button type="button" className={s.start} onClick={() => start()}><FiPlay aria-hidden="true" /> Start {mode}</button><button type="button" className={s.preview} onClick={() => start(true)}>Try 20 seconds</button></div>
+        <div className={s.actions}><button type="button" className={s.start} onClick={() => start()}><FiPlay aria-hidden="true" /> Start {mode}</button><button type="button" className={s.preview} onClick={() => start(true)}>Try 20 seconds <FiArrowRight aria-hidden="true" /></button></div>
       </div>
       <details className={s.settings}>
         <summary><FiSliders aria-hidden="true" /><span>Sound & light<small>{sound === "silent" ? "No sound" : sound === "birds" ? "Morning birds" : "Ocean waves"} · {maximum}% light</small></span><FiChevronDown className={s.chevron} aria-hidden="true" /></summary>

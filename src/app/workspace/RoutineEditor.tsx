@@ -148,7 +148,7 @@ export function RoutineEditor({ item, latestItem, saveError, timezone, saving, o
             </fieldset>
             <label className={s.field} htmlFor={`${id}-time`}>Start time<input id={`${id}-time`} type="time" value={draft.time} onChange={event => { setDraft(current => ({ ...current, time: event.target.value })); setError(""); }} required /><small>{timezone.replaceAll("_", " ")}</small></label>
           </div>
-          <div className={s.stepsHeading}><h3>Your steps</h3><span><FiClock aria-hidden="true" />{total} min total</span></div>
+          <div className={s.stepsHeading}><div><h3>Your steps</h3><p>Small enough to begin. In the order that works for you.</p></div><span><FiClock aria-hidden="true" />{total} min total</span></div>
           <ol className={s.steps}>
             {draft.steps.map((step, index) => <li className={s.step} key={step.key}>
               <span className={s.number} aria-hidden="true">{index + 1}</span>
@@ -174,7 +174,7 @@ export function RoutineEditor({ item, latestItem, saveError, timezone, saving, o
           {draft.steps.length >= 30 && <p className={s.limit}>You’ve reached 30 steps. Edit or remove a step to make room.</p>}
         </fieldset>
       </div>
-      <footer className={s.footer}><button className={s.cancelButton} type="button" disabled={busy} onClick={onClose}>Cancel</button><button className={s.saveButton} type="submit" disabled={busy || conflict}>{busy ? "Saving…" : "Save routine"}</button></footer>
+      <footer className={s.footer}><span className={s.footerSummary}>{draft.steps.length} {draft.steps.length === 1 ? "step" : "steps"} · {total} min</span><button className={s.cancelButton} type="button" disabled={busy} onClick={onClose}>Cancel</button><button className={s.saveButton} type="submit" disabled={busy || conflict}>{busy ? "Saving…" : "Save routine"}</button></footer>
     </form>
   </dialog>;
 }

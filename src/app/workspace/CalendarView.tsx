@@ -10,12 +10,13 @@ import { localDay } from "../../server/domain/life-items";
 import s from "./calendar.module.css";
 
 export function CalendarView({ data, preview, ask, editTask }: { data: Workspace; preview: boolean; ask: (text: string) => void; editTask: (task: Workspace["tasks"][number]) => void }) {
-  const [day, setDay] = useState(() => localDay(new Date(), data.timezone));
+  const today = localDay(new Date(), data.timezone);
+  const [day, setDay] = useState(today);
   const [refresh, setRefresh] = useState(0);
   const { events = [], error, requiresReconnect, loading, fetched, truncated, disconnected } = useCalendarEvents(data, day, preview, refresh);
   const time = (value: string) => new Intl.DateTimeFormat(undefined, { timeZone: data.timezone, hour: "numeric", minute: "2-digit" }).format(new Date(value));
   const dayEvents = events.filter(event => calendarEventOccursOnDay(event, day, data.timezone));
-  const tasks = data.tasks.filter(task => task.dueAt && localDay(new Date(task.dueAt), data.timezone) === day);
+  const tasks = data.tasks.filter(task => task.status !== "abandoned" && task.dueAt && localDay(new Date(task.dueAt), data.timezone) === day);
   const reminders = data.reminders.filter(r => localDay(new Date(r.remindAt), data.timezone) === day);
   const dateLabel = (value: string) => new Intl.DateTimeFormat(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric", timeZone: "UTC" }).format(new Date(`${value}T12:00:00Z`));
   const agenda = [
@@ -29,9 +30,9 @@ export function CalendarView({ data, preview, ask, editTask }: { data: Workspace
     })),
     ...tasks.map(task => ({
       id: `task-${task.id}`, at: Date.parse(task.dueAt!),
-      content: <button className={`${s.entry} ${s.task}`} onClick={() => editTask(task)}>
+      content: <button className={`${s.entry} ${s.task}`} data-completed={task.status === "completed"} onClick={() => editTask(task)}>
         <span className={s.time}>{taskDueLabel(task.dueAt!, data.timezone)}</span>{task.status === "completed" ? <FiCheckSquare className={s.entryIcon} aria-hidden="true" /> : <FiSquare className={s.entryIcon} aria-hidden="true" />}
-        <span className={s.entryBody}><span className={s.source}>To-do</span><strong>{task.title}</strong><small>{task.status === "completed" ? "Done" : `${task.estimatedMinutes ?? 25} min`} · Edit task <FiArrowRight aria-hidden="true" /></small></span>
+        <span className={s.entryBody}><span className={s.source}>{task.status === "in_progress" ? "To-do · In progress" : "To-do"}</span><strong>{task.title}</strong><small>{task.status === "completed" ? "Done · " : task.estimatedMinutes ? `${task.estimatedMinutes} min · ` : ""}Edit task <FiArrowRight aria-hidden="true" /></small></span>
       </button>,
     })),
     ...reminders.map(r => ({
@@ -40,7 +41,10 @@ export function CalendarView({ data, preview, ask, editTask }: { data: Workspace
     })),
   ].sort((a, b) => a.at - b.at);
   function move(delta: number) { const value = new Date(`${day}T12:00:00Z`); value.setUTCDate(value.getUTCDate() + delta); setDay(value.toISOString().slice(0, 10)); }
-  const days = Array.from({ length: 7 }, (_, index) => { const d = new Date(`${day}T12:00:00Z`); d.setUTCDate(d.getUTCDate() - 3 + index); return { date: d.toISOString().slice(0, 10), weekday: new Intl.DateTimeFormat(undefined, { weekday: "short", timeZone: "UTC" }).format(d), number: d.getUTCDate() }; });
+  const weekStart = new Date(`${day}T12:00:00Z`);
+  weekStart.setUTCDate(weekStart.getUTCDate() - (weekStart.getUTCDay() + 6) % 7);
+  const days = Array.from({ length: 7 }, (_, index) => { const d = new Date(weekStart); d.setUTCDate(d.getUTCDate() + index); return { date: d.toISOString().slice(0, 10), weekday: new Intl.DateTimeFormat(undefined, { weekday: "short", timeZone: "UTC" }).format(d), number: d.getUTCDate() }; });
+  const reconnect = requiresReconnect || data.calendar?.status === "requires_reauth";
 
   return <div className={s.calendar}>
     <div className={s.toolbar}>
@@ -48,15 +52,20 @@ export function CalendarView({ data, preview, ask, editTask }: { data: Workspace
       <button className={s.primary} onClick={() => ask(`Help me schedule an event on ${day}.`)}><FiPlus aria-hidden="true" /> Plan with Tempo</button>
     </div>
     <div className={s.sheet}>
-      <div className={s.weekStrip} role="group" aria-label="Choose a day">{days.map(d => <button key={d.date} aria-label={dateLabel(d.date)} aria-pressed={d.date === day} onClick={() => setDay(d.date)}><span>{d.weekday}</span><strong>{d.number}</strong></button>)}</div>
+      <div className={s.weekStrip} role="group" aria-label="Choose a day">{days.map(d => <button key={d.date} aria-label={dateLabel(d.date)} aria-current={d.date === today ? "date" : undefined} aria-pressed={d.date === day} onClick={() => setDay(d.date)}><span>{d.weekday}</span><strong>{d.number}</strong><i aria-hidden="true" /></button>)}</div>
       <section className={s.agenda} aria-labelledby="calendar-agenda-heading">
         <header className={s.agendaHeader}><div><span className={s.kicker}>Day agenda</span><h2 id="calendar-agenda-heading">{dateLabel(day)}</h2><p>{data.timezone} · {preview ? "Sample calendar" : disconnected ? "Tasks and reminders" : "Google primary calendar"}</p></div>{!disconnected && <button className={s.iconButton} aria-label={preview ? "Refresh sample calendar" : "Refresh Google Calendar"} disabled={loading} onClick={() => setRefresh(n => n + 1)}><FiRefreshCw aria-hidden="true" /></button>}</header>
+        {agenda.length > 0 && <div className={s.agendaSummary} aria-label="Items on this day">
+          <span><FiCalendar aria-hidden="true" />{loading ? "Events refreshing" : error ? "Events unavailable" : `${dayEvents.length} ${dayEvents.length === 1 ? "event" : "events"}`}</span>
+          <span><FiCheckSquare aria-hidden="true" />{tasks.length} {tasks.length === 1 ? "to-do" : "to-dos"}</span>
+          {reminders.length > 0 && <span><FiBell aria-hidden="true" />{reminders.length} {reminders.length === 1 ? "reminder" : "reminders"}</span>}
+        </div>}
         {disconnected && <p className={s.notice}>Add calendar events alongside your tasks whenever you’re ready. <Link href="/extensions">Connect Google Calendar</Link></p>}
         {loading && <p className={s.notice} role="status">Refreshing your calendar…</p>}
-        {error && <div role="alert" className={s.notice}>{requiresReconnect || data.calendar?.status === "requires_reauth" ? <>Your Google Calendar connection needs attention. Reconnect to see current events. <Link href="/extensions">Reconnect Google Calendar</Link></> : error}</div>}
+        {error && <div role="alert" className={`${s.notice} ${s.errorNotice}`}><strong>Calendar events couldn’t refresh</strong><p>{reconnect ? "Reconnect Google Calendar to see current events." : error} Your saved tasks and reminders are still shown below.</p>{reconnect ? <Link href="/extensions">Reconnect Google Calendar</Link> : <button className={s.textButton} disabled={loading} onClick={() => setRefresh(n => n + 1)}><FiRefreshCw aria-hidden="true" />Try again</button>}</div>}
         {truncated && <p className={s.notice}>Google returned more events than this view can display. Open Google Calendar for the full schedule.</p>}
         <div className={s.entries}>{agenda.map(entry => <div key={entry.id}>{entry.content}</div>)}</div>
-        {!loading && !error && !agenda.length && <div className={s.empty}><FiCalendar aria-hidden="true" /><h3>A little room to breathe</h3><p>{disconnected ? "No tasks or reminders on this day." : "No calendar events, tasks, or reminders on this day."}</p></div>}
+        {!loading && !error && !agenda.length && <div className={s.empty}><FiCalendar aria-hidden="true" /><h3>A little room to breathe</h3><p>{disconnected ? "No tasks or reminders on this day." : "No calendar events, tasks, or reminders on this day."}</p><button className={s.textButton} onClick={() => ask(`Help me schedule an event on ${day}.`)}>Plan something small <FiArrowRight aria-hidden="true" /></button></div>}
       </section>
       <footer className={s.connection}>
         <div className={s.connectionHeading}><FiCalendar aria-hidden="true" /><h3>Your Google Calendar</h3><Link className={s.textButton} href="/extensions">{data.calendar?.status === "requires_reauth" ? "Reconnect Google Calendar" : "Manage connection"} <FiArrowRight aria-hidden="true" /></Link></div>

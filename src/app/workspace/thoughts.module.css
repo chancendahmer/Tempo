@@ -1,0 +1,6 @@
+.excerpt { margin: .45rem 0 1rem; color: #625a6c; font-size: .94rem; line-height: 1.65; white-space: pre-wrap; overflow-wrap: anywhere; }
+.fullNote { margin: 0 0 1rem; color: #524062; font-size: .92rem; }
+.fullNote summary { cursor: pointer; width: fit-content; padding: .65rem 0; text-decoration: underline; text-underline-offset: 3px; }
+.fullNote summary:focus-visible { outline: 2px solid #71548d; outline-offset: 4px; border-radius: 3px; }
+.fullNote p { line-height: 1.7; color: #453e50; white-space: pre-wrap; overflow-wrap: anywhere; }
+.footnote { color: #625a6c; font-size: .86rem; margin: 1.25rem 0 0; }

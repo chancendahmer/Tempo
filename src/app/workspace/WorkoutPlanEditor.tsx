@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { FiCheck, FiPlus, FiTrash2, FiX } from "react-icons/fi";
 import { lifeItemSchema, type LifeItem, type SavedLifeItem } from "../../server/domain/life-items";
 import { exerciseAlternative, type WorkoutProgram } from "./workout-programs";
@@ -33,13 +33,14 @@ export function WorkoutPlanEditor({ program, item, latestItem, saving, save, clo
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
   const dialog = useRef<HTMLDialogElement>(null);
+  const formId = useId();
   const submitting = useRef(false);
   const conflict = !!item && (!latestItem || latestItem.version !== item.version);
   useEffect(() => { dialog.current?.showModal(); }, []);
   function updateSession(index: number, update: Partial<WorkoutPlanDraft["sessions"][number]>) { setDraft(current => ({ ...current, sessions: current.sessions.map((session, i) => i === index ? { ...session, ...update } : session) })); }
   return <dialog ref={dialog} className={`${ui.dialog} ${s.dialog}`} onCancel={close} onKeyDown={loopDialogTab} aria-label={item ? "Customize saved workout plan" : "Adopt workout plan"}>
-    <div className={ui.between}><div><p className={ui.eyebrow}>MAKE IT YOURS</p><h2>{item ? "Customize your plan" : "Save a starting point"}</h2></div><button className={ui.iconButton} onClick={close} aria-label="Close workout plan editor"><FiX /></button></div>
-    <form className={s.form} onSubmit={async e => { e.preventDefault(); if (saving || submitting.current || conflict) return; setError(""); try { const value = buildWorkoutPlan(draft); submitting.current = true; setPending(true); if (await save(value, item)) close(); else setError("Your plan wasn’t saved. Check the workspace message and try again."); } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not save your plan."); } finally { setPending(false); submitting.current = false; } }}>
+    <div className={`${ui.between} ${s.planEditorHeading}`}><div><p className={ui.eyebrow}>MAKE IT YOURS</p><h2>{item ? "Customize your plan" : "Save a starting point"}</h2></div><div className={s.actions}><button type="submit" form={formId} className={ui.primary} disabled={saving || pending || conflict}><FiCheck />{pending ? "Saving…" : "Save plan"}</button><button className={ui.iconButton} onClick={close} aria-label="Close workout plan editor"><FiX /></button></div></div>
+    <form id={formId} className={s.form} onSubmit={async e => { e.preventDefault(); if (saving || submitting.current || conflict) return; setError(""); try { const value = buildWorkoutPlan(draft); submitting.current = true; setPending(true); if (await save(value, item)) close(); else setError("Your plan wasn’t saved. Check the workspace message and try again."); } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not save your plan."); } finally { setPending(false); submitting.current = false; } }}>
       <p className={s.info}>Adjust movements, sets and duration. Saving keeps the plan in your workspace. Schedule a session from your saved plan when you are ready.</p>
       <label className={s.field}>Plan name<input autoFocus required maxLength={240} value={draft.title} onChange={e => setDraft(current => ({ ...current, title: e.target.value }))} /></label>
       {draft.sessions.map((session, sessionIndex) => <fieldset className={s.sessionEdit} key={sessionIndex}><legend>Session {sessionIndex + 1}</legend><div className={s.fields}><label>Session name<input required maxLength={240} value={session.name} onChange={e => updateSession(sessionIndex, { name: e.target.value })} /></label><label>Estimated minutes<input required type="number" min="1" max="1440" step="1" value={session.minutes} onChange={e => updateSession(sessionIndex, { minutes: e.target.value })} /></label></div>

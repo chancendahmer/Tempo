@@ -21,6 +21,7 @@ export function TasksView({ data, today, saving, edit, start, complete, reopen, 
   end.setUTCDate(end.getUTCDate() + 6);
   const weekEnd = end.toISOString().slice(0, 10);
   const active = data.tasks.filter(task => !["completed", "abandoned"].includes(task.status));
+  const completedCount = data.tasks.filter(task => task.status === "completed").length;
   const undated = active.filter(task => !task.dueAt);
   const matches = (task: Task) => view === "Done"
     ? task.status === "completed"
@@ -42,15 +43,18 @@ export function TasksView({ data, today, saving, edit, start, complete, reopen, 
       <button className={s.addButton} disabled={saving} onClick={() => edit()}><FiPlus aria-hidden="true" /> Add to-do</button>
     </div>
     {data.tasksTruncated && <p role="status">Showing up to 200 tasks, with active tasks first. Ask Tempo to find older completed items.</p>}
-    <div className={s.listSummary} aria-live="polite"><span>{shown.length} {view === "Done" ? "completed" : "open"} {shown.length === 1 ? "task" : "tasks"}</span><span>Tap a task to edit it</span></div>
+    <div className={s.listSummary} aria-live="polite">
+      <span><strong>{shown.length}</strong> {view === "Done" ? "completed" : "open"} {shown.length === 1 ? "task" : "tasks"}</span>
+      {view !== "Done" && completedCount > 0 ? <button className={s.completedLink} onClick={() => setView("Done")}><FiCheckCircle aria-hidden="true" />{completedCount} completed<FiArrowUpRight aria-hidden="true" /></button> : <span>Tap a task to edit it</span>}
+    </div>
     {groups.filter(group => group.tasks.length).map(group => <section className={s.taskGroup} data-tone={group.tone} key={group.label} aria-label={group.label}>
-      <h2><span className={s.groupIcon} aria-hidden="true">{group.icon}</span>{group.label}<span className={s.groupCount}>{group.tasks.length}</span></h2>
+      <h2><span className={s.groupIcon} aria-hidden="true">{group.icon}</span>{group.label}<span className={s.groupCount}>{group.tasks.length}</span>{group.tone !== "done" && group.tasks.every(task => Boolean(task.estimatedMinutes)) && <span className={s.groupEstimate}><FiClock aria-hidden="true" />{group.tasks.reduce((sum, task) => sum + (task.estimatedMinutes ?? 0), 0)} min estimated</span>}</h2>
       <ul className={s.checklist}>
         {group.tasks.map(task => <li className={`${s.task} ${task.status === "completed" ? s.finished : ""}`} key={task.id}>
           <button className={s.checkbox} disabled={saving} aria-label={task.status === "completed" ? `Reopen ${task.title}` : `Complete ${task.title}`} onClick={() => task.status === "completed" ? reopen(task) : complete(task)}><span>{task.status === "completed" && <FiCheck aria-hidden="true" />}</span></button>
           <button className={s.taskTitle} disabled={saving} onClick={() => edit(task)} aria-label={`Edit ${task.title}`}>
             <strong>{task.title}</strong>
-            <span>{task.dueAt ? taskDueLabel(task.dueAt, data.timezone, due(task) !== today) : "Choose a date when you need one"}{task.estimatedMinutes ? <><i aria-hidden="true" /><FiClock aria-hidden="true" />{task.estimatedMinutes} min</> : null}{task.goalId && <><i aria-hidden="true" /><FiTarget aria-hidden="true" />Goal step</>}</span>
+            <span>{task.dueAt ? taskDueLabel(task.dueAt, data.timezone, due(task) !== today) : "Choose a date when you need one"}{task.estimatedMinutes ? <><i aria-hidden="true" /><FiClock aria-hidden="true" />{task.estimatedMinutes} min</> : null}{task.goalId && <span className={s.goalContext}><FiTarget aria-hidden="true" />{data.goals.find(goal => goal.id === task.goalId)?.title ?? "Goal step"}</span>}</span>
           </button>
           <div className={s.taskActions}>
             {!["completed", "abandoned"].includes(task.status) && <button className={s.focusButton} disabled={saving} onClick={() => start(task)} aria-label={`Focus on ${task.title}`}><FiPlay aria-hidden="true" /><span>Focus</span></button>}
