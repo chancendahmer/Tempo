@@ -1,4 +1,16 @@
-# Calm UI release checkpoint — October 18, 2026
+# Calm UI release checkpoint — October 19, 2026
+
+## Latest navigation refinement
+
+October 19: replaced the permanent rail with a closed-by-default drawer on all
+screen sizes, added Today app shortcuts, simplified section symbols and
+typography, and retained restrained active-section color. Keyboard focus,
+mobile navigation, all grouped destinations and compiled layouts were checked.
+`npm run check` passed with 810 tests; final lint/typecheck/build passed. This
+pass spent $0 on APIs. See the [navigation verification record](../qa/ui-navigation-2026-10-19/README.md).
+The earlier 8.7 score below applies to the previous visual pass; no new
+whole-product readiness score or live provider verification is claimed here.
+Production and the outstanding release gates are unchanged.
 
 ## Latest UI polish pass
 

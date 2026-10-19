@@ -5,9 +5,9 @@ import { FiArrowRight, FiBookOpen, FiCalendar, FiMessageCircle, FiSun, FiX } fro
 import s from "./workspace.module.css";
 
 const steps = [
-  { title: "Start with today", body: "See what’s next, check off a routine step, or give one task a few focused minutes.", icon: FiSun, destination: "today", action: "Go to Today" },
+  { title: "Start with today", body: "See what’s next, check off a routine step, or give one task a few focused minutes. Open Menu at the top left whenever you want to switch apps.", icon: FiSun, destination: "today", action: "Go to Today" },
   { title: "Make room for your plans", body: "To-do, Calendar, Goals, and Reminders live in Planner. Daily rhythm holds your routines and sunrise or sunset sessions.", icon: FiCalendar, destination: "tasks", action: "Open Planner" },
-  { title: "Keep it all in one place", body: "Food & fitness holds meals, groceries, your food log, and workouts. Brain dump keeps your thoughts and saved memories together.", icon: FiBookOpen, destination: "meals", action: "Open Food & fitness" },
+  { title: "Keep it all in one place", body: "Food & fitness holds meals, groceries, your nutrition tracker, and workouts. Brain dump keeps your thoughts and saved memories together.", icon: FiBookOpen, destination: "meals", action: "Open Food & fitness" },
   { title: "You can just ask", body: "Text Tempo or use the message box. Ask for a task, a change of plan, or help getting started. Check-ins are always your choice.", icon: FiMessageCircle, destination: "assistant", action: "Ask Tempo" },
 ] as const;
 export function WorkspaceTour({ onClose, onGo }: { onClose: () => void; onGo: (value: "today" | "tasks" | "meals" | "assistant") => void }) {

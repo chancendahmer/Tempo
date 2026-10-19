@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { SectionArt } from "./SectionArt";
 import { TodayView } from "./TodayView";
 import { WorkspaceTour } from "./WorkspaceTour";
-import { sections, groupForSection, WorkspaceSidebarNav, WorkspaceSectionNav, type Section } from "./WorkspaceNavigation";
+import { sections, groupForSection, WorkspaceSidebarNav, WorkspaceSectionNav, WorkspaceAppLauncher, type Section } from "./WorkspaceNavigation";
 import { RoutineEditor } from "./RoutineEditor";
 import { WorkspaceMutationAttempts } from "./workspace-mutation-attempts";
 import { NutritionView } from "./NutritionView";
@@ -44,7 +44,10 @@ export function WorkspaceClient({ preview = false }: { preview?: boolean }) {
   const [saving, setSaving] = useState(false);
   const [editor, setEditor] = useState<Editor | null>(null);
   const [routineEditor, setRoutineEditor] = useState<{ item?: SavedLifeItem } | null>(null);
-  const [mobile, setMobile] = useState(false);
+  const [navigationOpen, setNavigationOpen] = useState(false);
+  const [navigationGroup, setNavigationGroup] = useState<string>();
+  const navigationOpener = useRef<HTMLElement | null>(null);
+  const openNavigation = (group?: string) => { navigationOpener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null; setNavigationGroup(group); setNavigationOpen(true); };
   const [now, setNow] = useState<Date | null>(null);
   const [selectedDate, setSelectedDate] = useState("");
   const [draft, setDraft] = useState("");
@@ -65,33 +68,29 @@ export function WorkspaceClient({ preview = false }: { preview?: boolean }) {
   const menuButton = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    if (!mobile) return;
-    const opener = menuButton.current;
+    if (!navigationOpen) return;
+    const opener = navigationOpener.current ?? menuButton.current;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const controls = () => Array.from(sidebar.current?.querySelectorAll<HTMLElement>("button:not(:disabled), a[href]") ?? []).filter(element => element.getClientRects().length > 0);
     // Let the visible drawer style commit before focusing an off-canvas control.
     const focusFrame = requestAnimationFrame(() => controls()[0]?.focus());
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") { event.preventDefault(); setMobile(false); }
+      if (event.key === "Escape") { event.preventDefault(); setNavigationOpen(false); }
       if (event.key !== "Tab") return;
       const elements = controls();
       const first = elements[0], last = elements.at(-1);
       if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
       else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
     };
-    const desktop = window.matchMedia("(min-width: 761px)");
-    const onResize = () => { if (desktop.matches) setMobile(false); };
     document.addEventListener("keydown", onKey);
-    desktop.addEventListener("change", onResize);
     return () => {
       cancelAnimationFrame(focusFrame);
       document.body.style.overflow = previousOverflow;
       document.removeEventListener("keydown", onKey);
-      desktop.removeEventListener("change", onResize);
-      opener?.focus();
+      opener?.focus({ preventScroll: true });
     };
-  }, [mobile]);
+  }, [navigationOpen]);
 
   const refresh = useCallback(async () => {
     if (preview) return;
@@ -133,7 +132,7 @@ export function WorkspaceClient({ preview = false }: { preview?: boolean }) {
     return () => { window.removeEventListener("focus", onReturn); window.removeEventListener("online", onReturn); document.removeEventListener("visibilitychange", onReturn); clearTimeout(initial); clearInterval(poll); clearInterval(clock); sequenceRef.current++; window.speechSynthesis?.cancel(); };
   }, [preview, refresh]);
   useEffect(() => {
-    const onHash = () => { const key = window.location.hash.slice(1) || "today"; if (sections.some(([section]) => section === key)) { setSection(key as Section); window.scrollTo({ top: 0, behavior: "instant" }); } };
+    const onHash = () => { setNavigationOpen(false); const key = window.location.hash.slice(1) || "today"; if (sections.some(([section]) => section === key)) { setSection(key as Section); window.scrollTo({ top: 0, behavior: "instant" }); } };
     window.addEventListener("hashchange", onHash);
     window.addEventListener("popstate", onHash);
     return () => { window.removeEventListener("hashchange", onHash); window.removeEventListener("popstate", onHash); };
@@ -154,7 +153,7 @@ export function WorkspaceClient({ preview = false }: { preview?: boolean }) {
   const remaining = focus ? focus.endsAt && now ? Math.min(focus.remaining, Math.max(0, Math.ceil((new Date(focus.endsAt).getTime() - now.getTime()) / 1000))) : focus.remaining : 0;
   const time = (value: string) => new Intl.DateTimeFormat(undefined, { timeZone: data?.timezone ?? "UTC", hour: "numeric", minute: "2-digit" }).format(new Date(value));
   const go = (value: Section) => {
-    setSection(value); window.history.pushState(null, "", `#${value}`); setMobile(false); setNotice("");
+    setSection(value); window.history.pushState(null, "", `#${value}`); setNavigationOpen(false); setNotice("");
     window.scrollTo({ top: 0, behavior: "instant" });
     // Announce the destination and put keyboard users beside the page's controls.
     requestAnimationFrame(() => document.getElementById("workspace-content")?.focus({ preventScroll: true }));
@@ -384,13 +383,13 @@ export function WorkspaceClient({ preview = false }: { preview?: boolean }) {
   }
   return <div className={s.app} data-section={section}>
     <a className={s.skipLink} href="#workspace-content">Skip to content</a>
-    <aside ref={sidebar} role={mobile ? "dialog" : undefined} aria-modal={mobile || undefined} aria-label={mobile ? "Workspace navigation" : undefined} className={`${c.sidebar} ${mobile ? c.sidebarOpen : ""}`}><button className={`${s.iconButton} ${c.navigationClose}`} aria-label="Close menu" onClick={() => setMobile(false)}><FiX /></button><Link href={preview ? "/workspace/preview" : "/workspace"} className={c.brand}><WorkspaceAvatar size={34} />Tempo</Link>
-      <WorkspaceSidebarNav current={section} go={go} />
-      <div className={c.sidebarBottom}><button className={c.person} onClick={() => go("settings")} aria-label="Account and settings"><span>{data?.profile.displayName?.[0] ?? "Y"}</span><div><strong>{data?.profile.displayName ?? "Your account"}</strong><small>{preview ? "Preview account" : data?.profile.phoneLast4 ? `Phone •••• ${data.profile.phoneLast4}` : "Settings"}</small></div><FiChevronDown /></button><div className={c.accountActions}><button onClick={() => { setTour(true); setMobile(false); }} aria-label="Show me around"><FiBookOpen aria-hidden="true" />Guide</button>{!preview && <button disabled={saving} onClick={() => void switchAccount()}><FiLogOut /> Log out</button>}</div></div>
+    <aside id="workspace-navigation" ref={sidebar} inert={!navigationOpen || undefined} role={navigationOpen ? "dialog" : undefined} aria-modal={navigationOpen || undefined} aria-label={navigationOpen ? "Workspace navigation" : undefined} className={`${c.sidebar} ${navigationOpen ? c.sidebarOpen : ""}`}><button className={`${s.iconButton} ${c.navigationClose}`} aria-label="Close menu" onClick={() => setNavigationOpen(false)}><FiX /></button><Link href={preview ? "/workspace/preview" : "/workspace"} className={c.brand}><WorkspaceAvatar size={34} />Tempo</Link>
+      <WorkspaceSidebarNav key={navigationOpen ? `open-${navigationGroup ?? section}` : "closed"} initialGroup={navigationGroup} current={section} go={go} />
+      <div className={c.sidebarBottom}><button className={c.person} onClick={() => go("settings")} aria-label="Account and settings"><span>{data?.profile.displayName?.[0] ?? "Y"}</span><div><strong>{data?.profile.displayName ?? "Your account"}</strong><small>{preview ? "Preview account" : data?.profile.phoneLast4 ? `Phone •••• ${data.profile.phoneLast4}` : "Settings"}</small></div><FiChevronDown /></button><div className={c.accountActions}><button onClick={() => { setTour(true); setNavigationOpen(false); }} aria-label="Show me around"><FiBookOpen aria-hidden="true" />Guide</button>{!preview && <button disabled={saving} onClick={() => void switchAccount()}><FiLogOut /> Log out</button>}</div></div>
     </aside>
-    {mobile && <button tabIndex={-1} className={c.scrim} aria-label="Close navigation" onClick={() => setMobile(false)} />}
-    <div className={c.main} inert={mobile || undefined}>
-      <header className={c.topbar}><div className={c.topbarStart}><button ref={menuButton} className={`${s.iconButton} ${c.menuButton}`} aria-label="Open navigation" aria-expanded={mobile} onClick={() => setMobile(!mobile)}><FiMenu /></button><div className={c.breadcrumb}><span>{group ?? "Your workspace"}</span><FiChevronRight aria-hidden="true" /><strong>{sections.find(([key]) => key === section)?.[1]}</strong></div></div><div className={c.topbarActions}><button className={c.captureButton} aria-label="Capture a thought" onClick={() => itemEditor("note")} disabled={!data}><FiPlus /><span>Capture<span className={c.captureDetail}> a thought</span></span></button><button className={s.iconButton} title="Hide private content" aria-label="Hide private content" onClick={() => { setHidden(!hidden); window.speechSynthesis?.cancel(); }}><FiMoon /></button></div></header>
+    {navigationOpen && <button tabIndex={-1} className={c.scrim} aria-label="Close navigation" onClick={() => setNavigationOpen(false)} />}
+    <div className={c.main} inert={navigationOpen || undefined}>
+      <header className={c.topbar}><div className={c.topbarStart}><button ref={menuButton} className={`${s.iconButton} ${c.menuButton}`} aria-label="Open navigation" aria-expanded={navigationOpen} aria-controls="workspace-navigation" onClick={() => openNavigation()}><FiMenu /><span>Menu</span></button><button type="button" className={c.topbarBrand} aria-label="Tempo home" onClick={() => go("today")}>Tempo</button><div className={c.breadcrumb}><span>{group ?? "Your workspace"}</span><FiChevronRight aria-hidden="true" /><strong>{sections.find(([key]) => key === section)?.[1]}</strong></div></div><div className={c.topbarActions}><button className={c.captureButton} aria-label="Capture a thought" onClick={() => itemEditor("note")} disabled={!data}><FiPlus /><span>Capture<span className={c.captureDetail}> a thought</span></span></button><button className={s.iconButton} title="Hide private content" aria-label="Hide private content" onClick={() => { setHidden(!hidden); window.speechSynthesis?.cancel(); }}><FiMoon /></button></div></header>
       {preview && <div className={s.previewBanner}><span>Alex’s demo · fictional data · resets on reload · no messages sent</span><Link href="/workspace">Open my account <FiArrowRight /></Link></div>}
       {error && data && <div className={s.foodNotice} role="alert">{error} <button className={s.textButton} onClick={() => void refresh()}>Try again</button></div>}
       {notice && <div className={s.toast} role="status"><WorkspaceAvatar size={28} /><span>{notice}</span>{undo && <button className={s.textButton} disabled={saving} onClick={() => void act(undo)}>Undo</button>}<button className={s.iconButton} aria-label="Dismiss message" onClick={() => setNotice("")}><FiX /></button></div>}
@@ -399,6 +398,7 @@ export function WorkspaceClient({ preview = false }: { preview?: boolean }) {
         <div key={section} className={c.page}>
         {section === "today" ? <>
           {now && <TodayView onResumeFocus={() => setFocusHidden(false)} preview={preview} data={data} now={now} saving={saving} go={go} editTask={taskEditor} startTask={task => void startFocus(task)} completeTask={task => void taskAction({ type: "complete_task", taskId: task.id })} checkStep={(item, id) => void routineCheck(item, id)} startStep={startRoutineStep} editRoutine={item => itemEditor("routine", item)} ask={ask} />}
+          <WorkspaceAppLauncher openGroup={openNavigation} />
         </> : <>
           <div className={s.pageHeading}><div><h1>{section === "nutrition" ? "Nutrition Tracker" : sections.find(([key]) => key === section)?.[1]}</h1><p>{({ tasks: "A clear next step, whenever you’re ready.", goals: "The bigger things you’re working toward.", calendar: "Your events, tasks, and reminders together.", routines: "A familiar start. An easier finish.", meals: "Decide once. Enjoy your week.", recipes: "Keep the meals you want to make again.", groceries: "One list for your next shop.", nutrition: "What you ate, all in one place.", movement: "Movement that fits your day.", memories: "What Tempo knows about you. You’re in control.", reminders: "See what’s coming. Clear what’s finished.", inbox: "A home for the things on your mind.", assistant: "Text naturally. Your plans stay connected.", wake: "Ease into your morning. Let the evening settle.", settings: "Choose what works for you." } as Record<string, string>)[section]}</p></div><SectionArt section={section} /></div>
           {section === "tasks" && <TasksView reopen={task => void taskAction({ type: "reopen_task", taskId: task.id })} remove={task => setEditor({ title: `Remove ${task.title}?`, subtitle: "This removes the task from your active list.", fields: [], submit: () => taskAction({ type: "abandon_task", taskId: task.id }) })} data={data} today={today} saving={saving} edit={taskEditor} start={task => void startFocus(task)} complete={task => void taskAction({ type: "complete_task", taskId: task.id })} />}

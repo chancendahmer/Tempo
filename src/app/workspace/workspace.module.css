@@ -1,6 +1,6 @@
 .app { --bg: #fffcf8; --surface: #fff; --text: #201a30; --soft: #626376; --line: #e2dedb; --green: #bd472c; --accent: #bd472c; --pale: #fce9df; min-height: 100dvh; background: var(--bg); color: var(--text); font-size: 16px; line-height: 1.6; }
 .app * { box-sizing: border-box; }
-.app button, .app input, .app textarea, .app select { font: inherit; }
+.app :where(button,input,textarea,select) { font:inherit; }
 .app button { cursor: pointer; }
 .app button:disabled { cursor: default; opacity: .5; }
 .app button, .app a { -webkit-tap-highlight-color: transparent; }
@@ -710,3 +710,11 @@
 .app:is([data-section=routines],[data-section=wake],[data-section=meals],[data-section=recipes],[data-section=groceries],[data-section=nutrition],[data-section=movement],[data-section=inbox],[data-section=memories]) :is(.primary,.darkButton,.startButton):hover {
   background:color-mix(in srgb,var(--accent),#000 12%);
 }
+
+/* Shared typography and quiet wayfinding; section content carries its palette. */
+.app :is(h1,h2),.app[data-section] :is(h1,h2) { font-family:"Manrope Variable","Avenir Next",Arial,sans-serif; font-weight:650; }
+.app h1 { letter-spacing:-1.4px; }
+.sectionArt { width:42px; height:42px; border-radius:0; background:transparent; color:var(--section-ink); }
+.sectionArt>svg { width:30px; height:30px; stroke-width:1.5; }
+
+@media (min-width:761px) { .toast { left:50%; max-width:min(680px,calc(100vw - 40px)); } }
