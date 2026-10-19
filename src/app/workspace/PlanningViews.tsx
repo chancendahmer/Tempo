@@ -96,6 +96,7 @@ export function GoalsView({ data, saving, edit, addStep, editStep, achieve, remo
       const done = linked.filter(task => task.status === "completed").length;
       const next = linked.find(task => task.status === "in_progress") ?? linked.find(task => !["completed", "abandoned"].includes(task.status));
       const completed = goal.status === "completed";
+      const readyToAchieve = !completed && linked.length > 0 && done === linked.length;
 
       return <article className={s.goal} data-tone={tone} key={goal.id}>
         <div className={s.goalHeader}>
@@ -115,12 +116,13 @@ export function GoalsView({ data, saving, edit, addStep, editStep, achieve, remo
             <span className={s.kicker}>{completed ? "You made it" : "Next small step"}</span>
             {!completed && next ? <button disabled={saving} onClick={() => editStep(next)}><span>{next.title}</span><FiArrowUpRight aria-hidden="true" /></button> : <p>{completed ? "Keep this here as a reminder of what you’ve done." : linked.length ? "All steps finished. Ready to mark this goal achieved?" : "Add one task that moves this forward."}</p>}
           </div>
-          {!completed && <button className={s.goalAdd} disabled={saving} onClick={() => addStep(goal.id)}><FiPlus aria-hidden="true" /> Add a step</button>}
+          {readyToAchieve && <button className={s.goalAdd} disabled={saving} onClick={() => achieve(goal.id)}><FiCheck aria-hidden="true" /> Mark achieved</button>}
+          {!completed && <button className={readyToAchieve ? s.textButton : s.goalAdd} disabled={saving} onClick={() => addStep(goal.id)}><FiPlus aria-hidden="true" /> Add a step</button>}
           <details className={s.goalDetails}>
             <summary>Steps & goal options</summary>
             {linked.length > 0 ? <ul className={s.milestones}>{linked.map(task => <li key={task.id}><button disabled={saving} onClick={() => editStep(task)}><span aria-hidden="true">{task.status === "completed" ? <FiCheckCircle /> : <FiTarget />}</span><span>{task.title}</span><span className={s.stepStatus}>{task.status === "completed" ? "Done" : "Edit"}</span></button></li>)}</ul> : <p>No steps added yet.</p>}
             <div className={s.goalOptions}>
-              {!completed && <button className={s.achieve} disabled={saving} onClick={() => achieve(goal.id)}><FiCheck aria-hidden="true" /> Mark achieved</button>}
+              {!completed && !readyToAchieve && <button className={s.achieve} disabled={saving} onClick={() => achieve(goal.id)}><FiCheck aria-hidden="true" /> Mark achieved</button>}
               <button className={s.removeGoal} disabled={saving} onClick={() => remove(goal)}><FiTrash2 aria-hidden="true" /> Remove goal</button>
             </div>
           </details>

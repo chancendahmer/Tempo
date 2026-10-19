@@ -24,6 +24,42 @@ function fixture() {
   return data;
 }
 describe("Today in the account timezone", () => {
+  it("labels an earlier local due day as overdue in NOW and the task checklist", () => {
+    const data = fixture();
+    data.items = [];
+    data.tasks = [{ ...data.tasks[0], title: "Carry forward this task", dueAt: "2026-10-16T03:59:00Z", status: "not_started" }];
+    const html = renderToday(data, new Date("2026-10-18T18:00:00Z"));
+    expect(html).toContain("Carry forward this task</h3>");
+    expect(html).toContain("<p>Overdue · Oct 15 · By end of day</p>");
+    expect(html.match(/Overdue · Oct 15 · By end of day/g)).toHaveLength(2);
+    expect(html).toContain(`Start ${data.tasks[0].estimatedMinutes} minutes`);
+  });
+  it("keeps a date-only deadline current through the account's local end of day", () => {
+    const data = fixture();
+    data.items = [];
+    data.tasks = [{ ...data.tasks[0], dueAt: "2026-10-19T03:59:00Z", status: "not_started" }];
+    const beforeMidnight = renderToday(data, new Date("2026-10-19T03:59:30Z"));
+    expect(beforeMidnight).toContain("Oct 18 · By end of day");
+    expect(beforeMidnight).not.toContain("Overdue");
+    const afterMidnight = renderToday(data, new Date("2026-10-19T04:00:00Z"));
+    expect(afterMidnight).toContain("<p>Overdue · Oct 18 · By end of day</p>");
+  });
+  it("keeps future started work and persisted focus distinct from overdue metadata", () => {
+    const data = fixture();
+    data.items = [];
+    data.tasks = [{ ...data.tasks[0], title: "Future work already started", dueAt: "2026-10-20T14:00:00Z", status: "in_progress" }];
+    const now = new Date("2026-10-18T18:00:00Z");
+    const future = renderToday(data, now);
+    expect(future).toContain("Future work already started</h3>");
+    expect(future).not.toContain("Overdue");
+    data.tasks[0].dueAt = "2026-10-16T03:59:00Z";
+    data.items = [{ id: "paused-focus", version: 1, data: { kind: "focus", title: "My current focused step", taskId: data.tasks[0].id, remaining: 120, endsAt: null } }];
+    const focus = renderToday(data, now);
+    expect(focus).toContain("My current focused step</h3>");
+    expect(focus).toContain("<p>Focus paused. Continue when you’re ready.</p>");
+    expect(focus).toContain("Continue focus");
+    expect(focus.match(/Overdue · Oct 15 · By end of day/g)).toHaveLength(1);
+  });
   it("uses the morning window, then returns to tasks without promoting tomorrow's task", () => {
     const data = fixture();
     expect(todayModel(data, new Date("2026-10-14T12:10:00Z")).activeRoutine?.data.period).toBe("morning");

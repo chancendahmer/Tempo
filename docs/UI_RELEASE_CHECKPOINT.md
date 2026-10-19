@@ -1,4 +1,60 @@
-# Calm UI release checkpoint — October 15, 2026
+# Calm UI release checkpoint — October 18, 2026
+
+## Latest continuation
+
+The October 18 continuation resumed the same candidate and original $10 API
+budget. It did not merge or change production. See
+[current acceptance record](../qa/customer-review-2026-10-18/README.md),
+[mobile review](../qa/customer-review-2026-10-18/mobile-review.md), and
+[deployment audit](UI_RELEASE_RESUME_AUDIT.md) before the historical record below.
+
+Fresh evidence includes 19 authenticated HTTP acceptance groups, account-local
+dated nutrition history, 20-account PostgreSQL concurrency/recovery tests, and
+33 provider-free scripted assistant turns. Root used the real authenticated
+candidate at a 390 × 844 browser viewport. A live Claude turn read the newly
+saved 240 kcal / 8 g protein breakfast, saved an accurate note, and made it
+visible in Thoughts. Food and the note survived re-login; both were subsequently
+removed through the UI, along with the one new fictional workout. Existing
+fixtures and all personal records were preserved.
+
+Independent visual review identified unclear overdue dates, a hidden goal
+achievement action, and deep fitness navigation. Those were corrected and
+recaptured. Screenshot scores for the depicted local sections are 8–8.5;
+Fitness's final 8 was assessed by root because its initial reviewer authored
+the section reorder. These are local scoped scores, not a released journey
+score or evidence of carrier/Google integration.
+
+Wrong-number recovery was exercised through the actual form and local routes
+using a contained Sendblue stub: pending signup → different number → cleared
+fields/consent → replacement signup → back to sign-in. Separate HTTP assertions
+proved trusted logout revokes the original claim, a foreign-origin logout is
+rejected, and the original late sign-in token cannot replace the new account.
+No START link was followed and no SMS was sent. A browser-rendered network/500
+logout failure remains untested; the HTTP rejection and existing mocked UI
+tests are distinct evidence.
+
+Measured API spend is now **$5.547330**, conservatively committed **$5.730615**
+including the retained unknown-outcome reserve. Conservative allowance remaining
+under the original $10 cap: **$4.269385**. This continuation added **$0.189555**.
+The ledger remains `qa/release-2026-10-15-live/cost.json` with its $7 local cap.
+
+The current release blocker is a candidate-owned live integration environment
+and routing, not a failed Anthropic payment. Railway currently exposes only
+production. Staging was proposed with additional usage cost; the user asked
+why that expense was useful and has not approved new hosting. No new Railway
+service or provider route was created. Keep completing free local checks; do not
+merge around the real-integration gates or reuse the production database.
+
+The sections below preserve the October 15 historical evidence. Their old
+budget balances and unobserved-browser notes are superseded by this update.
+
+October 18 frozen validation: raw `npm run check` exited **0** with **810 passed,
+3 skipped**, lint/typecheck and production/operations builds passing. Fresh
+infrastructure suites passed separately. The regular provider-free 3101 server
+was restored, the loopback signup stub stopped, and exact cleanup counts passed.
+See [validation details](../qa/customer-review-2026-10-18/final-validation.md).
+Existing production Calendar refreshed successfully for the dedicated demo
+account on October 18 at 8:57 PM; that remains old-build, read-only evidence.
 
 ## Status
 

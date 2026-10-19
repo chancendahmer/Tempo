@@ -1,7 +1,7 @@
 {
   "cap": 7,
-  "committed": 5.54106,
-  "spent": 5.357774999999999,
+  "committed": 5.730615,
+  "spent": 5.54733,
   "stopped": false,
   "ledger": [
     {
@@ -899,6 +899,34 @@
       "input": 2009,
       "output": 46,
       "actual": 0.006717
+    },
+    {
+      "call": 129,
+      "status": 200,
+      "input": 19451,
+      "output": 141,
+      "actual": 0.060468
+    },
+    {
+      "call": 130,
+      "status": 200,
+      "input": 19775,
+      "output": 160,
+      "actual": 0.061725
+    },
+    {
+      "call": 131,
+      "status": 200,
+      "input": 2048,
+      "output": 45,
+      "actual": 0.006819
+    },
+    {
+      "call": 132,
+      "status": 200,
+      "input": 19971,
+      "output": 42,
+      "actual": 0.060543
     }
   ]
 }
