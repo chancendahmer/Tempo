@@ -204,6 +204,20 @@
       "when": 1791302400000,
       "tag": "0028_item_reviews",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1792368000000,
+      "tag": "0029_workspace_preferences",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1792368000001,
+      "tag": "0030_routine_completions",
+      "breakpoints": true
     }
   ]
 }

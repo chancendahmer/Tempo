@@ -7,6 +7,8 @@ import { useRouter } from "next/navigation";
 import { SectionArt } from "./SectionArt";
 import { TodayView } from "./TodayView";
 import { WorkspaceTour } from "./WorkspaceTour";
+import { GentleSetup } from "./GentleSetup";
+import type { GentleSetupAction } from "@/server/domain/gentle-setup";
 import { sections, groupForSection, WorkspaceSidebarNav, WorkspaceSectionNav, WorkspaceAppLauncher, type Section } from "./WorkspaceNavigation";
 import { RoutineEditor } from "./RoutineEditor";
 import { WorkspaceMutationAttempts } from "./workspace-mutation-attempts";
@@ -23,7 +25,7 @@ import { FiArrowLeft, FiArrowRight, FiBookOpen, FiCalendar, FiCheck, FiCheckCirc
 import { groceriesForMeals, ingredientKey } from "@/server/domain/meal-groceries";
 import { lifeItemSchema, localDay, type LifeItem, type SavedLifeItem } from "@/server/domain/life-items";
 import type { WorkspaceAction } from "@/server/db/repositories/workspace-repository";
-import { previewWorkspace, type Workspace } from "./workspace-data";
+import { previewWorkspace, refreshPreviewActivity, type Workspace } from "./workspace-data";
 import s from "./workspace.module.css";
 import c from "./workspace-chrome.module.css";
 import rb from "./rhythm-brain.module.css";
@@ -37,6 +39,8 @@ export function WorkspaceClient({ preview = false }: { preview?: boolean }) {
   const [data, setData] = useState<Workspace | null>(null);
   const [section, setSection] = useState<Section>("today");
   const [tour, setTour] = useState(false);
+  const [setupOpen, setSetupOpen] = useState(false);
+  const setupOffered = useRef(false);
   const mealTab = section === "recipes" ? "recipes" : section === "groceries" ? "groceries" : "plan";
   const [undo, setUndo] = useState<WorkspaceAction | null>(null);
   const [error, setError] = useState("");
@@ -160,6 +164,40 @@ export function WorkspaceClient({ preview = false }: { preview?: boolean }) {
   };
   const group = groupForSection(section)?.label;
 
+  useEffect(() => {
+    if (preview || !data?.setup || data.setup.setupStatus !== "new" || setupOffered.current) return;
+    // Existing accounts get the invitation card, never an interruption.
+    if (data.tasks.length || data.goals.length || data.items.length || data.memories?.length) return;
+    const timer = setTimeout(() => {
+      setupOffered.current = true;
+      setSetupOpen(true);
+    }, 0);
+    return () => { clearTimeout(timer); };
+  }, [data, preview]);
+
+  async function saveSetup(action: GentleSetupAction) {
+    if (!data) throw new Error("Open your account and try again.");
+    if (preview) {
+      setData(current => {
+        if (!current) return current;
+        const initial = current.setup ?? { displayName: current.profile.displayName, coachingTone: "balanced" as const, showStreak: true, setupStatus: "new" as const };
+        const setup = action.action === "skip" ? { ...initial, setupStatus: initial.setupStatus === "complete" ? "complete" as const : "skipped" as const } : { ...initial, ...action, displayName: action.displayName === "" ? null : action.displayName ?? initial.displayName, setupStatus: "complete" as const };
+        return { ...current, setup, profile: { ...current.profile, displayName: setup.displayName } };
+      });
+      setNotice(action.action === "skip" ? "Setup skipped. You can personalize Tempo in Settings." : "Choices updated in preview. They reset on reload.");
+      return;
+    }
+    if (busyRef.current) throw new Error("Please wait for your current change to finish.");
+    busyRef.current = true; setSaving(true); requestSequence.current++;
+    try {
+      const response = await fetch("/api/account/setup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(action) });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error ?? "Your choices could not be saved. Please try again.");
+      setData(current => current ? { ...current, setup: body.setup, profile: { ...current.profile, displayName: body.setup.displayName } } : current);
+      setNotice(action.action === "skip" ? "You can personalize Tempo anytime in Settings." : "Your choices are saved. Make yourself at home.");
+    } finally { busyRef.current = false; setSaving(false); }
+  }
+
   async function switchAccount() {
     if (busyRef.current) return;
     busyRef.current = true; setSaving(true); requestSequence.current++;
@@ -224,7 +262,7 @@ export function WorkspaceClient({ preview = false }: { preview?: boolean }) {
                 if (c.type === "update_task") Object.assign(task, c.patch);
                 else if (c.type === "start_task") { task.status = "in_progress"; task.startedAt = new Date().toISOString(); }
                 else if (c.type === "reopen_task") { task.status = "not_started"; task.startedAt = null; }
-                else if (c.type === "complete_task") { task.status = "completed"; next.items = next.items.filter(item => !(item.data.kind === "focus" && item.data.taskId === task.id)); }
+                else if (c.type === "complete_task") { task.status = "completed"; next.previewTaskCompletions = [...(next.previewTaskCompletions ?? []), { key: task.id, date: today }]; next.items = next.items.filter(item => !(item.data.kind === "focus" && item.data.taskId === task.id)); }
                 else next.tasks = next.tasks.filter(item => item.id !== task.id);
               }
             }
@@ -245,7 +283,7 @@ export function WorkspaceClient({ preview = false }: { preview?: boolean }) {
               next.items.push({ id: prior?.id ?? crypto.randomUUID(), version: (prior?.version ?? 0) + 1, data: { ...grocery, checked: prior?.data.kind === "grocery" ? prior.data.checked : false } });
             }
           }
-          return next;
+          return refreshPreviewActivity(next);
         });
         setNotice("Updated in preview. Sample changes reset on reload."); return true;
       }
@@ -268,7 +306,15 @@ export function WorkspaceClient({ preview = false }: { preview?: boolean }) {
     }
     return act({ action: "save", ...(sourceRecipeId ? { sourceRecipeId } : {}), id: item?.id ?? crypto.randomUUID(), version: item?.version ?? 0, data: parsed.data });
   };
-  const taskAction = (command: Extract<WorkspaceAction, { action: "task" }>["command"]) => act({ action: "task", requestId: crypto.randomUUID(), command });
+  const taskAction = async (command: Extract<WorkspaceAction, { action: "task" }>["command"]) => {
+    const result = await act({ action: "task", requestId: crypto.randomUUID(), command });
+    if (result && command.type === "complete_task") {
+      const title = data?.tasks.find(task => task.id === command.taskId)?.title ?? "Task";
+      setNotice(`${title} completed.${preview ? " Preview only." : ""}`);
+      setUndo({ action: "task", requestId: crypto.randomUUID(), command: { type: "reopen_task", taskId: command.taskId } });
+    }
+    return result;
+  };
   const goalAction = (command: Extract<WorkspaceAction, { action: "goal" }>["command"]) => act({ action: "goal", requestId: crypto.randomUUID(), command });
 
   function taskEditor(task?: Workspace["tasks"][number], goalId?: string, draft?: { title: string; estimatedMinutes: number }) {
@@ -332,7 +378,12 @@ export function WorkspaceClient({ preview = false }: { preview?: boolean }) {
   async function routineCheck(item: SavedLifeItem, id: string) {
     if (item.data.kind !== "routine") return false;
     const ok = await saveItem({ ...item.data, steps: item.data.steps.map(step => step.id === id ? { ...step, completedOn: step.completedOn === today ? null : today } : step) }, item);
-    if (ok) { setNotice(preview ? "Routine progress updated in preview." : "Routine progress saved."); setUndo({ action: "save", id: item.id, version: item.version + 1, data: item.data }); }
+    if (ok) {
+      setNotice(preview ? "Routine progress updated in preview." : "Routine progress saved.");
+      // Undo changes today's checkoff; older days remain in saved history.
+      const undoData = { ...item.data, steps: item.data.steps.map(step => step.id === id ? { ...step, completedOn: step.completedOn === today ? today : null } : step) };
+      setUndo({ action: "save", id: item.id, version: item.version + 1, data: undoData });
+    }
     return ok;
   }
   async function stopFocus() {
@@ -397,7 +448,7 @@ export function WorkspaceClient({ preview = false }: { preview?: boolean }) {
         <WorkspaceSectionNav current={section} go={go} />
         <div key={section} className={c.page}>
         {section === "today" ? <>
-          {now && <TodayView onResumeFocus={() => setFocusHidden(false)} preview={preview} data={data} now={now} saving={saving} go={go} editTask={taskEditor} startTask={task => void startFocus(task)} completeTask={task => void taskAction({ type: "complete_task", taskId: task.id })} checkStep={(item, id) => void routineCheck(item, id)} startStep={startRoutineStep} editRoutine={item => itemEditor("routine", item)} ask={ask} />}
+          {now && <TodayView onSetup={() => setSetupOpen(true)} onResumeFocus={() => setFocusHidden(false)} preview={preview} data={data} now={now} saving={saving} go={go} editTask={taskEditor} startTask={task => void startFocus(task)} completeTask={task => void taskAction({ type: "complete_task", taskId: task.id })} checkStep={(item, id) => void routineCheck(item, id)} startStep={startRoutineStep} editRoutine={item => itemEditor("routine", item)} ask={ask} />}
           <WorkspaceAppLauncher openGroup={openNavigation} />
         </> : <>
           <div className={s.pageHeading}><div><h1>{section === "nutrition" ? "Nutrition Tracker" : sections.find(([key]) => key === section)?.[1]}</h1><p>{({ tasks: "A clear next step, whenever you’re ready.", goals: "The bigger things you’re working toward.", calendar: "Your events, tasks, and reminders together.", routines: "A familiar start. An easier finish.", meals: "Decide once. Enjoy your week.", recipes: "Keep the meals you want to make again.", groceries: "One list for your next shop.", nutrition: "What you ate, all in one place.", movement: "Movement that fits your day.", memories: "What Tempo knows about you. You’re in control.", reminders: "See what’s coming. Clear what’s finished.", inbox: "A home for the things on your mind.", assistant: "Text naturally. Your plans stay connected.", wake: "Ease into your morning. Let the evening settle.", settings: "Choose what works for you." } as Record<string, string>)[section]}</p></div><SectionArt section={section} /></div>
@@ -431,7 +482,7 @@ export function WorkspaceClient({ preview = false }: { preview?: boolean }) {
 
           {(section === "memories" || section === "reminders") && <SavedContextViews key={section} section={section} data={data} saving={saving} ask={ask} remove={(action, title) => setEditor({ title: `Remove “${title}”?`, subtitle: action.action === "forget_memory" ? "This removes the saved fact. Conversation history stays unchanged." : "This removes the reminder. Messages already delivered stay in your conversation.", fields: [], submit: () => act(action) })} />}
           {section === "wake" && <div className={rb.rhythm}><WakeExperience onRoutines={() => go("routines")} /></div>}
-          {section === "settings" && <div className={s.twoColumns}><article className={s.card}><span className={`${s.tileIcon} ${s.sage}`}><FiMessageCircle /></span><h2>Text check-ins</h2><label className={s.toggleRow}><span><strong>Proactive check-ins</strong><small>Optional · quiet hours respected</small></span><input type="checkbox" checked={data.profile.proactiveOptIn} disabled={saving} onChange={e => void act({ action: "checkins", enabled: e.target.checked })} /></label><details className={s.inlineDetails}><summary>Quiet hours & delivery</summary><p className={s.finePrint}>Quiet hours: {data.profile.quietHoursStart?.slice(0, 5) ?? "not set"}–{data.profile.quietHoursEnd?.slice(0, 5) ?? "not set"} · {data.timezone}. Includes occasional reviews of overdue or untouched items. Tempo asks before removing anything. Actual outreach also depends on the configured worker and sending controls.</p></details><Link className={s.secondary} href="/profile">Profile & coaching instructions <FiArrowRight /></Link></article><article className={s.card}><span className={`${s.tileIcon} ${s.amber}`}><FiMaximize /></span><h2>Whiteboard & audio</h2><div className={s.settingButtons}><button className={s.secondary} onClick={async () => { try { if (document.fullscreenElement) await document.exitFullscreen(); else await document.documentElement.requestFullscreen(); } catch { setNotice("Use your browser’s full-screen control on this device."); } }}><FiMaximize /> Toggle full screen</button><button className={s.secondary} onClick={readBriefing}><FiSun /> Read my day aloud</button><button className={s.textButton} onClick={() => window.speechSynthesis?.cancel()}>Stop audio</button></div><small>Audio begins only when you ask. Scheduled spoken announcements are not enabled.</small></article><article className={s.card}><FiCalendar /><h2>Connections</h2><p>Google Calendar: {preview ? "sample connection" : data.calendar?.status === "active" ? "connected" : "not connected"}</p><Link className={s.secondary} href="/extensions">Manage connections <FiArrowRight /></Link><details className={s.inlineDetails}><summary>Available integrations</summary><p>Food search and barcodes use Open Food Facts. MyFitnessPal, wearable, and health-app account imports are not connected.</p></details></article><article className={s.card}><FiBookOpen /><h2>Privacy</h2><details className={s.inlineDetails}><summary>What to keep here</summary><p>Everyday notes belong here. Keep passwords, medical records, and sensitive documents in a dedicated secure service.</p></details><button className={s.textButton} onClick={() => setHidden(true)}>Hide this workspace <FiMoon /></button></article></div>}
+          {section === "settings" && <div className={s.twoColumns}><article className={s.card}><WorkspaceAvatar size={46} /><h2>Make Tempo yours</h2><p>Your name, preferred coaching tone, and whether you see an activity streak.</p><button className={s.secondary} onClick={() => setSetupOpen(true)}>Personalize Tempo <FiArrowRight /></button><button className={s.textButton} onClick={() => setTour(true)}>Show me around <FiBookOpen /></button></article><article className={s.card}><span className={`${s.tileIcon} ${s.sage}`}><FiMessageCircle /></span><h2>Text check-ins</h2><label className={s.toggleRow}><span><strong>Proactive check-ins</strong><small>Optional · quiet hours respected</small></span><input type="checkbox" checked={data.profile.proactiveOptIn} disabled={saving} onChange={e => void act({ action: "checkins", enabled: e.target.checked })} /></label><details className={s.inlineDetails}><summary>Quiet hours & delivery</summary><p className={s.finePrint}>Quiet hours: {data.profile.quietHoursStart?.slice(0, 5) ?? "not set"}–{data.profile.quietHoursEnd?.slice(0, 5) ?? "not set"} · {data.timezone}. Includes occasional reviews of overdue or untouched items. Tempo asks before removing anything. Actual outreach also depends on the configured worker and sending controls.</p></details><Link className={s.secondary} href="/profile">Profile & coaching instructions <FiArrowRight /></Link></article><article className={s.card}><span className={`${s.tileIcon} ${s.amber}`}><FiMaximize /></span><h2>Whiteboard & audio</h2><div className={s.settingButtons}><button className={s.secondary} onClick={async () => { try { if (document.fullscreenElement) await document.exitFullscreen(); else await document.documentElement.requestFullscreen(); } catch { setNotice("Use your browser’s full-screen control on this device."); } }}><FiMaximize /> Toggle full screen</button><button className={s.secondary} onClick={readBriefing}><FiSun /> Read my day aloud</button><button className={s.textButton} onClick={() => window.speechSynthesis?.cancel()}>Stop audio</button></div><small>Audio begins only when you ask. Scheduled spoken announcements are not enabled.</small></article><article className={s.card}><FiCalendar /><h2>Connections</h2><p>Google Calendar: {preview ? "sample connection" : data.calendar?.status === "active" ? "connected" : "not connected"}</p><Link className={s.secondary} href="/extensions">Manage connections <FiArrowRight /></Link><details className={s.inlineDetails}><summary>Available integrations</summary><p>Food search and barcodes use Open Food Facts. MyFitnessPal, wearable, and health-app account imports are not connected.</p></details></article><article className={s.card}><FiBookOpen /><h2>Privacy</h2><details className={s.inlineDetails}><summary>What to keep here</summary><p>Everyday notes belong here. Keep passwords, medical records, and sensitive documents in a dedicated secure service.</p></details><button className={s.textButton} onClick={() => setHidden(true)}>Hide this workspace <FiMoon /></button></article></div>}
         </>}
         </div>
         {section !== "assistant" && <form className={c.everywhereComposer} onSubmit={async e => { e.preventDefault(); if (!chatRequest.current || chatRequest.current.text !== draft) chatRequest.current = { text: draft, id: crypto.randomUUID() }; if (await act({ action: "chat", requestId: chatRequest.current.id, text: draft })) { setDraft(""); chatRequest.current = null; go("assistant"); } }}><WorkspaceAvatar size={38} /><input aria-label="Ask Tempo from anywhere" value={draft} onChange={e => setDraft(e.target.value)} placeholder="What would you like to add or change?" maxLength={2000} required /><button className={s.primary} type="submit" aria-label="Send to Tempo" disabled={saving || !draft.trim()}><FiSend /><span>Send</span></button></form>}
@@ -441,6 +492,7 @@ export function WorkspaceClient({ preview = false }: { preview?: boolean }) {
     </div>
     <dialog onKeyDown={loopDialogTab} ref={focusDialog} className={s.focusDialog} onCancel={() => setFocusHidden(true)} aria-label="Current focus session">{focus && data && <div className={s.focusOverlay}><div className={s.focusTop}><span className={s.brand}><WorkspaceAvatar size={39} />Tempo</span><button className={s.secondary} onClick={() => setFocusHidden(true)}><FiArrowLeft /> Back to my day</button></div><div className={s.focusCenter}><p className={s.eyebrow}>{remaining ? "JUST THIS. JUST NOW." : "A MOMENT TO CHECK IN"}</p><h1>{focus.title}</h1><p>{remaining ? "The rest can wait. You’re in the right place." : "Time is up. Finished, or would a little more time help?"}</p><div className={s.timerRing}><span role="timer" aria-label={`${Math.floor(remaining / 60)} minutes ${remaining % 60} seconds remaining`}>{Math.floor(remaining / 60)}<i>:</i>{String(remaining % 60).padStart(2, "0")}</span><small>{focus.endsAt ? "one small step at a time" : "paused · take the time you need"}</small></div><div className={s.focusActions}><button className={s.secondary} disabled={saving} onClick={() => void saveItem({ ...focus, remaining, endsAt: focus.endsAt ? null : new Date(Date.now() + remaining * 1000).toISOString() }, focusItem)}>{focus.endsAt ? <FiPause /> : <FiPlay />}{focus.endsAt ? "Pause" : "Resume"}</button><button className={s.darkButton} disabled={saving} onClick={() => void finishFocus()}><FiCheck /> I’m done</button><button className={s.secondary} disabled={saving} onClick={() => void saveItem({ ...focus, remaining: remaining + 300, endsAt: new Date(Date.now() + (remaining + 300) * 1000).toISOString() }, focusItem)}>+ 5 minutes</button></div><button className={s.textButton} disabled={saving} onClick={() => void stopFocus()}>Stop for now</button><button className={s.textButton} onClick={() => { setFocusHidden(true); ask("I’m stuck on my current task. Help me make the next step smaller."); }}>Feeling stuck? Let’s make it smaller <FiArrowRight /></button></div><p className={s.focusFoot}>Your effort counts. Even when the plan changes.</p></div>}</dialog>
     {tour && <WorkspaceTour onClose={() => setTour(false)} onGo={value => { go(value); setTour(false); }} />}
+    {setupOpen && data && <GentleSetup initial={data.setup ?? { displayName: data.profile.displayName, coachingTone: "balanced", showStreak: true, setupStatus: "new" }} onSave={saveSetup} onClose={() => setSetupOpen(false)} />}
     {routineEditor && <RoutineEditor key={`${routineEditor.item?.id ?? "new-routine"}-${routineEditor.item?.version ?? 0}`} item={routineEditor.item} latestItem={items.find(item => item.id === routineEditor.item?.id)} saveError={notice} onReload={item => { setNotice(""); setRoutineEditor({ item }); }} timezone={data?.timezone ?? "UTC"} saving={saving} onSave={saveItem} onClose={() => setRoutineEditor(null)} />}
     <dialog onKeyDown={loopDialogTab} ref={dialog} className={s.dialog} aria-label={editor?.title ?? "Edit item"} onCancel={() => setEditor(null)} onClick={event => { if (event.target === event.currentTarget) setEditor(null); }}>{editor && <form onSubmit={async (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); const values = Object.fromEntries(new FormData(event.currentTarget).entries()) as Record<string, string>; try { if (await editor.submit(values)) setEditor(null); } catch { setNotice("Check the values and try again. Nothing was saved."); } }}><div className={s.between}><p className={s.eyebrow}>MAKE A LITTLE SPACE</p><button type="button" className={s.iconButton} aria-label="Close editor" onClick={() => setEditor(null)}><FiX /></button></div><h2>{editor.title}</h2><p>{editor.subtitle}</p><div className={s.formFields}>{editor.fields.map(field => <label key={field.name}><span>{field.label}</span>{field.options ? <select name={field.name} defaultValue={field.value}>{field.options.map(option => <option key={option}>{option}</option>)}</select> : field.type === "textarea" ? <textarea name={field.name} defaultValue={field.value} required={field.required} rows={5} minLength={field.minLength} maxLength={field.maxLength ?? 10000} /> : <input name={field.name} type={field.type ?? "text"} defaultValue={field.value} required={field.required} min={field.min} max={field.max} step={field.type === "number" ? "any" : undefined} minLength={field.minLength} maxLength={field.maxLength ?? 240} />}</label>)}</div>{notice && <p role="status">{notice}</p>}<div className={s.dialogActions}><button type="button" className={s.secondary} onClick={() => setEditor(null)}>Cancel</button><button type="submit" className={s.primary} disabled={saving}>{saving ? "Saving…" : editor.fields.length ? "Save" : "Remove"}<FiCheck /></button></div></form>}</dialog>
   </div>;

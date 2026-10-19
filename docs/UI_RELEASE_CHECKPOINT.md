@@ -1,5 +1,26 @@
 # Calm UI release checkpoint — October 19, 2026
 
+## Today, introduction and activity streak refinement
+
+The October 19 Tiimo comparison pass adds a skippable account-backed setup,
+optional real completion streak, durable routine history, clearer Today event
+cards, the Tempo character, and completion recovery. Independent first-pass
+usability was 7.5; named repairs brought the secondary evidence review to 8.2.
+The second review used screenshots, parent interaction records and source
+inspection because the reviewer's browser became unavailable. This is a scoped
+UI score, not whole-product readiness or clinical evidence.
+
+See the [verification and migration handoff](../qa/tiimo-refinement-2026-10-19/README.md)
+and [research notes](../qa/tiimo-refinement-2026-10-19/RESEARCH.md).
+Migrations 0029/0030 were applied only to the isolated QA database. Saved
+preferences, routine checkoff/Undo/reload, and a fresh account's skippable setup
+were exercised through the local authenticated development runtime. Compiled
+preview rendering passed; its HTTP localhost launcher cannot validate production
+authentication because production correctly requires a public HTTPS base URL.
+Final `npm run check` passed: lint, typecheck, 834 tests passed / 3 skipped,
+Next.js production build and operations build. API spend was $0. The live
+integration and release gates below still apply.
+
 ## Latest navigation refinement
 
 October 19: replaced the permanent rail with a closed-by-default drawer on all

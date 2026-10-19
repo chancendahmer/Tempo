@@ -1,8 +1,13 @@
 import type { SavedLifeItem } from "@/server/domain/life-items";
+import type { GentleSetup } from "@/server/domain/gentle-setup";
+import { calculateActivityStreak, type ActivityStreak } from "../../server/domain/activity-streak";
 import { demoRecipes, savedDemoRecipe } from "./demo-recipes";
 
 export type Workspace = {
   timezone: string;
+  setup?: GentleSetup;
+  activityStreak?: ActivityStreak & { historyNote: string };
+  previewTaskCompletions?: { key: string; date: string }[];
   tasks: { id: string; title: string; status: string; dueAt: string | null; estimatedMinutes: number | null; startedAt: string | null; goalId: string | null }[];
   goals: { id: string; title: string; description: string | null; status: string }[];
   items: SavedLifeItem[];
@@ -22,6 +27,11 @@ export type Workspace = {
   profile: { displayName: string | null; phoneLast4?: string; proactiveOptIn: boolean; quietHoursStart: string | null; quietHoursEnd: string | null };
 };
 export const demoId = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
+/** Preview-only activity follows its fictional checkoffs; it never writes a real account. */
+export function refreshPreviewActivity(data: Workspace, now = new Date()): Workspace {
+  const routineCompletions = data.items.flatMap(item => item.data.kind === "routine" ? item.data.steps.flatMap(step => step.completedOn ? [{ key: `${item.id}:${step.id}`, date: step.completedOn }] : []) : []);
+  return { ...data, activityStreak: { ...calculateActivityStreak([...(data.previewTaskCompletions ?? []), ...routineCompletions], data.timezone, now), historyNote: "Fictional sample progress. Preview changes reset when you reload." } };
+}
 export function previewWorkspace(now = new Date()): Workspace {
   const day = (offset = 0) => { const d = new Date(now); d.setDate(d.getDate() + offset); return new Intl.DateTimeFormat("en-CA").format(d); };
   const date = day();
@@ -32,7 +42,8 @@ export function previewWorkspace(now = new Date()): Workspace {
     { id: demoId(72), title: "Project team catch-up", startsAt: at(11, 1), endsAt: at(11, 1, 30) },
     { id: demoId(73), title: "Coffee with Sam", startsAt: at(10, 3), endsAt: at(11, 3) },
   ];
-  return {
+  return refreshPreviewActivity({
+    previewTaskCompletions: [{ key: demoId(4), date: day(-1) }, { key: demoId(7), date: day(-1) }],
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone, profile: { displayName: "Alex", proactiveOptIn: true, quietHoursStart: "22:00", quietHoursEnd: "08:00" },
     tasks: [
       task(1, "Write the first paragraph of my project brief", 15, at(10), 10),
@@ -86,5 +97,5 @@ export function previewWorkspace(now = new Date()): Workspace {
       { id: demoId(75), text: "Check the fridge before planning next week", remindAt: at(11, 4), status: "scheduled" },
     ],
     calendar: null, demoCalendarEvents, busy: demoCalendarEvents.map(({ id, startsAt, endsAt }) => ({ id, startsAt, endsAt })),
-  };
+  }, now);
 }

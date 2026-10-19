@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import {
   boolean,
   check,
+  date,
   doublePrecision,
   index,
   integer,
@@ -41,6 +42,18 @@ export const lifeActionReceipts = pgTable("life_action_receipts", {
   message: text("message").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
+
+// Routine snapshots retain only their latest checked date. Keep actual daily
+// completions separately so the next checkoff or deleting a plan cannot erase
+// earlier progress. Account deletion still removes all of its history.
+export const routineCompletions = pgTable("routine_completions", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  routineId: uuid("routine_id").notNull(),
+  stepId: uuid("step_id").notNull(),
+  completedOn: date("completed_on", { mode: "string" }).notNull(),
+  recordedAt: timestamp("recorded_at", { withTimezone: true }).defaultNow().notNull(),
+}, table => [uniqueIndex("routine_completions_user_step_day_idx").on(table.userId, table.routineId, table.stepId, table.completedOn)]);
 
 export const userStatus = pgEnum("user_status", ["active", "paused", "opted_out", "deleted"]);
 export const onboardingState = pgEnum("onboarding_state", [
@@ -144,6 +157,7 @@ export const users = pgTable(
     displayName: text("display_name"),
     profileInstructions: text("profile_instructions"),
     profileCompletedAt: timestamp("profile_completed_at", { withTimezone: true }),
+    workspacePreferences: jsonb("workspace_preferences").$type<Record<string, unknown>>().default(sql`'{}'::jsonb`).notNull(),
     locale: text("locale").default("en-US").notNull(),
     timezone: text("timezone").default("UTC").notNull(),
     status: userStatus("status").default("active").notNull(),

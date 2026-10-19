@@ -14,7 +14,7 @@ function fixture(calendar: Workspace["calendar"]) {
   data.busy = [{ id: "old-disconnected-event", startsAt: new Date(now.getTime() - 60000).toISOString(), endsAt: new Date(now.getTime() + 60000).toISOString() }];
   return { data, now };
 }
-function today(data: Workspace, now: Date) { return renderToStaticMarkup(createElement(TodayView, { data, now, saving: false, go: vi.fn(), editTask: vi.fn(), startTask: vi.fn(), completeTask: vi.fn(), checkStep: vi.fn(), startStep: vi.fn(), editRoutine: vi.fn(), ask: vi.fn() })); }
+function today(data: Workspace, now: Date) { return renderToStaticMarkup(createElement(TodayView, { data, now, saving: false, go: vi.fn(), onSetup: () => {}, editTask: vi.fn(), startTask: vi.fn(), completeTask: vi.fn(), checkStep: vi.fn(), startStep: vi.fn(), editRoutine: vi.fn(), ask: vi.fn() })); }
 function calendar(data: Workspace) { return renderToStaticMarkup(createElement(CalendarView, { data, preview: false, ask: vi.fn(), editTask: vi.fn() })); }
 
 describe("optional calendar connection", () => {

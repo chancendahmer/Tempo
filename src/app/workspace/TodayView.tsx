@@ -6,6 +6,7 @@ import { localDay, type SavedLifeItem } from "../../server/domain/life-items";
 import type { Workspace } from "./workspace-data";
 import { useCalendarEvents } from "./use-calendar-events";
 import { todayModel } from "./today-model";
+import { TodayProgress } from "./TodayProgress";
 import { taskDueLabel } from "./task-due-label";
 import s from "./today.module.css";
 import ui from "./workspace.module.css";
@@ -21,8 +22,9 @@ type Props = {
   editRoutine: (item?: SavedLifeItem) => void;
   ask: (text: string) => void;
   onResumeFocus?: () => void;
+  onSetup: () => void;
 };
-export function TodayView({ data, preview = false, now, saving, go, editTask, startTask, completeTask, checkStep, startStep, editRoutine, ask, onResumeFocus }: Props) {
+export function TodayView({ data, preview = false, now, saving, go, editTask, startTask, completeTask, checkStep, startStep, editRoutine, ask, onResumeFocus, onSetup }: Props) {
   const [tab, setTab] = useState<"routine" | "todo" | null>(null);
   const calendar = useCalendarEvents(data, localDay(now, data.timezone), preview);
   const model = todayModel(data, now, calendar.events);
@@ -49,6 +51,7 @@ export function TodayView({ data, preview = false, now, saving, go, editTask, st
   </button>;
   return <>
     <header className={s.heading}><div><h1>Your {new Intl.DateTimeFormat(undefined, { weekday: "long", timeZone: data.timezone }).format(now)}</h1><p>{new Intl.DateTimeFormat(undefined, { month: "long", day: "numeric", year: "numeric", timeZone: data.timezone }).format(now)}</p></div><time>{time(now)}</time></header>
+    <TodayProgress data={data} preview={preview} onSetup={onSetup} onAsk={() => ask("Help me choose one small thing to start with from my current tasks. Just suggest it for now.")} />
     <div className={s.layout}>
       <section aria-labelledby="today-heading" className={s.day}><div className={s.sectionHeading}><h2 id="today-heading"><span className={s.headingIcon} aria-hidden="true"><FiCalendar /></span>Today</h2><button className={ui.textButton} onClick={() => go("calendar")}>View calendar <FiArrowRight /></button></div>
         {calendar.disconnected && <p className={s.calendarHint}><FiCalendar aria-hidden="true" /><span><Link className={ui.textButton} href="/extensions">Connect Google Calendar</Link> to see events beside your tasks.</span></p>}
@@ -59,6 +62,7 @@ export function TodayView({ data, preview = false, now, saving, go, editTask, st
           {allDayEvents.map(eventRow)}
           <div className={`${s.timelineRow} ${s.current}`}><time><b>NOW</b>{time(now)}</time><span className={s.dot} /><div className={s.currentBody}><span className={s.icon} aria-hidden="true" data-tone={currentCalendar ? "blue" : active ? "amber" : "lavender"}>{currentCalendar ? <FiCalendar /> : focus ? <FiClock /> : active ? active.data.period === "morning" ? <FiSun /> : <FiMoon /> : <FiEdit3 />}</span><div className={s.currentText}><h3>{currentCalendar?.title ?? focus?.title ?? active?.data.title ?? task?.title ?? "What would you like to do?"}</h3><p>{currentCalendar ? `Happening now · until ${time(currentCalendar.endsAt!)}` : focus ? !focus.endsAt ? "Focus paused. Continue when you’re ready." : Date.parse(focus.endsAt) <= now.getTime() ? "Time is up. Check in when you’re ready." : "Your focus session is in progress." : step ? `Next: ${step.title}` : task ? task.dueAt ? dueLabel(task) : "One small step is enough." : "Add one task to get started."}</p></div><div className={s.start}><button className={ui.primary} disabled={saving || Boolean(focus && !onResumeFocus)} onClick={() => currentCalendar ? go("calendar") : focus ? onResumeFocus?.() : active && step ? startStep(active, step.id) : task ? startTask(task) : editTask()}>{currentCalendar ? <FiCalendar /> : !focus && !active && !task ? <FiPlus /> : <FiPlay />}{currentCalendar ? "View calendar" : focus ? "Continue focus" : task?.status === "in_progress" && !active ? "Continue" : active && step ? `Start ${step.minutes} minutes` : task ? `Start ${task.estimatedMinutes ?? 25} minutes` : "Add a task"}</button>{task && !active && !focus && !currentCalendar && <button className={ui.textButton} onClick={() => ask(`Help me break “${task.title}” into a smaller next step.`)}>Make it smaller</button>}</div></div></div>
           {currentEvents.filter(event => event.id !== currentCalendar?.id).map(eventRow)}
+          {future.length > 0 && <p className={s.dayPart}><FiClock aria-hidden="true" />Later today<span>{future.length} planned</span></p>}
           {future.slice(0, 3).map(eventRow)}
           {!future.length && !currentEvents.length && !allDayEvents.length && !calendar.loading && !calendar.error && !calendar.truncated && <p className={s.freeTime}>{calendar.disconnected ? "No other tasks or reminders scheduled today." : "Nothing else scheduled today. A little room to breathe."}</p>}
         </div>

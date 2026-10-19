@@ -5,7 +5,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { getDatabase, TempoDatabase } from "../client";
 import { conversationMessages, goals, lifeItems, lifeActionReceipts, memoryEntries, reminders, scheduledActions, tasks, users } from "../schema";
 import { DrizzleReminderRepository } from "./reminder-repository";
-import { lifeItemSchema, localDay } from "../../domain/life-items";
+import { lifeItemSchema, localDay, type LifeItem } from "../../domain/life-items";
 import { applyLifePatch, lifePatchSchema, lifeSavedReply } from "../../domain/life-patch";
 import { taskCommandSchema } from "../../domain/task-commands";
 import { goalCommandSchema } from "../../domain/goal-commands";
@@ -18,6 +18,8 @@ import { readBoard } from "./board-repository";
 import { reconcileMealGroceries, refreshMealGroceries } from "./meal-groceries";
 import { IngredientInputError } from "../../domain/meal-groceries";
 import { readWorkspaceLifeItems } from "./workspace-life-items";
+import { readActivityStreak, recordRoutineCompletionChanges, RoutineCompletionDateError } from "./activity-streak-repository";
+import { readGentleSetup } from "./gentle-setup-repository";
 
 export const workspaceActionSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("forget_memory"), id: z.uuid(), expectedContent: z.string().min(1).max(2000) }),
@@ -40,7 +42,7 @@ export async function readWorkspace(userId: string, database: TempoDatabase = ge
   const requestedDiaryDate = z.iso.date().optional().parse(options.diaryDate);
   const accountToday = await refreshMealGroceries(database, userId);
   const diaryDate = requestedDiaryDate ?? accountToday;
-  const [board, allTasks, allGoals, life, messages, profile, memories, allReminders] = await Promise.all([
+  const [board, allTasks, allGoals, life, messages, profile, memories, allReminders, activityStreak, setup] = await Promise.all([
     readBoard(userId, new Date(), database),
     database.select({ id: tasks.id, title: tasks.title, status: tasks.status, dueAt: tasks.dueAt, estimatedMinutes: tasks.estimatedMinutes, startedAt: tasks.startedAt, goalId: tasks.goalId }).from(tasks).where(and(eq(tasks.userId, userId), inArray(tasks.status, ["not_started", "in_progress", "completed"]))).orderBy(asc(sql`case when ${tasks.status} = 'in_progress' then 0 when ${tasks.status} = 'not_started' then 1 else 2 end`), asc(sql`case when ${tasks.status} <> 'completed' then ${tasks.dueAt} end`), desc(tasks.updatedAt), desc(tasks.id)).limit(201),
     database.select({ id: goals.id, title: goals.title, description: goals.description, status: goals.status }).from(goals).where(and(eq(goals.userId, userId), inArray(goals.status, ["active", "completed"]))).orderBy(asc(sql`case when ${goals.status} = 'active' then 0 else 1 end`), desc(goals.updatedAt), desc(goals.id)).limit(101),
@@ -49,8 +51,10 @@ export async function readWorkspace(userId: string, database: TempoDatabase = ge
     database.select({ displayName: users.displayName, proactiveOptIn: users.proactiveOptIn, quietHoursStart: users.quietHoursStart, quietHoursEnd: users.quietHoursEnd }).from(users).where(eq(users.id, userId)).limit(1),
     database.select({ id: memoryEntries.id, content: memoryEntries.content, category: memoryEntries.category }).from(memoryEntries).where(and(eq(memoryEntries.userId, userId), isNull(memoryEntries.deletedAt), or(isNull(memoryEntries.expiresAt), gt(memoryEntries.expiresAt, new Date())))).orderBy(desc(memoryEntries.createdAt)).limit(201),
     database.select({ id: reminders.id, text: reminders.text, remindAt: reminders.remindAt, status: reminders.status }).from(reminders).where(and(eq(reminders.userId, userId), inArray(reminders.status, ["scheduled", "sending", "sent", "failed"]))).orderBy(asc(sql`case when ${reminders.status} in ('scheduled','sending') then 0 else 1 end`), asc(sql`case when ${reminders.status} in ('scheduled','sending') then ${reminders.remindAt} end`), desc(reminders.remindAt), desc(reminders.id)).limit(201),
+    readActivityStreak(userId, database),
+    readGentleSetup(userId, database),
   ]);
-  return { ...board, tasks: allTasks.slice(0, 200), tasksTruncated: allTasks.length > 200, goals: allGoals.slice(0, 100), goalsTruncated: allGoals.length > 100, ...life, messages: messages.reverse(), profile: profile[0], memories: memories.slice(0, 200), memoriesTruncated: memories.length > 200, reminders: allReminders.slice(0, 200), remindersTruncated: allReminders.length > 200 };
+  return { ...board, tasks: allTasks.slice(0, 200), tasksTruncated: allTasks.length > 200, goals: allGoals.slice(0, 100), goalsTruncated: allGoals.length > 100, ...life, messages: messages.reverse(), profile: profile[0], memories: memories.slice(0, 200), memoriesTruncated: memories.length > 200, reminders: allReminders.slice(0, 200), remindersTruncated: allReminders.length > 200, activityStreak, setup };
 }
 
 export async function mutateWorkspace(userId: string, input: WorkspaceAction, database: TempoDatabase = getDatabase(), receiptId?: string) {
@@ -59,6 +63,13 @@ export async function mutateWorkspace(userId: string, input: WorkspaceAction, da
     // Serialize edits from this user's tabs, and keep source events and mutations atomic.
     const [user] = await transaction.select().from(users).where(eq(users.id, userId)).for("update");
     if (!user) throw new WorkspaceConflict("Account unavailable.");
+    const syncRoutineProgress = async (routineId: string, before: LifeItem | undefined, after: Extract<LifeItem, { kind: "routine" }>, now: Date) => {
+      try { await recordRoutineCompletionChanges(transaction as unknown as TempoDatabase, { userId, routineId, before, after, timezone: user.timezone, now }); }
+      catch (error) {
+        if (error instanceof RoutineCompletionDateError) throw new WorkspaceConflict(error.message);
+        throw error;
+      }
+    };
     const syncGroceries = async () => {
       try { await reconcileMealGroceries(transaction as unknown as TempoDatabase, userId, localDay(new Date(), user.timezone)); }
       catch (error) {
@@ -128,7 +139,10 @@ export async function mutateWorkspace(userId: string, input: WorkspaceAction, da
         if (!routine || routine.data.kind !== "routine") throw new WorkspaceConflict("Routine no longer exists.");
         const stepId = focus.data.stepId;
         if (!routine.data.steps.some(step => step.id === stepId)) throw new WorkspaceConflict("This step was removed. Leave this focus session.");
-        await transaction.update(lifeItems).set({ data: { ...routine.data, steps: routine.data.steps.map(step => step.id === stepId ? { ...step, completedOn: localDay(new Date(), user.timezone) } : step) }, version: sql`${lifeItems.version} + 1`, updatedAt: new Date() }).where(eq(lifeItems.id, routine.id));
+        const completedAt = new Date();
+        const data = { ...routine.data, steps: routine.data.steps.map(step => step.id === stepId ? { ...step, completedOn: localDay(completedAt, user.timezone) } : step) };
+        await transaction.update(lifeItems).set({ data, version: sql`${lifeItems.version} + 1`, updatedAt: completedAt }).where(eq(lifeItems.id, routine.id));
+        await syncRoutineProgress(routine.id, routine.data, data, completedAt);
       }
       await transaction.delete(lifeItems).where(eq(lifeItems.id, focus.id));
       return { message: "Step completed. Take a breath before the next." };
@@ -191,6 +205,7 @@ export async function mutateWorkspace(userId: string, input: WorkspaceAction, da
         if (!rows.length) throw new WorkspaceConflict("This item changed elsewhere. Refresh and try again.");
       }
       if (input.data.kind === "meal" || input.data.kind === "pantry") await syncGroceries();
+      if (input.data.kind === "routine") await syncRoutineProgress(input.id, existing?.data, input.data, new Date());
       return { message: "Saved." };
     }
     if (input.action === "delete") {
