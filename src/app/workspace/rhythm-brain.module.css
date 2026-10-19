@@ -60,18 +60,19 @@
 .reminderDate { font-size: 13px; color: #52647b; }
 .reminderBody > small { display: block; font-size: 13px; line-height: 1.6; }
 .assistant { display: grid; min-width: 0; gap: 18px; max-width: 980px; margin-inline: auto; }
-.conversation { min-width: 0; border: 1px solid #dcd6ce; border-radius: 18px; background: #fffefb; overflow: hidden; }
-.chatHeader { display: flex; align-items: center; gap: 12px; padding: 20px 24px; border-bottom: 1px solid #e8e1d7; background: #fbf7ef; }
+.conversation { display: flex; flex-direction: column; height: clamp(380px, calc(100dvh - 290px), 760px); min-width: 0; border: 1px solid #dcd6ce; border-radius: 18px; background: #fffefb; overflow: hidden; }
+.chatHeader { display: flex; flex-shrink: 0; align-items: center; gap: 12px; padding: 16px 24px; border-bottom: 1px solid #e8e1d7; background: #fbf7ef; }
 .chatHeader strong { display: block; font-size: 17px; color: #3e352b; }
 .chatHeader small { display: block; margin-top: 4px; font-size: 13px; color: #71685d; }
-.messages { height: clamp(320px, 48vh, 580px); overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: 22px; padding: 28px; }
+.messages { flex: 1; min-height: 100px; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: 18px; padding: 20px 24px; }
+.messages > * { flex-shrink: 0; }
 .message { align-self: flex-start; max-width: 90%; min-width: 0; padding: 18px 20px; border: 1px solid #ebe4da; border-radius: 3px 15px 15px; background: #f8f4ed; color: #40372d; overflow-wrap: anywhere; }
 .message small { display: block; color: #73695d; font-size: 12px; line-height: 1.6; }
 .message > div { font-size: 16px; line-height: 1.75; }
 .message[data-direction="inbound"] { align-self: flex-end; background: #eeebf5; border-color: #e0d9eb; border-radius: 15px 3px 15px 15px; }
-.composer { display: flex; align-items: flex-end; gap: 12px; margin: 14px 24px 10px; padding: 10px; border: 1px solid #bfb6a9; border-radius: 12px; background: white; }
+.composer { display: flex; flex-shrink: 0; align-items: flex-end; gap: 12px; margin: 10px 24px 8px; padding: 8px; border: 1px solid #bfb6a9; border-radius: 12px; background: white; }
 .composer textarea { flex: 1; min-width: 0; border: 0; resize: vertical; padding: 8px; font: inherit; font-size: 16px; line-height: 1.6; background: transparent; color: #40372d; }
-.chatHint { display: block; padding: 0 24px 20px; color: #71685d; font-size: 12px; line-height: 1.6; }
+.chatHint { display: block; flex-shrink: 0; padding: 0 24px 14px; color: #71685d; font-size: 12px; line-height: 1.6; }
 .starters { padding: 18px 22px; border: 1px solid #dfd8cd; border-radius: 14px; background: #fbf8f2; }
 .starters > summary { cursor: pointer; font-size: 14px; font-weight: 650; min-height: 30px; color: #514639; }
 .promptRow { display: flex; flex-wrap: wrap; gap: 10px; margin: 16px 0; }
@@ -80,6 +81,7 @@
 .rhythm button:focus-visible, .brain button:focus-visible, .memories button:focus-visible, .reminders button:focus-visible, .assistant button:focus-visible, .assistant summary:focus-visible, .brain summary:focus-visible, .searchRow input:focus-visible, .composer textarea:focus-visible { outline: 3px solid #806292; outline-offset: 3px; }
 .rhythm button:disabled, .assistant button:disabled, .brain button:disabled, .memories button:disabled, .reminders button:disabled { cursor: not-allowed; opacity: .55; }
 @media (max-width: 760px) {
+  .conversation { height: clamp(360px, calc(100dvh - 340px), 660px); }
   .rhythm, .brain, .memories, .reminders { padding: 18px; border-radius: 16px; }
   .periods, .noteGrid, .memoryGrid { grid-template-columns: minmax(0, 1fr); gap: 24px; }
   .routine, .note, .memoryCard { padding: 18px; }

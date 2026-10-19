@@ -1,5 +1,17 @@
 # Calm UI release checkpoint — October 18, 2026
 
+## Latest UI polish pass
+
+The later October 18 pass refines the neutral sidebar, section navigation, Today
+hierarchy, motion, mobile focus and conversation layout. Research used public
+official planner, Muse and MyFitnessPal material, with access limits documented.
+See the [polish verification record](../qa/ui-polish-2026-10-18/README.md) and
+[independent visual review](../qa/ui-polish-2026-10-18/independent-review.md).
+The scoped visual score is **8.7/10**, not a whole-product release score.
+A fictional note was saved, reloaded and removed through the authenticated
+isolated local account. This pass spent **$0** on APIs and did not change
+production, provider routing, schemas or the remaining release gates below.
+
 ## Latest continuation
 
 The October 18 continuation resumed the same candidate and original $10 API

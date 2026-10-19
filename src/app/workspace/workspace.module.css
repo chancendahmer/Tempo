@@ -247,6 +247,13 @@
   .focusActions button { min-height: 44px; }
 }
 @media (prefers-reduced-motion: reduce) { .app *, .app *::before, .app *::after { scroll-behavior: auto !important; animation: none !important; transition: none !important; } }
+/* Feedback moves only when it helps explain an interaction. */
+@media (prefers-reduced-motion: no-preference) {
+  .app :is(button,a,input,textarea,select) { transition:background-color 140ms ease,border-color 140ms ease,color 140ms ease,box-shadow 140ms ease; }
+  .app dialog[open] { animation:dialogEnter 180ms cubic-bezier(.2,.8,.2,1); }
+  .app progress::-webkit-progress-value { transition:width 180ms ease; }
+  @keyframes dialogEnter { from { opacity:0; translate:0 5px; } to { opacity:1; translate:0 0; } }
+}
 
 /* A planner palette: each part of the day has its own visual identity. */
 .app { --soft: #657362; }
@@ -509,10 +516,11 @@
 .topbar .textButton { font-size:13px!important; }
 .previewBanner { background:#f3eee5;color:#6b5c4d;display:flex;justify-content:space-between;gap:16px;padding:7px 38px;font-size:12px; }
 .previewBanner a { display:inline-flex;align-items:center;gap:6px;text-decoration:underline; }
-.pageHeading { min-height:110px;border:0;padding:16px 0 22px;margin-bottom:18px; }
+.pageHeading { min-height:0;border:0;padding:14px 0 20px;margin-bottom:14px; }
+.pageHeading.pageHeading h1 { font-size:clamp(32px,3.3vw,44px);letter-spacing:-1.2px; }
 .pageHeading p:not(.eyebrow) { font-size:16px;color:var(--soft);margin-top:12px; }
-.sectionArt { width:72px;height:72px;border-radius:20px;background:var(--section-tint);color:var(--section-ink); }
-.sectionArt>svg { width:32px;height:32px; }
+.sectionArt { width:52px;height:52px;border-radius:15px;background:var(--section-tint);color:var(--section-ink); }
+.sectionArt>svg { width:25px;height:25px; }
 .sectionNav { display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding:8px 0 16px;margin-bottom:10px; }
 .sectionNav button { display:flex;align-items:center;gap:8px;border:1px solid transparent;background:transparent;min-height:44px;padding:8px 12px;border-radius:8px;font-size:14px;color:var(--soft); }
 .sectionNav button:hover { background:#f3eee8;color:var(--text); }
