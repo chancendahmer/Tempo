@@ -1,0 +1,20 @@
+{
+  "passed": true,
+  "mode": "real-postgres-pg-boss-live-model-web-only",
+  "evidenceSource": "Preserved from the successful local-web-message-proof.json printed before the reminder probe replaced that latest-result file. The script now also writes per-message evidence files.",
+  "messageId": "ac31ee90-6815-43f6-9e44-1d1499d8c8bd",
+  "userId": "6610b19d-628d-4b57-8a9e-82518ab1a3d7",
+  "actionId": "7b27fd74-2779-4b36-a475-334b00efc00b",
+  "queueSchema": "pgboss_web_qa",
+  "parserCalls": 1,
+  "tools": ["life_save"],
+  "note": {
+    "id": "ac31ee90-6815-43f6-9e44-1d1499d8c8bd",
+    "version": 1,
+    "data": {"body": "I keep my fictional project ideas in the blue notebook beside my desk.", "kind": "note", "title": "QA blue notebook"}
+  },
+  "reply": {"id": "8dc432ef-a653-475a-b51a-54a4ec997e0c", "body": "Saved: QA blue notebook."},
+  "sourceStatus": "processed",
+  "actionStatus": "completed",
+  "budget": {"spent": 4.960298999999999, "committed": 5.143583999999998, "stopped": false, "cap": 7}
+}

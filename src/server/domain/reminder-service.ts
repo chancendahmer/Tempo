@@ -15,6 +15,7 @@ export type ReminderRecord = {
 export interface ReminderRepository {
   createMany?(input: { userId: string; sourceMessageId: string; timezone: string; items: Array<{ contentMode?: "text" | "daily_rundown"; text: string; remindAt: Date; recurrence?: "daily" | "weekdays" | "weekly"; taskId?: string }> }): Promise<ReminderRecord[]>;
   updateMany?(input: { userId: string; sourceMessageId: string; now: Date; changes: Array<{ reminderId: string; expectedRemindAt: Date; remindAt: Date }> }): Promise<{ kind: "updated"; reminders: ReminderRecord[] } | { kind: "stale" }>;
+  cancelMany?(input: { userId: string; sourceMessageId: string; now: Date; reminders: Array<{ reminderId: string; expectedRemindAt: Date }> }): Promise<{ kind: "cancelled"; message: string } | { kind: "stale" }>;
 
   update?(input: { userId: string; sourceMessageId: string; reminderId?: string; reminderQuery?: string; remindAt?: Date; now: Date }): Promise<
     | { kind: "updated"; reminder: ReminderRecord }
@@ -155,6 +156,12 @@ export async function executeReminderCommand(
   command: ReminderCommand,
   context: { userId: string; sourceMessageId: string; timezone: string; now: Date; forModel?: boolean },
 ): Promise<string> {
+  if (command.type === "cancel_reminders") {
+    if (!repository.cancelMany) return "Multiple reminder cancellations are temporarily unavailable. Nothing was changed.";
+    if (new Set(command.reminders.map(item => item.reminderId)).size !== command.reminders.length) return "Please choose distinct reminders. Nothing was changed.";
+    const result = await repository.cancelMany({ ...context, reminders: command.reminders.map(item => ({ ...item, expectedRemindAt: new Date(item.expectedRemindAt) })) });
+    return result.kind === "cancelled" ? result.message : "Those reminders changed or can no longer be cancelled together. Please let me check them again. Nothing was changed.";
+  }
   if (command.type === "create_reminders") {
     if (!repository.createMany) return "Multiple reminders are temporarily unavailable.";
     if (command.reminders.some(item => new Date(item.remindAt) <= context.now)) return "One of those times has passed. What future date and time should I use? No reminders were added.";

@@ -7,7 +7,8 @@ describe("connection status reply", () => {
     expect(reply).toContain("Google Calendar: not connected");
     expect(reply).toContain("disabled by operator");
     expect(reply).toContain("has no step-count field");
-    expect(reply).toContain("note in Thought inbox");
+    expect(reply).toContain("Fitness has no step-count field");
+    expect(reply).toContain("note in Thoughts");
   });
   it("keeps unavailable status truthful", () => {
     expect(connectionStatusReply("Account connections unavailable.")).toContain("Account connections unavailable.");
@@ -18,6 +19,6 @@ describe("connection status reply", () => {
       wakeAndWindDown: "manual screen sessions; no scheduled wake alarms",
     }));
     expect(reply).toContain("Workspace: recipes and food logs; edits appear after refresh");
-    expect(reply).toContain("Wake & Wind Down: manual screen sessions; no scheduled wake alarms");
+    expect(reply).toContain("Sunrise & sunset: manual screen sessions; no scheduled wake alarms");
   });
 });

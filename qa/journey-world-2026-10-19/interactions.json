@@ -1,0 +1,192 @@
+[
+  {
+    "action": "select The beginning, starting point",
+    "detail": "YOUR STARTING POINT\nEvery journey starts somewhere.\n\nYou don’t need a perfect plan. One small thing is a place to start.",
+    "markers": [
+      "1The beginning",
+      "2First light",
+      "3Finding your feet"
+    ],
+    "nextEnabled": true,
+    "previousEnabled": false
+  },
+  {
+    "action": "select First light, 3 active days, ahead",
+    "detail": "AHEAD · LEVEL 2\nSmall steps, real beginnings.\n\n1 more active days to First light. No rush, and no need to do them in a row.",
+    "markers": [
+      "1The beginning",
+      "2First light",
+      "3Finding your feet"
+    ],
+    "nextEnabled": true,
+    "previousEnabled": true
+  },
+  {
+    "action": "select Finding your feet, 7 active days, ahead",
+    "detail": "AHEAD · LEVEL 3\nA week of days, at your pace.\n\n5 more active days to Finding your feet. No rush, and no need to do them in a row.",
+    "markers": [
+      "2First light",
+      "3Finding your feet",
+      "4The open trail"
+    ],
+    "nextEnabled": true,
+    "previousEnabled": true
+  },
+  {
+    "action": "select The open trail, 14 active days, ahead",
+    "detail": "AHEAD · LEVEL 4\nLook at the ground you’ve covered.\n\n12 more active days to The open trail. No rush, and no need to do them in a row.",
+    "markers": [
+      "3Finding your feet",
+      "4The open trail",
+      "5A wider view"
+    ],
+    "nextEnabled": true,
+    "previousEnabled": true
+  },
+  {
+    "action": "select A wider view, 30 active days, ahead",
+    "detail": "AHEAD · LEVEL 5\nA little effort has added up.\n\n28 more active days to A wider view. No rush, and no need to do them in a row.",
+    "markers": [
+      "4The open trail",
+      "5A wider view",
+      "6New horizons"
+    ],
+    "nextEnabled": true,
+    "previousEnabled": true
+  },
+  {
+    "action": "select New horizons, 60 active days, ahead",
+    "detail": "AHEAD · LEVEL 6\nThere’s still more to discover.\n\n58 more active days to New horizons. No rush, and no need to do them in a row.",
+    "markers": [
+      "4The open trail",
+      "5A wider view",
+      "6New horizons"
+    ],
+    "nextEnabled": false,
+    "previousEnabled": true
+  },
+  {
+    "action": "Return to my level 1",
+    "detail": "YOUR STARTING POINT\nEvery journey starts somewhere.\n\nYou don’t need a perfect plan. One small thing is a place to start."
+  },
+  {
+    "action": "Sunday checkoffs",
+    "text": "Sunday, Oct 18: 2 saved checkoffs."
+  },
+  {
+    "action": "Tuesday checkoffs",
+    "text": "Tuesday, Oct 13: 0 saved checkoffs."
+  },
+  {
+    "action": "Pause and celebrate twice",
+    "status": "4 little wins worth noticing. This moment is yours.",
+    "paused": "true"
+  },
+  {
+    "action": "Back Today then Journey",
+    "pauseRetained": true
+  },
+  {
+    "action": "Hide progress",
+    "mapMarkers": 0,
+    "message": "Your pace, without the numbers."
+  },
+  {
+    "action": "Restore progress/open rules",
+    "mapMarkers": 3,
+    "rules": "How your journey grows\n\nSmall wins. Complete a saved task or routine step to add one active day. More checkoffs add small wins, but not extra days. Repeat checkoffs of the same item on the same day count once.\n\nMilestones stay with you. Levels follow your total recorded active days: 0, 3, 7, 14, 30 and 60. Level 1 is your starting point. Days don’t need to be consecutive. A break never erases earlier activity. Undoing a checkoff corrects the totals.\n\nYour local day. Streaks count consecutive active days. Yesterday’s streak stays current until the end of today in America/New_York. This page celebrates recorded activity; it does not measure your health or your worth.\n\nFictional sample progress. Preview changes reset when you reload. Daily encouragement is written by Tempo, not generated from personal records."
+  },
+  {
+    "action": "Keyboard Space First light",
+    "detail": "AHEAD · LEVEL 2\nSmall steps, real beginnings.\n\n1 more active day to First light. No rush, and no need to do them in a row.",
+    "focus": {
+      "name": "First light, 3 active days, ahead",
+      "outline": "rgb(47, 98, 115) solid 3px"
+    }
+  },
+  {
+    "action": "390px layout",
+    "measurements": {
+      "client": 390,
+      "markers": [
+        {
+          "height": 48,
+          "name": "Level 1: The beginning. Starting point",
+          "width": 48
+        },
+        {
+          "height": 48,
+          "name": "Level 2: First light. 3 active days. 1 more day",
+          "width": 48
+        },
+        {
+          "height": 48,
+          "name": "Level 3: Finding your feet. 7 active days. 5 more days",
+          "width": 48
+        }
+      ],
+      "scroll": 390,
+      "summary": [
+        "2 day streakBest: 2 days · A break doesn’t erase your progress.Tue·Wed·Thu·Fri·Sat·SunMonYou’ve added a little good to today.4 small wins2 todayLevel 1The beginning2 active days1 more active day to First light"
+      ],
+      "width": 390
+    }
+  },
+  {
+    "action": "Mobile celebration",
+    "status": "4 little wins worth noticing. This moment is yours.",
+    "summary": "2\nday streak\n\nBest: 2 days · A break doesn’t erase your progress.\nTue\n·\nWed\n·\nThu\n·\nFri\n·\nSat\n·\nSun\nMon\n\nYou’ve added a little good to today.\n\n4 small wins\n\n2 today\n\nLevel 1\n\nThe beginning\n2 active days\n1 more active day to First light"
+  },
+  {
+    "action": "320px layout",
+    "measurements": {
+      "client": 320,
+      "markers": [
+        {
+          "height": 48,
+          "width": 48,
+          "x": 67.828125,
+          "y": -414.53125
+        },
+        {
+          "height": 48,
+          "width": 48,
+          "x": 136,
+          "y": -471.328125
+        },
+        {
+          "height": 48,
+          "width": 48,
+          "x": 207,
+          "y": -525.296875
+        }
+      ],
+      "scroll": 320,
+      "width": 320
+    }
+  },
+  {
+    "action": "320px keyboard First light",
+    "detail": "AHEAD · LEVEL 2\nSmall steps, real beginnings.\n\n1 more active day to First light. No rush, and no need to do them in a row."
+  },
+  {
+    "action": "Pause animations computed",
+    "animation": "none"
+  },
+  {
+    "action": "Direct map marker Level2",
+    "detail": "AHEAD · LEVEL 2\nSmall steps, real beginnings.\n\n1 more active day to First light. No rush, and no need to do them in a row."
+  },
+  {
+    "action": "Next arrow",
+    "detail": "AHEAD · LEVEL 3\nA week of days, at your pace.\n\n5 more active days to Finding your feet. No rush, and no need to do them in a row."
+  },
+  {
+    "action": "Previous arrow",
+    "detail": "AHEAD · LEVEL 2\nSmall steps, real beginnings.\n\n1 more active day to First light. No rush, and no need to do them in a row."
+  },
+  {
+    "action": "Return after map and arrows",
+    "summary": "2\nday streak\n\nBest: 2 days · A break doesn’t erase your progress.\nTue\n·\nWed\n·\nThu\n·\nFri\n·\nSat\n·\nSun\nMon\n\nYou’ve added a little good to today.\n\n4 small wins\n\n2 today\n\nLevel 1\n\nThe beginning\n2 active days\n1 more active day to First light"
+  }
+]

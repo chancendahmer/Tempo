@@ -33,6 +33,14 @@ describe("independent turn authorization adapter", () => {
     expect(await new AnthropicTurnAuthorizer().authorize({ message: "Add milk" })).toEqual({ mode: "uncertain", commands: [] });
   });
 
+  it("exposes batch cancellation independently from cancelling a pending suggestion or one reminder", async () => {
+    create.mockResolvedValue({ content: [{ type: "tool_use", name: "classify_turn", input: { mode: "write", commands: ["cancel_reminders"] } }] });
+    expect(await new AnthropicTurnAuthorizer().authorize({ message: "Cancel both QA stretch break reminders for tomorrow." })).toEqual({ mode: "write", commands: ["cancel_reminders"] });
+    const request = create.mock.calls[0][0];
+    expect(request.tools[0].input_schema.properties.commands.items.enum).toContain("cancel_reminders");
+    expect(request.system).toContain("Distinguish cancelling saved reminders");
+  });
+
   it("does not interpret free text as a permission grant", async () => {
     create.mockResolvedValue({ content: [{ type: "text", text: "Sure, authorized." }] });
     expect(await new AnthropicTurnAuthorizer().authorize({ message: "Add milk" })).toEqual({ mode: "uncertain", commands: [] });

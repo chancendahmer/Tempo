@@ -5,7 +5,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { getDatabase, TempoDatabase } from "../client";
 import { conversationMessages, goals, lifeItems, lifeActionReceipts, memoryEntries, reminders, scheduledActions, tasks, users } from "../schema";
 import { DrizzleReminderRepository } from "./reminder-repository";
-import { lifeItemSchema, localDay } from "../../domain/life-items";
+import { lifeItemSchema, localDay, type LifeItem } from "../../domain/life-items";
 import { applyLifePatch, lifePatchSchema, lifeSavedReply } from "../../domain/life-patch";
 import { taskCommandSchema } from "../../domain/task-commands";
 import { goalCommandSchema } from "../../domain/goal-commands";
@@ -15,12 +15,17 @@ import { DrizzleTaskRepository } from "./task-repository";
 import { DrizzleGoalRepository } from "./goal-repository";
 import { ensureDirectConversation } from "./messaging-identity-repository";
 import { readBoard } from "./board-repository";
+import { reconcileMealGroceries, refreshMealGroceries } from "./meal-groceries";
+import { IngredientInputError } from "../../domain/meal-groceries";
+import { readWorkspaceLifeItems } from "./workspace-life-items";
+import { readActivityStreak, recordRoutineCompletionChanges, RoutineCompletionDateError } from "./activity-streak-repository";
+import { readGentleSetup } from "./gentle-setup-repository";
 
 export const workspaceActionSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("forget_memory"), id: z.uuid(), expectedContent: z.string().min(1).max(2000) }),
   z.object({ action: z.literal("remove_reminder"), id: z.uuid() }),
   z.object({ action: z.literal("add_groceries"), items: z.array(z.string().trim().min(1).max(240)).min(1).max(20) }),
-  z.object({ action: z.literal("save"), id: z.uuid(), version: z.number().int().min(0), data: lifeItemSchema }),
+  z.object({ action: z.literal("save"), id: z.uuid(), version: z.number().int().min(0), sourceRecipeId: z.uuid().optional(), data: lifeItemSchema }),
   z.object({ action: z.literal("patch"), id: z.uuid(), version: z.number().int().min(1), patch: lifePatchSchema }).strict(),
   z.object({ action: z.literal("delete"), id: z.uuid(), version: z.number().int().min(1) }),
   z.object({ action: z.literal("task"), requestId: z.uuid(), command: taskCommandSchema }),
@@ -28,22 +33,28 @@ export const workspaceActionSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("chat"), requestId: z.uuid(), text: z.string().trim().min(1).max(2000) }),
   z.object({ action: z.literal("checkins"), enabled: z.boolean() }),
   z.object({ action: z.literal("finish_focus"), id: z.uuid(), version: z.number().int().min(1) }),
+  z.object({ action: z.literal("stop_focus"), requestId: z.uuid(), focus: z.object({ id: z.uuid(), version: z.number().int().min(1) }).optional(), task: z.object({ id: z.uuid(), startedAt: z.iso.datetime().nullable() }).optional() }).strict().refine(input => input.focus || input.task, "Choose the current focus session."),
 ]);
 export type WorkspaceAction = z.infer<typeof workspaceActionSchema>;
 export class WorkspaceConflict extends Error {}
 
-export async function readWorkspace(userId: string, database: TempoDatabase = getDatabase()) {
-  const [board, allTasks, allGoals, items, messages, profile, memories, allReminders] = await Promise.all([
+export async function readWorkspace(userId: string, database: TempoDatabase = getDatabase(), options: { diaryDate?: string } = {}) {
+  const requestedDiaryDate = z.iso.date().optional().parse(options.diaryDate);
+  const accountToday = await refreshMealGroceries(database, userId);
+  const diaryDate = requestedDiaryDate ?? accountToday;
+  const [board, allTasks, allGoals, life, messages, profile, memories, allReminders, activityStreak, setup] = await Promise.all([
     readBoard(userId, new Date(), database),
-    database.select({ id: tasks.id, title: tasks.title, status: tasks.status, dueAt: tasks.dueAt, estimatedMinutes: tasks.estimatedMinutes, startedAt: tasks.startedAt, goalId: tasks.goalId }).from(tasks).where(and(eq(tasks.userId, userId), inArray(tasks.status, ["not_started", "in_progress", "completed"]))).orderBy(asc(tasks.dueAt), desc(tasks.createdAt)).limit(200),
-    database.select({ id: goals.id, title: goals.title, description: goals.description, status: goals.status }).from(goals).where(and(eq(goals.userId, userId), inArray(goals.status, ["active", "completed"]))).orderBy(desc(goals.createdAt)).limit(100),
-    database.select({ id: lifeItems.id, version: lifeItems.version, data: lifeItems.data }).from(lifeItems).where(eq(lifeItems.userId, userId)).orderBy(desc(lifeItems.createdAt)).limit(1000),
+    database.select({ id: tasks.id, title: tasks.title, status: tasks.status, dueAt: tasks.dueAt, estimatedMinutes: tasks.estimatedMinutes, startedAt: tasks.startedAt, goalId: tasks.goalId }).from(tasks).where(and(eq(tasks.userId, userId), inArray(tasks.status, ["not_started", "in_progress", "completed"]))).orderBy(asc(sql`case when ${tasks.status} = 'in_progress' then 0 when ${tasks.status} = 'not_started' then 1 else 2 end`), asc(sql`case when ${tasks.status} <> 'completed' then ${tasks.dueAt} end`), desc(tasks.updatedAt), desc(tasks.id)).limit(201),
+    database.select({ id: goals.id, title: goals.title, description: goals.description, status: goals.status }).from(goals).where(and(eq(goals.userId, userId), inArray(goals.status, ["active", "completed"]))).orderBy(asc(sql`case when ${goals.status} = 'active' then 0 else 1 end`), desc(goals.updatedAt), desc(goals.id)).limit(101),
+    readWorkspaceLifeItems(database, userId, diaryDate),
     database.select({ id: conversationMessages.id, body: conversationMessages.body, direction: conversationMessages.direction, status: conversationMessages.status, createdAt: conversationMessages.createdAt }).from(conversationMessages).where(and(eq(conversationMessages.userId, userId), inArray(conversationMessages.kind, ["user", "coach"]))).orderBy(desc(conversationMessages.createdAt)).limit(50),
     database.select({ displayName: users.displayName, proactiveOptIn: users.proactiveOptIn, quietHoursStart: users.quietHoursStart, quietHoursEnd: users.quietHoursEnd }).from(users).where(eq(users.id, userId)).limit(1),
     database.select({ id: memoryEntries.id, content: memoryEntries.content, category: memoryEntries.category }).from(memoryEntries).where(and(eq(memoryEntries.userId, userId), isNull(memoryEntries.deletedAt), or(isNull(memoryEntries.expiresAt), gt(memoryEntries.expiresAt, new Date())))).orderBy(desc(memoryEntries.createdAt)).limit(201),
-    database.select({ id: reminders.id, text: reminders.text, remindAt: reminders.remindAt, status: reminders.status }).from(reminders).where(and(eq(reminders.userId, userId), inArray(reminders.status, ["scheduled", "sending", "sent", "failed"]))).orderBy(asc(reminders.remindAt)).limit(201),
+    database.select({ id: reminders.id, text: reminders.text, remindAt: reminders.remindAt, status: reminders.status }).from(reminders).where(and(eq(reminders.userId, userId), inArray(reminders.status, ["scheduled", "sending", "sent", "failed"]))).orderBy(asc(sql`case when ${reminders.status} in ('scheduled','sending') then 0 else 1 end`), asc(sql`case when ${reminders.status} in ('scheduled','sending') then ${reminders.remindAt} end`), desc(reminders.remindAt), desc(reminders.id)).limit(201),
+    readActivityStreak(userId, database),
+    readGentleSetup(userId, database),
   ]);
-  return { ...board, tasks: allTasks, goals: allGoals, items, messages: messages.reverse(), profile: profile[0], memories: memories.slice(0, 200), memoriesTruncated: memories.length > 200, reminders: allReminders.slice(0, 200), remindersTruncated: allReminders.length > 200 };
+  return { ...board, tasks: allTasks.slice(0, 200), tasksTruncated: allTasks.length > 200, goals: allGoals.slice(0, 100), goalsTruncated: allGoals.length > 100, ...life, messages: messages.reverse(), profile: profile[0], memories: memories.slice(0, 200), memoriesTruncated: memories.length > 200, reminders: allReminders.slice(0, 200), remindersTruncated: allReminders.length > 200, activityStreak, setup };
 }
 
 export async function mutateWorkspace(userId: string, input: WorkspaceAction, database: TempoDatabase = getDatabase(), receiptId?: string) {
@@ -52,7 +63,21 @@ export async function mutateWorkspace(userId: string, input: WorkspaceAction, da
     // Serialize edits from this user's tabs, and keep source events and mutations atomic.
     const [user] = await transaction.select().from(users).where(eq(users.id, userId)).for("update");
     if (!user) throw new WorkspaceConflict("Account unavailable.");
-    const receiptKey = receiptId ? `life:${userId}:${receiptId}` : null;
+    const syncRoutineProgress = async (routineId: string, before: LifeItem | undefined, after: Extract<LifeItem, { kind: "routine" }>, now: Date) => {
+      try { await recordRoutineCompletionChanges(transaction as unknown as TempoDatabase, { userId, routineId, before, after, timezone: user.timezone, now }); }
+      catch (error) {
+        if (error instanceof RoutineCompletionDateError) throw new WorkspaceConflict(error.message);
+        throw error;
+      }
+    };
+    const syncGroceries = async () => {
+      try { await reconcileMealGroceries(transaction as unknown as TempoDatabase, userId, localDay(new Date(), user.timezone)); }
+      catch (error) {
+        if (error instanceof IngredientInputError) throw new WorkspaceConflict(error.message);
+        throw error;
+      }
+    };
+    const receiptKey = receiptId ? `life:${userId}:${receiptId}` : input.action === "save" || input.action === "patch" || input.action === "delete" ? `workspace:${userId}:${input.action}:${input.id}:${input.version}` : input.action === "stop_focus" ? `workspace:${userId}:stop_focus:${input.requestId}` : null;
     const fingerprint = createHash("sha256").update(JSON.stringify(input)).digest("hex");
     if (receiptKey) {
       const [prior] = await transaction.select().from(lifeActionReceipts).where(and(eq(lifeActionReceipts.key, receiptKey), eq(lifeActionReceipts.userId, userId))).limit(1);
@@ -62,6 +87,22 @@ export async function mutateWorkspace(userId: string, input: WorkspaceAction, da
       }
     }
     const perform = async (): Promise<{ message: string }> => {
+    if (input.action === "stop_focus") {
+      const [focus] = await transaction.select().from(lifeItems).where(and(eq(lifeItems.userId, userId), sql`${lifeItems.data}->>'kind' = 'focus'`)).for("update");
+      if (input.focus ? !focus || focus.id !== input.focus.id || focus.version !== input.focus.version : !!focus) throw new WorkspaceConflict("This focus session changed. Refresh before stopping it.");
+      const focusedTaskId = focus?.data.kind === "focus" ? focus.data.taskId : undefined;
+      if (focus && focusedTaskId !== input.task?.id) throw new WorkspaceConflict("This focus session changed. Refresh before stopping it.");
+      if (input.task) {
+        const [task] = await transaction.select().from(tasks).where(and(eq(tasks.id, input.task.id), eq(tasks.userId, userId))).for("update");
+        if (!task || task.status !== "in_progress" || (task.startedAt?.toISOString() ?? null) !== input.task.startedAt) throw new WorkspaceConflict("This task changed. Refresh before stopping its focus session.");
+        const db = transaction as unknown as TempoDatabase;
+        const identity = await ensureDirectConversation(db, { userId, phoneE164: user.phoneE164 });
+        const [source] = await transaction.insert(conversationMessages).values({ userId, conversationId: identity.conversationId, direction: "inbound", kind: "system", status: "processed", body: JSON.stringify(input), idempotencyKey: `web-stop-focus:${userId}:${input.requestId}`, receivedAt: new Date() }).returning();
+        await new DrizzleTaskRepository(db).mutate({ userId, taskId: task.id, sourceMessageId: source.id, eventType: "updated", expectedStatus: "in_progress", changes: { status: "not_started", startedAt: null } });
+      }
+      if (focus) await transaction.delete(lifeItems).where(and(eq(lifeItems.id, focus.id), eq(lifeItems.userId, userId), eq(lifeItems.version, focus.version)));
+      return { message: "Focus stopped for now. You can return to it later." };
+    }
     if (input.action === "forget_memory") {
       const [memory] = await transaction.select().from(memoryEntries).where(and(eq(memoryEntries.userId, userId), eq(memoryEntries.id, input.id))).limit(1);
       if (!memory || memory.content !== input.expectedContent) throw new WorkspaceConflict("That memory changed or is unavailable. Refresh before removing it.");
@@ -77,7 +118,7 @@ export async function mutateWorkspace(userId: string, input: WorkspaceAction, da
       const normalize = (title: string) => title.trim().replace(/\s+/g, " ").toLowerCase();
       const existing = await transaction.select({ data: lifeItems.data }).from(lifeItems)
         .where(and(eq(lifeItems.userId, userId), sql`${lifeItems.data}->>'kind' = 'grocery'`, sql`${lifeItems.data}->>'checked' = 'false'`));
-      const listed = new Set(existing.map(row => normalize(row.data.title)));
+      const listed = new Set(existing.filter(row => row.data.kind === "grocery" && !row.data.mealSources).map(row => normalize(row.data.title)));
       const seen = new Set<string>(), added: string[] = [], alreadyListed: string[] = [];
       for (const item of input.items) {
         const title = item.trim().replace(/\s+/g, " "), key = normalize(title);
@@ -98,7 +139,10 @@ export async function mutateWorkspace(userId: string, input: WorkspaceAction, da
         if (!routine || routine.data.kind !== "routine") throw new WorkspaceConflict("Routine no longer exists.");
         const stepId = focus.data.stepId;
         if (!routine.data.steps.some(step => step.id === stepId)) throw new WorkspaceConflict("This step was removed. Leave this focus session.");
-        await transaction.update(lifeItems).set({ data: { ...routine.data, steps: routine.data.steps.map(step => step.id === stepId ? { ...step, completedOn: localDay(new Date(), user.timezone) } : step) }, version: sql`${lifeItems.version} + 1`, updatedAt: new Date() }).where(eq(lifeItems.id, routine.id));
+        const completedAt = new Date();
+        const data = { ...routine.data, steps: routine.data.steps.map(step => step.id === stepId ? { ...step, completedOn: localDay(completedAt, user.timezone) } : step) };
+        await transaction.update(lifeItems).set({ data, version: sql`${lifeItems.version} + 1`, updatedAt: completedAt }).where(eq(lifeItems.id, routine.id));
+        await syncRoutineProgress(routine.id, routine.data, data, completedAt);
       }
       await transaction.delete(lifeItems).where(eq(lifeItems.id, focus.id));
       return { message: "Step completed. Take a breath before the next." };
@@ -109,14 +153,38 @@ export async function mutateWorkspace(userId: string, input: WorkspaceAction, da
       let data;
       try { data = applyLifePatch(existing.data, input.patch, randomUUID); }
       catch (error) { throw new WorkspaceConflict(error instanceof Error ? error.message : "That edit is invalid."); }
+      if (existing.data.kind === "grocery" && existing.data.mealSources && Object.keys(input.patch).some(key => !["kind", "checked"].includes(key))) throw new WorkspaceConflict("Edit the source meal to change its ingredients. You can check off this grocery or add a separate manual item.");
+      if (data.kind === "meal" && existing.data.kind === "meal") data = { ...data, ingredientServings: existing.data.ingredientServings ?? existing.data.servings ?? data.servings, groceriesEnabled: data.groceriesEnabled ?? true };
       const rows = await transaction.update(lifeItems).set({ data, version: sql`${lifeItems.version} + 1`, updatedAt: new Date() }).where(and(eq(lifeItems.id, input.id), eq(lifeItems.userId, userId), eq(lifeItems.version, input.version))).returning();
       if (!rows.length) throw new WorkspaceConflict("This item changed elsewhere. Read it again before editing.");
+      if (data.kind === "meal" || data.kind === "pantry") await syncGroceries();
       return { message: lifeSavedReply(data, true) };
     }
     if (input.action === "save") {
       const [existing] = await transaction.select().from(lifeItems).where(and(eq(lifeItems.id, input.id), eq(lifeItems.userId, userId))).limit(1);
+      if (input.sourceRecipeId && input.data.kind !== "meal") throw new WorkspaceConflict("A saved recipe can only supply ingredients for a meal plan.");
+      if (input.data.kind === "grocery") {
+        if (existing?.data.kind === "grocery" && existing.data.mealSources) {
+          if (!isDeepStrictEqual({ ...existing.data, checked: input.data.checked }, input.data)) throw new WorkspaceConflict("Edit the source meal to change its ingredients. You can check off this grocery or add a separate manual item.");
+        } else if (input.data.mealSources) throw new WorkspaceConflict("Meal grocery sources are managed by your meal plan.");
+      }
+      if (input.data.kind === "meal") {
+        const previous = existing?.data.kind === "meal" ? existing.data : undefined;
+        let meal = { ...input.data, ingredientServings: previous?.ingredientServings ?? previous?.servings ?? input.data.servings, groceriesEnabled: input.data.groceriesEnabled ?? previous?.groceriesEnabled ?? true };
+        if (input.sourceRecipeId) {
+          const [source] = await transaction.select({ data: lifeItems.data }).from(lifeItems).where(and(eq(lifeItems.id, input.sourceRecipeId), eq(lifeItems.userId, userId))).limit(1);
+          if (!source || source.data.kind !== "recipe") throw new WorkspaceConflict("I couldn’t find that saved recipe in your account. Read your recipes before planning it.");
+          if (source.data.ingredients.length > 4000) throw new WorkspaceConflict("That recipe’s ingredients are too long for a meal plan. Please shorten the saved ingredient list first.");
+          meal = { ...meal, ingredients: source.data.ingredients, ingredientServings: source.data.servings, servings: meal.servings ?? source.data.servings };
+        }
+        input = { ...input, data: meal };
+      }
       if (existing && existing.version === input.version + 1 && isDeepStrictEqual(existing.data, input.data)) return { message: "Saved." };
       if (existing && existing.data.kind !== input.data.kind) throw new WorkspaceConflict("An item's type cannot change.");
+      if (input.data.kind === "nutrition_target") {
+        const [target] = await transaction.select({ id: lifeItems.id }).from(lifeItems).where(and(eq(lifeItems.userId, userId), sql`${lifeItems.data}->>'kind' = 'nutrition_target'`)).limit(1);
+        if (target && target.id !== input.id) throw new WorkspaceConflict("Nutrition targets already exist. Refresh and edit those targets.");
+      }
       if (input.data.kind === "focus") {
         const focus = input.data;
         const [otherFocus] = await transaction.select({ id: lifeItems.id }).from(lifeItems).where(and(eq(lifeItems.userId, userId), sql`${lifeItems.data}->>'kind' = 'focus'`)).limit(1);
@@ -136,12 +204,16 @@ export async function mutateWorkspace(userId: string, input: WorkspaceAction, da
         const rows = await transaction.update(lifeItems).set({ data: input.data, version: sql`${lifeItems.version} + 1`, updatedAt: new Date() }).where(and(eq(lifeItems.id, input.id), eq(lifeItems.userId, userId), eq(lifeItems.version, input.version))).returning();
         if (!rows.length) throw new WorkspaceConflict("This item changed elsewhere. Refresh and try again.");
       }
+      if (input.data.kind === "meal" || input.data.kind === "pantry") await syncGroceries();
+      if (input.data.kind === "routine") await syncRoutineProgress(input.id, existing?.data, input.data, new Date());
       return { message: "Saved." };
     }
     if (input.action === "delete") {
       const rows = await transaction.delete(lifeItems).where(and(eq(lifeItems.id, input.id), eq(lifeItems.userId, userId), eq(lifeItems.version, input.version))).returning();
       if (!rows.length) throw new WorkspaceConflict("This item changed elsewhere. Refresh and try again.");
+      if (rows[0].data.kind === "grocery" && rows[0].data.mealSources) throw new WorkspaceConflict("Remove the ingredient from its source meal or turn off shopping for that meal. Manual groceries can be removed here.");
       await transaction.delete(lifeItems).where(and(eq(lifeItems.userId, userId), sql`${lifeItems.data}->>'routineId' = ${input.id}`));
+      if (rows[0].data.kind === "meal" || rows[0].data.kind === "pantry") await syncGroceries();
       return { message: "Removed." };
     }
     if (input.action === "checkins") {

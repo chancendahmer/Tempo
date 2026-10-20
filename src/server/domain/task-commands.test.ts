@@ -34,6 +34,7 @@ describe("task command validation and fallback parsing", () => {
   it.each([
     ["list my tasks", { type: "list_tasks", status: "open" }],
     ["done with the Q3 report", { type: "complete_task", taskQuery: "Q3 report" }],
+    ["reopen the Q3 report", { type: "reopen_task", taskQuery: "Q3 report" }],
     ["start the budget review", { type: "start_task", taskQuery: "budget review" }],
     ["abandon old proposal", { type: "abandon_task", taskQuery: "old proposal" }],
   ])("parses %s", (text, command) => {

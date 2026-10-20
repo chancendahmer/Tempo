@@ -1,7 +1,8 @@
 "use client";
+import { loopDialogTab } from "./dialog-keyboard";
 
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { FiArrowRight, FiMaximize, FiMoon, FiPlay, FiSun, FiVolume2, FiVolumeX, FiX } from "react-icons/fi";
+import { FiArrowRight, FiCheck, FiChevronDown, FiClock, FiMaximize, FiMoon, FiPlay, FiSliders, FiSun, FiVolume2, FiVolumeX, FiX } from "react-icons/fi";
 import { lightFrame, startSoundscape, type LightMode, type Soundscape } from "./wake-session";
 import s from "./wake.module.css";
 
@@ -79,19 +80,38 @@ export function WakeExperience({ onRoutines }: { onRoutines: () => void }) {
     setSession({ started: Date.now(), duration: preview ? 20_000 : minutes * 60_000 });
   }
 
-  return <div className={s.root}>
-    <div className={s.choices} aria-label="Light session">
-      <button className={`${s.choice} ${s.sunrise}`} aria-pressed={mode === "sunrise"} onClick={() => setMode("sunrise")}><span className={s.miniSun} aria-hidden="true" /><span><FiSun /> MORNING LIGHT</span><h2>Ease into your day.</h2><p>A soft glow becomes a warm, bright sunrise.</p><strong>{mode === "sunrise" ? "Selected" : "Choose sunrise"} <FiArrowRight /></strong></button>
-      <button className={`${s.choice} ${s.sunset}`} aria-pressed={mode === "sunset"} onClick={() => setMode("sunset")}><span className={s.miniMoon} aria-hidden="true" /><span><FiMoon /> EVENING LIGHT</span><h2>Let the day settle.</h2><p>Golden light fades through amber into night.</p><strong>{mode === "sunset" ? "Selected" : "Choose sunset"} <FiArrowRight /></strong></button>
+  return <div className={s.root} data-mode={mode}>
+    <div className={s.choices} role="group" aria-label="Choose a light session">
+      <button type="button" className={`${s.choice} ${s.sunrise}`} aria-pressed={mode === "sunrise"} onClick={() => setMode("sunrise")}>
+        <span className={s.modeIcon} aria-hidden="true"><FiSun /></span>
+        <span className={s.choiceCopy}><strong>Sunrise</strong><span>A gentle start to your day</span></span>
+        <span className={s.selection} aria-hidden="true">{mode === "sunrise" && <FiCheck />}</span>
+      </button>
+      <button type="button" className={`${s.choice} ${s.sunset}`} aria-pressed={mode === "sunset"} onClick={() => setMode("sunset")}>
+        <span className={s.modeIcon} aria-hidden="true"><FiMoon /></span>
+        <span className={s.choiceCopy}><strong>Sunset</strong><span>A little space to wind down</span></span>
+        <span className={s.selection} aria-hidden="true">{mode === "sunset" && <FiCheck />}</span>
+      </button>
     </div>
     <section className={s.controls} aria-label="Session settings">
-      <label>Take your time<select value={minutes} onChange={e => setMinutes(Number(e.target.value))}>{[5, 10, 15, 20, 30, 45, 60].map(n => <option key={n} value={n}>{n} minutes</option>)}</select></label>
-      <label>Maximum light <span>{maximum}%</span><input type="range" min="10" max="100" step="5" value={maximum} onChange={e => setMaximum(Number(e.target.value))} /></label>
-      <label>Soundscape<select value={sound} onChange={e => setSound(e.target.value as Soundscape)}><option value="silent">Quiet · no sound</option><option value="waves">Ocean waves · synthesized</option><option value="birds">Morning birds · synthesized</option></select></label>
-      <div className={s.actions}><button className={s.start} onClick={() => start()}><FiPlay /> Start {mode}</button><button className={s.preview} onClick={() => start(true)}>20-second preview</button></div>
+      <div className={s.sessionIntro}>
+        <div><p className={s.eyebrow}>ON THIS SCREEN · START WHEN YOU’RE READY</p><h2>{mode === "sunrise" ? "Let a little light in." : "Let the day settle."}</h2><p>{mode === "sunrise" ? "Watch your screen slowly brighten into a warm sunrise." : "Warm light slowly fades through amber into night."}</p></div>
+        <span className={mode === "sunrise" ? s.miniSun : s.miniMoon} aria-hidden="true" />
+      </div>
+      <div className={s.startRow}>
+        <label className={s.duration}><span><FiClock aria-hidden="true" /> Duration</span><select value={minutes} onChange={e => setMinutes(Number(e.target.value))}>{[5, 10, 15, 20, 30, 45, 60].map(n => <option key={n} value={n}>{n} minutes</option>)}</select></label>
+        <div className={s.actions}><button type="button" className={s.start} onClick={() => start()}><FiPlay aria-hidden="true" /> Start {mode}</button><button type="button" className={s.preview} onClick={() => start(true)}>Try 20 seconds <FiArrowRight aria-hidden="true" /></button></div>
+      </div>
+      <details className={s.settings}>
+        <summary><FiSliders aria-hidden="true" /><span>Sound & light<small>{sound === "silent" ? "No sound" : sound === "birds" ? "Morning birds" : "Ocean waves"} · {maximum}% light</small></span><FiChevronDown className={s.chevron} aria-hidden="true" /></summary>
+        <div className={s.settingsGrid}>
+          <label>Soundscape<select value={sound} onChange={e => setSound(e.target.value as Soundscape)}><option value="silent">Quiet · no sound</option><option value="waves">Ocean waves · synthesized</option><option value="birds">Morning birds · synthesized</option></select></label>
+          <label>Maximum screen glow <span>{maximum}%</span><input type="range" min="10" max="100" step="5" value={maximum} aria-valuetext={`${maximum}% screen glow`} onChange={e => setMaximum(Number(e.target.value))} /><small>Changes the colors on screen, not device brightness.</small></label>
+        </div>
+      </details>
     </section>
-    <div className={s.note}><FiSun /><p><strong>Light for right now.</strong> Keep this screen open and your device awake. This changes screen colors, not hardware brightness. Scheduled wake alarms and physical light control are not available yet; keep your usual alarm. Settings apply to this visit.</p><button onClick={onRoutines}>My routines <FiArrowRight /></button></div>
-    {session && <dialog ref={dialog} className={s.session} onCancel={e => { e.preventDefault(); stop(); }} style={{ "--light": frame.light, "--brightness": frame.brightness, "--sun-y": `${80 - frame.light * 65}%`, "--sky": `hsl(${18 + frame.light * 24} ${45 + frame.light * 45}% ${3 + frame.brightness * 82}%)` } as CSSProperties} aria-labelledby="light-session-title">
+    <div className={s.note}><FiClock aria-hidden="true" /><div><strong>A session for right now</strong><p>Keep this screen open and your device awake. Scheduled alarms aren’t available yet, so keep your usual alarm.</p><details><summary>About screen light & sound</summary><p>Settings apply to this visit. Sound starts only when you start a session. Tempo changes screen colors; it cannot control your device’s physical brightness or wake it from sleep.</p></details></div><button type="button" onClick={onRoutines}>My routines <FiArrowRight aria-hidden="true" /></button></div>
+    {session && <dialog onKeyDown={loopDialogTab} ref={dialog} className={s.session} onCancel={e => { e.preventDefault(); stop(); }} style={{ "--light": frame.light, "--brightness": frame.brightness, "--sun-y": `${80 - frame.light * 65}%`, "--sky": `hsl(${18 + frame.light * 24} ${45 + frame.light * 45}% ${3 + frame.brightness * 82}%)` } as CSSProperties} aria-labelledby="light-session-title">
       <div className={s.glow} aria-hidden="true" /><div className={s.sun} aria-hidden="true" /><div className={s.horizon} aria-hidden="true" />
       <div className={s.sessionTop}><span>TEMPO · {mode === "sunrise" ? "MORNING LIGHT" : "WIND DOWN"}</span><button onClick={stop} aria-label="End light session"><FiX /></button></div>
       <div className={s.sessionContent}><h2 id="light-session-title">{finished ? mode === "sunrise" ? "Hello, new day." : "Rest comes next." : mode === "sunrise" ? "A gentler beginning." : "Nothing more to do."}</h2><div className={s.timer} aria-label={`${frame.remainingSeconds} seconds remaining`}>{Math.floor(frame.remainingSeconds / 60)}:{String(frame.remainingSeconds % 60).padStart(2, "0")}</div><progress aria-label="Light session progress" max="1" value={frame.progress} /><p role="status">{finished ? "Complete. Stay here as long as you like." : notice || wakeNotice || "Breathe. Let the light do its thing."}</p></div>

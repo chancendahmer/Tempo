@@ -1,0 +1,3522 @@
+[
+  {
+    "decisionAt": "2027-01-14T15:00:00.001Z",
+    "input": "What happens if I delete my morning routine? Do not change anything.",
+    "replies": [
+      "If you delete your morning routine, it's removed permanently from My routines — there's no undo, so you'd have to recreate all the steps from scratch if you change your mind.\n\nYour tasks, goals, reminders, and calendar events are unaffected; only the routine itself (its steps, order, and times) would be gone."
+    ],
+    "providerId": "d30bb473-5e4c-48d6-9b85-ee8f7e163be1",
+    "duplicate": false,
+    "parserCalled": true,
+    "tools": [],
+    "elapsedMs": 3353,
+    "channel": "sms",
+    "issues": [],
+    "before": {
+      "timezone": "America/New_York",
+      "generatedAt": "2026-10-15T19:13:02.386Z",
+      "tasks": [],
+      "reminders": [],
+      "calendar": null,
+      "busy": [],
+      "tasksTruncated": false,
+      "goals": [],
+      "goalsTruncated": false,
+      "items": [],
+      "messages": [],
+      "profile": {
+        "displayName": null,
+        "proactiveOptIn": false,
+        "quietHoursStart": null,
+        "quietHoursEnd": null
+      },
+      "memories": [],
+      "memoriesTruncated": false,
+      "remindersTruncated": false
+    },
+    "after": {
+      "timezone": "America/New_York",
+      "generatedAt": "2026-10-15T19:13:05.761Z",
+      "tasks": [],
+      "reminders": [],
+      "calendar": null,
+      "busy": [],
+      "tasksTruncated": false,
+      "goals": [],
+      "goalsTruncated": false,
+      "items": [],
+      "messages": [
+        {
+          "id": "81c46eb4-69f5-40e3-adce-e1d1246bd4b3",
+          "body": "What happens if I delete my morning routine? Do not change anything.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.001Z"
+        },
+        {
+          "id": "bd156d83-5be4-4e10-a144-b8ac6b834ec6",
+          "body": "If you delete your morning routine, it's removed permanently from My routines — there's no undo, so you'd have to recreate all the steps from scratch if you change your mind.\n\nYour tasks, goals, reminders, and calendar events are unaffected; only the routine itself (its steps, order, and times) would be gone.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.002Z"
+        }
+      ],
+      "profile": {
+        "displayName": null,
+        "proactiveOptIn": false,
+        "quietHoursStart": null,
+        "quietHoursEnd": null
+      },
+      "memories": [],
+      "memoriesTruncated": false,
+      "remindersTruncated": false
+    },
+    "reminders": []
+  },
+  {
+    "decisionAt": "2027-01-14T15:00:00.003Z",
+    "input": "Please do not enable proactive check-ins",
+    "replies": [
+      "No proactive check-ins have been enabled — nothing was changed, and I won't turn them on. Your account has no coaching outreach active right now."
+    ],
+    "providerId": "901e20d0-bda1-43bc-a033-7fffdbabc405",
+    "duplicate": false,
+    "parserCalled": true,
+    "tools": [
+      "connection_status"
+    ],
+    "elapsedMs": 4719,
+    "channel": "sms",
+    "toolTrace": [
+      {
+        "command": {
+          "type": "connection_status"
+        },
+        "result": "Calendar: simulated fixture only. Email, Apple Calendar, shopping and health data: not connected.\n\nGoogle Health / Google Fit is not supported. Tempo cannot read or sync your steps. Movement has no step-count field; you can save a step count as a note in Thought inbox if you ask.\n\nManage supported connections in Extensions."
+      }
+    ],
+    "issues": [],
+    "before": {
+      "timezone": "America/New_York",
+      "generatedAt": "2026-10-15T19:13:05.807Z",
+      "tasks": [],
+      "reminders": [],
+      "calendar": null,
+      "busy": [],
+      "tasksTruncated": false,
+      "goals": [],
+      "goalsTruncated": false,
+      "items": [],
+      "messages": [
+        {
+          "id": "81c46eb4-69f5-40e3-adce-e1d1246bd4b3",
+          "body": "What happens if I delete my morning routine? Do not change anything.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.001Z"
+        },
+        {
+          "id": "bd156d83-5be4-4e10-a144-b8ac6b834ec6",
+          "body": "If you delete your morning routine, it's removed permanently from My routines — there's no undo, so you'd have to recreate all the steps from scratch if you change your mind.\n\nYour tasks, goals, reminders, and calendar events are unaffected; only the routine itself (its steps, order, and times) would be gone.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.002Z"
+        }
+      ],
+      "profile": {
+        "displayName": null,
+        "proactiveOptIn": false,
+        "quietHoursStart": null,
+        "quietHoursEnd": null
+      },
+      "memories": [],
+      "memoriesTruncated": false,
+      "remindersTruncated": false
+    },
+    "after": {
+      "timezone": "America/New_York",
+      "generatedAt": "2026-10-15T19:13:10.552Z",
+      "tasks": [],
+      "reminders": [],
+      "calendar": null,
+      "busy": [],
+      "tasksTruncated": false,
+      "goals": [],
+      "goalsTruncated": false,
+      "items": [],
+      "messages": [
+        {
+          "id": "81c46eb4-69f5-40e3-adce-e1d1246bd4b3",
+          "body": "What happens if I delete my morning routine? Do not change anything.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.001Z"
+        },
+        {
+          "id": "bd156d83-5be4-4e10-a144-b8ac6b834ec6",
+          "body": "If you delete your morning routine, it's removed permanently from My routines — there's no undo, so you'd have to recreate all the steps from scratch if you change your mind.\n\nYour tasks, goals, reminders, and calendar events are unaffected; only the routine itself (its steps, order, and times) would be gone.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.002Z"
+        },
+        {
+          "id": "b80c5c0b-1ac6-42c6-b434-3b4e23a03df0",
+          "body": "Please do not enable proactive check-ins",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.003Z"
+        },
+        {
+          "id": "bed99643-2eda-4a32-81fc-66822691d035",
+          "body": "No proactive check-ins have been enabled — nothing was changed, and I won't turn them on. Your account has no coaching outreach active right now.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.004Z"
+        }
+      ],
+      "profile": {
+        "displayName": null,
+        "proactiveOptIn": false,
+        "quietHoursStart": null,
+        "quietHoursEnd": null
+      },
+      "memories": [],
+      "memoriesTruncated": false,
+      "remindersTruncated": false
+    },
+    "reminders": []
+  },
+  {
+    "decisionAt": "2027-01-14T15:00:00.005Z",
+    "input": "I'm overwhelmed by my plan. What would you do first? Advice only.",
+    "replies": [
+      "You have no open tasks or goals saved right now, so there's nothing in your current plan for me to prioritize.\n\nIf you tell me what's on your mind — even just a few things swirling around — I can help you pick one clear first move."
+    ],
+    "providerId": "60a3f8f3-1f43-4c9a-9749-0a96da4070b6",
+    "duplicate": false,
+    "parserCalled": true,
+    "tools": [],
+    "elapsedMs": 2869,
+    "channel": "web",
+    "issues": [],
+    "before": {
+      "timezone": "America/New_York",
+      "generatedAt": "2026-10-15T19:13:10.593Z",
+      "tasks": [],
+      "reminders": [],
+      "calendar": null,
+      "busy": [],
+      "tasksTruncated": false,
+      "goals": [],
+      "goalsTruncated": false,
+      "items": [],
+      "messages": [
+        {
+          "id": "81c46eb4-69f5-40e3-adce-e1d1246bd4b3",
+          "body": "What happens if I delete my morning routine? Do not change anything.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.001Z"
+        },
+        {
+          "id": "bd156d83-5be4-4e10-a144-b8ac6b834ec6",
+          "body": "If you delete your morning routine, it's removed permanently from My routines — there's no undo, so you'd have to recreate all the steps from scratch if you change your mind.\n\nYour tasks, goals, reminders, and calendar events are unaffected; only the routine itself (its steps, order, and times) would be gone.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.002Z"
+        },
+        {
+          "id": "b80c5c0b-1ac6-42c6-b434-3b4e23a03df0",
+          "body": "Please do not enable proactive check-ins",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.003Z"
+        },
+        {
+          "id": "bed99643-2eda-4a32-81fc-66822691d035",
+          "body": "No proactive check-ins have been enabled — nothing was changed, and I won't turn them on. Your account has no coaching outreach active right now.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.004Z"
+        }
+      ],
+      "profile": {
+        "displayName": null,
+        "proactiveOptIn": false,
+        "quietHoursStart": null,
+        "quietHoursEnd": null
+      },
+      "memories": [],
+      "memoriesTruncated": false,
+      "remindersTruncated": false
+    },
+    "after": {
+      "timezone": "America/New_York",
+      "generatedAt": "2026-10-15T19:13:13.478Z",
+      "tasks": [],
+      "reminders": [],
+      "calendar": null,
+      "busy": [],
+      "tasksTruncated": false,
+      "goals": [],
+      "goalsTruncated": false,
+      "items": [],
+      "messages": [
+        {
+          "id": "81c46eb4-69f5-40e3-adce-e1d1246bd4b3",
+          "body": "What happens if I delete my morning routine? Do not change anything.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.001Z"
+        },
+        {
+          "id": "bd156d83-5be4-4e10-a144-b8ac6b834ec6",
+          "body": "If you delete your morning routine, it's removed permanently from My routines — there's no undo, so you'd have to recreate all the steps from scratch if you change your mind.\n\nYour tasks, goals, reminders, and calendar events are unaffected; only the routine itself (its steps, order, and times) would be gone.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.002Z"
+        },
+        {
+          "id": "b80c5c0b-1ac6-42c6-b434-3b4e23a03df0",
+          "body": "Please do not enable proactive check-ins",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.003Z"
+        },
+        {
+          "id": "bed99643-2eda-4a32-81fc-66822691d035",
+          "body": "No proactive check-ins have been enabled — nothing was changed, and I won't turn them on. Your account has no coaching outreach active right now.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.004Z"
+        },
+        {
+          "id": "fed6e0c8-c7e4-4481-9816-9414e0309d8f",
+          "body": "I'm overwhelmed by my plan. What would you do first? Advice only.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.005Z"
+        },
+        {
+          "id": "be8f263e-87f0-4ecb-ab52-2c4002ca8965",
+          "body": "You have no open tasks or goals saved right now, so there's nothing in your current plan for me to prioritize.\n\nIf you tell me what's on your mind — even just a few things swirling around — I can help you pick one clear first move.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.006Z"
+        }
+      ],
+      "profile": {
+        "displayName": null,
+        "proactiveOptIn": false,
+        "quietHoursStart": null,
+        "quietHoursEnd": null
+      },
+      "memories": [],
+      "memoriesTruncated": false,
+      "remindersTruncated": false
+    },
+    "reminders": []
+  },
+  {
+    "decisionAt": "2027-01-14T15:00:00.007Z",
+    "input": "Enable proactive check-ins once a day",
+    "replies": [
+      "Check-in preference saved. Proactive delivery is disabled in this simulation."
+    ],
+    "providerId": "9e9a8e6f-4344-40a2-9f2e-8d46f7788599",
+    "duplicate": false,
+    "parserCalled": true,
+    "tools": [
+      "set_checkins"
+    ],
+    "elapsedMs": 5149,
+    "channel": "sms",
+    "toolTrace": [
+      {
+        "command": {
+          "type": "set_checkins",
+          "enabled": true,
+          "dailyCap": 1
+        },
+        "result": "Check-in preference saved. Proactive delivery is disabled in this simulation."
+      }
+    ],
+    "issues": [],
+    "before": {
+      "timezone": "America/New_York",
+      "generatedAt": "2026-10-15T19:13:13.534Z",
+      "tasks": [],
+      "reminders": [],
+      "calendar": null,
+      "busy": [],
+      "tasksTruncated": false,
+      "goals": [],
+      "goalsTruncated": false,
+      "items": [],
+      "messages": [
+        {
+          "id": "81c46eb4-69f5-40e3-adce-e1d1246bd4b3",
+          "body": "What happens if I delete my morning routine? Do not change anything.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.001Z"
+        },
+        {
+          "id": "bd156d83-5be4-4e10-a144-b8ac6b834ec6",
+          "body": "If you delete your morning routine, it's removed permanently from My routines — there's no undo, so you'd have to recreate all the steps from scratch if you change your mind.\n\nYour tasks, goals, reminders, and calendar events are unaffected; only the routine itself (its steps, order, and times) would be gone.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.002Z"
+        },
+        {
+          "id": "b80c5c0b-1ac6-42c6-b434-3b4e23a03df0",
+          "body": "Please do not enable proactive check-ins",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.003Z"
+        },
+        {
+          "id": "bed99643-2eda-4a32-81fc-66822691d035",
+          "body": "No proactive check-ins have been enabled — nothing was changed, and I won't turn them on. Your account has no coaching outreach active right now.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.004Z"
+        },
+        {
+          "id": "fed6e0c8-c7e4-4481-9816-9414e0309d8f",
+          "body": "I'm overwhelmed by my plan. What would you do first? Advice only.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.005Z"
+        },
+        {
+          "id": "be8f263e-87f0-4ecb-ab52-2c4002ca8965",
+          "body": "You have no open tasks or goals saved right now, so there's nothing in your current plan for me to prioritize.\n\nIf you tell me what's on your mind — even just a few things swirling around — I can help you pick one clear first move.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.006Z"
+        }
+      ],
+      "profile": {
+        "displayName": null,
+        "proactiveOptIn": false,
+        "quietHoursStart": null,
+        "quietHoursEnd": null
+      },
+      "memories": [],
+      "memoriesTruncated": false,
+      "remindersTruncated": false
+    },
+    "after": {
+      "timezone": "America/New_York",
+      "generatedAt": "2026-10-15T19:13:18.701Z",
+      "tasks": [],
+      "reminders": [],
+      "calendar": null,
+      "busy": [],
+      "tasksTruncated": false,
+      "goals": [],
+      "goalsTruncated": false,
+      "items": [],
+      "messages": [
+        {
+          "id": "81c46eb4-69f5-40e3-adce-e1d1246bd4b3",
+          "body": "What happens if I delete my morning routine? Do not change anything.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.001Z"
+        },
+        {
+          "id": "bd156d83-5be4-4e10-a144-b8ac6b834ec6",
+          "body": "If you delete your morning routine, it's removed permanently from My routines — there's no undo, so you'd have to recreate all the steps from scratch if you change your mind.\n\nYour tasks, goals, reminders, and calendar events are unaffected; only the routine itself (its steps, order, and times) would be gone.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.002Z"
+        },
+        {
+          "id": "b80c5c0b-1ac6-42c6-b434-3b4e23a03df0",
+          "body": "Please do not enable proactive check-ins",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.003Z"
+        },
+        {
+          "id": "bed99643-2eda-4a32-81fc-66822691d035",
+          "body": "No proactive check-ins have been enabled — nothing was changed, and I won't turn them on. Your account has no coaching outreach active right now.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.004Z"
+        },
+        {
+          "id": "fed6e0c8-c7e4-4481-9816-9414e0309d8f",
+          "body": "I'm overwhelmed by my plan. What would you do first? Advice only.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.005Z"
+        },
+        {
+          "id": "be8f263e-87f0-4ecb-ab52-2c4002ca8965",
+          "body": "You have no open tasks or goals saved right now, so there's nothing in your current plan for me to prioritize.\n\nIf you tell me what's on your mind — even just a few things swirling around — I can help you pick one clear first move.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.006Z"
+        },
+        {
+          "id": "76dcf97a-94ba-4b56-ad31-7e0519604aff",
+          "body": "Enable proactive check-ins once a day",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.007Z"
+        },
+        {
+          "id": "44210a2e-1298-4804-8f4e-2dee39b00c19",
+          "body": "Check-in preference saved. Proactive delivery is disabled in this simulation.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.008Z"
+        }
+      ],
+      "profile": {
+        "displayName": null,
+        "proactiveOptIn": true,
+        "quietHoursStart": null,
+        "quietHoursEnd": null
+      },
+      "memories": [],
+      "memoriesTruncated": false,
+      "remindersTruncated": false
+    },
+    "reminders": []
+  },
+  {
+    "decisionAt": "2027-01-14T15:00:00.009Z",
+    "input": "Disable proactive check-ins",
+    "replies": [
+      "Optional check-ins are off."
+    ],
+    "providerId": "35e525b4-da13-478d-846d-1a167f0a9b44",
+    "duplicate": false,
+    "parserCalled": true,
+    "tools": [
+      "set_checkins"
+    ],
+    "elapsedMs": 10115,
+    "channel": "web",
+    "toolTrace": [
+      {
+        "command": {
+          "type": "set_checkins",
+          "enabled": false,
+          "dailyCap": 2
+        },
+        "result": "Optional check-ins are off."
+      }
+    ],
+    "issues": [],
+    "before": {
+      "timezone": "America/New_York",
+      "generatedAt": "2026-10-15T19:13:18.747Z",
+      "tasks": [],
+      "reminders": [],
+      "calendar": null,
+      "busy": [],
+      "tasksTruncated": false,
+      "goals": [],
+      "goalsTruncated": false,
+      "items": [],
+      "messages": [
+        {
+          "id": "81c46eb4-69f5-40e3-adce-e1d1246bd4b3",
+          "body": "What happens if I delete my morning routine? Do not change anything.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.001Z"
+        },
+        {
+          "id": "bd156d83-5be4-4e10-a144-b8ac6b834ec6",
+          "body": "If you delete your morning routine, it's removed permanently from My routines — there's no undo, so you'd have to recreate all the steps from scratch if you change your mind.\n\nYour tasks, goals, reminders, and calendar events are unaffected; only the routine itself (its steps, order, and times) would be gone.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.002Z"
+        },
+        {
+          "id": "b80c5c0b-1ac6-42c6-b434-3b4e23a03df0",
+          "body": "Please do not enable proactive check-ins",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.003Z"
+        },
+        {
+          "id": "bed99643-2eda-4a32-81fc-66822691d035",
+          "body": "No proactive check-ins have been enabled — nothing was changed, and I won't turn them on. Your account has no coaching outreach active right now.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.004Z"
+        },
+        {
+          "id": "fed6e0c8-c7e4-4481-9816-9414e0309d8f",
+          "body": "I'm overwhelmed by my plan. What would you do first? Advice only.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.005Z"
+        },
+        {
+          "id": "be8f263e-87f0-4ecb-ab52-2c4002ca8965",
+          "body": "You have no open tasks or goals saved right now, so there's nothing in your current plan for me to prioritize.\n\nIf you tell me what's on your mind — even just a few things swirling around — I can help you pick one clear first move.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.006Z"
+        },
+        {
+          "id": "76dcf97a-94ba-4b56-ad31-7e0519604aff",
+          "body": "Enable proactive check-ins once a day",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.007Z"
+        },
+        {
+          "id": "44210a2e-1298-4804-8f4e-2dee39b00c19",
+          "body": "Check-in preference saved. Proactive delivery is disabled in this simulation.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.008Z"
+        }
+      ],
+      "profile": {
+        "displayName": null,
+        "proactiveOptIn": true,
+        "quietHoursStart": null,
+        "quietHoursEnd": null
+      },
+      "memories": [],
+      "memoriesTruncated": false,
+      "remindersTruncated": false
+    },
+    "after": {
+      "timezone": "America/New_York",
+      "generatedAt": "2026-10-15T19:13:28.881Z",
+      "tasks": [],
+      "reminders": [],
+      "calendar": null,
+      "busy": [],
+      "tasksTruncated": false,
+      "goals": [],
+      "goalsTruncated": false,
+      "items": [],
+      "messages": [
+        {
+          "id": "81c46eb4-69f5-40e3-adce-e1d1246bd4b3",
+          "body": "What happens if I delete my morning routine? Do not change anything.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.001Z"
+        },
+        {
+          "id": "bd156d83-5be4-4e10-a144-b8ac6b834ec6",
+          "body": "If you delete your morning routine, it's removed permanently from My routines — there's no undo, so you'd have to recreate all the steps from scratch if you change your mind.\n\nYour tasks, goals, reminders, and calendar events are unaffected; only the routine itself (its steps, order, and times) would be gone.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.002Z"
+        },
+        {
+          "id": "b80c5c0b-1ac6-42c6-b434-3b4e23a03df0",
+          "body": "Please do not enable proactive check-ins",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.003Z"
+        },
+        {
+          "id": "bed99643-2eda-4a32-81fc-66822691d035",
+          "body": "No proactive check-ins have been enabled — nothing was changed, and I won't turn them on. Your account has no coaching outreach active right now.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.004Z"
+        },
+        {
+          "id": "fed6e0c8-c7e4-4481-9816-9414e0309d8f",
+          "body": "I'm overwhelmed by my plan. What would you do first? Advice only.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.005Z"
+        },
+        {
+          "id": "be8f263e-87f0-4ecb-ab52-2c4002ca8965",
+          "body": "You have no open tasks or goals saved right now, so there's nothing in your current plan for me to prioritize.\n\nIf you tell me what's on your mind — even just a few things swirling around — I can help you pick one clear first move.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.006Z"
+        },
+        {
+          "id": "76dcf97a-94ba-4b56-ad31-7e0519604aff",
+          "body": "Enable proactive check-ins once a day",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.007Z"
+        },
+        {
+          "id": "44210a2e-1298-4804-8f4e-2dee39b00c19",
+          "body": "Check-in preference saved. Proactive delivery is disabled in this simulation.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.008Z"
+        },
+        {
+          "id": "f67f8fed-e5e9-41ee-b158-37c669135c60",
+          "body": "Disable proactive check-ins",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.009Z"
+        },
+        {
+          "id": "c44192eb-9c1c-4f18-9d36-d4dde6f0bb0c",
+          "body": "Optional check-ins are off.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.010Z"
+        }
+      ],
+      "profile": {
+        "displayName": null,
+        "proactiveOptIn": false,
+        "quietHoursStart": null,
+        "quietHoursEnd": null
+      },
+      "memories": [],
+      "memoriesTruncated": false,
+      "remindersTruncated": false
+    },
+    "reminders": []
+  },
+  {
+    "decisionAt": "2027-01-14T15:00:00.011Z",
+    "input": "Remind me on Saturday January 16 at 2PM and 5PM to pick up the charger",
+    "replies": [
+      "Reminders set:\nSat, Jan 16, 2:00 PM EST — Pick up the charger\nSat, Jan 16, 5:00 PM EST — Pick up the charger"
+    ],
+    "providerId": "b2b1b396-8df3-43c7-8a4c-e7187b50faaf",
+    "duplicate": false,
+    "parserCalled": true,
+    "tools": [
+      "create_reminders"
+    ],
+    "elapsedMs": 5805,
+    "channel": "sms",
+    "toolTrace": [
+      {
+        "command": {
+          "type": "create_reminders",
+          "reminders": [
+            {
+              "text": "Pick up the charger",
+              "remindAt": "2027-01-16T14:00:00-05:00"
+            },
+            {
+              "text": "Pick up the charger",
+              "remindAt": "2027-01-16T17:00:00-05:00"
+            }
+          ]
+        },
+        "result": "Reminders set:\nSat, Jan 16, 2:00 PM EST — Pick up the charger\nSat, Jan 16, 5:00 PM EST — Pick up the charger"
+      }
+    ],
+    "issues": [],
+    "before": {
+      "timezone": "America/New_York",
+      "generatedAt": "2026-10-15T19:13:28.958Z",
+      "tasks": [],
+      "reminders": [],
+      "calendar": null,
+      "busy": [],
+      "tasksTruncated": false,
+      "goals": [],
+      "goalsTruncated": false,
+      "items": [],
+      "messages": [
+        {
+          "id": "81c46eb4-69f5-40e3-adce-e1d1246bd4b3",
+          "body": "What happens if I delete my morning routine? Do not change anything.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.001Z"
+        },
+        {
+          "id": "bd156d83-5be4-4e10-a144-b8ac6b834ec6",
+          "body": "If you delete your morning routine, it's removed permanently from My routines — there's no undo, so you'd have to recreate all the steps from scratch if you change your mind.\n\nYour tasks, goals, reminders, and calendar events are unaffected; only the routine itself (its steps, order, and times) would be gone.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.002Z"
+        },
+        {
+          "id": "b80c5c0b-1ac6-42c6-b434-3b4e23a03df0",
+          "body": "Please do not enable proactive check-ins",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.003Z"
+        },
+        {
+          "id": "bed99643-2eda-4a32-81fc-66822691d035",
+          "body": "No proactive check-ins have been enabled — nothing was changed, and I won't turn them on. Your account has no coaching outreach active right now.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.004Z"
+        },
+        {
+          "id": "fed6e0c8-c7e4-4481-9816-9414e0309d8f",
+          "body": "I'm overwhelmed by my plan. What would you do first? Advice only.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.005Z"
+        },
+        {
+          "id": "be8f263e-87f0-4ecb-ab52-2c4002ca8965",
+          "body": "You have no open tasks or goals saved right now, so there's nothing in your current plan for me to prioritize.\n\nIf you tell me what's on your mind — even just a few things swirling around — I can help you pick one clear first move.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.006Z"
+        },
+        {
+          "id": "76dcf97a-94ba-4b56-ad31-7e0519604aff",
+          "body": "Enable proactive check-ins once a day",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.007Z"
+        },
+        {
+          "id": "44210a2e-1298-4804-8f4e-2dee39b00c19",
+          "body": "Check-in preference saved. Proactive delivery is disabled in this simulation.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.008Z"
+        },
+        {
+          "id": "f67f8fed-e5e9-41ee-b158-37c669135c60",
+          "body": "Disable proactive check-ins",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.009Z"
+        },
+        {
+          "id": "c44192eb-9c1c-4f18-9d36-d4dde6f0bb0c",
+          "body": "Optional check-ins are off.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.010Z"
+        }
+      ],
+      "profile": {
+        "displayName": null,
+        "proactiveOptIn": false,
+        "quietHoursStart": null,
+        "quietHoursEnd": null
+      },
+      "memories": [],
+      "memoriesTruncated": false,
+      "remindersTruncated": false
+    },
+    "after": {
+      "timezone": "America/New_York",
+      "generatedAt": "2026-10-15T19:13:34.795Z",
+      "tasks": [],
+      "reminders": [
+        {
+          "id": "05e6fc43-7d46-4709-8d2a-9fcaa6b05ac2",
+          "text": "Pick up the charger",
+          "remindAt": "2027-01-16T19:00:00.000Z",
+          "status": "scheduled"
+        },
+        {
+          "id": "a0bc96be-64c8-4444-8439-95ebf0df21a8",
+          "text": "Pick up the charger",
+          "remindAt": "2027-01-16T22:00:00.000Z",
+          "status": "scheduled"
+        }
+      ],
+      "calendar": null,
+      "busy": [],
+      "tasksTruncated": false,
+      "goals": [],
+      "goalsTruncated": false,
+      "items": [],
+      "messages": [
+        {
+          "id": "81c46eb4-69f5-40e3-adce-e1d1246bd4b3",
+          "body": "What happens if I delete my morning routine? Do not change anything.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.001Z"
+        },
+        {
+          "id": "bd156d83-5be4-4e10-a144-b8ac6b834ec6",
+          "body": "If you delete your morning routine, it's removed permanently from My routines — there's no undo, so you'd have to recreate all the steps from scratch if you change your mind.\n\nYour tasks, goals, reminders, and calendar events are unaffected; only the routine itself (its steps, order, and times) would be gone.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.002Z"
+        },
+        {
+          "id": "b80c5c0b-1ac6-42c6-b434-3b4e23a03df0",
+          "body": "Please do not enable proactive check-ins",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.003Z"
+        },
+        {
+          "id": "bed99643-2eda-4a32-81fc-66822691d035",
+          "body": "No proactive check-ins have been enabled — nothing was changed, and I won't turn them on. Your account has no coaching outreach active right now.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.004Z"
+        },
+        {
+          "id": "fed6e0c8-c7e4-4481-9816-9414e0309d8f",
+          "body": "I'm overwhelmed by my plan. What would you do first? Advice only.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.005Z"
+        },
+        {
+          "id": "be8f263e-87f0-4ecb-ab52-2c4002ca8965",
+          "body": "You have no open tasks or goals saved right now, so there's nothing in your current plan for me to prioritize.\n\nIf you tell me what's on your mind — even just a few things swirling around — I can help you pick one clear first move.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.006Z"
+        },
+        {
+          "id": "76dcf97a-94ba-4b56-ad31-7e0519604aff",
+          "body": "Enable proactive check-ins once a day",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.007Z"
+        },
+        {
+          "id": "44210a2e-1298-4804-8f4e-2dee39b00c19",
+          "body": "Check-in preference saved. Proactive delivery is disabled in this simulation.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.008Z"
+        },
+        {
+          "id": "f67f8fed-e5e9-41ee-b158-37c669135c60",
+          "body": "Disable proactive check-ins",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.009Z"
+        },
+        {
+          "id": "c44192eb-9c1c-4f18-9d36-d4dde6f0bb0c",
+          "body": "Optional check-ins are off.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.010Z"
+        },
+        {
+          "id": "69202d63-31e4-4e3d-ae4f-975b611c1435",
+          "body": "Remind me on Saturday January 16 at 2PM and 5PM to pick up the charger",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.011Z"
+        },
+        {
+          "id": "aa9b72ba-d3ab-46a0-ae9f-23e8af441adf",
+          "body": "Reminders set:\nSat, Jan 16, 2:00 PM EST — Pick up the charger\nSat, Jan 16, 5:00 PM EST — Pick up the charger",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.012Z"
+        }
+      ],
+      "profile": {
+        "displayName": null,
+        "proactiveOptIn": false,
+        "quietHoursStart": null,
+        "quietHoursEnd": null
+      },
+      "memories": [],
+      "memoriesTruncated": false,
+      "remindersTruncated": false
+    },
+    "reminders": [
+      {
+        "contentMode": "text",
+        "sourceOperation": 0,
+        "id": "05e6fc43-7d46-4709-8d2a-9fcaa6b05ac2",
+        "userId": "9cab6a06-da77-44e3-8fb1-d0d0ac83d0e7",
+        "taskId": null,
+        "sourceMessageId": "69202d63-31e4-4e3d-ae4f-975b611c1435",
+        "text": "Pick up the charger",
+        "remindAt": "2027-01-16T19:00:00.000Z",
+        "timezone": "America/New_York",
+        "recurrence": null,
+        "occurrenceCount": 0,
+        "status": "scheduled",
+        "idempotencyKey": "reminder:69202d63-31e4-4e3d-ae4f-975b611c1435",
+        "provider": null,
+        "providerMessageSid": null,
+        "sentAt": null,
+        "cancelledAt": null,
+        "lastError": null,
+        "createdAt": "2026-10-15T19:13:34.741Z",
+        "updatedAt": "2026-10-15T19:13:34.741Z"
+      },
+      {
+        "contentMode": "text",
+        "sourceOperation": 1,
+        "id": "a0bc96be-64c8-4444-8439-95ebf0df21a8",
+        "userId": "9cab6a06-da77-44e3-8fb1-d0d0ac83d0e7",
+        "taskId": null,
+        "sourceMessageId": "69202d63-31e4-4e3d-ae4f-975b611c1435",
+        "text": "Pick up the charger",
+        "remindAt": "2027-01-16T22:00:00.000Z",
+        "timezone": "America/New_York",
+        "recurrence": null,
+        "occurrenceCount": 0,
+        "status": "scheduled",
+        "idempotencyKey": "reminder:69202d63-31e4-4e3d-ae4f-975b611c1435:1",
+        "provider": null,
+        "providerMessageSid": null,
+        "sentAt": null,
+        "cancelledAt": null,
+        "lastError": null,
+        "createdAt": "2026-10-15T19:13:34.741Z",
+        "updatedAt": "2026-10-15T19:13:34.741Z"
+      }
+    ]
+  },
+  {
+    "decisionAt": "2027-01-14T15:00:00.013Z",
+    "input": "Move both charger reminders on Saturday to 3PM and 6PM",
+    "replies": [
+      "Reminders moved:\nSat, Jan 16, 3:00 PM EST — Pick up the charger\nSat, Jan 16, 6:00 PM EST — Pick up the charger"
+    ],
+    "providerId": "f5704ab7-9b76-4fac-95a6-39ec19865ca8",
+    "duplicate": false,
+    "parserCalled": true,
+    "tools": [
+      "list_reminders",
+      "reschedule_reminders"
+    ],
+    "elapsedMs": 10574,
+    "channel": "sms",
+    "toolTrace": [
+      {
+        "command": {
+          "type": "list_reminders"
+        },
+        "result": "{\"items\":[{\"id\":\"05e6fc43-7d46-4709-8d2a-9fcaa6b05ac2\",\"text\":\"Pick up the charger\",\"contentMode\":\"text\",\"remindAt\":\"2027-01-16T19:00:00.000Z\",\"timezone\":\"America/New_York\",\"recurrence\":null,\"occurrenceCount\":0,\"status\":\"scheduled\"},{\"id\":\"a0bc96be-64c8-4444-8439-95ebf0df21a8\",\"text\":\"Pick up the charger\",\"contentMode\":\"text\",\"remindAt\":\"2027-01-16T22:00:00.000Z\",\"timezone\":\"America/New_York\",\"recurrence\":null,\"occurrenceCount\":0,\"status\":\"scheduled\"}],\"limit\":50,\"truncated\":false}"
+      },
+      {
+        "command": {
+          "type": "reschedule_reminders",
+          "changes": [
+            {
+              "reminderId": "05e6fc43-7d46-4709-8d2a-9fcaa6b05ac2",
+              "expectedRemindAt": "2027-01-16T19:00:00.000Z",
+              "remindAt": "2027-01-16T20:00:00.000Z"
+            },
+            {
+              "reminderId": "a0bc96be-64c8-4444-8439-95ebf0df21a8",
+              "expectedRemindAt": "2027-01-16T22:00:00.000Z",
+              "remindAt": "2027-01-16T23:00:00.000Z"
+            }
+          ]
+        },
+        "result": "Reminders moved:\nSat, Jan 16, 3:00 PM EST — Pick up the charger\nSat, Jan 16, 6:00 PM EST — Pick up the charger"
+      }
+    ],
+    "issues": [],
+    "before": {
+      "timezone": "America/New_York",
+      "generatedAt": "2026-10-15T19:13:34.838Z",
+      "tasks": [],
+      "reminders": [
+        {
+          "id": "05e6fc43-7d46-4709-8d2a-9fcaa6b05ac2",
+          "text": "Pick up the charger",
+          "remindAt": "2027-01-16T19:00:00.000Z",
+          "status": "scheduled"
+        },
+        {
+          "id": "a0bc96be-64c8-4444-8439-95ebf0df21a8",
+          "text": "Pick up the charger",
+          "remindAt": "2027-01-16T22:00:00.000Z",
+          "status": "scheduled"
+        }
+      ],
+      "calendar": null,
+      "busy": [],
+      "tasksTruncated": false,
+      "goals": [],
+      "goalsTruncated": false,
+      "items": [],
+      "messages": [
+        {
+          "id": "81c46eb4-69f5-40e3-adce-e1d1246bd4b3",
+          "body": "What happens if I delete my morning routine? Do not change anything.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.001Z"
+        },
+        {
+          "id": "bd156d83-5be4-4e10-a144-b8ac6b834ec6",
+          "body": "If you delete your morning routine, it's removed permanently from My routines — there's no undo, so you'd have to recreate all the steps from scratch if you change your mind.\n\nYour tasks, goals, reminders, and calendar events are unaffected; only the routine itself (its steps, order, and times) would be gone.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.002Z"
+        },
+        {
+          "id": "b80c5c0b-1ac6-42c6-b434-3b4e23a03df0",
+          "body": "Please do not enable proactive check-ins",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.003Z"
+        },
+        {
+          "id": "bed99643-2eda-4a32-81fc-66822691d035",
+          "body": "No proactive check-ins have been enabled — nothing was changed, and I won't turn them on. Your account has no coaching outreach active right now.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.004Z"
+        },
+        {
+          "id": "fed6e0c8-c7e4-4481-9816-9414e0309d8f",
+          "body": "I'm overwhelmed by my plan. What would you do first? Advice only.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.005Z"
+        },
+        {
+          "id": "be8f263e-87f0-4ecb-ab52-2c4002ca8965",
+          "body": "You have no open tasks or goals saved right now, so there's nothing in your current plan for me to prioritize.\n\nIf you tell me what's on your mind — even just a few things swirling around — I can help you pick one clear first move.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.006Z"
+        },
+        {
+          "id": "76dcf97a-94ba-4b56-ad31-7e0519604aff",
+          "body": "Enable proactive check-ins once a day",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.007Z"
+        },
+        {
+          "id": "44210a2e-1298-4804-8f4e-2dee39b00c19",
+          "body": "Check-in preference saved. Proactive delivery is disabled in this simulation.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.008Z"
+        },
+        {
+          "id": "f67f8fed-e5e9-41ee-b158-37c669135c60",
+          "body": "Disable proactive check-ins",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.009Z"
+        },
+        {
+          "id": "c44192eb-9c1c-4f18-9d36-d4dde6f0bb0c",
+          "body": "Optional check-ins are off.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.010Z"
+        },
+        {
+          "id": "69202d63-31e4-4e3d-ae4f-975b611c1435",
+          "body": "Remind me on Saturday January 16 at 2PM and 5PM to pick up the charger",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.011Z"
+        },
+        {
+          "id": "aa9b72ba-d3ab-46a0-ae9f-23e8af441adf",
+          "body": "Reminders set:\nSat, Jan 16, 2:00 PM EST — Pick up the charger\nSat, Jan 16, 5:00 PM EST — Pick up the charger",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.012Z"
+        }
+      ],
+      "profile": {
+        "displayName": null,
+        "proactiveOptIn": false,
+        "quietHoursStart": null,
+        "quietHoursEnd": null
+      },
+      "memories": [],
+      "memoriesTruncated": false,
+      "remindersTruncated": false
+    },
+    "after": {
+      "timezone": "America/New_York",
+      "generatedAt": "2026-10-15T19:13:45.430Z",
+      "tasks": [],
+      "reminders": [
+        {
+          "id": "05e6fc43-7d46-4709-8d2a-9fcaa6b05ac2",
+          "text": "Pick up the charger",
+          "remindAt": "2027-01-16T20:00:00.000Z",
+          "status": "scheduled"
+        },
+        {
+          "id": "a0bc96be-64c8-4444-8439-95ebf0df21a8",
+          "text": "Pick up the charger",
+          "remindAt": "2027-01-16T23:00:00.000Z",
+          "status": "scheduled"
+        }
+      ],
+      "calendar": null,
+      "busy": [],
+      "tasksTruncated": false,
+      "goals": [],
+      "goalsTruncated": false,
+      "items": [],
+      "messages": [
+        {
+          "id": "81c46eb4-69f5-40e3-adce-e1d1246bd4b3",
+          "body": "What happens if I delete my morning routine? Do not change anything.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.001Z"
+        },
+        {
+          "id": "bd156d83-5be4-4e10-a144-b8ac6b834ec6",
+          "body": "If you delete your morning routine, it's removed permanently from My routines — there's no undo, so you'd have to recreate all the steps from scratch if you change your mind.\n\nYour tasks, goals, reminders, and calendar events are unaffected; only the routine itself (its steps, order, and times) would be gone.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.002Z"
+        },
+        {
+          "id": "b80c5c0b-1ac6-42c6-b434-3b4e23a03df0",
+          "body": "Please do not enable proactive check-ins",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.003Z"
+        },
+        {
+          "id": "bed99643-2eda-4a32-81fc-66822691d035",
+          "body": "No proactive check-ins have been enabled — nothing was changed, and I won't turn them on. Your account has no coaching outreach active right now.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.004Z"
+        },
+        {
+          "id": "fed6e0c8-c7e4-4481-9816-9414e0309d8f",
+          "body": "I'm overwhelmed by my plan. What would you do first? Advice only.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.005Z"
+        },
+        {
+          "id": "be8f263e-87f0-4ecb-ab52-2c4002ca8965",
+          "body": "You have no open tasks or goals saved right now, so there's nothing in your current plan for me to prioritize.\n\nIf you tell me what's on your mind — even just a few things swirling around — I can help you pick one clear first move.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.006Z"
+        },
+        {
+          "id": "76dcf97a-94ba-4b56-ad31-7e0519604aff",
+          "body": "Enable proactive check-ins once a day",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.007Z"
+        },
+        {
+          "id": "44210a2e-1298-4804-8f4e-2dee39b00c19",
+          "body": "Check-in preference saved. Proactive delivery is disabled in this simulation.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.008Z"
+        },
+        {
+          "id": "f67f8fed-e5e9-41ee-b158-37c669135c60",
+          "body": "Disable proactive check-ins",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.009Z"
+        },
+        {
+          "id": "c44192eb-9c1c-4f18-9d36-d4dde6f0bb0c",
+          "body": "Optional check-ins are off.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.010Z"
+        },
+        {
+          "id": "69202d63-31e4-4e3d-ae4f-975b611c1435",
+          "body": "Remind me on Saturday January 16 at 2PM and 5PM to pick up the charger",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.011Z"
+        },
+        {
+          "id": "aa9b72ba-d3ab-46a0-ae9f-23e8af441adf",
+          "body": "Reminders set:\nSat, Jan 16, 2:00 PM EST — Pick up the charger\nSat, Jan 16, 5:00 PM EST — Pick up the charger",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.012Z"
+        },
+        {
+          "id": "b39d6468-e784-48c7-bf36-f97ee4068c52",
+          "body": "Move both charger reminders on Saturday to 3PM and 6PM",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.013Z"
+        },
+        {
+          "id": "47c70e29-147e-47b5-a095-46e968050650",
+          "body": "Reminders moved:\nSat, Jan 16, 3:00 PM EST — Pick up the charger\nSat, Jan 16, 6:00 PM EST — Pick up the charger",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.014Z"
+        }
+      ],
+      "profile": {
+        "displayName": null,
+        "proactiveOptIn": false,
+        "quietHoursStart": null,
+        "quietHoursEnd": null
+      },
+      "memories": [],
+      "memoriesTruncated": false,
+      "remindersTruncated": false
+    },
+    "reminders": [
+      {
+        "contentMode": "text",
+        "sourceOperation": 0,
+        "id": "05e6fc43-7d46-4709-8d2a-9fcaa6b05ac2",
+        "userId": "9cab6a06-da77-44e3-8fb1-d0d0ac83d0e7",
+        "taskId": null,
+        "sourceMessageId": "69202d63-31e4-4e3d-ae4f-975b611c1435",
+        "text": "Pick up the charger",
+        "remindAt": "2027-01-16T20:00:00.000Z",
+        "timezone": "America/New_York",
+        "recurrence": null,
+        "occurrenceCount": 0,
+        "status": "scheduled",
+        "idempotencyKey": "reminder:69202d63-31e4-4e3d-ae4f-975b611c1435",
+        "provider": null,
+        "providerMessageSid": null,
+        "sentAt": null,
+        "cancelledAt": null,
+        "lastError": null,
+        "createdAt": "2026-10-15T19:13:34.741Z",
+        "updatedAt": "2027-01-14T15:00:00.013Z"
+      },
+      {
+        "contentMode": "text",
+        "sourceOperation": 1,
+        "id": "a0bc96be-64c8-4444-8439-95ebf0df21a8",
+        "userId": "9cab6a06-da77-44e3-8fb1-d0d0ac83d0e7",
+        "taskId": null,
+        "sourceMessageId": "69202d63-31e4-4e3d-ae4f-975b611c1435",
+        "text": "Pick up the charger",
+        "remindAt": "2027-01-16T23:00:00.000Z",
+        "timezone": "America/New_York",
+        "recurrence": null,
+        "occurrenceCount": 0,
+        "status": "scheduled",
+        "idempotencyKey": "reminder:69202d63-31e4-4e3d-ae4f-975b611c1435:1",
+        "provider": null,
+        "providerMessageSid": null,
+        "sentAt": null,
+        "cancelledAt": null,
+        "lastError": null,
+        "createdAt": "2026-10-15T19:13:34.741Z",
+        "updatedAt": "2027-01-14T15:00:00.013Z"
+      }
+    ]
+  },
+  {
+    "decisionAt": "2027-01-14T15:00:00.015Z",
+    "input": "Give me a morning reminder tomorrow of my current to do list, goals and calendar",
+    "replies": [
+      "What time would you like that reminder?"
+    ],
+    "providerId": "3eda1eea-5df3-4d97-b5cb-3863cc368ef8",
+    "duplicate": false,
+    "parserCalled": true,
+    "tools": [],
+    "elapsedMs": 4808,
+    "channel": "sms",
+    "issues": [],
+    "before": {
+      "timezone": "America/New_York",
+      "generatedAt": "2026-10-15T19:13:45.472Z",
+      "tasks": [],
+      "reminders": [
+        {
+          "id": "05e6fc43-7d46-4709-8d2a-9fcaa6b05ac2",
+          "text": "Pick up the charger",
+          "remindAt": "2027-01-16T20:00:00.000Z",
+          "status": "scheduled"
+        },
+        {
+          "id": "a0bc96be-64c8-4444-8439-95ebf0df21a8",
+          "text": "Pick up the charger",
+          "remindAt": "2027-01-16T23:00:00.000Z",
+          "status": "scheduled"
+        }
+      ],
+      "calendar": null,
+      "busy": [],
+      "tasksTruncated": false,
+      "goals": [],
+      "goalsTruncated": false,
+      "items": [],
+      "messages": [
+        {
+          "id": "81c46eb4-69f5-40e3-adce-e1d1246bd4b3",
+          "body": "What happens if I delete my morning routine? Do not change anything.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.001Z"
+        },
+        {
+          "id": "bd156d83-5be4-4e10-a144-b8ac6b834ec6",
+          "body": "If you delete your morning routine, it's removed permanently from My routines — there's no undo, so you'd have to recreate all the steps from scratch if you change your mind.\n\nYour tasks, goals, reminders, and calendar events are unaffected; only the routine itself (its steps, order, and times) would be gone.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.002Z"
+        },
+        {
+          "id": "b80c5c0b-1ac6-42c6-b434-3b4e23a03df0",
+          "body": "Please do not enable proactive check-ins",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.003Z"
+        },
+        {
+          "id": "bed99643-2eda-4a32-81fc-66822691d035",
+          "body": "No proactive check-ins have been enabled — nothing was changed, and I won't turn them on. Your account has no coaching outreach active right now.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.004Z"
+        },
+        {
+          "id": "fed6e0c8-c7e4-4481-9816-9414e0309d8f",
+          "body": "I'm overwhelmed by my plan. What would you do first? Advice only.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.005Z"
+        },
+        {
+          "id": "be8f263e-87f0-4ecb-ab52-2c4002ca8965",
+          "body": "You have no open tasks or goals saved right now, so there's nothing in your current plan for me to prioritize.\n\nIf you tell me what's on your mind — even just a few things swirling around — I can help you pick one clear first move.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.006Z"
+        },
+        {
+          "id": "76dcf97a-94ba-4b56-ad31-7e0519604aff",
+          "body": "Enable proactive check-ins once a day",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.007Z"
+        },
+        {
+          "id": "44210a2e-1298-4804-8f4e-2dee39b00c19",
+          "body": "Check-in preference saved. Proactive delivery is disabled in this simulation.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.008Z"
+        },
+        {
+          "id": "f67f8fed-e5e9-41ee-b158-37c669135c60",
+          "body": "Disable proactive check-ins",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.009Z"
+        },
+        {
+          "id": "c44192eb-9c1c-4f18-9d36-d4dde6f0bb0c",
+          "body": "Optional check-ins are off.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.010Z"
+        },
+        {
+          "id": "69202d63-31e4-4e3d-ae4f-975b611c1435",
+          "body": "Remind me on Saturday January 16 at 2PM and 5PM to pick up the charger",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.011Z"
+        },
+        {
+          "id": "aa9b72ba-d3ab-46a0-ae9f-23e8af441adf",
+          "body": "Reminders set:\nSat, Jan 16, 2:00 PM EST — Pick up the charger\nSat, Jan 16, 5:00 PM EST — Pick up the charger",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.012Z"
+        },
+        {
+          "id": "b39d6468-e784-48c7-bf36-f97ee4068c52",
+          "body": "Move both charger reminders on Saturday to 3PM and 6PM",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.013Z"
+        },
+        {
+          "id": "47c70e29-147e-47b5-a095-46e968050650",
+          "body": "Reminders moved:\nSat, Jan 16, 3:00 PM EST — Pick up the charger\nSat, Jan 16, 6:00 PM EST — Pick up the charger",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.014Z"
+        }
+      ],
+      "profile": {
+        "displayName": null,
+        "proactiveOptIn": false,
+        "quietHoursStart": null,
+        "quietHoursEnd": null
+      },
+      "memories": [],
+      "memoriesTruncated": false,
+      "remindersTruncated": false
+    },
+    "after": {
+      "timezone": "America/New_York",
+      "generatedAt": "2026-10-15T19:13:50.296Z",
+      "tasks": [],
+      "reminders": [
+        {
+          "id": "05e6fc43-7d46-4709-8d2a-9fcaa6b05ac2",
+          "text": "Pick up the charger",
+          "remindAt": "2027-01-16T20:00:00.000Z",
+          "status": "scheduled"
+        },
+        {
+          "id": "a0bc96be-64c8-4444-8439-95ebf0df21a8",
+          "text": "Pick up the charger",
+          "remindAt": "2027-01-16T23:00:00.000Z",
+          "status": "scheduled"
+        }
+      ],
+      "calendar": null,
+      "busy": [],
+      "tasksTruncated": false,
+      "goals": [],
+      "goalsTruncated": false,
+      "items": [],
+      "messages": [
+        {
+          "id": "81c46eb4-69f5-40e3-adce-e1d1246bd4b3",
+          "body": "What happens if I delete my morning routine? Do not change anything.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.001Z"
+        },
+        {
+          "id": "bd156d83-5be4-4e10-a144-b8ac6b834ec6",
+          "body": "If you delete your morning routine, it's removed permanently from My routines — there's no undo, so you'd have to recreate all the steps from scratch if you change your mind.\n\nYour tasks, goals, reminders, and calendar events are unaffected; only the routine itself (its steps, order, and times) would be gone.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.002Z"
+        },
+        {
+          "id": "b80c5c0b-1ac6-42c6-b434-3b4e23a03df0",
+          "body": "Please do not enable proactive check-ins",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.003Z"
+        },
+        {
+          "id": "bed99643-2eda-4a32-81fc-66822691d035",
+          "body": "No proactive check-ins have been enabled — nothing was changed, and I won't turn them on. Your account has no coaching outreach active right now.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.004Z"
+        },
+        {
+          "id": "fed6e0c8-c7e4-4481-9816-9414e0309d8f",
+          "body": "I'm overwhelmed by my plan. What would you do first? Advice only.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.005Z"
+        },
+        {
+          "id": "be8f263e-87f0-4ecb-ab52-2c4002ca8965",
+          "body": "You have no open tasks or goals saved right now, so there's nothing in your current plan for me to prioritize.\n\nIf you tell me what's on your mind — even just a few things swirling around — I can help you pick one clear first move.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.006Z"
+        },
+        {
+          "id": "76dcf97a-94ba-4b56-ad31-7e0519604aff",
+          "body": "Enable proactive check-ins once a day",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.007Z"
+        },
+        {
+          "id": "44210a2e-1298-4804-8f4e-2dee39b00c19",
+          "body": "Check-in preference saved. Proactive delivery is disabled in this simulation.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.008Z"
+        },
+        {
+          "id": "f67f8fed-e5e9-41ee-b158-37c669135c60",
+          "body": "Disable proactive check-ins",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.009Z"
+        },
+        {
+          "id": "c44192eb-9c1c-4f18-9d36-d4dde6f0bb0c",
+          "body": "Optional check-ins are off.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.010Z"
+        },
+        {
+          "id": "69202d63-31e4-4e3d-ae4f-975b611c1435",
+          "body": "Remind me on Saturday January 16 at 2PM and 5PM to pick up the charger",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.011Z"
+        },
+        {
+          "id": "aa9b72ba-d3ab-46a0-ae9f-23e8af441adf",
+          "body": "Reminders set:\nSat, Jan 16, 2:00 PM EST — Pick up the charger\nSat, Jan 16, 5:00 PM EST — Pick up the charger",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.012Z"
+        },
+        {
+          "id": "b39d6468-e784-48c7-bf36-f97ee4068c52",
+          "body": "Move both charger reminders on Saturday to 3PM and 6PM",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.013Z"
+        },
+        {
+          "id": "47c70e29-147e-47b5-a095-46e968050650",
+          "body": "Reminders moved:\nSat, Jan 16, 3:00 PM EST — Pick up the charger\nSat, Jan 16, 6:00 PM EST — Pick up the charger",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.014Z"
+        },
+        {
+          "id": "dc706519-370d-4eff-9edb-97c294fdcb39",
+          "body": "Give me a morning reminder tomorrow of my current to do list, goals and calendar",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.015Z"
+        },
+        {
+          "id": "48d28f92-3f0d-4202-b98e-efd6ad90a582",
+          "body": "What time would you like that reminder?",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.016Z"
+        }
+      ],
+      "profile": {
+        "displayName": null,
+        "proactiveOptIn": false,
+        "quietHoursStart": null,
+        "quietHoursEnd": null
+      },
+      "memories": [],
+      "memoriesTruncated": false,
+      "remindersTruncated": false
+    },
+    "reminders": [
+      {
+        "contentMode": "text",
+        "sourceOperation": 0,
+        "id": "05e6fc43-7d46-4709-8d2a-9fcaa6b05ac2",
+        "userId": "9cab6a06-da77-44e3-8fb1-d0d0ac83d0e7",
+        "taskId": null,
+        "sourceMessageId": "69202d63-31e4-4e3d-ae4f-975b611c1435",
+        "text": "Pick up the charger",
+        "remindAt": "2027-01-16T20:00:00.000Z",
+        "timezone": "America/New_York",
+        "recurrence": null,
+        "occurrenceCount": 0,
+        "status": "scheduled",
+        "idempotencyKey": "reminder:69202d63-31e4-4e3d-ae4f-975b611c1435",
+        "provider": null,
+        "providerMessageSid": null,
+        "sentAt": null,
+        "cancelledAt": null,
+        "lastError": null,
+        "createdAt": "2026-10-15T19:13:34.741Z",
+        "updatedAt": "2027-01-14T15:00:00.013Z"
+      },
+      {
+        "contentMode": "text",
+        "sourceOperation": 1,
+        "id": "a0bc96be-64c8-4444-8439-95ebf0df21a8",
+        "userId": "9cab6a06-da77-44e3-8fb1-d0d0ac83d0e7",
+        "taskId": null,
+        "sourceMessageId": "69202d63-31e4-4e3d-ae4f-975b611c1435",
+        "text": "Pick up the charger",
+        "remindAt": "2027-01-16T23:00:00.000Z",
+        "timezone": "America/New_York",
+        "recurrence": null,
+        "occurrenceCount": 0,
+        "status": "scheduled",
+        "idempotencyKey": "reminder:69202d63-31e4-4e3d-ae4f-975b611c1435:1",
+        "provider": null,
+        "providerMessageSid": null,
+        "sentAt": null,
+        "cancelledAt": null,
+        "lastError": null,
+        "createdAt": "2026-10-15T19:13:34.741Z",
+        "updatedAt": "2027-01-14T15:00:00.013Z"
+      }
+    ]
+  },
+  {
+    "decisionAt": "2027-01-14T15:00:00.017Z",
+    "input": "11am?",
+    "replies": [
+      "Reminder set for Fri, Jan 15, 11:00 AM EST: Morning briefing: your to-do list, goals, and calendar — I’ll read your current tasks, goals, reminders and Calendar when it’s time to send."
+    ],
+    "providerId": "68328dd9-7262-4174-b856-ee27910c6408",
+    "duplicate": false,
+    "parserCalled": true,
+    "tools": [
+      "create_reminder"
+    ],
+    "elapsedMs": 4821,
+    "channel": "sms",
+    "toolTrace": [
+      {
+        "command": {
+          "type": "create_reminder",
+          "contentMode": "daily_rundown",
+          "text": "Morning briefing: your to-do list, goals, and calendar",
+          "remindAt": "2027-01-15T11:00:00-05:00"
+        },
+        "result": "Reminder set for Fri, Jan 15, 11:00 AM EST: Morning briefing: your to-do list, goals, and calendar — I’ll read your current tasks, goals, reminders and Calendar when it’s time to send."
+      }
+    ],
+    "issues": [],
+    "before": {
+      "timezone": "America/New_York",
+      "generatedAt": "2026-10-15T19:13:50.339Z",
+      "tasks": [],
+      "reminders": [
+        {
+          "id": "05e6fc43-7d46-4709-8d2a-9fcaa6b05ac2",
+          "text": "Pick up the charger",
+          "remindAt": "2027-01-16T20:00:00.000Z",
+          "status": "scheduled"
+        },
+        {
+          "id": "a0bc96be-64c8-4444-8439-95ebf0df21a8",
+          "text": "Pick up the charger",
+          "remindAt": "2027-01-16T23:00:00.000Z",
+          "status": "scheduled"
+        }
+      ],
+      "calendar": null,
+      "busy": [],
+      "tasksTruncated": false,
+      "goals": [],
+      "goalsTruncated": false,
+      "items": [],
+      "messages": [
+        {
+          "id": "81c46eb4-69f5-40e3-adce-e1d1246bd4b3",
+          "body": "What happens if I delete my morning routine? Do not change anything.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.001Z"
+        },
+        {
+          "id": "bd156d83-5be4-4e10-a144-b8ac6b834ec6",
+          "body": "If you delete your morning routine, it's removed permanently from My routines — there's no undo, so you'd have to recreate all the steps from scratch if you change your mind.\n\nYour tasks, goals, reminders, and calendar events are unaffected; only the routine itself (its steps, order, and times) would be gone.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.002Z"
+        },
+        {
+          "id": "b80c5c0b-1ac6-42c6-b434-3b4e23a03df0",
+          "body": "Please do not enable proactive check-ins",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.003Z"
+        },
+        {
+          "id": "bed99643-2eda-4a32-81fc-66822691d035",
+          "body": "No proactive check-ins have been enabled — nothing was changed, and I won't turn them on. Your account has no coaching outreach active right now.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.004Z"
+        },
+        {
+          "id": "fed6e0c8-c7e4-4481-9816-9414e0309d8f",
+          "body": "I'm overwhelmed by my plan. What would you do first? Advice only.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.005Z"
+        },
+        {
+          "id": "be8f263e-87f0-4ecb-ab52-2c4002ca8965",
+          "body": "You have no open tasks or goals saved right now, so there's nothing in your current plan for me to prioritize.\n\nIf you tell me what's on your mind — even just a few things swirling around — I can help you pick one clear first move.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.006Z"
+        },
+        {
+          "id": "76dcf97a-94ba-4b56-ad31-7e0519604aff",
+          "body": "Enable proactive check-ins once a day",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.007Z"
+        },
+        {
+          "id": "44210a2e-1298-4804-8f4e-2dee39b00c19",
+          "body": "Check-in preference saved. Proactive delivery is disabled in this simulation.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.008Z"
+        },
+        {
+          "id": "f67f8fed-e5e9-41ee-b158-37c669135c60",
+          "body": "Disable proactive check-ins",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.009Z"
+        },
+        {
+          "id": "c44192eb-9c1c-4f18-9d36-d4dde6f0bb0c",
+          "body": "Optional check-ins are off.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.010Z"
+        },
+        {
+          "id": "69202d63-31e4-4e3d-ae4f-975b611c1435",
+          "body": "Remind me on Saturday January 16 at 2PM and 5PM to pick up the charger",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.011Z"
+        },
+        {
+          "id": "aa9b72ba-d3ab-46a0-ae9f-23e8af441adf",
+          "body": "Reminders set:\nSat, Jan 16, 2:00 PM EST — Pick up the charger\nSat, Jan 16, 5:00 PM EST — Pick up the charger",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.012Z"
+        },
+        {
+          "id": "b39d6468-e784-48c7-bf36-f97ee4068c52",
+          "body": "Move both charger reminders on Saturday to 3PM and 6PM",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.013Z"
+        },
+        {
+          "id": "47c70e29-147e-47b5-a095-46e968050650",
+          "body": "Reminders moved:\nSat, Jan 16, 3:00 PM EST — Pick up the charger\nSat, Jan 16, 6:00 PM EST — Pick up the charger",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.014Z"
+        },
+        {
+          "id": "dc706519-370d-4eff-9edb-97c294fdcb39",
+          "body": "Give me a morning reminder tomorrow of my current to do list, goals and calendar",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.015Z"
+        },
+        {
+          "id": "48d28f92-3f0d-4202-b98e-efd6ad90a582",
+          "body": "What time would you like that reminder?",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.016Z"
+        }
+      ],
+      "profile": {
+        "displayName": null,
+        "proactiveOptIn": false,
+        "quietHoursStart": null,
+        "quietHoursEnd": null
+      },
+      "memories": [],
+      "memoriesTruncated": false,
+      "remindersTruncated": false
+    },
+    "after": {
+      "timezone": "America/New_York",
+      "generatedAt": "2026-10-15T19:13:55.178Z",
+      "tasks": [],
+      "reminders": [
+        {
+          "id": "cbb90d0f-a6cd-48bf-a5ff-76e9400010ec",
+          "text": "Morning briefing: your to-do list, goals, and calendar",
+          "remindAt": "2027-01-15T16:00:00.000Z",
+          "status": "scheduled"
+        },
+        {
+          "id": "05e6fc43-7d46-4709-8d2a-9fcaa6b05ac2",
+          "text": "Pick up the charger",
+          "remindAt": "2027-01-16T20:00:00.000Z",
+          "status": "scheduled"
+        },
+        {
+          "id": "a0bc96be-64c8-4444-8439-95ebf0df21a8",
+          "text": "Pick up the charger",
+          "remindAt": "2027-01-16T23:00:00.000Z",
+          "status": "scheduled"
+        }
+      ],
+      "calendar": null,
+      "busy": [],
+      "tasksTruncated": false,
+      "goals": [],
+      "goalsTruncated": false,
+      "items": [],
+      "messages": [
+        {
+          "id": "81c46eb4-69f5-40e3-adce-e1d1246bd4b3",
+          "body": "What happens if I delete my morning routine? Do not change anything.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.001Z"
+        },
+        {
+          "id": "bd156d83-5be4-4e10-a144-b8ac6b834ec6",
+          "body": "If you delete your morning routine, it's removed permanently from My routines — there's no undo, so you'd have to recreate all the steps from scratch if you change your mind.\n\nYour tasks, goals, reminders, and calendar events are unaffected; only the routine itself (its steps, order, and times) would be gone.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.002Z"
+        },
+        {
+          "id": "b80c5c0b-1ac6-42c6-b434-3b4e23a03df0",
+          "body": "Please do not enable proactive check-ins",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.003Z"
+        },
+        {
+          "id": "bed99643-2eda-4a32-81fc-66822691d035",
+          "body": "No proactive check-ins have been enabled — nothing was changed, and I won't turn them on. Your account has no coaching outreach active right now.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.004Z"
+        },
+        {
+          "id": "fed6e0c8-c7e4-4481-9816-9414e0309d8f",
+          "body": "I'm overwhelmed by my plan. What would you do first? Advice only.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.005Z"
+        },
+        {
+          "id": "be8f263e-87f0-4ecb-ab52-2c4002ca8965",
+          "body": "You have no open tasks or goals saved right now, so there's nothing in your current plan for me to prioritize.\n\nIf you tell me what's on your mind — even just a few things swirling around — I can help you pick one clear first move.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.006Z"
+        },
+        {
+          "id": "76dcf97a-94ba-4b56-ad31-7e0519604aff",
+          "body": "Enable proactive check-ins once a day",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.007Z"
+        },
+        {
+          "id": "44210a2e-1298-4804-8f4e-2dee39b00c19",
+          "body": "Check-in preference saved. Proactive delivery is disabled in this simulation.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.008Z"
+        },
+        {
+          "id": "f67f8fed-e5e9-41ee-b158-37c669135c60",
+          "body": "Disable proactive check-ins",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.009Z"
+        },
+        {
+          "id": "c44192eb-9c1c-4f18-9d36-d4dde6f0bb0c",
+          "body": "Optional check-ins are off.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.010Z"
+        },
+        {
+          "id": "69202d63-31e4-4e3d-ae4f-975b611c1435",
+          "body": "Remind me on Saturday January 16 at 2PM and 5PM to pick up the charger",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.011Z"
+        },
+        {
+          "id": "aa9b72ba-d3ab-46a0-ae9f-23e8af441adf",
+          "body": "Reminders set:\nSat, Jan 16, 2:00 PM EST — Pick up the charger\nSat, Jan 16, 5:00 PM EST — Pick up the charger",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.012Z"
+        },
+        {
+          "id": "b39d6468-e784-48c7-bf36-f97ee4068c52",
+          "body": "Move both charger reminders on Saturday to 3PM and 6PM",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.013Z"
+        },
+        {
+          "id": "47c70e29-147e-47b5-a095-46e968050650",
+          "body": "Reminders moved:\nSat, Jan 16, 3:00 PM EST — Pick up the charger\nSat, Jan 16, 6:00 PM EST — Pick up the charger",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.014Z"
+        },
+        {
+          "id": "dc706519-370d-4eff-9edb-97c294fdcb39",
+          "body": "Give me a morning reminder tomorrow of my current to do list, goals and calendar",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.015Z"
+        },
+        {
+          "id": "48d28f92-3f0d-4202-b98e-efd6ad90a582",
+          "body": "What time would you like that reminder?",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.016Z"
+        },
+        {
+          "id": "3702d415-210a-4a33-9d6b-94b4ea625986",
+          "body": "11am?",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.017Z"
+        },
+        {
+          "id": "0e07efe7-d457-4ad7-9021-e2d0cab97231",
+          "body": "Reminder set for Fri, Jan 15, 11:00 AM EST: Morning briefing: your to-do list, goals, and calendar — I’ll read your current tasks, goals, reminders and Calendar when it’s time to send.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.018Z"
+        }
+      ],
+      "profile": {
+        "displayName": null,
+        "proactiveOptIn": false,
+        "quietHoursStart": null,
+        "quietHoursEnd": null
+      },
+      "memories": [],
+      "memoriesTruncated": false,
+      "remindersTruncated": false
+    },
+    "reminders": [
+      {
+        "contentMode": "daily_rundown",
+        "sourceOperation": 0,
+        "id": "cbb90d0f-a6cd-48bf-a5ff-76e9400010ec",
+        "userId": "9cab6a06-da77-44e3-8fb1-d0d0ac83d0e7",
+        "taskId": null,
+        "sourceMessageId": "3702d415-210a-4a33-9d6b-94b4ea625986",
+        "text": "Morning briefing: your to-do list, goals, and calendar",
+        "remindAt": "2027-01-15T16:00:00.000Z",
+        "timezone": "America/New_York",
+        "recurrence": null,
+        "occurrenceCount": 0,
+        "status": "scheduled",
+        "idempotencyKey": "reminder:3702d415-210a-4a33-9d6b-94b4ea625986",
+        "provider": null,
+        "providerMessageSid": null,
+        "sentAt": null,
+        "cancelledAt": null,
+        "lastError": null,
+        "createdAt": "2026-10-15T19:13:55.141Z",
+        "updatedAt": "2026-10-15T19:13:55.141Z"
+      },
+      {
+        "contentMode": "text",
+        "sourceOperation": 0,
+        "id": "05e6fc43-7d46-4709-8d2a-9fcaa6b05ac2",
+        "userId": "9cab6a06-da77-44e3-8fb1-d0d0ac83d0e7",
+        "taskId": null,
+        "sourceMessageId": "69202d63-31e4-4e3d-ae4f-975b611c1435",
+        "text": "Pick up the charger",
+        "remindAt": "2027-01-16T20:00:00.000Z",
+        "timezone": "America/New_York",
+        "recurrence": null,
+        "occurrenceCount": 0,
+        "status": "scheduled",
+        "idempotencyKey": "reminder:69202d63-31e4-4e3d-ae4f-975b611c1435",
+        "provider": null,
+        "providerMessageSid": null,
+        "sentAt": null,
+        "cancelledAt": null,
+        "lastError": null,
+        "createdAt": "2026-10-15T19:13:34.741Z",
+        "updatedAt": "2027-01-14T15:00:00.013Z"
+      },
+      {
+        "contentMode": "text",
+        "sourceOperation": 1,
+        "id": "a0bc96be-64c8-4444-8439-95ebf0df21a8",
+        "userId": "9cab6a06-da77-44e3-8fb1-d0d0ac83d0e7",
+        "taskId": null,
+        "sourceMessageId": "69202d63-31e4-4e3d-ae4f-975b611c1435",
+        "text": "Pick up the charger",
+        "remindAt": "2027-01-16T23:00:00.000Z",
+        "timezone": "America/New_York",
+        "recurrence": null,
+        "occurrenceCount": 0,
+        "status": "scheduled",
+        "idempotencyKey": "reminder:69202d63-31e4-4e3d-ae4f-975b611c1435:1",
+        "provider": null,
+        "providerMessageSid": null,
+        "sentAt": null,
+        "cancelledAt": null,
+        "lastError": null,
+        "createdAt": "2026-10-15T19:13:34.741Z",
+        "updatedAt": "2027-01-14T15:00:00.013Z"
+      }
+    ]
+  },
+  {
+    "decisionAt": "2027-01-14T15:00:00.019Z",
+    "input": "Move my dentist appointment on January 15 to 3 PM for one hour.",
+    "replies": [
+      "Proposed calendar update: {\"operation\":\"update\",\"eventId\":\"fixture-dentist\",\"title\":\"Dentist\",\"start\":\"2027-01-15T15:00:00-05:00\",\"end\":\"2027-01-15T16:00:00-05:00\"}. Reply YES to confirm or NO to cancel."
+    ],
+    "providerId": "9d88a86d-65b6-40c1-8130-5b6bb0e83f7f",
+    "duplicate": false,
+    "parserCalled": true,
+    "tools": [
+      "calendar_agenda",
+      "calendar_change"
+    ],
+    "elapsedMs": 10007,
+    "channel": "sms",
+    "toolTrace": [
+      {
+        "command": {
+          "type": "calendar_agenda",
+          "start": "2027-01-15T00:00:00-05:00",
+          "end": "2027-01-15T23:59:59-05:00"
+        },
+        "result": "{\"simulated\":true,\"events\":[{\"id\":\"fixture-dentist\",\"title\":\"Dentist\",\"start\":{\"dateTime\":\"2027-01-15T14:00:00-05:00\"},\"end\":{\"dateTime\":\"2027-01-15T15:00:00-05:00\"},\"editable\":true}]}"
+      },
+      {
+        "command": {
+          "type": "calendar_change",
+          "change": {
+            "operation": "update",
+            "eventId": "fixture-dentist",
+            "title": "Dentist",
+            "start": "2027-01-15T15:00:00-05:00",
+            "end": "2027-01-15T16:00:00-05:00"
+          }
+        },
+        "result": "Proposed calendar update: {\"operation\":\"update\",\"eventId\":\"fixture-dentist\",\"title\":\"Dentist\",\"start\":\"2027-01-15T15:00:00-05:00\",\"end\":\"2027-01-15T16:00:00-05:00\"}. Reply YES to confirm or NO to cancel."
+      }
+    ],
+    "issues": [],
+    "before": {
+      "timezone": "America/New_York",
+      "generatedAt": "2026-10-15T19:13:55.218Z",
+      "tasks": [],
+      "reminders": [
+        {
+          "id": "cbb90d0f-a6cd-48bf-a5ff-76e9400010ec",
+          "text": "Morning briefing: your to-do list, goals, and calendar",
+          "remindAt": "2027-01-15T16:00:00.000Z",
+          "status": "scheduled"
+        },
+        {
+          "id": "05e6fc43-7d46-4709-8d2a-9fcaa6b05ac2",
+          "text": "Pick up the charger",
+          "remindAt": "2027-01-16T20:00:00.000Z",
+          "status": "scheduled"
+        },
+        {
+          "id": "a0bc96be-64c8-4444-8439-95ebf0df21a8",
+          "text": "Pick up the charger",
+          "remindAt": "2027-01-16T23:00:00.000Z",
+          "status": "scheduled"
+        }
+      ],
+      "calendar": null,
+      "busy": [],
+      "tasksTruncated": false,
+      "goals": [],
+      "goalsTruncated": false,
+      "items": [],
+      "messages": [
+        {
+          "id": "81c46eb4-69f5-40e3-adce-e1d1246bd4b3",
+          "body": "What happens if I delete my morning routine? Do not change anything.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.001Z"
+        },
+        {
+          "id": "bd156d83-5be4-4e10-a144-b8ac6b834ec6",
+          "body": "If you delete your morning routine, it's removed permanently from My routines — there's no undo, so you'd have to recreate all the steps from scratch if you change your mind.\n\nYour tasks, goals, reminders, and calendar events are unaffected; only the routine itself (its steps, order, and times) would be gone.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.002Z"
+        },
+        {
+          "id": "b80c5c0b-1ac6-42c6-b434-3b4e23a03df0",
+          "body": "Please do not enable proactive check-ins",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.003Z"
+        },
+        {
+          "id": "bed99643-2eda-4a32-81fc-66822691d035",
+          "body": "No proactive check-ins have been enabled — nothing was changed, and I won't turn them on. Your account has no coaching outreach active right now.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.004Z"
+        },
+        {
+          "id": "fed6e0c8-c7e4-4481-9816-9414e0309d8f",
+          "body": "I'm overwhelmed by my plan. What would you do first? Advice only.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.005Z"
+        },
+        {
+          "id": "be8f263e-87f0-4ecb-ab52-2c4002ca8965",
+          "body": "You have no open tasks or goals saved right now, so there's nothing in your current plan for me to prioritize.\n\nIf you tell me what's on your mind — even just a few things swirling around — I can help you pick one clear first move.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.006Z"
+        },
+        {
+          "id": "76dcf97a-94ba-4b56-ad31-7e0519604aff",
+          "body": "Enable proactive check-ins once a day",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.007Z"
+        },
+        {
+          "id": "44210a2e-1298-4804-8f4e-2dee39b00c19",
+          "body": "Check-in preference saved. Proactive delivery is disabled in this simulation.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.008Z"
+        },
+        {
+          "id": "f67f8fed-e5e9-41ee-b158-37c669135c60",
+          "body": "Disable proactive check-ins",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.009Z"
+        },
+        {
+          "id": "c44192eb-9c1c-4f18-9d36-d4dde6f0bb0c",
+          "body": "Optional check-ins are off.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.010Z"
+        },
+        {
+          "id": "69202d63-31e4-4e3d-ae4f-975b611c1435",
+          "body": "Remind me on Saturday January 16 at 2PM and 5PM to pick up the charger",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.011Z"
+        },
+        {
+          "id": "aa9b72ba-d3ab-46a0-ae9f-23e8af441adf",
+          "body": "Reminders set:\nSat, Jan 16, 2:00 PM EST — Pick up the charger\nSat, Jan 16, 5:00 PM EST — Pick up the charger",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.012Z"
+        },
+        {
+          "id": "b39d6468-e784-48c7-bf36-f97ee4068c52",
+          "body": "Move both charger reminders on Saturday to 3PM and 6PM",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.013Z"
+        },
+        {
+          "id": "47c70e29-147e-47b5-a095-46e968050650",
+          "body": "Reminders moved:\nSat, Jan 16, 3:00 PM EST — Pick up the charger\nSat, Jan 16, 6:00 PM EST — Pick up the charger",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.014Z"
+        },
+        {
+          "id": "dc706519-370d-4eff-9edb-97c294fdcb39",
+          "body": "Give me a morning reminder tomorrow of my current to do list, goals and calendar",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.015Z"
+        },
+        {
+          "id": "48d28f92-3f0d-4202-b98e-efd6ad90a582",
+          "body": "What time would you like that reminder?",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.016Z"
+        },
+        {
+          "id": "3702d415-210a-4a33-9d6b-94b4ea625986",
+          "body": "11am?",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.017Z"
+        },
+        {
+          "id": "0e07efe7-d457-4ad7-9021-e2d0cab97231",
+          "body": "Reminder set for Fri, Jan 15, 11:00 AM EST: Morning briefing: your to-do list, goals, and calendar — I’ll read your current tasks, goals, reminders and Calendar when it’s time to send.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.018Z"
+        }
+      ],
+      "profile": {
+        "displayName": null,
+        "proactiveOptIn": false,
+        "quietHoursStart": null,
+        "quietHoursEnd": null
+      },
+      "memories": [],
+      "memoriesTruncated": false,
+      "remindersTruncated": false
+    },
+    "after": {
+      "timezone": "America/New_York",
+      "generatedAt": "2026-10-15T19:14:05.243Z",
+      "tasks": [],
+      "reminders": [
+        {
+          "id": "cbb90d0f-a6cd-48bf-a5ff-76e9400010ec",
+          "text": "Morning briefing: your to-do list, goals, and calendar",
+          "remindAt": "2027-01-15T16:00:00.000Z",
+          "status": "scheduled"
+        },
+        {
+          "id": "05e6fc43-7d46-4709-8d2a-9fcaa6b05ac2",
+          "text": "Pick up the charger",
+          "remindAt": "2027-01-16T20:00:00.000Z",
+          "status": "scheduled"
+        },
+        {
+          "id": "a0bc96be-64c8-4444-8439-95ebf0df21a8",
+          "text": "Pick up the charger",
+          "remindAt": "2027-01-16T23:00:00.000Z",
+          "status": "scheduled"
+        }
+      ],
+      "calendar": null,
+      "busy": [],
+      "tasksTruncated": false,
+      "goals": [],
+      "goalsTruncated": false,
+      "items": [],
+      "messages": [
+        {
+          "id": "81c46eb4-69f5-40e3-adce-e1d1246bd4b3",
+          "body": "What happens if I delete my morning routine? Do not change anything.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.001Z"
+        },
+        {
+          "id": "bd156d83-5be4-4e10-a144-b8ac6b834ec6",
+          "body": "If you delete your morning routine, it's removed permanently from My routines — there's no undo, so you'd have to recreate all the steps from scratch if you change your mind.\n\nYour tasks, goals, reminders, and calendar events are unaffected; only the routine itself (its steps, order, and times) would be gone.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.002Z"
+        },
+        {
+          "id": "b80c5c0b-1ac6-42c6-b434-3b4e23a03df0",
+          "body": "Please do not enable proactive check-ins",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.003Z"
+        },
+        {
+          "id": "bed99643-2eda-4a32-81fc-66822691d035",
+          "body": "No proactive check-ins have been enabled — nothing was changed, and I won't turn them on. Your account has no coaching outreach active right now.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.004Z"
+        },
+        {
+          "id": "fed6e0c8-c7e4-4481-9816-9414e0309d8f",
+          "body": "I'm overwhelmed by my plan. What would you do first? Advice only.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.005Z"
+        },
+        {
+          "id": "be8f263e-87f0-4ecb-ab52-2c4002ca8965",
+          "body": "You have no open tasks or goals saved right now, so there's nothing in your current plan for me to prioritize.\n\nIf you tell me what's on your mind — even just a few things swirling around — I can help you pick one clear first move.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.006Z"
+        },
+        {
+          "id": "76dcf97a-94ba-4b56-ad31-7e0519604aff",
+          "body": "Enable proactive check-ins once a day",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.007Z"
+        },
+        {
+          "id": "44210a2e-1298-4804-8f4e-2dee39b00c19",
+          "body": "Check-in preference saved. Proactive delivery is disabled in this simulation.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.008Z"
+        },
+        {
+          "id": "f67f8fed-e5e9-41ee-b158-37c669135c60",
+          "body": "Disable proactive check-ins",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.009Z"
+        },
+        {
+          "id": "c44192eb-9c1c-4f18-9d36-d4dde6f0bb0c",
+          "body": "Optional check-ins are off.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.010Z"
+        },
+        {
+          "id": "69202d63-31e4-4e3d-ae4f-975b611c1435",
+          "body": "Remind me on Saturday January 16 at 2PM and 5PM to pick up the charger",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.011Z"
+        },
+        {
+          "id": "aa9b72ba-d3ab-46a0-ae9f-23e8af441adf",
+          "body": "Reminders set:\nSat, Jan 16, 2:00 PM EST — Pick up the charger\nSat, Jan 16, 5:00 PM EST — Pick up the charger",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.012Z"
+        },
+        {
+          "id": "b39d6468-e784-48c7-bf36-f97ee4068c52",
+          "body": "Move both charger reminders on Saturday to 3PM and 6PM",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.013Z"
+        },
+        {
+          "id": "47c70e29-147e-47b5-a095-46e968050650",
+          "body": "Reminders moved:\nSat, Jan 16, 3:00 PM EST — Pick up the charger\nSat, Jan 16, 6:00 PM EST — Pick up the charger",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.014Z"
+        },
+        {
+          "id": "dc706519-370d-4eff-9edb-97c294fdcb39",
+          "body": "Give me a morning reminder tomorrow of my current to do list, goals and calendar",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.015Z"
+        },
+        {
+          "id": "48d28f92-3f0d-4202-b98e-efd6ad90a582",
+          "body": "What time would you like that reminder?",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.016Z"
+        },
+        {
+          "id": "3702d415-210a-4a33-9d6b-94b4ea625986",
+          "body": "11am?",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.017Z"
+        },
+        {
+          "id": "0e07efe7-d457-4ad7-9021-e2d0cab97231",
+          "body": "Reminder set for Fri, Jan 15, 11:00 AM EST: Morning briefing: your to-do list, goals, and calendar — I’ll read your current tasks, goals, reminders and Calendar when it’s time to send.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.018Z"
+        },
+        {
+          "id": "61a2172e-f413-4d7c-a2c2-3907e75ca9fb",
+          "body": "Move my dentist appointment on January 15 to 3 PM for one hour.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.019Z"
+        },
+        {
+          "id": "1565cdf4-0af3-4b24-aa0d-084b5272646d",
+          "body": "Proposed calendar update: {\"operation\":\"update\",\"eventId\":\"fixture-dentist\",\"title\":\"Dentist\",\"start\":\"2027-01-15T15:00:00-05:00\",\"end\":\"2027-01-15T16:00:00-05:00\"}. Reply YES to confirm or NO to cancel.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.020Z"
+        }
+      ],
+      "profile": {
+        "displayName": null,
+        "proactiveOptIn": false,
+        "quietHoursStart": null,
+        "quietHoursEnd": null
+      },
+      "memories": [],
+      "memoriesTruncated": false,
+      "remindersTruncated": false
+    },
+    "reminders": [
+      {
+        "contentMode": "daily_rundown",
+        "sourceOperation": 0,
+        "id": "cbb90d0f-a6cd-48bf-a5ff-76e9400010ec",
+        "userId": "9cab6a06-da77-44e3-8fb1-d0d0ac83d0e7",
+        "taskId": null,
+        "sourceMessageId": "3702d415-210a-4a33-9d6b-94b4ea625986",
+        "text": "Morning briefing: your to-do list, goals, and calendar",
+        "remindAt": "2027-01-15T16:00:00.000Z",
+        "timezone": "America/New_York",
+        "recurrence": null,
+        "occurrenceCount": 0,
+        "status": "scheduled",
+        "idempotencyKey": "reminder:3702d415-210a-4a33-9d6b-94b4ea625986",
+        "provider": null,
+        "providerMessageSid": null,
+        "sentAt": null,
+        "cancelledAt": null,
+        "lastError": null,
+        "createdAt": "2026-10-15T19:13:55.141Z",
+        "updatedAt": "2026-10-15T19:13:55.141Z"
+      },
+      {
+        "contentMode": "text",
+        "sourceOperation": 0,
+        "id": "05e6fc43-7d46-4709-8d2a-9fcaa6b05ac2",
+        "userId": "9cab6a06-da77-44e3-8fb1-d0d0ac83d0e7",
+        "taskId": null,
+        "sourceMessageId": "69202d63-31e4-4e3d-ae4f-975b611c1435",
+        "text": "Pick up the charger",
+        "remindAt": "2027-01-16T20:00:00.000Z",
+        "timezone": "America/New_York",
+        "recurrence": null,
+        "occurrenceCount": 0,
+        "status": "scheduled",
+        "idempotencyKey": "reminder:69202d63-31e4-4e3d-ae4f-975b611c1435",
+        "provider": null,
+        "providerMessageSid": null,
+        "sentAt": null,
+        "cancelledAt": null,
+        "lastError": null,
+        "createdAt": "2026-10-15T19:13:34.741Z",
+        "updatedAt": "2027-01-14T15:00:00.013Z"
+      },
+      {
+        "contentMode": "text",
+        "sourceOperation": 1,
+        "id": "a0bc96be-64c8-4444-8439-95ebf0df21a8",
+        "userId": "9cab6a06-da77-44e3-8fb1-d0d0ac83d0e7",
+        "taskId": null,
+        "sourceMessageId": "69202d63-31e4-4e3d-ae4f-975b611c1435",
+        "text": "Pick up the charger",
+        "remindAt": "2027-01-16T23:00:00.000Z",
+        "timezone": "America/New_York",
+        "recurrence": null,
+        "occurrenceCount": 0,
+        "status": "scheduled",
+        "idempotencyKey": "reminder:69202d63-31e4-4e3d-ae4f-975b611c1435:1",
+        "provider": null,
+        "providerMessageSid": null,
+        "sentAt": null,
+        "cancelledAt": null,
+        "lastError": null,
+        "createdAt": "2026-10-15T19:13:34.741Z",
+        "updatedAt": "2027-01-14T15:00:00.013Z"
+      }
+    ]
+  },
+  {
+    "decisionAt": "2027-01-14T15:00:00.021Z",
+    "input": "YES",
+    "replies": [
+      "Confirmed calendar change in the simulated calendar."
+    ],
+    "providerId": "0b00306d-dbb1-4b2c-a6ab-dcdbdb799036",
+    "duplicate": false,
+    "parserCalled": false,
+    "tools": [],
+    "elapsedMs": 61,
+    "channel": "web",
+    "issues": [],
+    "before": {
+      "timezone": "America/New_York",
+      "generatedAt": "2026-10-15T19:14:05.290Z",
+      "tasks": [],
+      "reminders": [
+        {
+          "id": "cbb90d0f-a6cd-48bf-a5ff-76e9400010ec",
+          "text": "Morning briefing: your to-do list, goals, and calendar",
+          "remindAt": "2027-01-15T16:00:00.000Z",
+          "status": "scheduled"
+        },
+        {
+          "id": "05e6fc43-7d46-4709-8d2a-9fcaa6b05ac2",
+          "text": "Pick up the charger",
+          "remindAt": "2027-01-16T20:00:00.000Z",
+          "status": "scheduled"
+        },
+        {
+          "id": "a0bc96be-64c8-4444-8439-95ebf0df21a8",
+          "text": "Pick up the charger",
+          "remindAt": "2027-01-16T23:00:00.000Z",
+          "status": "scheduled"
+        }
+      ],
+      "calendar": null,
+      "busy": [],
+      "tasksTruncated": false,
+      "goals": [],
+      "goalsTruncated": false,
+      "items": [],
+      "messages": [
+        {
+          "id": "81c46eb4-69f5-40e3-adce-e1d1246bd4b3",
+          "body": "What happens if I delete my morning routine? Do not change anything.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.001Z"
+        },
+        {
+          "id": "bd156d83-5be4-4e10-a144-b8ac6b834ec6",
+          "body": "If you delete your morning routine, it's removed permanently from My routines — there's no undo, so you'd have to recreate all the steps from scratch if you change your mind.\n\nYour tasks, goals, reminders, and calendar events are unaffected; only the routine itself (its steps, order, and times) would be gone.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.002Z"
+        },
+        {
+          "id": "b80c5c0b-1ac6-42c6-b434-3b4e23a03df0",
+          "body": "Please do not enable proactive check-ins",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.003Z"
+        },
+        {
+          "id": "bed99643-2eda-4a32-81fc-66822691d035",
+          "body": "No proactive check-ins have been enabled — nothing was changed, and I won't turn them on. Your account has no coaching outreach active right now.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.004Z"
+        },
+        {
+          "id": "fed6e0c8-c7e4-4481-9816-9414e0309d8f",
+          "body": "I'm overwhelmed by my plan. What would you do first? Advice only.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.005Z"
+        },
+        {
+          "id": "be8f263e-87f0-4ecb-ab52-2c4002ca8965",
+          "body": "You have no open tasks or goals saved right now, so there's nothing in your current plan for me to prioritize.\n\nIf you tell me what's on your mind — even just a few things swirling around — I can help you pick one clear first move.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.006Z"
+        },
+        {
+          "id": "76dcf97a-94ba-4b56-ad31-7e0519604aff",
+          "body": "Enable proactive check-ins once a day",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.007Z"
+        },
+        {
+          "id": "44210a2e-1298-4804-8f4e-2dee39b00c19",
+          "body": "Check-in preference saved. Proactive delivery is disabled in this simulation.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.008Z"
+        },
+        {
+          "id": "f67f8fed-e5e9-41ee-b158-37c669135c60",
+          "body": "Disable proactive check-ins",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.009Z"
+        },
+        {
+          "id": "c44192eb-9c1c-4f18-9d36-d4dde6f0bb0c",
+          "body": "Optional check-ins are off.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.010Z"
+        },
+        {
+          "id": "69202d63-31e4-4e3d-ae4f-975b611c1435",
+          "body": "Remind me on Saturday January 16 at 2PM and 5PM to pick up the charger",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.011Z"
+        },
+        {
+          "id": "aa9b72ba-d3ab-46a0-ae9f-23e8af441adf",
+          "body": "Reminders set:\nSat, Jan 16, 2:00 PM EST — Pick up the charger\nSat, Jan 16, 5:00 PM EST — Pick up the charger",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.012Z"
+        },
+        {
+          "id": "b39d6468-e784-48c7-bf36-f97ee4068c52",
+          "body": "Move both charger reminders on Saturday to 3PM and 6PM",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.013Z"
+        },
+        {
+          "id": "47c70e29-147e-47b5-a095-46e968050650",
+          "body": "Reminders moved:\nSat, Jan 16, 3:00 PM EST — Pick up the charger\nSat, Jan 16, 6:00 PM EST — Pick up the charger",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.014Z"
+        },
+        {
+          "id": "dc706519-370d-4eff-9edb-97c294fdcb39",
+          "body": "Give me a morning reminder tomorrow of my current to do list, goals and calendar",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.015Z"
+        },
+        {
+          "id": "48d28f92-3f0d-4202-b98e-efd6ad90a582",
+          "body": "What time would you like that reminder?",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.016Z"
+        },
+        {
+          "id": "3702d415-210a-4a33-9d6b-94b4ea625986",
+          "body": "11am?",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.017Z"
+        },
+        {
+          "id": "0e07efe7-d457-4ad7-9021-e2d0cab97231",
+          "body": "Reminder set for Fri, Jan 15, 11:00 AM EST: Morning briefing: your to-do list, goals, and calendar — I’ll read your current tasks, goals, reminders and Calendar when it’s time to send.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.018Z"
+        },
+        {
+          "id": "61a2172e-f413-4d7c-a2c2-3907e75ca9fb",
+          "body": "Move my dentist appointment on January 15 to 3 PM for one hour.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.019Z"
+        },
+        {
+          "id": "1565cdf4-0af3-4b24-aa0d-084b5272646d",
+          "body": "Proposed calendar update: {\"operation\":\"update\",\"eventId\":\"fixture-dentist\",\"title\":\"Dentist\",\"start\":\"2027-01-15T15:00:00-05:00\",\"end\":\"2027-01-15T16:00:00-05:00\"}. Reply YES to confirm or NO to cancel.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.020Z"
+        }
+      ],
+      "profile": {
+        "displayName": null,
+        "proactiveOptIn": false,
+        "quietHoursStart": null,
+        "quietHoursEnd": null
+      },
+      "memories": [],
+      "memoriesTruncated": false,
+      "remindersTruncated": false
+    },
+    "after": {
+      "timezone": "America/New_York",
+      "generatedAt": "2026-10-15T19:14:05.370Z",
+      "tasks": [],
+      "reminders": [
+        {
+          "id": "cbb90d0f-a6cd-48bf-a5ff-76e9400010ec",
+          "text": "Morning briefing: your to-do list, goals, and calendar",
+          "remindAt": "2027-01-15T16:00:00.000Z",
+          "status": "scheduled"
+        },
+        {
+          "id": "05e6fc43-7d46-4709-8d2a-9fcaa6b05ac2",
+          "text": "Pick up the charger",
+          "remindAt": "2027-01-16T20:00:00.000Z",
+          "status": "scheduled"
+        },
+        {
+          "id": "a0bc96be-64c8-4444-8439-95ebf0df21a8",
+          "text": "Pick up the charger",
+          "remindAt": "2027-01-16T23:00:00.000Z",
+          "status": "scheduled"
+        }
+      ],
+      "calendar": null,
+      "busy": [],
+      "tasksTruncated": false,
+      "goals": [],
+      "goalsTruncated": false,
+      "items": [],
+      "messages": [
+        {
+          "id": "81c46eb4-69f5-40e3-adce-e1d1246bd4b3",
+          "body": "What happens if I delete my morning routine? Do not change anything.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.001Z"
+        },
+        {
+          "id": "bd156d83-5be4-4e10-a144-b8ac6b834ec6",
+          "body": "If you delete your morning routine, it's removed permanently from My routines — there's no undo, so you'd have to recreate all the steps from scratch if you change your mind.\n\nYour tasks, goals, reminders, and calendar events are unaffected; only the routine itself (its steps, order, and times) would be gone.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.002Z"
+        },
+        {
+          "id": "b80c5c0b-1ac6-42c6-b434-3b4e23a03df0",
+          "body": "Please do not enable proactive check-ins",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.003Z"
+        },
+        {
+          "id": "bed99643-2eda-4a32-81fc-66822691d035",
+          "body": "No proactive check-ins have been enabled — nothing was changed, and I won't turn them on. Your account has no coaching outreach active right now.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.004Z"
+        },
+        {
+          "id": "fed6e0c8-c7e4-4481-9816-9414e0309d8f",
+          "body": "I'm overwhelmed by my plan. What would you do first? Advice only.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.005Z"
+        },
+        {
+          "id": "be8f263e-87f0-4ecb-ab52-2c4002ca8965",
+          "body": "You have no open tasks or goals saved right now, so there's nothing in your current plan for me to prioritize.\n\nIf you tell me what's on your mind — even just a few things swirling around — I can help you pick one clear first move.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.006Z"
+        },
+        {
+          "id": "76dcf97a-94ba-4b56-ad31-7e0519604aff",
+          "body": "Enable proactive check-ins once a day",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.007Z"
+        },
+        {
+          "id": "44210a2e-1298-4804-8f4e-2dee39b00c19",
+          "body": "Check-in preference saved. Proactive delivery is disabled in this simulation.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.008Z"
+        },
+        {
+          "id": "f67f8fed-e5e9-41ee-b158-37c669135c60",
+          "body": "Disable proactive check-ins",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.009Z"
+        },
+        {
+          "id": "c44192eb-9c1c-4f18-9d36-d4dde6f0bb0c",
+          "body": "Optional check-ins are off.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.010Z"
+        },
+        {
+          "id": "69202d63-31e4-4e3d-ae4f-975b611c1435",
+          "body": "Remind me on Saturday January 16 at 2PM and 5PM to pick up the charger",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.011Z"
+        },
+        {
+          "id": "aa9b72ba-d3ab-46a0-ae9f-23e8af441adf",
+          "body": "Reminders set:\nSat, Jan 16, 2:00 PM EST — Pick up the charger\nSat, Jan 16, 5:00 PM EST — Pick up the charger",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.012Z"
+        },
+        {
+          "id": "b39d6468-e784-48c7-bf36-f97ee4068c52",
+          "body": "Move both charger reminders on Saturday to 3PM and 6PM",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.013Z"
+        },
+        {
+          "id": "47c70e29-147e-47b5-a095-46e968050650",
+          "body": "Reminders moved:\nSat, Jan 16, 3:00 PM EST — Pick up the charger\nSat, Jan 16, 6:00 PM EST — Pick up the charger",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.014Z"
+        },
+        {
+          "id": "dc706519-370d-4eff-9edb-97c294fdcb39",
+          "body": "Give me a morning reminder tomorrow of my current to do list, goals and calendar",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.015Z"
+        },
+        {
+          "id": "48d28f92-3f0d-4202-b98e-efd6ad90a582",
+          "body": "What time would you like that reminder?",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.016Z"
+        },
+        {
+          "id": "3702d415-210a-4a33-9d6b-94b4ea625986",
+          "body": "11am?",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.017Z"
+        },
+        {
+          "id": "0e07efe7-d457-4ad7-9021-e2d0cab97231",
+          "body": "Reminder set for Fri, Jan 15, 11:00 AM EST: Morning briefing: your to-do list, goals, and calendar — I’ll read your current tasks, goals, reminders and Calendar when it’s time to send.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.018Z"
+        },
+        {
+          "id": "61a2172e-f413-4d7c-a2c2-3907e75ca9fb",
+          "body": "Move my dentist appointment on January 15 to 3 PM for one hour.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.019Z"
+        },
+        {
+          "id": "1565cdf4-0af3-4b24-aa0d-084b5272646d",
+          "body": "Proposed calendar update: {\"operation\":\"update\",\"eventId\":\"fixture-dentist\",\"title\":\"Dentist\",\"start\":\"2027-01-15T15:00:00-05:00\",\"end\":\"2027-01-15T16:00:00-05:00\"}. Reply YES to confirm or NO to cancel.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.020Z"
+        },
+        {
+          "id": "b67633f7-0ea4-4eda-b593-fb65afacd684",
+          "body": "YES",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.021Z"
+        },
+        {
+          "id": "8ad11cc0-907b-48c7-899c-1294171b91bc",
+          "body": "Confirmed calendar change in the simulated calendar.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.022Z"
+        }
+      ],
+      "profile": {
+        "displayName": null,
+        "proactiveOptIn": false,
+        "quietHoursStart": null,
+        "quietHoursEnd": null
+      },
+      "memories": [],
+      "memoriesTruncated": false,
+      "remindersTruncated": false
+    },
+    "reminders": [
+      {
+        "contentMode": "daily_rundown",
+        "sourceOperation": 0,
+        "id": "cbb90d0f-a6cd-48bf-a5ff-76e9400010ec",
+        "userId": "9cab6a06-da77-44e3-8fb1-d0d0ac83d0e7",
+        "taskId": null,
+        "sourceMessageId": "3702d415-210a-4a33-9d6b-94b4ea625986",
+        "text": "Morning briefing: your to-do list, goals, and calendar",
+        "remindAt": "2027-01-15T16:00:00.000Z",
+        "timezone": "America/New_York",
+        "recurrence": null,
+        "occurrenceCount": 0,
+        "status": "scheduled",
+        "idempotencyKey": "reminder:3702d415-210a-4a33-9d6b-94b4ea625986",
+        "provider": null,
+        "providerMessageSid": null,
+        "sentAt": null,
+        "cancelledAt": null,
+        "lastError": null,
+        "createdAt": "2026-10-15T19:13:55.141Z",
+        "updatedAt": "2026-10-15T19:13:55.141Z"
+      },
+      {
+        "contentMode": "text",
+        "sourceOperation": 0,
+        "id": "05e6fc43-7d46-4709-8d2a-9fcaa6b05ac2",
+        "userId": "9cab6a06-da77-44e3-8fb1-d0d0ac83d0e7",
+        "taskId": null,
+        "sourceMessageId": "69202d63-31e4-4e3d-ae4f-975b611c1435",
+        "text": "Pick up the charger",
+        "remindAt": "2027-01-16T20:00:00.000Z",
+        "timezone": "America/New_York",
+        "recurrence": null,
+        "occurrenceCount": 0,
+        "status": "scheduled",
+        "idempotencyKey": "reminder:69202d63-31e4-4e3d-ae4f-975b611c1435",
+        "provider": null,
+        "providerMessageSid": null,
+        "sentAt": null,
+        "cancelledAt": null,
+        "lastError": null,
+        "createdAt": "2026-10-15T19:13:34.741Z",
+        "updatedAt": "2027-01-14T15:00:00.013Z"
+      },
+      {
+        "contentMode": "text",
+        "sourceOperation": 1,
+        "id": "a0bc96be-64c8-4444-8439-95ebf0df21a8",
+        "userId": "9cab6a06-da77-44e3-8fb1-d0d0ac83d0e7",
+        "taskId": null,
+        "sourceMessageId": "69202d63-31e4-4e3d-ae4f-975b611c1435",
+        "text": "Pick up the charger",
+        "remindAt": "2027-01-16T23:00:00.000Z",
+        "timezone": "America/New_York",
+        "recurrence": null,
+        "occurrenceCount": 0,
+        "status": "scheduled",
+        "idempotencyKey": "reminder:69202d63-31e4-4e3d-ae4f-975b611c1435:1",
+        "provider": null,
+        "providerMessageSid": null,
+        "sentAt": null,
+        "cancelledAt": null,
+        "lastError": null,
+        "createdAt": "2026-10-15T19:13:34.741Z",
+        "updatedAt": "2027-01-14T15:00:00.013Z"
+      }
+    ]
+  },
+  {
+    "decisionAt": "2027-01-14T15:00:00.023Z",
+    "input": "What's on my calendar tomorrow?",
+    "replies": [
+      "Just one event tomorrow: Dentist from 3:00–4:00 PM EST."
+    ],
+    "providerId": "8823e254-59b1-4112-8c3d-3d03ee6dcbda",
+    "duplicate": false,
+    "parserCalled": true,
+    "tools": [
+      "calendar_agenda"
+    ],
+    "elapsedMs": 4540,
+    "channel": "sms",
+    "toolTrace": [
+      {
+        "command": {
+          "type": "calendar_agenda",
+          "start": "2027-01-15T00:00:00-05:00",
+          "end": "2027-01-15T23:59:59-05:00"
+        },
+        "result": "{\"simulated\":true,\"events\":[{\"id\":\"fixture-dentist\",\"title\":\"Dentist\",\"start\":{\"dateTime\":\"2027-01-15T15:00:00-05:00\"},\"end\":{\"dateTime\":\"2027-01-15T16:00:00-05:00\"},\"editable\":true}]}"
+      }
+    ],
+    "issues": [],
+    "before": {
+      "timezone": "America/New_York",
+      "generatedAt": "2026-10-15T19:14:05.424Z",
+      "tasks": [],
+      "reminders": [
+        {
+          "id": "cbb90d0f-a6cd-48bf-a5ff-76e9400010ec",
+          "text": "Morning briefing: your to-do list, goals, and calendar",
+          "remindAt": "2027-01-15T16:00:00.000Z",
+          "status": "scheduled"
+        },
+        {
+          "id": "05e6fc43-7d46-4709-8d2a-9fcaa6b05ac2",
+          "text": "Pick up the charger",
+          "remindAt": "2027-01-16T20:00:00.000Z",
+          "status": "scheduled"
+        },
+        {
+          "id": "a0bc96be-64c8-4444-8439-95ebf0df21a8",
+          "text": "Pick up the charger",
+          "remindAt": "2027-01-16T23:00:00.000Z",
+          "status": "scheduled"
+        }
+      ],
+      "calendar": null,
+      "busy": [],
+      "tasksTruncated": false,
+      "goals": [],
+      "goalsTruncated": false,
+      "items": [],
+      "messages": [
+        {
+          "id": "81c46eb4-69f5-40e3-adce-e1d1246bd4b3",
+          "body": "What happens if I delete my morning routine? Do not change anything.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.001Z"
+        },
+        {
+          "id": "bd156d83-5be4-4e10-a144-b8ac6b834ec6",
+          "body": "If you delete your morning routine, it's removed permanently from My routines — there's no undo, so you'd have to recreate all the steps from scratch if you change your mind.\n\nYour tasks, goals, reminders, and calendar events are unaffected; only the routine itself (its steps, order, and times) would be gone.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.002Z"
+        },
+        {
+          "id": "b80c5c0b-1ac6-42c6-b434-3b4e23a03df0",
+          "body": "Please do not enable proactive check-ins",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.003Z"
+        },
+        {
+          "id": "bed99643-2eda-4a32-81fc-66822691d035",
+          "body": "No proactive check-ins have been enabled — nothing was changed, and I won't turn them on. Your account has no coaching outreach active right now.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.004Z"
+        },
+        {
+          "id": "fed6e0c8-c7e4-4481-9816-9414e0309d8f",
+          "body": "I'm overwhelmed by my plan. What would you do first? Advice only.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.005Z"
+        },
+        {
+          "id": "be8f263e-87f0-4ecb-ab52-2c4002ca8965",
+          "body": "You have no open tasks or goals saved right now, so there's nothing in your current plan for me to prioritize.\n\nIf you tell me what's on your mind — even just a few things swirling around — I can help you pick one clear first move.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.006Z"
+        },
+        {
+          "id": "76dcf97a-94ba-4b56-ad31-7e0519604aff",
+          "body": "Enable proactive check-ins once a day",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.007Z"
+        },
+        {
+          "id": "44210a2e-1298-4804-8f4e-2dee39b00c19",
+          "body": "Check-in preference saved. Proactive delivery is disabled in this simulation.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.008Z"
+        },
+        {
+          "id": "f67f8fed-e5e9-41ee-b158-37c669135c60",
+          "body": "Disable proactive check-ins",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.009Z"
+        },
+        {
+          "id": "c44192eb-9c1c-4f18-9d36-d4dde6f0bb0c",
+          "body": "Optional check-ins are off.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.010Z"
+        },
+        {
+          "id": "69202d63-31e4-4e3d-ae4f-975b611c1435",
+          "body": "Remind me on Saturday January 16 at 2PM and 5PM to pick up the charger",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.011Z"
+        },
+        {
+          "id": "aa9b72ba-d3ab-46a0-ae9f-23e8af441adf",
+          "body": "Reminders set:\nSat, Jan 16, 2:00 PM EST — Pick up the charger\nSat, Jan 16, 5:00 PM EST — Pick up the charger",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.012Z"
+        },
+        {
+          "id": "b39d6468-e784-48c7-bf36-f97ee4068c52",
+          "body": "Move both charger reminders on Saturday to 3PM and 6PM",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.013Z"
+        },
+        {
+          "id": "47c70e29-147e-47b5-a095-46e968050650",
+          "body": "Reminders moved:\nSat, Jan 16, 3:00 PM EST — Pick up the charger\nSat, Jan 16, 6:00 PM EST — Pick up the charger",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.014Z"
+        },
+        {
+          "id": "dc706519-370d-4eff-9edb-97c294fdcb39",
+          "body": "Give me a morning reminder tomorrow of my current to do list, goals and calendar",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.015Z"
+        },
+        {
+          "id": "48d28f92-3f0d-4202-b98e-efd6ad90a582",
+          "body": "What time would you like that reminder?",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.016Z"
+        },
+        {
+          "id": "3702d415-210a-4a33-9d6b-94b4ea625986",
+          "body": "11am?",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.017Z"
+        },
+        {
+          "id": "0e07efe7-d457-4ad7-9021-e2d0cab97231",
+          "body": "Reminder set for Fri, Jan 15, 11:00 AM EST: Morning briefing: your to-do list, goals, and calendar — I’ll read your current tasks, goals, reminders and Calendar when it’s time to send.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.018Z"
+        },
+        {
+          "id": "61a2172e-f413-4d7c-a2c2-3907e75ca9fb",
+          "body": "Move my dentist appointment on January 15 to 3 PM for one hour.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.019Z"
+        },
+        {
+          "id": "1565cdf4-0af3-4b24-aa0d-084b5272646d",
+          "body": "Proposed calendar update: {\"operation\":\"update\",\"eventId\":\"fixture-dentist\",\"title\":\"Dentist\",\"start\":\"2027-01-15T15:00:00-05:00\",\"end\":\"2027-01-15T16:00:00-05:00\"}. Reply YES to confirm or NO to cancel.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.020Z"
+        },
+        {
+          "id": "b67633f7-0ea4-4eda-b593-fb65afacd684",
+          "body": "YES",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.021Z"
+        },
+        {
+          "id": "8ad11cc0-907b-48c7-899c-1294171b91bc",
+          "body": "Confirmed calendar change in the simulated calendar.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.022Z"
+        }
+      ],
+      "profile": {
+        "displayName": null,
+        "proactiveOptIn": false,
+        "quietHoursStart": null,
+        "quietHoursEnd": null
+      },
+      "memories": [],
+      "memoriesTruncated": false,
+      "remindersTruncated": false
+    },
+    "after": {
+      "timezone": "America/New_York",
+      "generatedAt": "2026-10-15T19:14:09.981Z",
+      "tasks": [],
+      "reminders": [
+        {
+          "id": "cbb90d0f-a6cd-48bf-a5ff-76e9400010ec",
+          "text": "Morning briefing: your to-do list, goals, and calendar",
+          "remindAt": "2027-01-15T16:00:00.000Z",
+          "status": "scheduled"
+        },
+        {
+          "id": "05e6fc43-7d46-4709-8d2a-9fcaa6b05ac2",
+          "text": "Pick up the charger",
+          "remindAt": "2027-01-16T20:00:00.000Z",
+          "status": "scheduled"
+        },
+        {
+          "id": "a0bc96be-64c8-4444-8439-95ebf0df21a8",
+          "text": "Pick up the charger",
+          "remindAt": "2027-01-16T23:00:00.000Z",
+          "status": "scheduled"
+        }
+      ],
+      "calendar": null,
+      "busy": [],
+      "tasksTruncated": false,
+      "goals": [],
+      "goalsTruncated": false,
+      "items": [],
+      "messages": [
+        {
+          "id": "81c46eb4-69f5-40e3-adce-e1d1246bd4b3",
+          "body": "What happens if I delete my morning routine? Do not change anything.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.001Z"
+        },
+        {
+          "id": "bd156d83-5be4-4e10-a144-b8ac6b834ec6",
+          "body": "If you delete your morning routine, it's removed permanently from My routines — there's no undo, so you'd have to recreate all the steps from scratch if you change your mind.\n\nYour tasks, goals, reminders, and calendar events are unaffected; only the routine itself (its steps, order, and times) would be gone.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.002Z"
+        },
+        {
+          "id": "b80c5c0b-1ac6-42c6-b434-3b4e23a03df0",
+          "body": "Please do not enable proactive check-ins",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.003Z"
+        },
+        {
+          "id": "bed99643-2eda-4a32-81fc-66822691d035",
+          "body": "No proactive check-ins have been enabled — nothing was changed, and I won't turn them on. Your account has no coaching outreach active right now.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.004Z"
+        },
+        {
+          "id": "fed6e0c8-c7e4-4481-9816-9414e0309d8f",
+          "body": "I'm overwhelmed by my plan. What would you do first? Advice only.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.005Z"
+        },
+        {
+          "id": "be8f263e-87f0-4ecb-ab52-2c4002ca8965",
+          "body": "You have no open tasks or goals saved right now, so there's nothing in your current plan for me to prioritize.\n\nIf you tell me what's on your mind — even just a few things swirling around — I can help you pick one clear first move.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.006Z"
+        },
+        {
+          "id": "76dcf97a-94ba-4b56-ad31-7e0519604aff",
+          "body": "Enable proactive check-ins once a day",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.007Z"
+        },
+        {
+          "id": "44210a2e-1298-4804-8f4e-2dee39b00c19",
+          "body": "Check-in preference saved. Proactive delivery is disabled in this simulation.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.008Z"
+        },
+        {
+          "id": "f67f8fed-e5e9-41ee-b158-37c669135c60",
+          "body": "Disable proactive check-ins",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.009Z"
+        },
+        {
+          "id": "c44192eb-9c1c-4f18-9d36-d4dde6f0bb0c",
+          "body": "Optional check-ins are off.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.010Z"
+        },
+        {
+          "id": "69202d63-31e4-4e3d-ae4f-975b611c1435",
+          "body": "Remind me on Saturday January 16 at 2PM and 5PM to pick up the charger",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.011Z"
+        },
+        {
+          "id": "aa9b72ba-d3ab-46a0-ae9f-23e8af441adf",
+          "body": "Reminders set:\nSat, Jan 16, 2:00 PM EST — Pick up the charger\nSat, Jan 16, 5:00 PM EST — Pick up the charger",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.012Z"
+        },
+        {
+          "id": "b39d6468-e784-48c7-bf36-f97ee4068c52",
+          "body": "Move both charger reminders on Saturday to 3PM and 6PM",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.013Z"
+        },
+        {
+          "id": "47c70e29-147e-47b5-a095-46e968050650",
+          "body": "Reminders moved:\nSat, Jan 16, 3:00 PM EST — Pick up the charger\nSat, Jan 16, 6:00 PM EST — Pick up the charger",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.014Z"
+        },
+        {
+          "id": "dc706519-370d-4eff-9edb-97c294fdcb39",
+          "body": "Give me a morning reminder tomorrow of my current to do list, goals and calendar",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.015Z"
+        },
+        {
+          "id": "48d28f92-3f0d-4202-b98e-efd6ad90a582",
+          "body": "What time would you like that reminder?",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.016Z"
+        },
+        {
+          "id": "3702d415-210a-4a33-9d6b-94b4ea625986",
+          "body": "11am?",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.017Z"
+        },
+        {
+          "id": "0e07efe7-d457-4ad7-9021-e2d0cab97231",
+          "body": "Reminder set for Fri, Jan 15, 11:00 AM EST: Morning briefing: your to-do list, goals, and calendar — I’ll read your current tasks, goals, reminders and Calendar when it’s time to send.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.018Z"
+        },
+        {
+          "id": "61a2172e-f413-4d7c-a2c2-3907e75ca9fb",
+          "body": "Move my dentist appointment on January 15 to 3 PM for one hour.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.019Z"
+        },
+        {
+          "id": "1565cdf4-0af3-4b24-aa0d-084b5272646d",
+          "body": "Proposed calendar update: {\"operation\":\"update\",\"eventId\":\"fixture-dentist\",\"title\":\"Dentist\",\"start\":\"2027-01-15T15:00:00-05:00\",\"end\":\"2027-01-15T16:00:00-05:00\"}. Reply YES to confirm or NO to cancel.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.020Z"
+        },
+        {
+          "id": "b67633f7-0ea4-4eda-b593-fb65afacd684",
+          "body": "YES",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.021Z"
+        },
+        {
+          "id": "8ad11cc0-907b-48c7-899c-1294171b91bc",
+          "body": "Confirmed calendar change in the simulated calendar.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.022Z"
+        },
+        {
+          "id": "b47a1068-d1c3-457c-a936-691b6a5af74b",
+          "body": "What's on my calendar tomorrow?",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.023Z"
+        },
+        {
+          "id": "15c72e0d-193b-40dd-a6fa-767d518567d6",
+          "body": "Just one event tomorrow: Dentist from 3:00–4:00 PM EST.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.024Z"
+        }
+      ],
+      "profile": {
+        "displayName": null,
+        "proactiveOptIn": false,
+        "quietHoursStart": null,
+        "quietHoursEnd": null
+      },
+      "memories": [],
+      "memoriesTruncated": false,
+      "remindersTruncated": false
+    },
+    "reminders": [
+      {
+        "contentMode": "daily_rundown",
+        "sourceOperation": 0,
+        "id": "cbb90d0f-a6cd-48bf-a5ff-76e9400010ec",
+        "userId": "9cab6a06-da77-44e3-8fb1-d0d0ac83d0e7",
+        "taskId": null,
+        "sourceMessageId": "3702d415-210a-4a33-9d6b-94b4ea625986",
+        "text": "Morning briefing: your to-do list, goals, and calendar",
+        "remindAt": "2027-01-15T16:00:00.000Z",
+        "timezone": "America/New_York",
+        "recurrence": null,
+        "occurrenceCount": 0,
+        "status": "scheduled",
+        "idempotencyKey": "reminder:3702d415-210a-4a33-9d6b-94b4ea625986",
+        "provider": null,
+        "providerMessageSid": null,
+        "sentAt": null,
+        "cancelledAt": null,
+        "lastError": null,
+        "createdAt": "2026-10-15T19:13:55.141Z",
+        "updatedAt": "2026-10-15T19:13:55.141Z"
+      },
+      {
+        "contentMode": "text",
+        "sourceOperation": 0,
+        "id": "05e6fc43-7d46-4709-8d2a-9fcaa6b05ac2",
+        "userId": "9cab6a06-da77-44e3-8fb1-d0d0ac83d0e7",
+        "taskId": null,
+        "sourceMessageId": "69202d63-31e4-4e3d-ae4f-975b611c1435",
+        "text": "Pick up the charger",
+        "remindAt": "2027-01-16T20:00:00.000Z",
+        "timezone": "America/New_York",
+        "recurrence": null,
+        "occurrenceCount": 0,
+        "status": "scheduled",
+        "idempotencyKey": "reminder:69202d63-31e4-4e3d-ae4f-975b611c1435",
+        "provider": null,
+        "providerMessageSid": null,
+        "sentAt": null,
+        "cancelledAt": null,
+        "lastError": null,
+        "createdAt": "2026-10-15T19:13:34.741Z",
+        "updatedAt": "2027-01-14T15:00:00.013Z"
+      },
+      {
+        "contentMode": "text",
+        "sourceOperation": 1,
+        "id": "a0bc96be-64c8-4444-8439-95ebf0df21a8",
+        "userId": "9cab6a06-da77-44e3-8fb1-d0d0ac83d0e7",
+        "taskId": null,
+        "sourceMessageId": "69202d63-31e4-4e3d-ae4f-975b611c1435",
+        "text": "Pick up the charger",
+        "remindAt": "2027-01-16T23:00:00.000Z",
+        "timezone": "America/New_York",
+        "recurrence": null,
+        "occurrenceCount": 0,
+        "status": "scheduled",
+        "idempotencyKey": "reminder:69202d63-31e4-4e3d-ae4f-975b611c1435:1",
+        "provider": null,
+        "providerMessageSid": null,
+        "sentAt": null,
+        "cancelledAt": null,
+        "lastError": null,
+        "createdAt": "2026-10-15T19:13:34.741Z",
+        "updatedAt": "2027-01-14T15:00:00.013Z"
+      }
+    ]
+  },
+  {
+    "accountIsolation": true,
+    "decisionAt": "2027-01-14T15:00:00.025Z",
+    "input": "What was that recipe I saved earlier?",
+    "replies": [
+      "Looks like there aren't any saved recipes in your account yet. It's possible it was saved under a different account, or it may not have gone through. Want to save it now?"
+    ],
+    "providerId": "43cd50ca-abbc-4b6f-b9a8-a6bd56c8ef4a",
+    "duplicate": false,
+    "parserCalled": true,
+    "tools": [
+      "life_list"
+    ],
+    "elapsedMs": 5726,
+    "channel": "sms",
+    "toolTrace": [
+      {
+        "command": {
+          "type": "life_list",
+          "kind": "recipe"
+        },
+        "result": "{\"items\":[],\"truncated\":false,\"coverage\":{\"kind\":\"recipe\",\"id\":null,\"query\":null,\"match\":\"all search words\",\"searched\":true,\"limit\":20},\"notice\":\"All records of this kind are included.\"}"
+      }
+    ]
+  }
+]

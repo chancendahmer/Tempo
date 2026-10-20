@@ -1,8 +1,9 @@
 import { and, asc, eq, gt, gte, lt, or, isNotNull, ilike, inArray, sql } from "drizzle-orm";
+import { createHash } from "node:crypto";
 import { MessagingProvider } from "../../adapters/sms/sms-transport";
-import { nextRecurringOccurrence, ReminderRepository, ReminderRecord } from "../../domain/reminder-service";
+import { formatReminderTime, nextRecurringOccurrence, ReminderRepository, ReminderRecord } from "../../domain/reminder-service";
 import { getDatabase, TempoDatabase } from "../client";
-import { conversationMessages, reminders, scheduledActions } from "../schema";
+import { conversationMessages, lifeActionReceipts, reminders, scheduledActions } from "../schema";
 
 function asRecord(row: typeof reminders.$inferSelect): ReminderRecord {
   return {
@@ -86,6 +87,37 @@ export class DrizzleReminderRepository implements ReminderRepository {
         updated.push(asRecord(row));
       }
       return { kind: "updated" as const, reminders: updated };
+    });
+  }
+
+  async cancelMany(input: Parameters<NonNullable<ReminderRepository["cancelMany"]>>[0]) {
+    if (input.reminders.length < 2 || input.reminders.length > 8 || new Set(input.reminders.map(item => item.reminderId)).size !== input.reminders.length
+      || input.reminders.some(item => !Number.isFinite(item.expectedRemindAt.getTime()))) return { kind: "stale" as const };
+    const targets = [...input.reminders].sort((a, b) => a.reminderId.localeCompare(b.reminderId));
+    const fingerprint = createHash("sha256").update(JSON.stringify(targets)).digest("hex");
+    const key = `reminder-cancel:${input.userId}:${input.sourceMessageId}`;
+    return this.database.transaction(async transaction => {
+      // Serialize retries of this inbound before reading its durable receipt.
+      const [source] = await transaction.select({ id: conversationMessages.id }).from(conversationMessages)
+        .where(and(eq(conversationMessages.id, input.sourceMessageId), eq(conversationMessages.userId, input.userId), eq(conversationMessages.direction, "inbound"))).limit(1).for("update");
+      if (!source) return { kind: "stale" as const };
+      const [prior] = await transaction.select().from(lifeActionReceipts).where(and(eq(lifeActionReceipts.key, key), eq(lifeActionReceipts.userId, input.userId))).limit(1);
+      if (prior) return prior.fingerprint === fingerprint ? { kind: "cancelled" as const, message: prior.message } : { kind: "stale" as const };
+      // Stable lock order also serializes delivery/rescheduling against the batch.
+      const rows = await transaction.select().from(reminders).where(and(eq(reminders.userId, input.userId), inArray(reminders.id, targets.map(item => item.reminderId))))
+        .orderBy(asc(reminders.id)).for("update");
+      if (rows.length !== targets.length || targets.some(target => {
+        const row = rows.find(item => item.id === target.reminderId);
+        return !row || !["scheduled", "failed"].includes(row.status) || row.remindAt.getTime() !== target.expectedRemindAt.getTime();
+      })) return { kind: "stale" as const };
+      const ids = targets.map(item => item.reminderId);
+      await transaction.update(reminders).set({ status: "cancelled", cancelledAt: input.now, updatedAt: input.now })
+        .where(and(eq(reminders.userId, input.userId), inArray(reminders.id, ids)));
+      await transaction.update(scheduledActions).set({ status: "cancelled", completedAt: input.now, updatedAt: input.now })
+        .where(and(eq(scheduledActions.userId, input.userId), inArray(scheduledActions.reminderId, ids), inArray(scheduledActions.status, ["scheduled", "failed"])));
+      const message = "Cancelled reminders:\n" + rows.map(row => `${formatReminderTime(row.remindAt, row.timezone)} — ${row.text}`).join("\n");
+      await transaction.insert(lifeActionReceipts).values({ key, userId: input.userId, fingerprint, message });
+      return { kind: "cancelled" as const, message };
     });
   }
 

@@ -1,0 +1,5945 @@
+[
+  {
+    "decisionAt": "2027-01-14T15:00:00.001Z",
+    "input": "Plan my saved Release lemon rice for dinner on January 14, 2027, for four servings.",
+    "replies": [
+      "Saved: Release lemon rice. Dinner, 2027-01-14. 4 servings."
+    ],
+    "providerId": "443b74b8-10d0-4ccd-82ae-c45d4eacc9f9",
+    "duplicate": false,
+    "parserCalled": true,
+    "tools": [
+      "life_list",
+      "life_save"
+    ],
+    "elapsedMs": 13844,
+    "channel": "sms",
+    "toolTrace": [
+      {
+        "command": {
+          "type": "life_list",
+          "kind": "recipe",
+          "query": "lemon rice"
+        },
+        "result": "{\"items\":[{\"id\":\"d7313c7b-c03a-44f4-b8a8-b77541cbbf98\",\"version\":1,\"data\":{\"kind\":\"recipe\",\"title\":\"Release lemon rice\",\"favorite\":false,\"servings\":2,\"ingredients\":\"200 g rice\\n1 lemon\",\"prepMinutes\":20,\"instructions\":\"Cook rice, then add lemon.\"}}],\"truncated\":false,\"coverage\":{\"kind\":\"recipe\",\"id\":null,\"query\":\"lemon rice\",\"match\":\"all search words\",\"searched\":true,\"limit\":20},\"notice\":\"Only matching records of this kind are included; this is not a complete account search.\"}"
+      },
+      {
+        "command": {
+          "type": "life_save",
+          "sourceRecipeId": "d7313c7b-c03a-44f4-b8a8-b77541cbbf98",
+          "data": {
+            "kind": "meal",
+            "title": "Release lemon rice",
+            "date": "2027-01-14",
+            "meal": "Dinner",
+            "ingredients": "200 g rice\n1 lemon",
+            "servings": 4,
+            "groceriesEnabled": true
+          }
+        },
+        "result": "Saved: Release lemon rice. Dinner, 2027-01-14. 4 servings."
+      }
+    ],
+    "issues": [],
+    "before": {
+      "timezone": "America/New_York",
+      "generatedAt": "2026-10-15T19:22:41.957Z",
+      "tasks": [
+        {
+          "id": "13883c93-206c-4487-911b-05f8229f1ed3",
+          "title": "Finish release checklist",
+          "status": "completed",
+          "dueAt": "2027-01-15T22:00:00.000Z",
+          "estimatedMinutes": 15,
+          "startedAt": null,
+          "goalId": null
+        }
+      ],
+      "reminders": [],
+      "calendar": null,
+      "busy": [],
+      "tasksTruncated": false,
+      "goals": [],
+      "goalsTruncated": false,
+      "items": [
+        {
+          "id": "1ec5eb75-21d0-4e6e-8eae-29c4b558a7c1",
+          "version": 1,
+          "data": {
+            "kind": "workout_plan",
+            "title": "Wake-up mobility",
+            "sessions": [
+              {
+                "name": "Morning mobility",
+                "minutes": 20,
+                "exercises": [
+                  {
+                    "dose": "20 minutes",
+                    "name": "Gentle mobility"
+                  }
+                ]
+              }
+            ],
+            "templateId": "release-mobility"
+          }
+        },
+        {
+          "id": "a410fa74-1ded-4a32-8e0a-989995296d3e",
+          "version": 1,
+          "data": {
+            "kind": "grocery",
+            "title": "Rice",
+            "checked": false
+          }
+        },
+        {
+          "id": "6be9c68f-654a-4aa9-902b-a2b38b688ae4",
+          "version": 1,
+          "data": {
+            "date": "2027-01-15",
+            "kind": "meal",
+            "meal": "Lunch",
+            "title": "Rice side",
+            "servings": 1,
+            "ingredients": "100 g rice",
+            "groceriesEnabled": true,
+            "ingredientServings": 1
+          }
+        },
+        {
+          "id": "4b2e3934-060e-417a-8225-bccb00148dde",
+          "version": 1,
+          "data": {
+            "kind": "grocery",
+            "unit": "g",
+            "title": "rice",
+            "checked": false,
+            "quantity": 100,
+            "mealSources": [
+              {
+                "mealId": "6be9c68f-654a-4aa9-902b-a2b38b688ae4",
+                "quantity": 100
+              }
+            ]
+          }
+        },
+        {
+          "id": "d7313c7b-c03a-44f4-b8a8-b77541cbbf98",
+          "version": 1,
+          "data": {
+            "kind": "recipe",
+            "title": "Release lemon rice",
+            "favorite": false,
+            "servings": 2,
+            "ingredients": "200 g rice\n1 lemon",
+            "prepMinutes": 20,
+            "instructions": "Cook rice, then add lemon."
+          }
+        }
+      ],
+      "messages": [],
+      "profile": {
+        "displayName": null,
+        "proactiveOptIn": false,
+        "quietHoursStart": null,
+        "quietHoursEnd": null
+      },
+      "memories": [],
+      "memoriesTruncated": false,
+      "remindersTruncated": false
+    },
+    "after": {
+      "timezone": "America/New_York",
+      "generatedAt": "2026-10-15T19:22:55.819Z",
+      "tasks": [
+        {
+          "id": "13883c93-206c-4487-911b-05f8229f1ed3",
+          "title": "Finish release checklist",
+          "status": "completed",
+          "dueAt": "2027-01-15T22:00:00.000Z",
+          "estimatedMinutes": 15,
+          "startedAt": null,
+          "goalId": null
+        }
+      ],
+      "reminders": [],
+      "calendar": null,
+      "busy": [],
+      "tasksTruncated": false,
+      "goals": [],
+      "goalsTruncated": false,
+      "items": [
+        {
+          "id": "c986cdeb-bece-4044-a033-816d052fad8b",
+          "version": 1,
+          "data": {
+            "date": "2027-01-14",
+            "kind": "meal",
+            "meal": "Dinner",
+            "title": "Release lemon rice",
+            "servings": 4,
+            "ingredients": "200 g rice\n1 lemon",
+            "groceriesEnabled": true,
+            "ingredientServings": 2
+          }
+        },
+        {
+          "id": "514b7438-69a0-4bc6-9644-6175572861f2",
+          "version": 1,
+          "data": {
+            "kind": "grocery",
+            "unit": "piece",
+            "title": "lemon",
+            "checked": false,
+            "quantity": 2,
+            "mealSources": [
+              {
+                "mealId": "c986cdeb-bece-4044-a033-816d052fad8b",
+                "quantity": 2
+              }
+            ]
+          }
+        },
+        {
+          "id": "1ec5eb75-21d0-4e6e-8eae-29c4b558a7c1",
+          "version": 1,
+          "data": {
+            "kind": "workout_plan",
+            "title": "Wake-up mobility",
+            "sessions": [
+              {
+                "name": "Morning mobility",
+                "minutes": 20,
+                "exercises": [
+                  {
+                    "dose": "20 minutes",
+                    "name": "Gentle mobility"
+                  }
+                ]
+              }
+            ],
+            "templateId": "release-mobility"
+          }
+        },
+        {
+          "id": "a410fa74-1ded-4a32-8e0a-989995296d3e",
+          "version": 1,
+          "data": {
+            "kind": "grocery",
+            "title": "Rice",
+            "checked": false
+          }
+        },
+        {
+          "id": "4b2e3934-060e-417a-8225-bccb00148dde",
+          "version": 2,
+          "data": {
+            "kind": "grocery",
+            "unit": "g",
+            "title": "rice",
+            "checked": false,
+            "quantity": 500,
+            "mealSources": [
+              {
+                "mealId": "6be9c68f-654a-4aa9-902b-a2b38b688ae4",
+                "quantity": 100
+              },
+              {
+                "mealId": "c986cdeb-bece-4044-a033-816d052fad8b",
+                "quantity": 400
+              }
+            ]
+          }
+        },
+        {
+          "id": "6be9c68f-654a-4aa9-902b-a2b38b688ae4",
+          "version": 1,
+          "data": {
+            "date": "2027-01-15",
+            "kind": "meal",
+            "meal": "Lunch",
+            "title": "Rice side",
+            "servings": 1,
+            "ingredients": "100 g rice",
+            "groceriesEnabled": true,
+            "ingredientServings": 1
+          }
+        },
+        {
+          "id": "d7313c7b-c03a-44f4-b8a8-b77541cbbf98",
+          "version": 1,
+          "data": {
+            "kind": "recipe",
+            "title": "Release lemon rice",
+            "favorite": false,
+            "servings": 2,
+            "ingredients": "200 g rice\n1 lemon",
+            "prepMinutes": 20,
+            "instructions": "Cook rice, then add lemon."
+          }
+        }
+      ],
+      "messages": [
+        {
+          "id": "c986cdeb-bece-4044-a033-816d052fad8b",
+          "body": "Plan my saved Release lemon rice for dinner on January 14, 2027, for four servings.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.001Z"
+        },
+        {
+          "id": "97103fd6-f304-440a-977a-9fc3af1ae8cc",
+          "body": "Saved: Release lemon rice. Dinner, 2027-01-14. 4 servings.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.002Z"
+        }
+      ],
+      "profile": {
+        "displayName": null,
+        "proactiveOptIn": false,
+        "quietHoursStart": null,
+        "quietHoursEnd": null
+      },
+      "memories": [],
+      "memoriesTruncated": false,
+      "remindersTruncated": false
+    },
+    "reminders": []
+  },
+  {
+    "decisionAt": "2027-01-14T15:00:00.003Z",
+    "input": "Make that January 14 dinner six servings. Keep its recipe ingredients and date.",
+    "replies": [
+      "Updated: Release lemon rice. Dinner, 2027-01-14. 6 servings."
+    ],
+    "providerId": "f614a3e0-623e-4518-b76f-d906bebe6196",
+    "duplicate": false,
+    "parserCalled": true,
+    "tools": [
+      "life_list",
+      "life_patch"
+    ],
+    "elapsedMs": 8104,
+    "channel": "web",
+    "toolTrace": [
+      {
+        "command": {
+          "type": "life_list",
+          "kind": "meal",
+          "query": "lemon rice dinner January 14 2027"
+        },
+        "result": "{\"items\":[{\"id\":\"c986cdeb-bece-4044-a033-816d052fad8b\",\"version\":1,\"data\":{\"date\":\"2027-01-14\",\"kind\":\"meal\",\"meal\":\"Dinner\",\"title\":\"Release lemon rice\",\"servings\":4,\"ingredients\":\"200 g rice\\n1 lemon\",\"groceriesEnabled\":true,\"ingredientServings\":2}},{\"id\":\"6be9c68f-654a-4aa9-902b-a2b38b688ae4\",\"version\":1,\"data\":{\"date\":\"2027-01-15\",\"kind\":\"meal\",\"meal\":\"Lunch\",\"title\":\"Rice side\",\"servings\":1,\"ingredients\":\"100 g rice\",\"groceriesEnabled\":true,\"ingredientServings\":1}}],\"truncated\":false,\"coverage\":{\"kind\":\"meal\",\"id\":null,\"query\":\"lemon rice dinner January 14 2027\",\"match\":\"partial title candidates\",\"searched\":true,\"limit\":20},\"notice\":\"No record matched every search word. These are partial title candidates only. Verify their date, meal and other requested details before selecting; ask which one if ambiguous.\"}"
+      },
+      {
+        "command": {
+          "type": "life_patch",
+          "id": "c986cdeb-bece-4044-a033-816d052fad8b",
+          "version": 1,
+          "patch": {
+            "kind": "meal",
+            "servings": 6
+          }
+        },
+        "result": "Updated: Release lemon rice. Dinner, 2027-01-14. 6 servings."
+      }
+    ],
+    "issues": [],
+    "before": {
+      "timezone": "America/New_York",
+      "generatedAt": "2026-10-15T19:22:55.866Z",
+      "tasks": [
+        {
+          "id": "13883c93-206c-4487-911b-05f8229f1ed3",
+          "title": "Finish release checklist",
+          "status": "completed",
+          "dueAt": "2027-01-15T22:00:00.000Z",
+          "estimatedMinutes": 15,
+          "startedAt": null,
+          "goalId": null
+        }
+      ],
+      "reminders": [],
+      "calendar": null,
+      "busy": [],
+      "tasksTruncated": false,
+      "goals": [],
+      "goalsTruncated": false,
+      "items": [
+        {
+          "id": "c986cdeb-bece-4044-a033-816d052fad8b",
+          "version": 1,
+          "data": {
+            "date": "2027-01-14",
+            "kind": "meal",
+            "meal": "Dinner",
+            "title": "Release lemon rice",
+            "servings": 4,
+            "ingredients": "200 g rice\n1 lemon",
+            "groceriesEnabled": true,
+            "ingredientServings": 2
+          }
+        },
+        {
+          "id": "514b7438-69a0-4bc6-9644-6175572861f2",
+          "version": 1,
+          "data": {
+            "kind": "grocery",
+            "unit": "piece",
+            "title": "lemon",
+            "checked": false,
+            "quantity": 2,
+            "mealSources": [
+              {
+                "mealId": "c986cdeb-bece-4044-a033-816d052fad8b",
+                "quantity": 2
+              }
+            ]
+          }
+        },
+        {
+          "id": "1ec5eb75-21d0-4e6e-8eae-29c4b558a7c1",
+          "version": 1,
+          "data": {
+            "kind": "workout_plan",
+            "title": "Wake-up mobility",
+            "sessions": [
+              {
+                "name": "Morning mobility",
+                "minutes": 20,
+                "exercises": [
+                  {
+                    "dose": "20 minutes",
+                    "name": "Gentle mobility"
+                  }
+                ]
+              }
+            ],
+            "templateId": "release-mobility"
+          }
+        },
+        {
+          "id": "a410fa74-1ded-4a32-8e0a-989995296d3e",
+          "version": 1,
+          "data": {
+            "kind": "grocery",
+            "title": "Rice",
+            "checked": false
+          }
+        },
+        {
+          "id": "4b2e3934-060e-417a-8225-bccb00148dde",
+          "version": 2,
+          "data": {
+            "kind": "grocery",
+            "unit": "g",
+            "title": "rice",
+            "checked": false,
+            "quantity": 500,
+            "mealSources": [
+              {
+                "mealId": "6be9c68f-654a-4aa9-902b-a2b38b688ae4",
+                "quantity": 100
+              },
+              {
+                "mealId": "c986cdeb-bece-4044-a033-816d052fad8b",
+                "quantity": 400
+              }
+            ]
+          }
+        },
+        {
+          "id": "6be9c68f-654a-4aa9-902b-a2b38b688ae4",
+          "version": 1,
+          "data": {
+            "date": "2027-01-15",
+            "kind": "meal",
+            "meal": "Lunch",
+            "title": "Rice side",
+            "servings": 1,
+            "ingredients": "100 g rice",
+            "groceriesEnabled": true,
+            "ingredientServings": 1
+          }
+        },
+        {
+          "id": "d7313c7b-c03a-44f4-b8a8-b77541cbbf98",
+          "version": 1,
+          "data": {
+            "kind": "recipe",
+            "title": "Release lemon rice",
+            "favorite": false,
+            "servings": 2,
+            "ingredients": "200 g rice\n1 lemon",
+            "prepMinutes": 20,
+            "instructions": "Cook rice, then add lemon."
+          }
+        }
+      ],
+      "messages": [
+        {
+          "id": "c986cdeb-bece-4044-a033-816d052fad8b",
+          "body": "Plan my saved Release lemon rice for dinner on January 14, 2027, for four servings.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.001Z"
+        },
+        {
+          "id": "97103fd6-f304-440a-977a-9fc3af1ae8cc",
+          "body": "Saved: Release lemon rice. Dinner, 2027-01-14. 4 servings.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.002Z"
+        }
+      ],
+      "profile": {
+        "displayName": null,
+        "proactiveOptIn": false,
+        "quietHoursStart": null,
+        "quietHoursEnd": null
+      },
+      "memories": [],
+      "memoriesTruncated": false,
+      "remindersTruncated": false
+    },
+    "after": {
+      "timezone": "America/New_York",
+      "generatedAt": "2026-10-15T19:23:03.991Z",
+      "tasks": [
+        {
+          "id": "13883c93-206c-4487-911b-05f8229f1ed3",
+          "title": "Finish release checklist",
+          "status": "completed",
+          "dueAt": "2027-01-15T22:00:00.000Z",
+          "estimatedMinutes": 15,
+          "startedAt": null,
+          "goalId": null
+        }
+      ],
+      "reminders": [],
+      "calendar": null,
+      "busy": [],
+      "tasksTruncated": false,
+      "goals": [],
+      "goalsTruncated": false,
+      "items": [
+        {
+          "id": "c986cdeb-bece-4044-a033-816d052fad8b",
+          "version": 2,
+          "data": {
+            "date": "2027-01-14",
+            "kind": "meal",
+            "meal": "Dinner",
+            "title": "Release lemon rice",
+            "servings": 6,
+            "ingredients": "200 g rice\n1 lemon",
+            "groceriesEnabled": true,
+            "ingredientServings": 2
+          }
+        },
+        {
+          "id": "514b7438-69a0-4bc6-9644-6175572861f2",
+          "version": 2,
+          "data": {
+            "kind": "grocery",
+            "unit": "piece",
+            "title": "lemon",
+            "checked": false,
+            "quantity": 3,
+            "mealSources": [
+              {
+                "mealId": "c986cdeb-bece-4044-a033-816d052fad8b",
+                "quantity": 3
+              }
+            ]
+          }
+        },
+        {
+          "id": "1ec5eb75-21d0-4e6e-8eae-29c4b558a7c1",
+          "version": 1,
+          "data": {
+            "kind": "workout_plan",
+            "title": "Wake-up mobility",
+            "sessions": [
+              {
+                "name": "Morning mobility",
+                "minutes": 20,
+                "exercises": [
+                  {
+                    "dose": "20 minutes",
+                    "name": "Gentle mobility"
+                  }
+                ]
+              }
+            ],
+            "templateId": "release-mobility"
+          }
+        },
+        {
+          "id": "a410fa74-1ded-4a32-8e0a-989995296d3e",
+          "version": 1,
+          "data": {
+            "kind": "grocery",
+            "title": "Rice",
+            "checked": false
+          }
+        },
+        {
+          "id": "4b2e3934-060e-417a-8225-bccb00148dde",
+          "version": 3,
+          "data": {
+            "kind": "grocery",
+            "unit": "g",
+            "title": "rice",
+            "checked": false,
+            "quantity": 700,
+            "mealSources": [
+              {
+                "mealId": "6be9c68f-654a-4aa9-902b-a2b38b688ae4",
+                "quantity": 100
+              },
+              {
+                "mealId": "c986cdeb-bece-4044-a033-816d052fad8b",
+                "quantity": 600
+              }
+            ]
+          }
+        },
+        {
+          "id": "6be9c68f-654a-4aa9-902b-a2b38b688ae4",
+          "version": 1,
+          "data": {
+            "date": "2027-01-15",
+            "kind": "meal",
+            "meal": "Lunch",
+            "title": "Rice side",
+            "servings": 1,
+            "ingredients": "100 g rice",
+            "groceriesEnabled": true,
+            "ingredientServings": 1
+          }
+        },
+        {
+          "id": "d7313c7b-c03a-44f4-b8a8-b77541cbbf98",
+          "version": 1,
+          "data": {
+            "kind": "recipe",
+            "title": "Release lemon rice",
+            "favorite": false,
+            "servings": 2,
+            "ingredients": "200 g rice\n1 lemon",
+            "prepMinutes": 20,
+            "instructions": "Cook rice, then add lemon."
+          }
+        }
+      ],
+      "messages": [
+        {
+          "id": "c986cdeb-bece-4044-a033-816d052fad8b",
+          "body": "Plan my saved Release lemon rice for dinner on January 14, 2027, for four servings.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.001Z"
+        },
+        {
+          "id": "97103fd6-f304-440a-977a-9fc3af1ae8cc",
+          "body": "Saved: Release lemon rice. Dinner, 2027-01-14. 4 servings.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.002Z"
+        },
+        {
+          "id": "bd11f93d-fdac-47f7-a714-5f00a096658b",
+          "body": "Make that January 14 dinner six servings. Keep its recipe ingredients and date.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.003Z"
+        },
+        {
+          "id": "224a8863-59c2-4f66-980f-393e2960787e",
+          "body": "Updated: Release lemon rice. Dinner, 2027-01-14. 6 servings.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.004Z"
+        }
+      ],
+      "profile": {
+        "displayName": null,
+        "proactiveOptIn": false,
+        "quietHoursStart": null,
+        "quietHoursEnd": null
+      },
+      "memories": [],
+      "memoriesTruncated": false,
+      "remindersTruncated": false
+    },
+    "reminders": []
+  },
+  {
+    "decisionAt": "2027-01-14T15:00:00.005Z",
+    "input": "Save rice as pantry stock. I don't know how much I have.",
+    "replies": [
+      "Saved: Rice."
+    ],
+    "providerId": "d2da1f1d-e1b8-4326-b344-e1d0447f5762",
+    "duplicate": false,
+    "parserCalled": true,
+    "tools": [
+      "life_save"
+    ],
+    "elapsedMs": 5988,
+    "channel": "sms",
+    "toolTrace": [
+      {
+        "command": {
+          "type": "life_save",
+          "data": {
+            "kind": "pantry",
+            "title": "Rice"
+          }
+        },
+        "result": "Saved: Rice."
+      }
+    ],
+    "issues": [],
+    "before": {
+      "timezone": "America/New_York",
+      "generatedAt": "2026-10-15T19:23:04.055Z",
+      "tasks": [
+        {
+          "id": "13883c93-206c-4487-911b-05f8229f1ed3",
+          "title": "Finish release checklist",
+          "status": "completed",
+          "dueAt": "2027-01-15T22:00:00.000Z",
+          "estimatedMinutes": 15,
+          "startedAt": null,
+          "goalId": null
+        }
+      ],
+      "reminders": [],
+      "calendar": null,
+      "busy": [],
+      "tasksTruncated": false,
+      "goals": [],
+      "goalsTruncated": false,
+      "items": [
+        {
+          "id": "c986cdeb-bece-4044-a033-816d052fad8b",
+          "version": 2,
+          "data": {
+            "date": "2027-01-14",
+            "kind": "meal",
+            "meal": "Dinner",
+            "title": "Release lemon rice",
+            "servings": 6,
+            "ingredients": "200 g rice\n1 lemon",
+            "groceriesEnabled": true,
+            "ingredientServings": 2
+          }
+        },
+        {
+          "id": "514b7438-69a0-4bc6-9644-6175572861f2",
+          "version": 2,
+          "data": {
+            "kind": "grocery",
+            "unit": "piece",
+            "title": "lemon",
+            "checked": false,
+            "quantity": 3,
+            "mealSources": [
+              {
+                "mealId": "c986cdeb-bece-4044-a033-816d052fad8b",
+                "quantity": 3
+              }
+            ]
+          }
+        },
+        {
+          "id": "1ec5eb75-21d0-4e6e-8eae-29c4b558a7c1",
+          "version": 1,
+          "data": {
+            "kind": "workout_plan",
+            "title": "Wake-up mobility",
+            "sessions": [
+              {
+                "name": "Morning mobility",
+                "minutes": 20,
+                "exercises": [
+                  {
+                    "dose": "20 minutes",
+                    "name": "Gentle mobility"
+                  }
+                ]
+              }
+            ],
+            "templateId": "release-mobility"
+          }
+        },
+        {
+          "id": "a410fa74-1ded-4a32-8e0a-989995296d3e",
+          "version": 1,
+          "data": {
+            "kind": "grocery",
+            "title": "Rice",
+            "checked": false
+          }
+        },
+        {
+          "id": "4b2e3934-060e-417a-8225-bccb00148dde",
+          "version": 3,
+          "data": {
+            "kind": "grocery",
+            "unit": "g",
+            "title": "rice",
+            "checked": false,
+            "quantity": 700,
+            "mealSources": [
+              {
+                "mealId": "6be9c68f-654a-4aa9-902b-a2b38b688ae4",
+                "quantity": 100
+              },
+              {
+                "mealId": "c986cdeb-bece-4044-a033-816d052fad8b",
+                "quantity": 600
+              }
+            ]
+          }
+        },
+        {
+          "id": "6be9c68f-654a-4aa9-902b-a2b38b688ae4",
+          "version": 1,
+          "data": {
+            "date": "2027-01-15",
+            "kind": "meal",
+            "meal": "Lunch",
+            "title": "Rice side",
+            "servings": 1,
+            "ingredients": "100 g rice",
+            "groceriesEnabled": true,
+            "ingredientServings": 1
+          }
+        },
+        {
+          "id": "d7313c7b-c03a-44f4-b8a8-b77541cbbf98",
+          "version": 1,
+          "data": {
+            "kind": "recipe",
+            "title": "Release lemon rice",
+            "favorite": false,
+            "servings": 2,
+            "ingredients": "200 g rice\n1 lemon",
+            "prepMinutes": 20,
+            "instructions": "Cook rice, then add lemon."
+          }
+        }
+      ],
+      "messages": [
+        {
+          "id": "c986cdeb-bece-4044-a033-816d052fad8b",
+          "body": "Plan my saved Release lemon rice for dinner on January 14, 2027, for four servings.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.001Z"
+        },
+        {
+          "id": "97103fd6-f304-440a-977a-9fc3af1ae8cc",
+          "body": "Saved: Release lemon rice. Dinner, 2027-01-14. 4 servings.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.002Z"
+        },
+        {
+          "id": "bd11f93d-fdac-47f7-a714-5f00a096658b",
+          "body": "Make that January 14 dinner six servings. Keep its recipe ingredients and date.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.003Z"
+        },
+        {
+          "id": "224a8863-59c2-4f66-980f-393e2960787e",
+          "body": "Updated: Release lemon rice. Dinner, 2027-01-14. 6 servings.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.004Z"
+        }
+      ],
+      "profile": {
+        "displayName": null,
+        "proactiveOptIn": false,
+        "quietHoursStart": null,
+        "quietHoursEnd": null
+      },
+      "memories": [],
+      "memoriesTruncated": false,
+      "remindersTruncated": false
+    },
+    "after": {
+      "timezone": "America/New_York",
+      "generatedAt": "2026-10-15T19:23:10.069Z",
+      "tasks": [
+        {
+          "id": "13883c93-206c-4487-911b-05f8229f1ed3",
+          "title": "Finish release checklist",
+          "status": "completed",
+          "dueAt": "2027-01-15T22:00:00.000Z",
+          "estimatedMinutes": 15,
+          "startedAt": null,
+          "goalId": null
+        }
+      ],
+      "reminders": [],
+      "calendar": null,
+      "busy": [],
+      "tasksTruncated": false,
+      "goals": [],
+      "goalsTruncated": false,
+      "items": [
+        {
+          "id": "31340822-c413-4776-aced-bc2b498e01c1",
+          "version": 1,
+          "data": {
+            "kind": "pantry",
+            "title": "Rice"
+          }
+        },
+        {
+          "id": "c986cdeb-bece-4044-a033-816d052fad8b",
+          "version": 2,
+          "data": {
+            "date": "2027-01-14",
+            "kind": "meal",
+            "meal": "Dinner",
+            "title": "Release lemon rice",
+            "servings": 6,
+            "ingredients": "200 g rice\n1 lemon",
+            "groceriesEnabled": true,
+            "ingredientServings": 2
+          }
+        },
+        {
+          "id": "514b7438-69a0-4bc6-9644-6175572861f2",
+          "version": 2,
+          "data": {
+            "kind": "grocery",
+            "unit": "piece",
+            "title": "lemon",
+            "checked": false,
+            "quantity": 3,
+            "mealSources": [
+              {
+                "mealId": "c986cdeb-bece-4044-a033-816d052fad8b",
+                "quantity": 3
+              }
+            ]
+          }
+        },
+        {
+          "id": "1ec5eb75-21d0-4e6e-8eae-29c4b558a7c1",
+          "version": 1,
+          "data": {
+            "kind": "workout_plan",
+            "title": "Wake-up mobility",
+            "sessions": [
+              {
+                "name": "Morning mobility",
+                "minutes": 20,
+                "exercises": [
+                  {
+                    "dose": "20 minutes",
+                    "name": "Gentle mobility"
+                  }
+                ]
+              }
+            ],
+            "templateId": "release-mobility"
+          }
+        },
+        {
+          "id": "a410fa74-1ded-4a32-8e0a-989995296d3e",
+          "version": 1,
+          "data": {
+            "kind": "grocery",
+            "title": "Rice",
+            "checked": false
+          }
+        },
+        {
+          "id": "4b2e3934-060e-417a-8225-bccb00148dde",
+          "version": 3,
+          "data": {
+            "kind": "grocery",
+            "unit": "g",
+            "title": "rice",
+            "checked": false,
+            "quantity": 700,
+            "mealSources": [
+              {
+                "mealId": "6be9c68f-654a-4aa9-902b-a2b38b688ae4",
+                "quantity": 100
+              },
+              {
+                "mealId": "c986cdeb-bece-4044-a033-816d052fad8b",
+                "quantity": 600
+              }
+            ]
+          }
+        },
+        {
+          "id": "6be9c68f-654a-4aa9-902b-a2b38b688ae4",
+          "version": 1,
+          "data": {
+            "date": "2027-01-15",
+            "kind": "meal",
+            "meal": "Lunch",
+            "title": "Rice side",
+            "servings": 1,
+            "ingredients": "100 g rice",
+            "groceriesEnabled": true,
+            "ingredientServings": 1
+          }
+        },
+        {
+          "id": "d7313c7b-c03a-44f4-b8a8-b77541cbbf98",
+          "version": 1,
+          "data": {
+            "kind": "recipe",
+            "title": "Release lemon rice",
+            "favorite": false,
+            "servings": 2,
+            "ingredients": "200 g rice\n1 lemon",
+            "prepMinutes": 20,
+            "instructions": "Cook rice, then add lemon."
+          }
+        }
+      ],
+      "messages": [
+        {
+          "id": "c986cdeb-bece-4044-a033-816d052fad8b",
+          "body": "Plan my saved Release lemon rice for dinner on January 14, 2027, for four servings.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.001Z"
+        },
+        {
+          "id": "97103fd6-f304-440a-977a-9fc3af1ae8cc",
+          "body": "Saved: Release lemon rice. Dinner, 2027-01-14. 4 servings.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.002Z"
+        },
+        {
+          "id": "bd11f93d-fdac-47f7-a714-5f00a096658b",
+          "body": "Make that January 14 dinner six servings. Keep its recipe ingredients and date.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.003Z"
+        },
+        {
+          "id": "224a8863-59c2-4f66-980f-393e2960787e",
+          "body": "Updated: Release lemon rice. Dinner, 2027-01-14. 6 servings.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.004Z"
+        },
+        {
+          "id": "31340822-c413-4776-aced-bc2b498e01c1",
+          "body": "Save rice as pantry stock. I don't know how much I have.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.005Z"
+        },
+        {
+          "id": "0b4b9860-7faf-47da-a3ae-1f24a76e3347",
+          "body": "Saved: Rice.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.006Z"
+        }
+      ],
+      "profile": {
+        "displayName": null,
+        "proactiveOptIn": false,
+        "quietHoursStart": null,
+        "quietHoursEnd": null
+      },
+      "memories": [],
+      "memoriesTruncated": false,
+      "remindersTruncated": false
+    },
+    "reminders": []
+  },
+  {
+    "decisionAt": "2027-01-14T15:00:00.007Z",
+    "input": "Add tea to my shopping list.",
+    "replies": [
+      "Added to your shopping list: tea."
+    ],
+    "providerId": "daaf7d86-55af-437e-86f0-fecf27dad61c",
+    "duplicate": false,
+    "parserCalled": true,
+    "tools": [
+      "grocery_add"
+    ],
+    "elapsedMs": 5415,
+    "channel": "web",
+    "toolTrace": [
+      {
+        "command": {
+          "type": "grocery_add",
+          "items": [
+            "tea"
+          ]
+        },
+        "result": "Added to your shopping list: tea."
+      }
+    ],
+    "issues": [],
+    "before": {
+      "timezone": "America/New_York",
+      "generatedAt": "2026-10-15T19:23:10.111Z",
+      "tasks": [
+        {
+          "id": "13883c93-206c-4487-911b-05f8229f1ed3",
+          "title": "Finish release checklist",
+          "status": "completed",
+          "dueAt": "2027-01-15T22:00:00.000Z",
+          "estimatedMinutes": 15,
+          "startedAt": null,
+          "goalId": null
+        }
+      ],
+      "reminders": [],
+      "calendar": null,
+      "busy": [],
+      "tasksTruncated": false,
+      "goals": [],
+      "goalsTruncated": false,
+      "items": [
+        {
+          "id": "31340822-c413-4776-aced-bc2b498e01c1",
+          "version": 1,
+          "data": {
+            "kind": "pantry",
+            "title": "Rice"
+          }
+        },
+        {
+          "id": "c986cdeb-bece-4044-a033-816d052fad8b",
+          "version": 2,
+          "data": {
+            "date": "2027-01-14",
+            "kind": "meal",
+            "meal": "Dinner",
+            "title": "Release lemon rice",
+            "servings": 6,
+            "ingredients": "200 g rice\n1 lemon",
+            "groceriesEnabled": true,
+            "ingredientServings": 2
+          }
+        },
+        {
+          "id": "514b7438-69a0-4bc6-9644-6175572861f2",
+          "version": 2,
+          "data": {
+            "kind": "grocery",
+            "unit": "piece",
+            "title": "lemon",
+            "checked": false,
+            "quantity": 3,
+            "mealSources": [
+              {
+                "mealId": "c986cdeb-bece-4044-a033-816d052fad8b",
+                "quantity": 3
+              }
+            ]
+          }
+        },
+        {
+          "id": "1ec5eb75-21d0-4e6e-8eae-29c4b558a7c1",
+          "version": 1,
+          "data": {
+            "kind": "workout_plan",
+            "title": "Wake-up mobility",
+            "sessions": [
+              {
+                "name": "Morning mobility",
+                "minutes": 20,
+                "exercises": [
+                  {
+                    "dose": "20 minutes",
+                    "name": "Gentle mobility"
+                  }
+                ]
+              }
+            ],
+            "templateId": "release-mobility"
+          }
+        },
+        {
+          "id": "a410fa74-1ded-4a32-8e0a-989995296d3e",
+          "version": 1,
+          "data": {
+            "kind": "grocery",
+            "title": "Rice",
+            "checked": false
+          }
+        },
+        {
+          "id": "4b2e3934-060e-417a-8225-bccb00148dde",
+          "version": 3,
+          "data": {
+            "kind": "grocery",
+            "unit": "g",
+            "title": "rice",
+            "checked": false,
+            "quantity": 700,
+            "mealSources": [
+              {
+                "mealId": "6be9c68f-654a-4aa9-902b-a2b38b688ae4",
+                "quantity": 100
+              },
+              {
+                "mealId": "c986cdeb-bece-4044-a033-816d052fad8b",
+                "quantity": 600
+              }
+            ]
+          }
+        },
+        {
+          "id": "6be9c68f-654a-4aa9-902b-a2b38b688ae4",
+          "version": 1,
+          "data": {
+            "date": "2027-01-15",
+            "kind": "meal",
+            "meal": "Lunch",
+            "title": "Rice side",
+            "servings": 1,
+            "ingredients": "100 g rice",
+            "groceriesEnabled": true,
+            "ingredientServings": 1
+          }
+        },
+        {
+          "id": "d7313c7b-c03a-44f4-b8a8-b77541cbbf98",
+          "version": 1,
+          "data": {
+            "kind": "recipe",
+            "title": "Release lemon rice",
+            "favorite": false,
+            "servings": 2,
+            "ingredients": "200 g rice\n1 lemon",
+            "prepMinutes": 20,
+            "instructions": "Cook rice, then add lemon."
+          }
+        }
+      ],
+      "messages": [
+        {
+          "id": "c986cdeb-bece-4044-a033-816d052fad8b",
+          "body": "Plan my saved Release lemon rice for dinner on January 14, 2027, for four servings.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.001Z"
+        },
+        {
+          "id": "97103fd6-f304-440a-977a-9fc3af1ae8cc",
+          "body": "Saved: Release lemon rice. Dinner, 2027-01-14. 4 servings.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.002Z"
+        },
+        {
+          "id": "bd11f93d-fdac-47f7-a714-5f00a096658b",
+          "body": "Make that January 14 dinner six servings. Keep its recipe ingredients and date.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.003Z"
+        },
+        {
+          "id": "224a8863-59c2-4f66-980f-393e2960787e",
+          "body": "Updated: Release lemon rice. Dinner, 2027-01-14. 6 servings.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.004Z"
+        },
+        {
+          "id": "31340822-c413-4776-aced-bc2b498e01c1",
+          "body": "Save rice as pantry stock. I don't know how much I have.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.005Z"
+        },
+        {
+          "id": "0b4b9860-7faf-47da-a3ae-1f24a76e3347",
+          "body": "Saved: Rice.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.006Z"
+        }
+      ],
+      "profile": {
+        "displayName": null,
+        "proactiveOptIn": false,
+        "quietHoursStart": null,
+        "quietHoursEnd": null
+      },
+      "memories": [],
+      "memoriesTruncated": false,
+      "remindersTruncated": false
+    },
+    "after": {
+      "timezone": "America/New_York",
+      "generatedAt": "2026-10-15T19:23:15.545Z",
+      "tasks": [
+        {
+          "id": "13883c93-206c-4487-911b-05f8229f1ed3",
+          "title": "Finish release checklist",
+          "status": "completed",
+          "dueAt": "2027-01-15T22:00:00.000Z",
+          "estimatedMinutes": 15,
+          "startedAt": null,
+          "goalId": null
+        }
+      ],
+      "reminders": [],
+      "calendar": null,
+      "busy": [],
+      "tasksTruncated": false,
+      "goals": [],
+      "goalsTruncated": false,
+      "items": [
+        {
+          "id": "66a92cac-5f95-437d-9419-3e25daba439e",
+          "version": 1,
+          "data": {
+            "kind": "grocery",
+            "title": "tea",
+            "checked": false
+          }
+        },
+        {
+          "id": "31340822-c413-4776-aced-bc2b498e01c1",
+          "version": 1,
+          "data": {
+            "kind": "pantry",
+            "title": "Rice"
+          }
+        },
+        {
+          "id": "c986cdeb-bece-4044-a033-816d052fad8b",
+          "version": 2,
+          "data": {
+            "date": "2027-01-14",
+            "kind": "meal",
+            "meal": "Dinner",
+            "title": "Release lemon rice",
+            "servings": 6,
+            "ingredients": "200 g rice\n1 lemon",
+            "groceriesEnabled": true,
+            "ingredientServings": 2
+          }
+        },
+        {
+          "id": "514b7438-69a0-4bc6-9644-6175572861f2",
+          "version": 2,
+          "data": {
+            "kind": "grocery",
+            "unit": "piece",
+            "title": "lemon",
+            "checked": false,
+            "quantity": 3,
+            "mealSources": [
+              {
+                "mealId": "c986cdeb-bece-4044-a033-816d052fad8b",
+                "quantity": 3
+              }
+            ]
+          }
+        },
+        {
+          "id": "1ec5eb75-21d0-4e6e-8eae-29c4b558a7c1",
+          "version": 1,
+          "data": {
+            "kind": "workout_plan",
+            "title": "Wake-up mobility",
+            "sessions": [
+              {
+                "name": "Morning mobility",
+                "minutes": 20,
+                "exercises": [
+                  {
+                    "dose": "20 minutes",
+                    "name": "Gentle mobility"
+                  }
+                ]
+              }
+            ],
+            "templateId": "release-mobility"
+          }
+        },
+        {
+          "id": "a410fa74-1ded-4a32-8e0a-989995296d3e",
+          "version": 1,
+          "data": {
+            "kind": "grocery",
+            "title": "Rice",
+            "checked": false
+          }
+        },
+        {
+          "id": "4b2e3934-060e-417a-8225-bccb00148dde",
+          "version": 3,
+          "data": {
+            "kind": "grocery",
+            "unit": "g",
+            "title": "rice",
+            "checked": false,
+            "quantity": 700,
+            "mealSources": [
+              {
+                "mealId": "6be9c68f-654a-4aa9-902b-a2b38b688ae4",
+                "quantity": 100
+              },
+              {
+                "mealId": "c986cdeb-bece-4044-a033-816d052fad8b",
+                "quantity": 600
+              }
+            ]
+          }
+        },
+        {
+          "id": "6be9c68f-654a-4aa9-902b-a2b38b688ae4",
+          "version": 1,
+          "data": {
+            "date": "2027-01-15",
+            "kind": "meal",
+            "meal": "Lunch",
+            "title": "Rice side",
+            "servings": 1,
+            "ingredients": "100 g rice",
+            "groceriesEnabled": true,
+            "ingredientServings": 1
+          }
+        },
+        {
+          "id": "d7313c7b-c03a-44f4-b8a8-b77541cbbf98",
+          "version": 1,
+          "data": {
+            "kind": "recipe",
+            "title": "Release lemon rice",
+            "favorite": false,
+            "servings": 2,
+            "ingredients": "200 g rice\n1 lemon",
+            "prepMinutes": 20,
+            "instructions": "Cook rice, then add lemon."
+          }
+        }
+      ],
+      "messages": [
+        {
+          "id": "c986cdeb-bece-4044-a033-816d052fad8b",
+          "body": "Plan my saved Release lemon rice for dinner on January 14, 2027, for four servings.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.001Z"
+        },
+        {
+          "id": "97103fd6-f304-440a-977a-9fc3af1ae8cc",
+          "body": "Saved: Release lemon rice. Dinner, 2027-01-14. 4 servings.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.002Z"
+        },
+        {
+          "id": "bd11f93d-fdac-47f7-a714-5f00a096658b",
+          "body": "Make that January 14 dinner six servings. Keep its recipe ingredients and date.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.003Z"
+        },
+        {
+          "id": "224a8863-59c2-4f66-980f-393e2960787e",
+          "body": "Updated: Release lemon rice. Dinner, 2027-01-14. 6 servings.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.004Z"
+        },
+        {
+          "id": "31340822-c413-4776-aced-bc2b498e01c1",
+          "body": "Save rice as pantry stock. I don't know how much I have.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.005Z"
+        },
+        {
+          "id": "0b4b9860-7faf-47da-a3ae-1f24a76e3347",
+          "body": "Saved: Rice.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.006Z"
+        },
+        {
+          "id": "de060e8b-4756-4d47-8750-aaf430c8a29b",
+          "body": "Add tea to my shopping list.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.007Z"
+        },
+        {
+          "id": "1e4c5a4c-638d-400c-ad50-723306c2391e",
+          "body": "Added to your shopping list: tea.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.008Z"
+        }
+      ],
+      "profile": {
+        "displayName": null,
+        "proactiveOptIn": false,
+        "quietHoursStart": null,
+        "quietHoursEnd": null
+      },
+      "memories": [],
+      "memoriesTruncated": false,
+      "remindersTruncated": false
+    },
+    "reminders": []
+  },
+  {
+    "decisionAt": "2027-01-14T15:00:00.009Z",
+    "input": "Update that pantry rice to exactly 50 grams.",
+    "replies": [
+      "Updated: Rice."
+    ],
+    "providerId": "937adc1f-27e5-4094-83fe-aa5d1010e2fe",
+    "duplicate": false,
+    "parserCalled": true,
+    "tools": [
+      "life_list",
+      "life_patch"
+    ],
+    "elapsedMs": 9515,
+    "channel": "sms",
+    "toolTrace": [
+      {
+        "command": {
+          "type": "life_list",
+          "kind": "pantry",
+          "query": "rice"
+        },
+        "result": "{\"items\":[{\"id\":\"31340822-c413-4776-aced-bc2b498e01c1\",\"version\":1,\"data\":{\"kind\":\"pantry\",\"title\":\"Rice\"}}],\"truncated\":false,\"coverage\":{\"kind\":\"pantry\",\"id\":null,\"query\":\"rice\",\"match\":\"all search words\",\"searched\":true,\"limit\":20},\"notice\":\"Only matching records of this kind are included; this is not a complete account search.\"}"
+      },
+      {
+        "command": {
+          "type": "life_patch",
+          "id": "31340822-c413-4776-aced-bc2b498e01c1",
+          "version": 1,
+          "patch": {
+            "kind": "pantry",
+            "quantity": 50,
+            "unit": "g"
+          }
+        },
+        "result": "Updated: Rice."
+      }
+    ],
+    "issues": [],
+    "before": {
+      "timezone": "America/New_York",
+      "generatedAt": "2026-10-15T19:23:15.605Z",
+      "tasks": [
+        {
+          "id": "13883c93-206c-4487-911b-05f8229f1ed3",
+          "title": "Finish release checklist",
+          "status": "completed",
+          "dueAt": "2027-01-15T22:00:00.000Z",
+          "estimatedMinutes": 15,
+          "startedAt": null,
+          "goalId": null
+        }
+      ],
+      "reminders": [],
+      "calendar": null,
+      "busy": [],
+      "tasksTruncated": false,
+      "goals": [],
+      "goalsTruncated": false,
+      "items": [
+        {
+          "id": "66a92cac-5f95-437d-9419-3e25daba439e",
+          "version": 1,
+          "data": {
+            "kind": "grocery",
+            "title": "tea",
+            "checked": false
+          }
+        },
+        {
+          "id": "31340822-c413-4776-aced-bc2b498e01c1",
+          "version": 1,
+          "data": {
+            "kind": "pantry",
+            "title": "Rice"
+          }
+        },
+        {
+          "id": "c986cdeb-bece-4044-a033-816d052fad8b",
+          "version": 2,
+          "data": {
+            "date": "2027-01-14",
+            "kind": "meal",
+            "meal": "Dinner",
+            "title": "Release lemon rice",
+            "servings": 6,
+            "ingredients": "200 g rice\n1 lemon",
+            "groceriesEnabled": true,
+            "ingredientServings": 2
+          }
+        },
+        {
+          "id": "514b7438-69a0-4bc6-9644-6175572861f2",
+          "version": 2,
+          "data": {
+            "kind": "grocery",
+            "unit": "piece",
+            "title": "lemon",
+            "checked": false,
+            "quantity": 3,
+            "mealSources": [
+              {
+                "mealId": "c986cdeb-bece-4044-a033-816d052fad8b",
+                "quantity": 3
+              }
+            ]
+          }
+        },
+        {
+          "id": "1ec5eb75-21d0-4e6e-8eae-29c4b558a7c1",
+          "version": 1,
+          "data": {
+            "kind": "workout_plan",
+            "title": "Wake-up mobility",
+            "sessions": [
+              {
+                "name": "Morning mobility",
+                "minutes": 20,
+                "exercises": [
+                  {
+                    "dose": "20 minutes",
+                    "name": "Gentle mobility"
+                  }
+                ]
+              }
+            ],
+            "templateId": "release-mobility"
+          }
+        },
+        {
+          "id": "a410fa74-1ded-4a32-8e0a-989995296d3e",
+          "version": 1,
+          "data": {
+            "kind": "grocery",
+            "title": "Rice",
+            "checked": false
+          }
+        },
+        {
+          "id": "4b2e3934-060e-417a-8225-bccb00148dde",
+          "version": 3,
+          "data": {
+            "kind": "grocery",
+            "unit": "g",
+            "title": "rice",
+            "checked": false,
+            "quantity": 700,
+            "mealSources": [
+              {
+                "mealId": "6be9c68f-654a-4aa9-902b-a2b38b688ae4",
+                "quantity": 100
+              },
+              {
+                "mealId": "c986cdeb-bece-4044-a033-816d052fad8b",
+                "quantity": 600
+              }
+            ]
+          }
+        },
+        {
+          "id": "6be9c68f-654a-4aa9-902b-a2b38b688ae4",
+          "version": 1,
+          "data": {
+            "date": "2027-01-15",
+            "kind": "meal",
+            "meal": "Lunch",
+            "title": "Rice side",
+            "servings": 1,
+            "ingredients": "100 g rice",
+            "groceriesEnabled": true,
+            "ingredientServings": 1
+          }
+        },
+        {
+          "id": "d7313c7b-c03a-44f4-b8a8-b77541cbbf98",
+          "version": 1,
+          "data": {
+            "kind": "recipe",
+            "title": "Release lemon rice",
+            "favorite": false,
+            "servings": 2,
+            "ingredients": "200 g rice\n1 lemon",
+            "prepMinutes": 20,
+            "instructions": "Cook rice, then add lemon."
+          }
+        }
+      ],
+      "messages": [
+        {
+          "id": "c986cdeb-bece-4044-a033-816d052fad8b",
+          "body": "Plan my saved Release lemon rice for dinner on January 14, 2027, for four servings.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.001Z"
+        },
+        {
+          "id": "97103fd6-f304-440a-977a-9fc3af1ae8cc",
+          "body": "Saved: Release lemon rice. Dinner, 2027-01-14. 4 servings.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.002Z"
+        },
+        {
+          "id": "bd11f93d-fdac-47f7-a714-5f00a096658b",
+          "body": "Make that January 14 dinner six servings. Keep its recipe ingredients and date.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.003Z"
+        },
+        {
+          "id": "224a8863-59c2-4f66-980f-393e2960787e",
+          "body": "Updated: Release lemon rice. Dinner, 2027-01-14. 6 servings.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.004Z"
+        },
+        {
+          "id": "31340822-c413-4776-aced-bc2b498e01c1",
+          "body": "Save rice as pantry stock. I don't know how much I have.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.005Z"
+        },
+        {
+          "id": "0b4b9860-7faf-47da-a3ae-1f24a76e3347",
+          "body": "Saved: Rice.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.006Z"
+        },
+        {
+          "id": "de060e8b-4756-4d47-8750-aaf430c8a29b",
+          "body": "Add tea to my shopping list.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.007Z"
+        },
+        {
+          "id": "1e4c5a4c-638d-400c-ad50-723306c2391e",
+          "body": "Added to your shopping list: tea.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.008Z"
+        }
+      ],
+      "profile": {
+        "displayName": null,
+        "proactiveOptIn": false,
+        "quietHoursStart": null,
+        "quietHoursEnd": null
+      },
+      "memories": [],
+      "memoriesTruncated": false,
+      "remindersTruncated": false
+    },
+    "after": {
+      "timezone": "America/New_York",
+      "generatedAt": "2026-10-15T19:23:25.138Z",
+      "tasks": [
+        {
+          "id": "13883c93-206c-4487-911b-05f8229f1ed3",
+          "title": "Finish release checklist",
+          "status": "completed",
+          "dueAt": "2027-01-15T22:00:00.000Z",
+          "estimatedMinutes": 15,
+          "startedAt": null,
+          "goalId": null
+        }
+      ],
+      "reminders": [],
+      "calendar": null,
+      "busy": [],
+      "tasksTruncated": false,
+      "goals": [],
+      "goalsTruncated": false,
+      "items": [
+        {
+          "id": "66a92cac-5f95-437d-9419-3e25daba439e",
+          "version": 1,
+          "data": {
+            "kind": "grocery",
+            "title": "tea",
+            "checked": false
+          }
+        },
+        {
+          "id": "31340822-c413-4776-aced-bc2b498e01c1",
+          "version": 2,
+          "data": {
+            "kind": "pantry",
+            "unit": "g",
+            "title": "Rice",
+            "quantity": 50
+          }
+        },
+        {
+          "id": "c986cdeb-bece-4044-a033-816d052fad8b",
+          "version": 2,
+          "data": {
+            "date": "2027-01-14",
+            "kind": "meal",
+            "meal": "Dinner",
+            "title": "Release lemon rice",
+            "servings": 6,
+            "ingredients": "200 g rice\n1 lemon",
+            "groceriesEnabled": true,
+            "ingredientServings": 2
+          }
+        },
+        {
+          "id": "514b7438-69a0-4bc6-9644-6175572861f2",
+          "version": 2,
+          "data": {
+            "kind": "grocery",
+            "unit": "piece",
+            "title": "lemon",
+            "checked": false,
+            "quantity": 3,
+            "mealSources": [
+              {
+                "mealId": "c986cdeb-bece-4044-a033-816d052fad8b",
+                "quantity": 3
+              }
+            ]
+          }
+        },
+        {
+          "id": "1ec5eb75-21d0-4e6e-8eae-29c4b558a7c1",
+          "version": 1,
+          "data": {
+            "kind": "workout_plan",
+            "title": "Wake-up mobility",
+            "sessions": [
+              {
+                "name": "Morning mobility",
+                "minutes": 20,
+                "exercises": [
+                  {
+                    "dose": "20 minutes",
+                    "name": "Gentle mobility"
+                  }
+                ]
+              }
+            ],
+            "templateId": "release-mobility"
+          }
+        },
+        {
+          "id": "a410fa74-1ded-4a32-8e0a-989995296d3e",
+          "version": 1,
+          "data": {
+            "kind": "grocery",
+            "title": "Rice",
+            "checked": false
+          }
+        },
+        {
+          "id": "4b2e3934-060e-417a-8225-bccb00148dde",
+          "version": 4,
+          "data": {
+            "kind": "grocery",
+            "unit": "g",
+            "title": "rice",
+            "checked": false,
+            "quantity": 650,
+            "mealSources": [
+              {
+                "mealId": "6be9c68f-654a-4aa9-902b-a2b38b688ae4",
+                "quantity": 100
+              },
+              {
+                "mealId": "c986cdeb-bece-4044-a033-816d052fad8b",
+                "quantity": 600
+              }
+            ]
+          }
+        },
+        {
+          "id": "6be9c68f-654a-4aa9-902b-a2b38b688ae4",
+          "version": 1,
+          "data": {
+            "date": "2027-01-15",
+            "kind": "meal",
+            "meal": "Lunch",
+            "title": "Rice side",
+            "servings": 1,
+            "ingredients": "100 g rice",
+            "groceriesEnabled": true,
+            "ingredientServings": 1
+          }
+        },
+        {
+          "id": "d7313c7b-c03a-44f4-b8a8-b77541cbbf98",
+          "version": 1,
+          "data": {
+            "kind": "recipe",
+            "title": "Release lemon rice",
+            "favorite": false,
+            "servings": 2,
+            "ingredients": "200 g rice\n1 lemon",
+            "prepMinutes": 20,
+            "instructions": "Cook rice, then add lemon."
+          }
+        }
+      ],
+      "messages": [
+        {
+          "id": "c986cdeb-bece-4044-a033-816d052fad8b",
+          "body": "Plan my saved Release lemon rice for dinner on January 14, 2027, for four servings.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.001Z"
+        },
+        {
+          "id": "97103fd6-f304-440a-977a-9fc3af1ae8cc",
+          "body": "Saved: Release lemon rice. Dinner, 2027-01-14. 4 servings.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.002Z"
+        },
+        {
+          "id": "bd11f93d-fdac-47f7-a714-5f00a096658b",
+          "body": "Make that January 14 dinner six servings. Keep its recipe ingredients and date.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.003Z"
+        },
+        {
+          "id": "224a8863-59c2-4f66-980f-393e2960787e",
+          "body": "Updated: Release lemon rice. Dinner, 2027-01-14. 6 servings.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.004Z"
+        },
+        {
+          "id": "31340822-c413-4776-aced-bc2b498e01c1",
+          "body": "Save rice as pantry stock. I don't know how much I have.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.005Z"
+        },
+        {
+          "id": "0b4b9860-7faf-47da-a3ae-1f24a76e3347",
+          "body": "Saved: Rice.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.006Z"
+        },
+        {
+          "id": "de060e8b-4756-4d47-8750-aaf430c8a29b",
+          "body": "Add tea to my shopping list.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.007Z"
+        },
+        {
+          "id": "1e4c5a4c-638d-400c-ad50-723306c2391e",
+          "body": "Added to your shopping list: tea.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.008Z"
+        },
+        {
+          "id": "af2d2bd4-b154-499d-a020-99799b82596d",
+          "body": "Update that pantry rice to exactly 50 grams.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.009Z"
+        },
+        {
+          "id": "dbf8b1ed-6af3-4a28-b38c-9eacc2767a17",
+          "body": "Updated: Rice.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.010Z"
+        }
+      ],
+      "profile": {
+        "displayName": null,
+        "proactiveOptIn": false,
+        "quietHoursStart": null,
+        "quietHoursEnd": null
+      },
+      "memories": [],
+      "memoriesTruncated": false,
+      "remindersTruncated": false
+    },
+    "reminders": []
+  },
+  {
+    "decisionAt": "2027-01-14T15:00:00.011Z",
+    "input": "Remove my Release lemon rice dinner on January 14, 2027. Keep the rice side and my manual shopping items.",
+    "replies": [
+      "Removed.\nDeleted the Release lemon rice dinner (Jan 14). Your Rice side and shopping list items are untouched."
+    ],
+    "providerId": "62483f95-469b-4924-9839-19cb23953251",
+    "duplicate": false,
+    "parserCalled": true,
+    "tools": [
+      "life_list",
+      "life_remove"
+    ],
+    "elapsedMs": 8861,
+    "channel": "web",
+    "toolTrace": [
+      {
+        "command": {
+          "type": "life_list",
+          "kind": "meal",
+          "query": "Release lemon rice dinner January 14 2027"
+        },
+        "result": "{\"items\":[{\"id\":\"c986cdeb-bece-4044-a033-816d052fad8b\",\"version\":2,\"data\":{\"date\":\"2027-01-14\",\"kind\":\"meal\",\"meal\":\"Dinner\",\"title\":\"Release lemon rice\",\"servings\":6,\"ingredients\":\"200 g rice\\n1 lemon\",\"groceriesEnabled\":true,\"ingredientServings\":2}},{\"id\":\"6be9c68f-654a-4aa9-902b-a2b38b688ae4\",\"version\":1,\"data\":{\"date\":\"2027-01-15\",\"kind\":\"meal\",\"meal\":\"Lunch\",\"title\":\"Rice side\",\"servings\":1,\"ingredients\":\"100 g rice\",\"groceriesEnabled\":true,\"ingredientServings\":1}}],\"truncated\":false,\"coverage\":{\"kind\":\"meal\",\"id\":null,\"query\":\"Release lemon rice dinner January 14 2027\",\"match\":\"partial title candidates\",\"searched\":true,\"limit\":20},\"notice\":\"No record matched every search word. These are partial title candidates only. Verify their date, meal and other requested details before selecting; ask which one if ambiguous.\"}"
+      },
+      {
+        "command": {
+          "type": "life_remove",
+          "id": "c986cdeb-bece-4044-a033-816d052fad8b",
+          "version": 2
+        },
+        "result": "Removed."
+      }
+    ],
+    "issues": [],
+    "before": {
+      "timezone": "America/New_York",
+      "generatedAt": "2026-10-15T19:23:25.184Z",
+      "tasks": [
+        {
+          "id": "13883c93-206c-4487-911b-05f8229f1ed3",
+          "title": "Finish release checklist",
+          "status": "completed",
+          "dueAt": "2027-01-15T22:00:00.000Z",
+          "estimatedMinutes": 15,
+          "startedAt": null,
+          "goalId": null
+        }
+      ],
+      "reminders": [],
+      "calendar": null,
+      "busy": [],
+      "tasksTruncated": false,
+      "goals": [],
+      "goalsTruncated": false,
+      "items": [
+        {
+          "id": "66a92cac-5f95-437d-9419-3e25daba439e",
+          "version": 1,
+          "data": {
+            "kind": "grocery",
+            "title": "tea",
+            "checked": false
+          }
+        },
+        {
+          "id": "31340822-c413-4776-aced-bc2b498e01c1",
+          "version": 2,
+          "data": {
+            "kind": "pantry",
+            "unit": "g",
+            "title": "Rice",
+            "quantity": 50
+          }
+        },
+        {
+          "id": "c986cdeb-bece-4044-a033-816d052fad8b",
+          "version": 2,
+          "data": {
+            "date": "2027-01-14",
+            "kind": "meal",
+            "meal": "Dinner",
+            "title": "Release lemon rice",
+            "servings": 6,
+            "ingredients": "200 g rice\n1 lemon",
+            "groceriesEnabled": true,
+            "ingredientServings": 2
+          }
+        },
+        {
+          "id": "514b7438-69a0-4bc6-9644-6175572861f2",
+          "version": 2,
+          "data": {
+            "kind": "grocery",
+            "unit": "piece",
+            "title": "lemon",
+            "checked": false,
+            "quantity": 3,
+            "mealSources": [
+              {
+                "mealId": "c986cdeb-bece-4044-a033-816d052fad8b",
+                "quantity": 3
+              }
+            ]
+          }
+        },
+        {
+          "id": "1ec5eb75-21d0-4e6e-8eae-29c4b558a7c1",
+          "version": 1,
+          "data": {
+            "kind": "workout_plan",
+            "title": "Wake-up mobility",
+            "sessions": [
+              {
+                "name": "Morning mobility",
+                "minutes": 20,
+                "exercises": [
+                  {
+                    "dose": "20 minutes",
+                    "name": "Gentle mobility"
+                  }
+                ]
+              }
+            ],
+            "templateId": "release-mobility"
+          }
+        },
+        {
+          "id": "a410fa74-1ded-4a32-8e0a-989995296d3e",
+          "version": 1,
+          "data": {
+            "kind": "grocery",
+            "title": "Rice",
+            "checked": false
+          }
+        },
+        {
+          "id": "4b2e3934-060e-417a-8225-bccb00148dde",
+          "version": 4,
+          "data": {
+            "kind": "grocery",
+            "unit": "g",
+            "title": "rice",
+            "checked": false,
+            "quantity": 650,
+            "mealSources": [
+              {
+                "mealId": "6be9c68f-654a-4aa9-902b-a2b38b688ae4",
+                "quantity": 100
+              },
+              {
+                "mealId": "c986cdeb-bece-4044-a033-816d052fad8b",
+                "quantity": 600
+              }
+            ]
+          }
+        },
+        {
+          "id": "6be9c68f-654a-4aa9-902b-a2b38b688ae4",
+          "version": 1,
+          "data": {
+            "date": "2027-01-15",
+            "kind": "meal",
+            "meal": "Lunch",
+            "title": "Rice side",
+            "servings": 1,
+            "ingredients": "100 g rice",
+            "groceriesEnabled": true,
+            "ingredientServings": 1
+          }
+        },
+        {
+          "id": "d7313c7b-c03a-44f4-b8a8-b77541cbbf98",
+          "version": 1,
+          "data": {
+            "kind": "recipe",
+            "title": "Release lemon rice",
+            "favorite": false,
+            "servings": 2,
+            "ingredients": "200 g rice\n1 lemon",
+            "prepMinutes": 20,
+            "instructions": "Cook rice, then add lemon."
+          }
+        }
+      ],
+      "messages": [
+        {
+          "id": "c986cdeb-bece-4044-a033-816d052fad8b",
+          "body": "Plan my saved Release lemon rice for dinner on January 14, 2027, for four servings.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.001Z"
+        },
+        {
+          "id": "97103fd6-f304-440a-977a-9fc3af1ae8cc",
+          "body": "Saved: Release lemon rice. Dinner, 2027-01-14. 4 servings.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.002Z"
+        },
+        {
+          "id": "bd11f93d-fdac-47f7-a714-5f00a096658b",
+          "body": "Make that January 14 dinner six servings. Keep its recipe ingredients and date.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.003Z"
+        },
+        {
+          "id": "224a8863-59c2-4f66-980f-393e2960787e",
+          "body": "Updated: Release lemon rice. Dinner, 2027-01-14. 6 servings.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.004Z"
+        },
+        {
+          "id": "31340822-c413-4776-aced-bc2b498e01c1",
+          "body": "Save rice as pantry stock. I don't know how much I have.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.005Z"
+        },
+        {
+          "id": "0b4b9860-7faf-47da-a3ae-1f24a76e3347",
+          "body": "Saved: Rice.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.006Z"
+        },
+        {
+          "id": "de060e8b-4756-4d47-8750-aaf430c8a29b",
+          "body": "Add tea to my shopping list.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.007Z"
+        },
+        {
+          "id": "1e4c5a4c-638d-400c-ad50-723306c2391e",
+          "body": "Added to your shopping list: tea.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.008Z"
+        },
+        {
+          "id": "af2d2bd4-b154-499d-a020-99799b82596d",
+          "body": "Update that pantry rice to exactly 50 grams.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.009Z"
+        },
+        {
+          "id": "dbf8b1ed-6af3-4a28-b38c-9eacc2767a17",
+          "body": "Updated: Rice.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.010Z"
+        }
+      ],
+      "profile": {
+        "displayName": null,
+        "proactiveOptIn": false,
+        "quietHoursStart": null,
+        "quietHoursEnd": null
+      },
+      "memories": [],
+      "memoriesTruncated": false,
+      "remindersTruncated": false
+    },
+    "after": {
+      "timezone": "America/New_York",
+      "generatedAt": "2026-10-15T19:23:34.064Z",
+      "tasks": [
+        {
+          "id": "13883c93-206c-4487-911b-05f8229f1ed3",
+          "title": "Finish release checklist",
+          "status": "completed",
+          "dueAt": "2027-01-15T22:00:00.000Z",
+          "estimatedMinutes": 15,
+          "startedAt": null,
+          "goalId": null
+        }
+      ],
+      "reminders": [],
+      "calendar": null,
+      "busy": [],
+      "tasksTruncated": false,
+      "goals": [],
+      "goalsTruncated": false,
+      "items": [
+        {
+          "id": "66a92cac-5f95-437d-9419-3e25daba439e",
+          "version": 1,
+          "data": {
+            "kind": "grocery",
+            "title": "tea",
+            "checked": false
+          }
+        },
+        {
+          "id": "31340822-c413-4776-aced-bc2b498e01c1",
+          "version": 2,
+          "data": {
+            "kind": "pantry",
+            "unit": "g",
+            "title": "Rice",
+            "quantity": 50
+          }
+        },
+        {
+          "id": "1ec5eb75-21d0-4e6e-8eae-29c4b558a7c1",
+          "version": 1,
+          "data": {
+            "kind": "workout_plan",
+            "title": "Wake-up mobility",
+            "sessions": [
+              {
+                "name": "Morning mobility",
+                "minutes": 20,
+                "exercises": [
+                  {
+                    "dose": "20 minutes",
+                    "name": "Gentle mobility"
+                  }
+                ]
+              }
+            ],
+            "templateId": "release-mobility"
+          }
+        },
+        {
+          "id": "a410fa74-1ded-4a32-8e0a-989995296d3e",
+          "version": 1,
+          "data": {
+            "kind": "grocery",
+            "title": "Rice",
+            "checked": false
+          }
+        },
+        {
+          "id": "6be9c68f-654a-4aa9-902b-a2b38b688ae4",
+          "version": 1,
+          "data": {
+            "date": "2027-01-15",
+            "kind": "meal",
+            "meal": "Lunch",
+            "title": "Rice side",
+            "servings": 1,
+            "ingredients": "100 g rice",
+            "groceriesEnabled": true,
+            "ingredientServings": 1
+          }
+        },
+        {
+          "id": "4b2e3934-060e-417a-8225-bccb00148dde",
+          "version": 5,
+          "data": {
+            "kind": "grocery",
+            "unit": "g",
+            "title": "rice",
+            "checked": false,
+            "quantity": 50,
+            "mealSources": [
+              {
+                "mealId": "6be9c68f-654a-4aa9-902b-a2b38b688ae4",
+                "quantity": 100
+              }
+            ]
+          }
+        },
+        {
+          "id": "d7313c7b-c03a-44f4-b8a8-b77541cbbf98",
+          "version": 1,
+          "data": {
+            "kind": "recipe",
+            "title": "Release lemon rice",
+            "favorite": false,
+            "servings": 2,
+            "ingredients": "200 g rice\n1 lemon",
+            "prepMinutes": 20,
+            "instructions": "Cook rice, then add lemon."
+          }
+        }
+      ],
+      "messages": [
+        {
+          "id": "c986cdeb-bece-4044-a033-816d052fad8b",
+          "body": "Plan my saved Release lemon rice for dinner on January 14, 2027, for four servings.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.001Z"
+        },
+        {
+          "id": "97103fd6-f304-440a-977a-9fc3af1ae8cc",
+          "body": "Saved: Release lemon rice. Dinner, 2027-01-14. 4 servings.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.002Z"
+        },
+        {
+          "id": "bd11f93d-fdac-47f7-a714-5f00a096658b",
+          "body": "Make that January 14 dinner six servings. Keep its recipe ingredients and date.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.003Z"
+        },
+        {
+          "id": "224a8863-59c2-4f66-980f-393e2960787e",
+          "body": "Updated: Release lemon rice. Dinner, 2027-01-14. 6 servings.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.004Z"
+        },
+        {
+          "id": "31340822-c413-4776-aced-bc2b498e01c1",
+          "body": "Save rice as pantry stock. I don't know how much I have.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.005Z"
+        },
+        {
+          "id": "0b4b9860-7faf-47da-a3ae-1f24a76e3347",
+          "body": "Saved: Rice.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.006Z"
+        },
+        {
+          "id": "de060e8b-4756-4d47-8750-aaf430c8a29b",
+          "body": "Add tea to my shopping list.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.007Z"
+        },
+        {
+          "id": "1e4c5a4c-638d-400c-ad50-723306c2391e",
+          "body": "Added to your shopping list: tea.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.008Z"
+        },
+        {
+          "id": "af2d2bd4-b154-499d-a020-99799b82596d",
+          "body": "Update that pantry rice to exactly 50 grams.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.009Z"
+        },
+        {
+          "id": "dbf8b1ed-6af3-4a28-b38c-9eacc2767a17",
+          "body": "Updated: Rice.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.010Z"
+        },
+        {
+          "id": "23b6a32e-f12e-42bd-b49f-42c4a9ae02fe",
+          "body": "Remove my Release lemon rice dinner on January 14, 2027. Keep the rice side and my manual shopping items.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.011Z"
+        },
+        {
+          "id": "57d25648-405a-4df0-b610-a704bd8d443c",
+          "body": "Removed.\nDeleted the Release lemon rice dinner (Jan 14). Your Rice side and shopping list items are untouched.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.012Z"
+        }
+      ],
+      "profile": {
+        "displayName": null,
+        "proactiveOptIn": false,
+        "quietHoursStart": null,
+        "quietHoursEnd": null
+      },
+      "memories": [],
+      "memoriesTruncated": false,
+      "remindersTruncated": false
+    },
+    "reminders": []
+  },
+  {
+    "decisionAt": "2027-01-14T15:00:00.013Z",
+    "input": "What's left on my shopping list now?",
+    "replies": [
+      "You've got three unchecked items:\n\n- Tea\n- Rice (no quantity)\n- Rice — 50 g (linked to a meal plan)"
+    ],
+    "providerId": "5b2d4097-c3ee-4223-a211-27204a4b295d",
+    "duplicate": false,
+    "parserCalled": true,
+    "tools": [
+      "life_list"
+    ],
+    "elapsedMs": 4505,
+    "channel": "sms",
+    "toolTrace": [
+      {
+        "command": {
+          "type": "life_list",
+          "kind": "grocery"
+        },
+        "result": "{\"items\":[{\"id\":\"66a92cac-5f95-437d-9419-3e25daba439e\",\"version\":1,\"data\":{\"kind\":\"grocery\",\"title\":\"tea\",\"checked\":false}},{\"id\":\"a410fa74-1ded-4a32-8e0a-989995296d3e\",\"version\":1,\"data\":{\"kind\":\"grocery\",\"title\":\"Rice\",\"checked\":false}},{\"id\":\"4b2e3934-060e-417a-8225-bccb00148dde\",\"version\":5,\"data\":{\"kind\":\"grocery\",\"unit\":\"g\",\"title\":\"rice\",\"checked\":false,\"quantity\":50,\"mealSources\":[{\"mealId\":\"6be9c68f-654a-4aa9-902b-a2b38b688ae4\",\"quantity\":100}]}}],\"truncated\":false,\"coverage\":{\"kind\":\"grocery\",\"id\":null,\"query\":null,\"match\":\"all search words\",\"searched\":true,\"limit\":20},\"notice\":\"All records of this kind are included.\"}"
+      }
+    ],
+    "issues": [],
+    "before": {
+      "timezone": "America/New_York",
+      "generatedAt": "2026-10-15T19:23:34.123Z",
+      "tasks": [
+        {
+          "id": "13883c93-206c-4487-911b-05f8229f1ed3",
+          "title": "Finish release checklist",
+          "status": "completed",
+          "dueAt": "2027-01-15T22:00:00.000Z",
+          "estimatedMinutes": 15,
+          "startedAt": null,
+          "goalId": null
+        }
+      ],
+      "reminders": [],
+      "calendar": null,
+      "busy": [],
+      "tasksTruncated": false,
+      "goals": [],
+      "goalsTruncated": false,
+      "items": [
+        {
+          "id": "66a92cac-5f95-437d-9419-3e25daba439e",
+          "version": 1,
+          "data": {
+            "kind": "grocery",
+            "title": "tea",
+            "checked": false
+          }
+        },
+        {
+          "id": "31340822-c413-4776-aced-bc2b498e01c1",
+          "version": 2,
+          "data": {
+            "kind": "pantry",
+            "unit": "g",
+            "title": "Rice",
+            "quantity": 50
+          }
+        },
+        {
+          "id": "1ec5eb75-21d0-4e6e-8eae-29c4b558a7c1",
+          "version": 1,
+          "data": {
+            "kind": "workout_plan",
+            "title": "Wake-up mobility",
+            "sessions": [
+              {
+                "name": "Morning mobility",
+                "minutes": 20,
+                "exercises": [
+                  {
+                    "dose": "20 minutes",
+                    "name": "Gentle mobility"
+                  }
+                ]
+              }
+            ],
+            "templateId": "release-mobility"
+          }
+        },
+        {
+          "id": "a410fa74-1ded-4a32-8e0a-989995296d3e",
+          "version": 1,
+          "data": {
+            "kind": "grocery",
+            "title": "Rice",
+            "checked": false
+          }
+        },
+        {
+          "id": "6be9c68f-654a-4aa9-902b-a2b38b688ae4",
+          "version": 1,
+          "data": {
+            "date": "2027-01-15",
+            "kind": "meal",
+            "meal": "Lunch",
+            "title": "Rice side",
+            "servings": 1,
+            "ingredients": "100 g rice",
+            "groceriesEnabled": true,
+            "ingredientServings": 1
+          }
+        },
+        {
+          "id": "4b2e3934-060e-417a-8225-bccb00148dde",
+          "version": 5,
+          "data": {
+            "kind": "grocery",
+            "unit": "g",
+            "title": "rice",
+            "checked": false,
+            "quantity": 50,
+            "mealSources": [
+              {
+                "mealId": "6be9c68f-654a-4aa9-902b-a2b38b688ae4",
+                "quantity": 100
+              }
+            ]
+          }
+        },
+        {
+          "id": "d7313c7b-c03a-44f4-b8a8-b77541cbbf98",
+          "version": 1,
+          "data": {
+            "kind": "recipe",
+            "title": "Release lemon rice",
+            "favorite": false,
+            "servings": 2,
+            "ingredients": "200 g rice\n1 lemon",
+            "prepMinutes": 20,
+            "instructions": "Cook rice, then add lemon."
+          }
+        }
+      ],
+      "messages": [
+        {
+          "id": "c986cdeb-bece-4044-a033-816d052fad8b",
+          "body": "Plan my saved Release lemon rice for dinner on January 14, 2027, for four servings.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.001Z"
+        },
+        {
+          "id": "97103fd6-f304-440a-977a-9fc3af1ae8cc",
+          "body": "Saved: Release lemon rice. Dinner, 2027-01-14. 4 servings.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.002Z"
+        },
+        {
+          "id": "bd11f93d-fdac-47f7-a714-5f00a096658b",
+          "body": "Make that January 14 dinner six servings. Keep its recipe ingredients and date.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.003Z"
+        },
+        {
+          "id": "224a8863-59c2-4f66-980f-393e2960787e",
+          "body": "Updated: Release lemon rice. Dinner, 2027-01-14. 6 servings.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.004Z"
+        },
+        {
+          "id": "31340822-c413-4776-aced-bc2b498e01c1",
+          "body": "Save rice as pantry stock. I don't know how much I have.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.005Z"
+        },
+        {
+          "id": "0b4b9860-7faf-47da-a3ae-1f24a76e3347",
+          "body": "Saved: Rice.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.006Z"
+        },
+        {
+          "id": "de060e8b-4756-4d47-8750-aaf430c8a29b",
+          "body": "Add tea to my shopping list.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.007Z"
+        },
+        {
+          "id": "1e4c5a4c-638d-400c-ad50-723306c2391e",
+          "body": "Added to your shopping list: tea.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.008Z"
+        },
+        {
+          "id": "af2d2bd4-b154-499d-a020-99799b82596d",
+          "body": "Update that pantry rice to exactly 50 grams.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.009Z"
+        },
+        {
+          "id": "dbf8b1ed-6af3-4a28-b38c-9eacc2767a17",
+          "body": "Updated: Rice.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.010Z"
+        },
+        {
+          "id": "23b6a32e-f12e-42bd-b49f-42c4a9ae02fe",
+          "body": "Remove my Release lemon rice dinner on January 14, 2027. Keep the rice side and my manual shopping items.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.011Z"
+        },
+        {
+          "id": "57d25648-405a-4df0-b610-a704bd8d443c",
+          "body": "Removed.\nDeleted the Release lemon rice dinner (Jan 14). Your Rice side and shopping list items are untouched.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.012Z"
+        }
+      ],
+      "profile": {
+        "displayName": null,
+        "proactiveOptIn": false,
+        "quietHoursStart": null,
+        "quietHoursEnd": null
+      },
+      "memories": [],
+      "memoriesTruncated": false,
+      "remindersTruncated": false
+    },
+    "after": {
+      "timezone": "America/New_York",
+      "generatedAt": "2026-10-15T19:23:38.646Z",
+      "tasks": [
+        {
+          "id": "13883c93-206c-4487-911b-05f8229f1ed3",
+          "title": "Finish release checklist",
+          "status": "completed",
+          "dueAt": "2027-01-15T22:00:00.000Z",
+          "estimatedMinutes": 15,
+          "startedAt": null,
+          "goalId": null
+        }
+      ],
+      "reminders": [],
+      "calendar": null,
+      "busy": [],
+      "tasksTruncated": false,
+      "goals": [],
+      "goalsTruncated": false,
+      "items": [
+        {
+          "id": "66a92cac-5f95-437d-9419-3e25daba439e",
+          "version": 1,
+          "data": {
+            "kind": "grocery",
+            "title": "tea",
+            "checked": false
+          }
+        },
+        {
+          "id": "31340822-c413-4776-aced-bc2b498e01c1",
+          "version": 2,
+          "data": {
+            "kind": "pantry",
+            "unit": "g",
+            "title": "Rice",
+            "quantity": 50
+          }
+        },
+        {
+          "id": "1ec5eb75-21d0-4e6e-8eae-29c4b558a7c1",
+          "version": 1,
+          "data": {
+            "kind": "workout_plan",
+            "title": "Wake-up mobility",
+            "sessions": [
+              {
+                "name": "Morning mobility",
+                "minutes": 20,
+                "exercises": [
+                  {
+                    "dose": "20 minutes",
+                    "name": "Gentle mobility"
+                  }
+                ]
+              }
+            ],
+            "templateId": "release-mobility"
+          }
+        },
+        {
+          "id": "a410fa74-1ded-4a32-8e0a-989995296d3e",
+          "version": 1,
+          "data": {
+            "kind": "grocery",
+            "title": "Rice",
+            "checked": false
+          }
+        },
+        {
+          "id": "6be9c68f-654a-4aa9-902b-a2b38b688ae4",
+          "version": 1,
+          "data": {
+            "date": "2027-01-15",
+            "kind": "meal",
+            "meal": "Lunch",
+            "title": "Rice side",
+            "servings": 1,
+            "ingredients": "100 g rice",
+            "groceriesEnabled": true,
+            "ingredientServings": 1
+          }
+        },
+        {
+          "id": "4b2e3934-060e-417a-8225-bccb00148dde",
+          "version": 5,
+          "data": {
+            "kind": "grocery",
+            "unit": "g",
+            "title": "rice",
+            "checked": false,
+            "quantity": 50,
+            "mealSources": [
+              {
+                "mealId": "6be9c68f-654a-4aa9-902b-a2b38b688ae4",
+                "quantity": 100
+              }
+            ]
+          }
+        },
+        {
+          "id": "d7313c7b-c03a-44f4-b8a8-b77541cbbf98",
+          "version": 1,
+          "data": {
+            "kind": "recipe",
+            "title": "Release lemon rice",
+            "favorite": false,
+            "servings": 2,
+            "ingredients": "200 g rice\n1 lemon",
+            "prepMinutes": 20,
+            "instructions": "Cook rice, then add lemon."
+          }
+        }
+      ],
+      "messages": [
+        {
+          "id": "c986cdeb-bece-4044-a033-816d052fad8b",
+          "body": "Plan my saved Release lemon rice for dinner on January 14, 2027, for four servings.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.001Z"
+        },
+        {
+          "id": "97103fd6-f304-440a-977a-9fc3af1ae8cc",
+          "body": "Saved: Release lemon rice. Dinner, 2027-01-14. 4 servings.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.002Z"
+        },
+        {
+          "id": "bd11f93d-fdac-47f7-a714-5f00a096658b",
+          "body": "Make that January 14 dinner six servings. Keep its recipe ingredients and date.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.003Z"
+        },
+        {
+          "id": "224a8863-59c2-4f66-980f-393e2960787e",
+          "body": "Updated: Release lemon rice. Dinner, 2027-01-14. 6 servings.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.004Z"
+        },
+        {
+          "id": "31340822-c413-4776-aced-bc2b498e01c1",
+          "body": "Save rice as pantry stock. I don't know how much I have.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.005Z"
+        },
+        {
+          "id": "0b4b9860-7faf-47da-a3ae-1f24a76e3347",
+          "body": "Saved: Rice.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.006Z"
+        },
+        {
+          "id": "de060e8b-4756-4d47-8750-aaf430c8a29b",
+          "body": "Add tea to my shopping list.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.007Z"
+        },
+        {
+          "id": "1e4c5a4c-638d-400c-ad50-723306c2391e",
+          "body": "Added to your shopping list: tea.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.008Z"
+        },
+        {
+          "id": "af2d2bd4-b154-499d-a020-99799b82596d",
+          "body": "Update that pantry rice to exactly 50 grams.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.009Z"
+        },
+        {
+          "id": "dbf8b1ed-6af3-4a28-b38c-9eacc2767a17",
+          "body": "Updated: Rice.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.010Z"
+        },
+        {
+          "id": "23b6a32e-f12e-42bd-b49f-42c4a9ae02fe",
+          "body": "Remove my Release lemon rice dinner on January 14, 2027. Keep the rice side and my manual shopping items.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.011Z"
+        },
+        {
+          "id": "57d25648-405a-4df0-b610-a704bd8d443c",
+          "body": "Removed.\nDeleted the Release lemon rice dinner (Jan 14). Your Rice side and shopping list items are untouched.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.012Z"
+        },
+        {
+          "id": "9c7ee2c0-e050-467d-8267-ca02daa7979d",
+          "body": "What's left on my shopping list now?",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.013Z"
+        },
+        {
+          "id": "c4ef6304-c168-4896-ab55-2efff8572866",
+          "body": "You've got three unchecked items:\n\n- Tea\n- Rice (no quantity)\n- Rice — 50 g (linked to a meal plan)",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.014Z"
+        }
+      ],
+      "profile": {
+        "displayName": null,
+        "proactiveOptIn": false,
+        "quietHoursStart": null,
+        "quietHoursEnd": null
+      },
+      "memories": [],
+      "memoriesTruncated": false,
+      "remindersTruncated": false
+    },
+    "reminders": []
+  },
+  {
+    "decisionAt": "2027-01-14T15:00:00.015Z",
+    "input": "Set my daily protein target to 90 grams. Leave calories, carbs, fat and fiber targets unknown.",
+    "replies": [
+      "I haven’t changed anything. What change would you like me to make?"
+    ],
+    "providerId": "bdb43b9b-8fec-4eb2-b100-10f08ab3de52",
+    "duplicate": false,
+    "parserCalled": true,
+    "tools": [],
+    "elapsedMs": 4796,
+    "channel": "web",
+    "issues": [
+      "Nullable nutrition targets were not saved exactly as requested."
+    ],
+    "before": {
+      "timezone": "America/New_York",
+      "generatedAt": "2026-10-15T19:23:38.698Z",
+      "tasks": [
+        {
+          "id": "13883c93-206c-4487-911b-05f8229f1ed3",
+          "title": "Finish release checklist",
+          "status": "completed",
+          "dueAt": "2027-01-15T22:00:00.000Z",
+          "estimatedMinutes": 15,
+          "startedAt": null,
+          "goalId": null
+        }
+      ],
+      "reminders": [],
+      "calendar": null,
+      "busy": [],
+      "tasksTruncated": false,
+      "goals": [],
+      "goalsTruncated": false,
+      "items": [
+        {
+          "id": "66a92cac-5f95-437d-9419-3e25daba439e",
+          "version": 1,
+          "data": {
+            "kind": "grocery",
+            "title": "tea",
+            "checked": false
+          }
+        },
+        {
+          "id": "31340822-c413-4776-aced-bc2b498e01c1",
+          "version": 2,
+          "data": {
+            "kind": "pantry",
+            "unit": "g",
+            "title": "Rice",
+            "quantity": 50
+          }
+        },
+        {
+          "id": "1ec5eb75-21d0-4e6e-8eae-29c4b558a7c1",
+          "version": 1,
+          "data": {
+            "kind": "workout_plan",
+            "title": "Wake-up mobility",
+            "sessions": [
+              {
+                "name": "Morning mobility",
+                "minutes": 20,
+                "exercises": [
+                  {
+                    "dose": "20 minutes",
+                    "name": "Gentle mobility"
+                  }
+                ]
+              }
+            ],
+            "templateId": "release-mobility"
+          }
+        },
+        {
+          "id": "a410fa74-1ded-4a32-8e0a-989995296d3e",
+          "version": 1,
+          "data": {
+            "kind": "grocery",
+            "title": "Rice",
+            "checked": false
+          }
+        },
+        {
+          "id": "6be9c68f-654a-4aa9-902b-a2b38b688ae4",
+          "version": 1,
+          "data": {
+            "date": "2027-01-15",
+            "kind": "meal",
+            "meal": "Lunch",
+            "title": "Rice side",
+            "servings": 1,
+            "ingredients": "100 g rice",
+            "groceriesEnabled": true,
+            "ingredientServings": 1
+          }
+        },
+        {
+          "id": "4b2e3934-060e-417a-8225-bccb00148dde",
+          "version": 5,
+          "data": {
+            "kind": "grocery",
+            "unit": "g",
+            "title": "rice",
+            "checked": false,
+            "quantity": 50,
+            "mealSources": [
+              {
+                "mealId": "6be9c68f-654a-4aa9-902b-a2b38b688ae4",
+                "quantity": 100
+              }
+            ]
+          }
+        },
+        {
+          "id": "d7313c7b-c03a-44f4-b8a8-b77541cbbf98",
+          "version": 1,
+          "data": {
+            "kind": "recipe",
+            "title": "Release lemon rice",
+            "favorite": false,
+            "servings": 2,
+            "ingredients": "200 g rice\n1 lemon",
+            "prepMinutes": 20,
+            "instructions": "Cook rice, then add lemon."
+          }
+        }
+      ],
+      "messages": [
+        {
+          "id": "c986cdeb-bece-4044-a033-816d052fad8b",
+          "body": "Plan my saved Release lemon rice for dinner on January 14, 2027, for four servings.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.001Z"
+        },
+        {
+          "id": "97103fd6-f304-440a-977a-9fc3af1ae8cc",
+          "body": "Saved: Release lemon rice. Dinner, 2027-01-14. 4 servings.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.002Z"
+        },
+        {
+          "id": "bd11f93d-fdac-47f7-a714-5f00a096658b",
+          "body": "Make that January 14 dinner six servings. Keep its recipe ingredients and date.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.003Z"
+        },
+        {
+          "id": "224a8863-59c2-4f66-980f-393e2960787e",
+          "body": "Updated: Release lemon rice. Dinner, 2027-01-14. 6 servings.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.004Z"
+        },
+        {
+          "id": "31340822-c413-4776-aced-bc2b498e01c1",
+          "body": "Save rice as pantry stock. I don't know how much I have.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.005Z"
+        },
+        {
+          "id": "0b4b9860-7faf-47da-a3ae-1f24a76e3347",
+          "body": "Saved: Rice.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.006Z"
+        },
+        {
+          "id": "de060e8b-4756-4d47-8750-aaf430c8a29b",
+          "body": "Add tea to my shopping list.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.007Z"
+        },
+        {
+          "id": "1e4c5a4c-638d-400c-ad50-723306c2391e",
+          "body": "Added to your shopping list: tea.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.008Z"
+        },
+        {
+          "id": "af2d2bd4-b154-499d-a020-99799b82596d",
+          "body": "Update that pantry rice to exactly 50 grams.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.009Z"
+        },
+        {
+          "id": "dbf8b1ed-6af3-4a28-b38c-9eacc2767a17",
+          "body": "Updated: Rice.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.010Z"
+        },
+        {
+          "id": "23b6a32e-f12e-42bd-b49f-42c4a9ae02fe",
+          "body": "Remove my Release lemon rice dinner on January 14, 2027. Keep the rice side and my manual shopping items.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.011Z"
+        },
+        {
+          "id": "57d25648-405a-4df0-b610-a704bd8d443c",
+          "body": "Removed.\nDeleted the Release lemon rice dinner (Jan 14). Your Rice side and shopping list items are untouched.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.012Z"
+        },
+        {
+          "id": "9c7ee2c0-e050-467d-8267-ca02daa7979d",
+          "body": "What's left on my shopping list now?",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.013Z"
+        },
+        {
+          "id": "c4ef6304-c168-4896-ab55-2efff8572866",
+          "body": "You've got three unchecked items:\n\n- Tea\n- Rice (no quantity)\n- Rice — 50 g (linked to a meal plan)",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.014Z"
+        }
+      ],
+      "profile": {
+        "displayName": null,
+        "proactiveOptIn": false,
+        "quietHoursStart": null,
+        "quietHoursEnd": null
+      },
+      "memories": [],
+      "memoriesTruncated": false,
+      "remindersTruncated": false
+    },
+    "after": {
+      "timezone": "America/New_York",
+      "generatedAt": "2026-10-15T19:23:43.516Z",
+      "tasks": [
+        {
+          "id": "13883c93-206c-4487-911b-05f8229f1ed3",
+          "title": "Finish release checklist",
+          "status": "completed",
+          "dueAt": "2027-01-15T22:00:00.000Z",
+          "estimatedMinutes": 15,
+          "startedAt": null,
+          "goalId": null
+        }
+      ],
+      "reminders": [],
+      "calendar": null,
+      "busy": [],
+      "tasksTruncated": false,
+      "goals": [],
+      "goalsTruncated": false,
+      "items": [
+        {
+          "id": "66a92cac-5f95-437d-9419-3e25daba439e",
+          "version": 1,
+          "data": {
+            "kind": "grocery",
+            "title": "tea",
+            "checked": false
+          }
+        },
+        {
+          "id": "31340822-c413-4776-aced-bc2b498e01c1",
+          "version": 2,
+          "data": {
+            "kind": "pantry",
+            "unit": "g",
+            "title": "Rice",
+            "quantity": 50
+          }
+        },
+        {
+          "id": "1ec5eb75-21d0-4e6e-8eae-29c4b558a7c1",
+          "version": 1,
+          "data": {
+            "kind": "workout_plan",
+            "title": "Wake-up mobility",
+            "sessions": [
+              {
+                "name": "Morning mobility",
+                "minutes": 20,
+                "exercises": [
+                  {
+                    "dose": "20 minutes",
+                    "name": "Gentle mobility"
+                  }
+                ]
+              }
+            ],
+            "templateId": "release-mobility"
+          }
+        },
+        {
+          "id": "a410fa74-1ded-4a32-8e0a-989995296d3e",
+          "version": 1,
+          "data": {
+            "kind": "grocery",
+            "title": "Rice",
+            "checked": false
+          }
+        },
+        {
+          "id": "6be9c68f-654a-4aa9-902b-a2b38b688ae4",
+          "version": 1,
+          "data": {
+            "date": "2027-01-15",
+            "kind": "meal",
+            "meal": "Lunch",
+            "title": "Rice side",
+            "servings": 1,
+            "ingredients": "100 g rice",
+            "groceriesEnabled": true,
+            "ingredientServings": 1
+          }
+        },
+        {
+          "id": "4b2e3934-060e-417a-8225-bccb00148dde",
+          "version": 5,
+          "data": {
+            "kind": "grocery",
+            "unit": "g",
+            "title": "rice",
+            "checked": false,
+            "quantity": 50,
+            "mealSources": [
+              {
+                "mealId": "6be9c68f-654a-4aa9-902b-a2b38b688ae4",
+                "quantity": 100
+              }
+            ]
+          }
+        },
+        {
+          "id": "d7313c7b-c03a-44f4-b8a8-b77541cbbf98",
+          "version": 1,
+          "data": {
+            "kind": "recipe",
+            "title": "Release lemon rice",
+            "favorite": false,
+            "servings": 2,
+            "ingredients": "200 g rice\n1 lemon",
+            "prepMinutes": 20,
+            "instructions": "Cook rice, then add lemon."
+          }
+        }
+      ],
+      "messages": [
+        {
+          "id": "c986cdeb-bece-4044-a033-816d052fad8b",
+          "body": "Plan my saved Release lemon rice for dinner on January 14, 2027, for four servings.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.001Z"
+        },
+        {
+          "id": "97103fd6-f304-440a-977a-9fc3af1ae8cc",
+          "body": "Saved: Release lemon rice. Dinner, 2027-01-14. 4 servings.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.002Z"
+        },
+        {
+          "id": "bd11f93d-fdac-47f7-a714-5f00a096658b",
+          "body": "Make that January 14 dinner six servings. Keep its recipe ingredients and date.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.003Z"
+        },
+        {
+          "id": "224a8863-59c2-4f66-980f-393e2960787e",
+          "body": "Updated: Release lemon rice. Dinner, 2027-01-14. 6 servings.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.004Z"
+        },
+        {
+          "id": "31340822-c413-4776-aced-bc2b498e01c1",
+          "body": "Save rice as pantry stock. I don't know how much I have.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.005Z"
+        },
+        {
+          "id": "0b4b9860-7faf-47da-a3ae-1f24a76e3347",
+          "body": "Saved: Rice.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.006Z"
+        },
+        {
+          "id": "de060e8b-4756-4d47-8750-aaf430c8a29b",
+          "body": "Add tea to my shopping list.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.007Z"
+        },
+        {
+          "id": "1e4c5a4c-638d-400c-ad50-723306c2391e",
+          "body": "Added to your shopping list: tea.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.008Z"
+        },
+        {
+          "id": "af2d2bd4-b154-499d-a020-99799b82596d",
+          "body": "Update that pantry rice to exactly 50 grams.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.009Z"
+        },
+        {
+          "id": "dbf8b1ed-6af3-4a28-b38c-9eacc2767a17",
+          "body": "Updated: Rice.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.010Z"
+        },
+        {
+          "id": "23b6a32e-f12e-42bd-b49f-42c4a9ae02fe",
+          "body": "Remove my Release lemon rice dinner on January 14, 2027. Keep the rice side and my manual shopping items.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.011Z"
+        },
+        {
+          "id": "57d25648-405a-4df0-b610-a704bd8d443c",
+          "body": "Removed.\nDeleted the Release lemon rice dinner (Jan 14). Your Rice side and shopping list items are untouched.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.012Z"
+        },
+        {
+          "id": "9c7ee2c0-e050-467d-8267-ca02daa7979d",
+          "body": "What's left on my shopping list now?",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.013Z"
+        },
+        {
+          "id": "c4ef6304-c168-4896-ab55-2efff8572866",
+          "body": "You've got three unchecked items:\n\n- Tea\n- Rice (no quantity)\n- Rice — 50 g (linked to a meal plan)",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.014Z"
+        },
+        {
+          "id": "9ae6efe6-3a06-4330-9bc1-670e24fec6d5",
+          "body": "Set my daily protein target to 90 grams. Leave calories, carbs, fat and fiber targets unknown.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.015Z"
+        },
+        {
+          "id": "96045ee0-5712-45c3-9405-89d0545f8f1b",
+          "body": "I haven’t changed anything. What change would you like me to make?",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.016Z"
+        }
+      ],
+      "profile": {
+        "displayName": null,
+        "proactiveOptIn": false,
+        "quietHoursStart": null,
+        "quietHoursEnd": null
+      },
+      "memories": [],
+      "memoriesTruncated": false,
+      "remindersTruncated": false
+    },
+    "reminders": []
+  },
+  {
+    "decisionAt": "2027-01-14T15:00:00.017Z",
+    "input": "Save a thought: bring my sketchbook to the cafe. Remind me tomorrow at 11 AM.",
+    "replies": [
+      "Saved to Thought inbox: Bring my sketchbook to the cafe.\nReminder set for Fri, Jan 15, 11:00 AM EST."
+    ],
+    "providerId": "c176ae9b-65e7-4fc9-958d-4166be83c544",
+    "duplicate": false,
+    "parserCalled": true,
+    "tools": [
+      "capture_with_reminder"
+    ],
+    "elapsedMs": 4486,
+    "channel": "sms",
+    "toolTrace": [
+      {
+        "command": {
+          "type": "capture_with_reminder",
+          "destination": "note",
+          "title": "Bring my sketchbook to the cafe",
+          "remindAt": "2027-01-15T11:00:00-05:00"
+        },
+        "result": "Saved to Thought inbox: Bring my sketchbook to the cafe.\nReminder set for Fri, Jan 15, 11:00 AM EST."
+      }
+    ],
+    "issues": [],
+    "before": {
+      "timezone": "America/New_York",
+      "generatedAt": "2026-10-15T19:23:43.575Z",
+      "tasks": [
+        {
+          "id": "13883c93-206c-4487-911b-05f8229f1ed3",
+          "title": "Finish release checklist",
+          "status": "completed",
+          "dueAt": "2027-01-15T22:00:00.000Z",
+          "estimatedMinutes": 15,
+          "startedAt": null,
+          "goalId": null
+        }
+      ],
+      "reminders": [],
+      "calendar": null,
+      "busy": [],
+      "tasksTruncated": false,
+      "goals": [],
+      "goalsTruncated": false,
+      "items": [
+        {
+          "id": "66a92cac-5f95-437d-9419-3e25daba439e",
+          "version": 1,
+          "data": {
+            "kind": "grocery",
+            "title": "tea",
+            "checked": false
+          }
+        },
+        {
+          "id": "31340822-c413-4776-aced-bc2b498e01c1",
+          "version": 2,
+          "data": {
+            "kind": "pantry",
+            "unit": "g",
+            "title": "Rice",
+            "quantity": 50
+          }
+        },
+        {
+          "id": "1ec5eb75-21d0-4e6e-8eae-29c4b558a7c1",
+          "version": 1,
+          "data": {
+            "kind": "workout_plan",
+            "title": "Wake-up mobility",
+            "sessions": [
+              {
+                "name": "Morning mobility",
+                "minutes": 20,
+                "exercises": [
+                  {
+                    "dose": "20 minutes",
+                    "name": "Gentle mobility"
+                  }
+                ]
+              }
+            ],
+            "templateId": "release-mobility"
+          }
+        },
+        {
+          "id": "a410fa74-1ded-4a32-8e0a-989995296d3e",
+          "version": 1,
+          "data": {
+            "kind": "grocery",
+            "title": "Rice",
+            "checked": false
+          }
+        },
+        {
+          "id": "6be9c68f-654a-4aa9-902b-a2b38b688ae4",
+          "version": 1,
+          "data": {
+            "date": "2027-01-15",
+            "kind": "meal",
+            "meal": "Lunch",
+            "title": "Rice side",
+            "servings": 1,
+            "ingredients": "100 g rice",
+            "groceriesEnabled": true,
+            "ingredientServings": 1
+          }
+        },
+        {
+          "id": "4b2e3934-060e-417a-8225-bccb00148dde",
+          "version": 5,
+          "data": {
+            "kind": "grocery",
+            "unit": "g",
+            "title": "rice",
+            "checked": false,
+            "quantity": 50,
+            "mealSources": [
+              {
+                "mealId": "6be9c68f-654a-4aa9-902b-a2b38b688ae4",
+                "quantity": 100
+              }
+            ]
+          }
+        },
+        {
+          "id": "d7313c7b-c03a-44f4-b8a8-b77541cbbf98",
+          "version": 1,
+          "data": {
+            "kind": "recipe",
+            "title": "Release lemon rice",
+            "favorite": false,
+            "servings": 2,
+            "ingredients": "200 g rice\n1 lemon",
+            "prepMinutes": 20,
+            "instructions": "Cook rice, then add lemon."
+          }
+        }
+      ],
+      "messages": [
+        {
+          "id": "c986cdeb-bece-4044-a033-816d052fad8b",
+          "body": "Plan my saved Release lemon rice for dinner on January 14, 2027, for four servings.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.001Z"
+        },
+        {
+          "id": "97103fd6-f304-440a-977a-9fc3af1ae8cc",
+          "body": "Saved: Release lemon rice. Dinner, 2027-01-14. 4 servings.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.002Z"
+        },
+        {
+          "id": "bd11f93d-fdac-47f7-a714-5f00a096658b",
+          "body": "Make that January 14 dinner six servings. Keep its recipe ingredients and date.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.003Z"
+        },
+        {
+          "id": "224a8863-59c2-4f66-980f-393e2960787e",
+          "body": "Updated: Release lemon rice. Dinner, 2027-01-14. 6 servings.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.004Z"
+        },
+        {
+          "id": "31340822-c413-4776-aced-bc2b498e01c1",
+          "body": "Save rice as pantry stock. I don't know how much I have.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.005Z"
+        },
+        {
+          "id": "0b4b9860-7faf-47da-a3ae-1f24a76e3347",
+          "body": "Saved: Rice.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.006Z"
+        },
+        {
+          "id": "de060e8b-4756-4d47-8750-aaf430c8a29b",
+          "body": "Add tea to my shopping list.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.007Z"
+        },
+        {
+          "id": "1e4c5a4c-638d-400c-ad50-723306c2391e",
+          "body": "Added to your shopping list: tea.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.008Z"
+        },
+        {
+          "id": "af2d2bd4-b154-499d-a020-99799b82596d",
+          "body": "Update that pantry rice to exactly 50 grams.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.009Z"
+        },
+        {
+          "id": "dbf8b1ed-6af3-4a28-b38c-9eacc2767a17",
+          "body": "Updated: Rice.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.010Z"
+        },
+        {
+          "id": "23b6a32e-f12e-42bd-b49f-42c4a9ae02fe",
+          "body": "Remove my Release lemon rice dinner on January 14, 2027. Keep the rice side and my manual shopping items.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.011Z"
+        },
+        {
+          "id": "57d25648-405a-4df0-b610-a704bd8d443c",
+          "body": "Removed.\nDeleted the Release lemon rice dinner (Jan 14). Your Rice side and shopping list items are untouched.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.012Z"
+        },
+        {
+          "id": "9c7ee2c0-e050-467d-8267-ca02daa7979d",
+          "body": "What's left on my shopping list now?",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.013Z"
+        },
+        {
+          "id": "c4ef6304-c168-4896-ab55-2efff8572866",
+          "body": "You've got three unchecked items:\n\n- Tea\n- Rice (no quantity)\n- Rice — 50 g (linked to a meal plan)",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.014Z"
+        },
+        {
+          "id": "9ae6efe6-3a06-4330-9bc1-670e24fec6d5",
+          "body": "Set my daily protein target to 90 grams. Leave calories, carbs, fat and fiber targets unknown.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.015Z"
+        },
+        {
+          "id": "96045ee0-5712-45c3-9405-89d0545f8f1b",
+          "body": "I haven’t changed anything. What change would you like me to make?",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.016Z"
+        }
+      ],
+      "profile": {
+        "displayName": null,
+        "proactiveOptIn": false,
+        "quietHoursStart": null,
+        "quietHoursEnd": null
+      },
+      "memories": [],
+      "memoriesTruncated": false,
+      "remindersTruncated": false
+    },
+    "after": {
+      "timezone": "America/New_York",
+      "generatedAt": "2026-10-15T19:23:48.078Z",
+      "tasks": [
+        {
+          "id": "13883c93-206c-4487-911b-05f8229f1ed3",
+          "title": "Finish release checklist",
+          "status": "completed",
+          "dueAt": "2027-01-15T22:00:00.000Z",
+          "estimatedMinutes": 15,
+          "startedAt": null,
+          "goalId": null
+        }
+      ],
+      "reminders": [
+        {
+          "id": "f0255750-c0e4-4052-9627-507dd3cf32bf",
+          "text": "Bring my sketchbook to the cafe",
+          "remindAt": "2027-01-15T16:00:00.000Z",
+          "status": "scheduled"
+        }
+      ],
+      "calendar": null,
+      "busy": [],
+      "tasksTruncated": false,
+      "goals": [],
+      "goalsTruncated": false,
+      "items": [
+        {
+          "id": "cd93f8ee-99ec-4650-9d97-37daaae61073",
+          "version": 1,
+          "data": {
+            "body": "",
+            "kind": "note",
+            "title": "Bring my sketchbook to the cafe"
+          }
+        },
+        {
+          "id": "66a92cac-5f95-437d-9419-3e25daba439e",
+          "version": 1,
+          "data": {
+            "kind": "grocery",
+            "title": "tea",
+            "checked": false
+          }
+        },
+        {
+          "id": "31340822-c413-4776-aced-bc2b498e01c1",
+          "version": 2,
+          "data": {
+            "kind": "pantry",
+            "unit": "g",
+            "title": "Rice",
+            "quantity": 50
+          }
+        },
+        {
+          "id": "1ec5eb75-21d0-4e6e-8eae-29c4b558a7c1",
+          "version": 1,
+          "data": {
+            "kind": "workout_plan",
+            "title": "Wake-up mobility",
+            "sessions": [
+              {
+                "name": "Morning mobility",
+                "minutes": 20,
+                "exercises": [
+                  {
+                    "dose": "20 minutes",
+                    "name": "Gentle mobility"
+                  }
+                ]
+              }
+            ],
+            "templateId": "release-mobility"
+          }
+        },
+        {
+          "id": "a410fa74-1ded-4a32-8e0a-989995296d3e",
+          "version": 1,
+          "data": {
+            "kind": "grocery",
+            "title": "Rice",
+            "checked": false
+          }
+        },
+        {
+          "id": "4b2e3934-060e-417a-8225-bccb00148dde",
+          "version": 5,
+          "data": {
+            "kind": "grocery",
+            "unit": "g",
+            "title": "rice",
+            "checked": false,
+            "quantity": 50,
+            "mealSources": [
+              {
+                "mealId": "6be9c68f-654a-4aa9-902b-a2b38b688ae4",
+                "quantity": 100
+              }
+            ]
+          }
+        },
+        {
+          "id": "6be9c68f-654a-4aa9-902b-a2b38b688ae4",
+          "version": 1,
+          "data": {
+            "date": "2027-01-15",
+            "kind": "meal",
+            "meal": "Lunch",
+            "title": "Rice side",
+            "servings": 1,
+            "ingredients": "100 g rice",
+            "groceriesEnabled": true,
+            "ingredientServings": 1
+          }
+        },
+        {
+          "id": "d7313c7b-c03a-44f4-b8a8-b77541cbbf98",
+          "version": 1,
+          "data": {
+            "kind": "recipe",
+            "title": "Release lemon rice",
+            "favorite": false,
+            "servings": 2,
+            "ingredients": "200 g rice\n1 lemon",
+            "prepMinutes": 20,
+            "instructions": "Cook rice, then add lemon."
+          }
+        }
+      ],
+      "messages": [
+        {
+          "id": "c986cdeb-bece-4044-a033-816d052fad8b",
+          "body": "Plan my saved Release lemon rice for dinner on January 14, 2027, for four servings.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.001Z"
+        },
+        {
+          "id": "97103fd6-f304-440a-977a-9fc3af1ae8cc",
+          "body": "Saved: Release lemon rice. Dinner, 2027-01-14. 4 servings.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.002Z"
+        },
+        {
+          "id": "bd11f93d-fdac-47f7-a714-5f00a096658b",
+          "body": "Make that January 14 dinner six servings. Keep its recipe ingredients and date.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.003Z"
+        },
+        {
+          "id": "224a8863-59c2-4f66-980f-393e2960787e",
+          "body": "Updated: Release lemon rice. Dinner, 2027-01-14. 6 servings.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.004Z"
+        },
+        {
+          "id": "31340822-c413-4776-aced-bc2b498e01c1",
+          "body": "Save rice as pantry stock. I don't know how much I have.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.005Z"
+        },
+        {
+          "id": "0b4b9860-7faf-47da-a3ae-1f24a76e3347",
+          "body": "Saved: Rice.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.006Z"
+        },
+        {
+          "id": "de060e8b-4756-4d47-8750-aaf430c8a29b",
+          "body": "Add tea to my shopping list.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.007Z"
+        },
+        {
+          "id": "1e4c5a4c-638d-400c-ad50-723306c2391e",
+          "body": "Added to your shopping list: tea.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.008Z"
+        },
+        {
+          "id": "af2d2bd4-b154-499d-a020-99799b82596d",
+          "body": "Update that pantry rice to exactly 50 grams.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.009Z"
+        },
+        {
+          "id": "dbf8b1ed-6af3-4a28-b38c-9eacc2767a17",
+          "body": "Updated: Rice.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.010Z"
+        },
+        {
+          "id": "23b6a32e-f12e-42bd-b49f-42c4a9ae02fe",
+          "body": "Remove my Release lemon rice dinner on January 14, 2027. Keep the rice side and my manual shopping items.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.011Z"
+        },
+        {
+          "id": "57d25648-405a-4df0-b610-a704bd8d443c",
+          "body": "Removed.\nDeleted the Release lemon rice dinner (Jan 14). Your Rice side and shopping list items are untouched.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.012Z"
+        },
+        {
+          "id": "9c7ee2c0-e050-467d-8267-ca02daa7979d",
+          "body": "What's left on my shopping list now?",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.013Z"
+        },
+        {
+          "id": "c4ef6304-c168-4896-ab55-2efff8572866",
+          "body": "You've got three unchecked items:\n\n- Tea\n- Rice (no quantity)\n- Rice — 50 g (linked to a meal plan)",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.014Z"
+        },
+        {
+          "id": "9ae6efe6-3a06-4330-9bc1-670e24fec6d5",
+          "body": "Set my daily protein target to 90 grams. Leave calories, carbs, fat and fiber targets unknown.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.015Z"
+        },
+        {
+          "id": "96045ee0-5712-45c3-9405-89d0545f8f1b",
+          "body": "I haven’t changed anything. What change would you like me to make?",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.016Z"
+        },
+        {
+          "id": "cd93f8ee-99ec-4650-9d97-37daaae61073",
+          "body": "Save a thought: bring my sketchbook to the cafe. Remind me tomorrow at 11 AM.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.017Z"
+        },
+        {
+          "id": "348b5a21-b428-4ec8-9fc3-4db9c041be20",
+          "body": "Saved to Thought inbox: Bring my sketchbook to the cafe.\nReminder set for Fri, Jan 15, 11:00 AM EST.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.018Z"
+        }
+      ],
+      "profile": {
+        "displayName": null,
+        "proactiveOptIn": false,
+        "quietHoursStart": null,
+        "quietHoursEnd": null
+      },
+      "memories": [],
+      "memoriesTruncated": false,
+      "remindersTruncated": false
+    },
+    "reminders": [
+      {
+        "contentMode": "text",
+        "sourceOperation": 0,
+        "id": "f0255750-c0e4-4052-9627-507dd3cf32bf",
+        "userId": "c9ff2db3-1099-4705-a29e-f84f885fbd2f",
+        "taskId": null,
+        "sourceMessageId": "cd93f8ee-99ec-4650-9d97-37daaae61073",
+        "text": "Bring my sketchbook to the cafe",
+        "remindAt": "2027-01-15T16:00:00.000Z",
+        "timezone": "America/New_York",
+        "recurrence": null,
+        "occurrenceCount": 0,
+        "status": "scheduled",
+        "idempotencyKey": "reminder:cd93f8ee-99ec-4650-9d97-37daaae61073",
+        "provider": null,
+        "providerMessageSid": null,
+        "sentAt": null,
+        "cancelledAt": null,
+        "lastError": null,
+        "createdAt": "2026-10-15T19:23:48.038Z",
+        "updatedAt": "2026-10-15T19:23:48.038Z"
+      }
+    ]
+  },
+  {
+    "decisionAt": "2027-01-14T15:00:00.019Z",
+    "input": "Reopen Finish release checklist.",
+    "replies": [
+      "Updated: Finish release checklist."
+    ],
+    "providerId": "7567f6ca-af85-4b57-82ae-6907197febb7",
+    "duplicate": false,
+    "parserCalled": false,
+    "tools": [],
+    "elapsedMs": 1534,
+    "channel": "web",
+    "issues": [],
+    "before": {
+      "timezone": "America/New_York",
+      "generatedAt": "2026-10-15T19:23:48.121Z",
+      "tasks": [
+        {
+          "id": "13883c93-206c-4487-911b-05f8229f1ed3",
+          "title": "Finish release checklist",
+          "status": "completed",
+          "dueAt": "2027-01-15T22:00:00.000Z",
+          "estimatedMinutes": 15,
+          "startedAt": null,
+          "goalId": null
+        }
+      ],
+      "reminders": [
+        {
+          "id": "f0255750-c0e4-4052-9627-507dd3cf32bf",
+          "text": "Bring my sketchbook to the cafe",
+          "remindAt": "2027-01-15T16:00:00.000Z",
+          "status": "scheduled"
+        }
+      ],
+      "calendar": null,
+      "busy": [],
+      "tasksTruncated": false,
+      "goals": [],
+      "goalsTruncated": false,
+      "items": [
+        {
+          "id": "cd93f8ee-99ec-4650-9d97-37daaae61073",
+          "version": 1,
+          "data": {
+            "body": "",
+            "kind": "note",
+            "title": "Bring my sketchbook to the cafe"
+          }
+        },
+        {
+          "id": "66a92cac-5f95-437d-9419-3e25daba439e",
+          "version": 1,
+          "data": {
+            "kind": "grocery",
+            "title": "tea",
+            "checked": false
+          }
+        },
+        {
+          "id": "31340822-c413-4776-aced-bc2b498e01c1",
+          "version": 2,
+          "data": {
+            "kind": "pantry",
+            "unit": "g",
+            "title": "Rice",
+            "quantity": 50
+          }
+        },
+        {
+          "id": "1ec5eb75-21d0-4e6e-8eae-29c4b558a7c1",
+          "version": 1,
+          "data": {
+            "kind": "workout_plan",
+            "title": "Wake-up mobility",
+            "sessions": [
+              {
+                "name": "Morning mobility",
+                "minutes": 20,
+                "exercises": [
+                  {
+                    "dose": "20 minutes",
+                    "name": "Gentle mobility"
+                  }
+                ]
+              }
+            ],
+            "templateId": "release-mobility"
+          }
+        },
+        {
+          "id": "a410fa74-1ded-4a32-8e0a-989995296d3e",
+          "version": 1,
+          "data": {
+            "kind": "grocery",
+            "title": "Rice",
+            "checked": false
+          }
+        },
+        {
+          "id": "4b2e3934-060e-417a-8225-bccb00148dde",
+          "version": 5,
+          "data": {
+            "kind": "grocery",
+            "unit": "g",
+            "title": "rice",
+            "checked": false,
+            "quantity": 50,
+            "mealSources": [
+              {
+                "mealId": "6be9c68f-654a-4aa9-902b-a2b38b688ae4",
+                "quantity": 100
+              }
+            ]
+          }
+        },
+        {
+          "id": "6be9c68f-654a-4aa9-902b-a2b38b688ae4",
+          "version": 1,
+          "data": {
+            "date": "2027-01-15",
+            "kind": "meal",
+            "meal": "Lunch",
+            "title": "Rice side",
+            "servings": 1,
+            "ingredients": "100 g rice",
+            "groceriesEnabled": true,
+            "ingredientServings": 1
+          }
+        },
+        {
+          "id": "d7313c7b-c03a-44f4-b8a8-b77541cbbf98",
+          "version": 1,
+          "data": {
+            "kind": "recipe",
+            "title": "Release lemon rice",
+            "favorite": false,
+            "servings": 2,
+            "ingredients": "200 g rice\n1 lemon",
+            "prepMinutes": 20,
+            "instructions": "Cook rice, then add lemon."
+          }
+        }
+      ],
+      "messages": [
+        {
+          "id": "c986cdeb-bece-4044-a033-816d052fad8b",
+          "body": "Plan my saved Release lemon rice for dinner on January 14, 2027, for four servings.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.001Z"
+        },
+        {
+          "id": "97103fd6-f304-440a-977a-9fc3af1ae8cc",
+          "body": "Saved: Release lemon rice. Dinner, 2027-01-14. 4 servings.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.002Z"
+        },
+        {
+          "id": "bd11f93d-fdac-47f7-a714-5f00a096658b",
+          "body": "Make that January 14 dinner six servings. Keep its recipe ingredients and date.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.003Z"
+        },
+        {
+          "id": "224a8863-59c2-4f66-980f-393e2960787e",
+          "body": "Updated: Release lemon rice. Dinner, 2027-01-14. 6 servings.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.004Z"
+        },
+        {
+          "id": "31340822-c413-4776-aced-bc2b498e01c1",
+          "body": "Save rice as pantry stock. I don't know how much I have.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.005Z"
+        },
+        {
+          "id": "0b4b9860-7faf-47da-a3ae-1f24a76e3347",
+          "body": "Saved: Rice.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.006Z"
+        },
+        {
+          "id": "de060e8b-4756-4d47-8750-aaf430c8a29b",
+          "body": "Add tea to my shopping list.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.007Z"
+        },
+        {
+          "id": "1e4c5a4c-638d-400c-ad50-723306c2391e",
+          "body": "Added to your shopping list: tea.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.008Z"
+        },
+        {
+          "id": "af2d2bd4-b154-499d-a020-99799b82596d",
+          "body": "Update that pantry rice to exactly 50 grams.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.009Z"
+        },
+        {
+          "id": "dbf8b1ed-6af3-4a28-b38c-9eacc2767a17",
+          "body": "Updated: Rice.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.010Z"
+        },
+        {
+          "id": "23b6a32e-f12e-42bd-b49f-42c4a9ae02fe",
+          "body": "Remove my Release lemon rice dinner on January 14, 2027. Keep the rice side and my manual shopping items.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.011Z"
+        },
+        {
+          "id": "57d25648-405a-4df0-b610-a704bd8d443c",
+          "body": "Removed.\nDeleted the Release lemon rice dinner (Jan 14). Your Rice side and shopping list items are untouched.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.012Z"
+        },
+        {
+          "id": "9c7ee2c0-e050-467d-8267-ca02daa7979d",
+          "body": "What's left on my shopping list now?",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.013Z"
+        },
+        {
+          "id": "c4ef6304-c168-4896-ab55-2efff8572866",
+          "body": "You've got three unchecked items:\n\n- Tea\n- Rice (no quantity)\n- Rice — 50 g (linked to a meal plan)",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.014Z"
+        },
+        {
+          "id": "9ae6efe6-3a06-4330-9bc1-670e24fec6d5",
+          "body": "Set my daily protein target to 90 grams. Leave calories, carbs, fat and fiber targets unknown.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.015Z"
+        },
+        {
+          "id": "96045ee0-5712-45c3-9405-89d0545f8f1b",
+          "body": "I haven’t changed anything. What change would you like me to make?",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.016Z"
+        },
+        {
+          "id": "cd93f8ee-99ec-4650-9d97-37daaae61073",
+          "body": "Save a thought: bring my sketchbook to the cafe. Remind me tomorrow at 11 AM.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.017Z"
+        },
+        {
+          "id": "348b5a21-b428-4ec8-9fc3-4db9c041be20",
+          "body": "Saved to Thought inbox: Bring my sketchbook to the cafe.\nReminder set for Fri, Jan 15, 11:00 AM EST.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.018Z"
+        }
+      ],
+      "profile": {
+        "displayName": null,
+        "proactiveOptIn": false,
+        "quietHoursStart": null,
+        "quietHoursEnd": null
+      },
+      "memories": [],
+      "memoriesTruncated": false,
+      "remindersTruncated": false
+    },
+    "after": {
+      "timezone": "America/New_York",
+      "generatedAt": "2026-10-15T19:23:49.682Z",
+      "tasks": [
+        {
+          "id": "13883c93-206c-4487-911b-05f8229f1ed3",
+          "title": "Finish release checklist",
+          "status": "not_started",
+          "dueAt": "2027-01-15T22:00:00.000Z",
+          "estimatedMinutes": 15,
+          "startedAt": null,
+          "goalId": null
+        }
+      ],
+      "reminders": [
+        {
+          "id": "f0255750-c0e4-4052-9627-507dd3cf32bf",
+          "text": "Bring my sketchbook to the cafe",
+          "remindAt": "2027-01-15T16:00:00.000Z",
+          "status": "scheduled"
+        }
+      ],
+      "calendar": null,
+      "busy": [],
+      "tasksTruncated": false,
+      "goals": [],
+      "goalsTruncated": false,
+      "items": [
+        {
+          "id": "cd93f8ee-99ec-4650-9d97-37daaae61073",
+          "version": 1,
+          "data": {
+            "body": "",
+            "kind": "note",
+            "title": "Bring my sketchbook to the cafe"
+          }
+        },
+        {
+          "id": "66a92cac-5f95-437d-9419-3e25daba439e",
+          "version": 1,
+          "data": {
+            "kind": "grocery",
+            "title": "tea",
+            "checked": false
+          }
+        },
+        {
+          "id": "31340822-c413-4776-aced-bc2b498e01c1",
+          "version": 2,
+          "data": {
+            "kind": "pantry",
+            "unit": "g",
+            "title": "Rice",
+            "quantity": 50
+          }
+        },
+        {
+          "id": "1ec5eb75-21d0-4e6e-8eae-29c4b558a7c1",
+          "version": 1,
+          "data": {
+            "kind": "workout_plan",
+            "title": "Wake-up mobility",
+            "sessions": [
+              {
+                "name": "Morning mobility",
+                "minutes": 20,
+                "exercises": [
+                  {
+                    "dose": "20 minutes",
+                    "name": "Gentle mobility"
+                  }
+                ]
+              }
+            ],
+            "templateId": "release-mobility"
+          }
+        },
+        {
+          "id": "a410fa74-1ded-4a32-8e0a-989995296d3e",
+          "version": 1,
+          "data": {
+            "kind": "grocery",
+            "title": "Rice",
+            "checked": false
+          }
+        },
+        {
+          "id": "4b2e3934-060e-417a-8225-bccb00148dde",
+          "version": 5,
+          "data": {
+            "kind": "grocery",
+            "unit": "g",
+            "title": "rice",
+            "checked": false,
+            "quantity": 50,
+            "mealSources": [
+              {
+                "mealId": "6be9c68f-654a-4aa9-902b-a2b38b688ae4",
+                "quantity": 100
+              }
+            ]
+          }
+        },
+        {
+          "id": "6be9c68f-654a-4aa9-902b-a2b38b688ae4",
+          "version": 1,
+          "data": {
+            "date": "2027-01-15",
+            "kind": "meal",
+            "meal": "Lunch",
+            "title": "Rice side",
+            "servings": 1,
+            "ingredients": "100 g rice",
+            "groceriesEnabled": true,
+            "ingredientServings": 1
+          }
+        },
+        {
+          "id": "d7313c7b-c03a-44f4-b8a8-b77541cbbf98",
+          "version": 1,
+          "data": {
+            "kind": "recipe",
+            "title": "Release lemon rice",
+            "favorite": false,
+            "servings": 2,
+            "ingredients": "200 g rice\n1 lemon",
+            "prepMinutes": 20,
+            "instructions": "Cook rice, then add lemon."
+          }
+        }
+      ],
+      "messages": [
+        {
+          "id": "c986cdeb-bece-4044-a033-816d052fad8b",
+          "body": "Plan my saved Release lemon rice for dinner on January 14, 2027, for four servings.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.001Z"
+        },
+        {
+          "id": "97103fd6-f304-440a-977a-9fc3af1ae8cc",
+          "body": "Saved: Release lemon rice. Dinner, 2027-01-14. 4 servings.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.002Z"
+        },
+        {
+          "id": "bd11f93d-fdac-47f7-a714-5f00a096658b",
+          "body": "Make that January 14 dinner six servings. Keep its recipe ingredients and date.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.003Z"
+        },
+        {
+          "id": "224a8863-59c2-4f66-980f-393e2960787e",
+          "body": "Updated: Release lemon rice. Dinner, 2027-01-14. 6 servings.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.004Z"
+        },
+        {
+          "id": "31340822-c413-4776-aced-bc2b498e01c1",
+          "body": "Save rice as pantry stock. I don't know how much I have.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.005Z"
+        },
+        {
+          "id": "0b4b9860-7faf-47da-a3ae-1f24a76e3347",
+          "body": "Saved: Rice.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.006Z"
+        },
+        {
+          "id": "de060e8b-4756-4d47-8750-aaf430c8a29b",
+          "body": "Add tea to my shopping list.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.007Z"
+        },
+        {
+          "id": "1e4c5a4c-638d-400c-ad50-723306c2391e",
+          "body": "Added to your shopping list: tea.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.008Z"
+        },
+        {
+          "id": "af2d2bd4-b154-499d-a020-99799b82596d",
+          "body": "Update that pantry rice to exactly 50 grams.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.009Z"
+        },
+        {
+          "id": "dbf8b1ed-6af3-4a28-b38c-9eacc2767a17",
+          "body": "Updated: Rice.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.010Z"
+        },
+        {
+          "id": "23b6a32e-f12e-42bd-b49f-42c4a9ae02fe",
+          "body": "Remove my Release lemon rice dinner on January 14, 2027. Keep the rice side and my manual shopping items.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.011Z"
+        },
+        {
+          "id": "57d25648-405a-4df0-b610-a704bd8d443c",
+          "body": "Removed.\nDeleted the Release lemon rice dinner (Jan 14). Your Rice side and shopping list items are untouched.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.012Z"
+        },
+        {
+          "id": "9c7ee2c0-e050-467d-8267-ca02daa7979d",
+          "body": "What's left on my shopping list now?",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.013Z"
+        },
+        {
+          "id": "c4ef6304-c168-4896-ab55-2efff8572866",
+          "body": "You've got three unchecked items:\n\n- Tea\n- Rice (no quantity)\n- Rice — 50 g (linked to a meal plan)",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.014Z"
+        },
+        {
+          "id": "9ae6efe6-3a06-4330-9bc1-670e24fec6d5",
+          "body": "Set my daily protein target to 90 grams. Leave calories, carbs, fat and fiber targets unknown.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.015Z"
+        },
+        {
+          "id": "96045ee0-5712-45c3-9405-89d0545f8f1b",
+          "body": "I haven’t changed anything. What change would you like me to make?",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.016Z"
+        },
+        {
+          "id": "cd93f8ee-99ec-4650-9d97-37daaae61073",
+          "body": "Save a thought: bring my sketchbook to the cafe. Remind me tomorrow at 11 AM.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.017Z"
+        },
+        {
+          "id": "348b5a21-b428-4ec8-9fc3-4db9c041be20",
+          "body": "Saved to Thought inbox: Bring my sketchbook to the cafe.\nReminder set for Fri, Jan 15, 11:00 AM EST.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.018Z"
+        },
+        {
+          "id": "a1dd1f97-f9e5-426d-9564-fca9ee61cac6",
+          "body": "Reopen Finish release checklist.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.019Z"
+        },
+        {
+          "id": "9cc8795d-c588-4b10-989f-2d38486d3c38",
+          "body": "Updated: Finish release checklist.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.020Z"
+        }
+      ],
+      "profile": {
+        "displayName": null,
+        "proactiveOptIn": false,
+        "quietHoursStart": null,
+        "quietHoursEnd": null
+      },
+      "memories": [],
+      "memoriesTruncated": false,
+      "remindersTruncated": false
+    },
+    "reminders": [
+      {
+        "contentMode": "text",
+        "sourceOperation": 0,
+        "id": "f0255750-c0e4-4052-9627-507dd3cf32bf",
+        "userId": "c9ff2db3-1099-4705-a29e-f84f885fbd2f",
+        "taskId": null,
+        "sourceMessageId": "cd93f8ee-99ec-4650-9d97-37daaae61073",
+        "text": "Bring my sketchbook to the cafe",
+        "remindAt": "2027-01-15T16:00:00.000Z",
+        "timezone": "America/New_York",
+        "recurrence": null,
+        "occurrenceCount": 0,
+        "status": "scheduled",
+        "idempotencyKey": "reminder:cd93f8ee-99ec-4650-9d97-37daaae61073",
+        "provider": null,
+        "providerMessageSid": null,
+        "sentAt": null,
+        "cancelledAt": null,
+        "lastError": null,
+        "createdAt": "2026-10-15T19:23:48.038Z",
+        "updatedAt": "2026-10-15T19:23:48.038Z"
+      }
+    ]
+  },
+  {
+    "decisionAt": "2027-01-14T15:00:00.021Z",
+    "input": "Log my Morning mobility session from my saved Wake-up mobility plan for January 14, 2027: 20 minutes of Mobility.",
+    "replies": [
+      "Saved: Morning mobility. 20 minutes, 2027-01-14."
+    ],
+    "providerId": "44925b75-939e-4edc-9af5-961914b35e88",
+    "duplicate": false,
+    "parserCalled": true,
+    "tools": [
+      "life_list",
+      "life_save"
+    ],
+    "elapsedMs": 11063,
+    "channel": "sms",
+    "toolTrace": [
+      {
+        "command": {
+          "type": "life_list",
+          "kind": "workout_plan",
+          "query": "Wake-up mobility"
+        },
+        "result": "{\"items\":[{\"id\":\"1ec5eb75-21d0-4e6e-8eae-29c4b558a7c1\",\"version\":1,\"data\":{\"kind\":\"workout_plan\",\"title\":\"Wake-up mobility\",\"sessions\":[{\"name\":\"Morning mobility\",\"minutes\":20,\"exercises\":[{\"dose\":\"20 minutes\",\"name\":\"Gentle mobility\"}]}],\"templateId\":\"release-mobility\"}}],\"truncated\":false,\"coverage\":{\"kind\":\"workout_plan\",\"id\":null,\"query\":\"Wake-up mobility\",\"match\":\"all search words\",\"searched\":true,\"limit\":20},\"notice\":\"Only matching records of this kind are included; this is not a complete account search.\"}"
+      },
+      {
+        "command": {
+          "type": "life_save",
+          "data": {
+            "kind": "workout",
+            "title": "Morning mobility",
+            "date": "2027-01-14",
+            "minutes": 20,
+            "activity": "Mobility",
+            "programId": "1ec5eb75-21d0-4e6e-8eae-29c4b558a7c1",
+            "sessionName": "Morning mobility"
+          }
+        },
+        "result": "Saved: Morning mobility. 20 minutes, 2027-01-14."
+      }
+    ],
+    "issues": [],
+    "before": {
+      "timezone": "America/New_York",
+      "generatedAt": "2026-10-15T19:23:49.742Z",
+      "tasks": [
+        {
+          "id": "13883c93-206c-4487-911b-05f8229f1ed3",
+          "title": "Finish release checklist",
+          "status": "not_started",
+          "dueAt": "2027-01-15T22:00:00.000Z",
+          "estimatedMinutes": 15,
+          "startedAt": null,
+          "goalId": null
+        }
+      ],
+      "reminders": [
+        {
+          "id": "f0255750-c0e4-4052-9627-507dd3cf32bf",
+          "text": "Bring my sketchbook to the cafe",
+          "remindAt": "2027-01-15T16:00:00.000Z",
+          "status": "scheduled"
+        }
+      ],
+      "calendar": null,
+      "busy": [],
+      "tasksTruncated": false,
+      "goals": [],
+      "goalsTruncated": false,
+      "items": [
+        {
+          "id": "cd93f8ee-99ec-4650-9d97-37daaae61073",
+          "version": 1,
+          "data": {
+            "body": "",
+            "kind": "note",
+            "title": "Bring my sketchbook to the cafe"
+          }
+        },
+        {
+          "id": "66a92cac-5f95-437d-9419-3e25daba439e",
+          "version": 1,
+          "data": {
+            "kind": "grocery",
+            "title": "tea",
+            "checked": false
+          }
+        },
+        {
+          "id": "31340822-c413-4776-aced-bc2b498e01c1",
+          "version": 2,
+          "data": {
+            "kind": "pantry",
+            "unit": "g",
+            "title": "Rice",
+            "quantity": 50
+          }
+        },
+        {
+          "id": "1ec5eb75-21d0-4e6e-8eae-29c4b558a7c1",
+          "version": 1,
+          "data": {
+            "kind": "workout_plan",
+            "title": "Wake-up mobility",
+            "sessions": [
+              {
+                "name": "Morning mobility",
+                "minutes": 20,
+                "exercises": [
+                  {
+                    "dose": "20 minutes",
+                    "name": "Gentle mobility"
+                  }
+                ]
+              }
+            ],
+            "templateId": "release-mobility"
+          }
+        },
+        {
+          "id": "a410fa74-1ded-4a32-8e0a-989995296d3e",
+          "version": 1,
+          "data": {
+            "kind": "grocery",
+            "title": "Rice",
+            "checked": false
+          }
+        },
+        {
+          "id": "4b2e3934-060e-417a-8225-bccb00148dde",
+          "version": 5,
+          "data": {
+            "kind": "grocery",
+            "unit": "g",
+            "title": "rice",
+            "checked": false,
+            "quantity": 50,
+            "mealSources": [
+              {
+                "mealId": "6be9c68f-654a-4aa9-902b-a2b38b688ae4",
+                "quantity": 100
+              }
+            ]
+          }
+        },
+        {
+          "id": "6be9c68f-654a-4aa9-902b-a2b38b688ae4",
+          "version": 1,
+          "data": {
+            "date": "2027-01-15",
+            "kind": "meal",
+            "meal": "Lunch",
+            "title": "Rice side",
+            "servings": 1,
+            "ingredients": "100 g rice",
+            "groceriesEnabled": true,
+            "ingredientServings": 1
+          }
+        },
+        {
+          "id": "d7313c7b-c03a-44f4-b8a8-b77541cbbf98",
+          "version": 1,
+          "data": {
+            "kind": "recipe",
+            "title": "Release lemon rice",
+            "favorite": false,
+            "servings": 2,
+            "ingredients": "200 g rice\n1 lemon",
+            "prepMinutes": 20,
+            "instructions": "Cook rice, then add lemon."
+          }
+        }
+      ],
+      "messages": [
+        {
+          "id": "c986cdeb-bece-4044-a033-816d052fad8b",
+          "body": "Plan my saved Release lemon rice for dinner on January 14, 2027, for four servings.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.001Z"
+        },
+        {
+          "id": "97103fd6-f304-440a-977a-9fc3af1ae8cc",
+          "body": "Saved: Release lemon rice. Dinner, 2027-01-14. 4 servings.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.002Z"
+        },
+        {
+          "id": "bd11f93d-fdac-47f7-a714-5f00a096658b",
+          "body": "Make that January 14 dinner six servings. Keep its recipe ingredients and date.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.003Z"
+        },
+        {
+          "id": "224a8863-59c2-4f66-980f-393e2960787e",
+          "body": "Updated: Release lemon rice. Dinner, 2027-01-14. 6 servings.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.004Z"
+        },
+        {
+          "id": "31340822-c413-4776-aced-bc2b498e01c1",
+          "body": "Save rice as pantry stock. I don't know how much I have.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.005Z"
+        },
+        {
+          "id": "0b4b9860-7faf-47da-a3ae-1f24a76e3347",
+          "body": "Saved: Rice.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.006Z"
+        },
+        {
+          "id": "de060e8b-4756-4d47-8750-aaf430c8a29b",
+          "body": "Add tea to my shopping list.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.007Z"
+        },
+        {
+          "id": "1e4c5a4c-638d-400c-ad50-723306c2391e",
+          "body": "Added to your shopping list: tea.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.008Z"
+        },
+        {
+          "id": "af2d2bd4-b154-499d-a020-99799b82596d",
+          "body": "Update that pantry rice to exactly 50 grams.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.009Z"
+        },
+        {
+          "id": "dbf8b1ed-6af3-4a28-b38c-9eacc2767a17",
+          "body": "Updated: Rice.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.010Z"
+        },
+        {
+          "id": "23b6a32e-f12e-42bd-b49f-42c4a9ae02fe",
+          "body": "Remove my Release lemon rice dinner on January 14, 2027. Keep the rice side and my manual shopping items.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.011Z"
+        },
+        {
+          "id": "57d25648-405a-4df0-b610-a704bd8d443c",
+          "body": "Removed.\nDeleted the Release lemon rice dinner (Jan 14). Your Rice side and shopping list items are untouched.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.012Z"
+        },
+        {
+          "id": "9c7ee2c0-e050-467d-8267-ca02daa7979d",
+          "body": "What's left on my shopping list now?",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.013Z"
+        },
+        {
+          "id": "c4ef6304-c168-4896-ab55-2efff8572866",
+          "body": "You've got three unchecked items:\n\n- Tea\n- Rice (no quantity)\n- Rice — 50 g (linked to a meal plan)",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.014Z"
+        },
+        {
+          "id": "9ae6efe6-3a06-4330-9bc1-670e24fec6d5",
+          "body": "Set my daily protein target to 90 grams. Leave calories, carbs, fat and fiber targets unknown.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.015Z"
+        },
+        {
+          "id": "96045ee0-5712-45c3-9405-89d0545f8f1b",
+          "body": "I haven’t changed anything. What change would you like me to make?",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.016Z"
+        },
+        {
+          "id": "cd93f8ee-99ec-4650-9d97-37daaae61073",
+          "body": "Save a thought: bring my sketchbook to the cafe. Remind me tomorrow at 11 AM.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.017Z"
+        },
+        {
+          "id": "348b5a21-b428-4ec8-9fc3-4db9c041be20",
+          "body": "Saved to Thought inbox: Bring my sketchbook to the cafe.\nReminder set for Fri, Jan 15, 11:00 AM EST.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.018Z"
+        },
+        {
+          "id": "a1dd1f97-f9e5-426d-9564-fca9ee61cac6",
+          "body": "Reopen Finish release checklist.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.019Z"
+        },
+        {
+          "id": "9cc8795d-c588-4b10-989f-2d38486d3c38",
+          "body": "Updated: Finish release checklist.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.020Z"
+        }
+      ],
+      "profile": {
+        "displayName": null,
+        "proactiveOptIn": false,
+        "quietHoursStart": null,
+        "quietHoursEnd": null
+      },
+      "memories": [],
+      "memoriesTruncated": false,
+      "remindersTruncated": false
+    },
+    "after": {
+      "timezone": "America/New_York",
+      "generatedAt": "2026-10-15T19:24:00.827Z",
+      "tasks": [
+        {
+          "id": "13883c93-206c-4487-911b-05f8229f1ed3",
+          "title": "Finish release checklist",
+          "status": "not_started",
+          "dueAt": "2027-01-15T22:00:00.000Z",
+          "estimatedMinutes": 15,
+          "startedAt": null,
+          "goalId": null
+        }
+      ],
+      "reminders": [
+        {
+          "id": "f0255750-c0e4-4052-9627-507dd3cf32bf",
+          "text": "Bring my sketchbook to the cafe",
+          "remindAt": "2027-01-15T16:00:00.000Z",
+          "status": "scheduled"
+        }
+      ],
+      "calendar": null,
+      "busy": [],
+      "tasksTruncated": false,
+      "goals": [],
+      "goalsTruncated": false,
+      "items": [
+        {
+          "id": "53348ff9-349e-4f2d-ba0b-8adbe9af9b1a",
+          "version": 1,
+          "data": {
+            "date": "2027-01-14",
+            "kind": "workout",
+            "title": "Morning mobility",
+            "minutes": 20,
+            "activity": "Mobility",
+            "programId": "1ec5eb75-21d0-4e6e-8eae-29c4b558a7c1",
+            "sessionName": "Morning mobility"
+          }
+        },
+        {
+          "id": "cd93f8ee-99ec-4650-9d97-37daaae61073",
+          "version": 1,
+          "data": {
+            "body": "",
+            "kind": "note",
+            "title": "Bring my sketchbook to the cafe"
+          }
+        },
+        {
+          "id": "66a92cac-5f95-437d-9419-3e25daba439e",
+          "version": 1,
+          "data": {
+            "kind": "grocery",
+            "title": "tea",
+            "checked": false
+          }
+        },
+        {
+          "id": "31340822-c413-4776-aced-bc2b498e01c1",
+          "version": 2,
+          "data": {
+            "kind": "pantry",
+            "unit": "g",
+            "title": "Rice",
+            "quantity": 50
+          }
+        },
+        {
+          "id": "1ec5eb75-21d0-4e6e-8eae-29c4b558a7c1",
+          "version": 1,
+          "data": {
+            "kind": "workout_plan",
+            "title": "Wake-up mobility",
+            "sessions": [
+              {
+                "name": "Morning mobility",
+                "minutes": 20,
+                "exercises": [
+                  {
+                    "dose": "20 minutes",
+                    "name": "Gentle mobility"
+                  }
+                ]
+              }
+            ],
+            "templateId": "release-mobility"
+          }
+        },
+        {
+          "id": "a410fa74-1ded-4a32-8e0a-989995296d3e",
+          "version": 1,
+          "data": {
+            "kind": "grocery",
+            "title": "Rice",
+            "checked": false
+          }
+        },
+        {
+          "id": "4b2e3934-060e-417a-8225-bccb00148dde",
+          "version": 5,
+          "data": {
+            "kind": "grocery",
+            "unit": "g",
+            "title": "rice",
+            "checked": false,
+            "quantity": 50,
+            "mealSources": [
+              {
+                "mealId": "6be9c68f-654a-4aa9-902b-a2b38b688ae4",
+                "quantity": 100
+              }
+            ]
+          }
+        },
+        {
+          "id": "6be9c68f-654a-4aa9-902b-a2b38b688ae4",
+          "version": 1,
+          "data": {
+            "date": "2027-01-15",
+            "kind": "meal",
+            "meal": "Lunch",
+            "title": "Rice side",
+            "servings": 1,
+            "ingredients": "100 g rice",
+            "groceriesEnabled": true,
+            "ingredientServings": 1
+          }
+        },
+        {
+          "id": "d7313c7b-c03a-44f4-b8a8-b77541cbbf98",
+          "version": 1,
+          "data": {
+            "kind": "recipe",
+            "title": "Release lemon rice",
+            "favorite": false,
+            "servings": 2,
+            "ingredients": "200 g rice\n1 lemon",
+            "prepMinutes": 20,
+            "instructions": "Cook rice, then add lemon."
+          }
+        }
+      ],
+      "messages": [
+        {
+          "id": "c986cdeb-bece-4044-a033-816d052fad8b",
+          "body": "Plan my saved Release lemon rice for dinner on January 14, 2027, for four servings.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.001Z"
+        },
+        {
+          "id": "97103fd6-f304-440a-977a-9fc3af1ae8cc",
+          "body": "Saved: Release lemon rice. Dinner, 2027-01-14. 4 servings.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.002Z"
+        },
+        {
+          "id": "bd11f93d-fdac-47f7-a714-5f00a096658b",
+          "body": "Make that January 14 dinner six servings. Keep its recipe ingredients and date.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.003Z"
+        },
+        {
+          "id": "224a8863-59c2-4f66-980f-393e2960787e",
+          "body": "Updated: Release lemon rice. Dinner, 2027-01-14. 6 servings.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.004Z"
+        },
+        {
+          "id": "31340822-c413-4776-aced-bc2b498e01c1",
+          "body": "Save rice as pantry stock. I don't know how much I have.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.005Z"
+        },
+        {
+          "id": "0b4b9860-7faf-47da-a3ae-1f24a76e3347",
+          "body": "Saved: Rice.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.006Z"
+        },
+        {
+          "id": "de060e8b-4756-4d47-8750-aaf430c8a29b",
+          "body": "Add tea to my shopping list.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.007Z"
+        },
+        {
+          "id": "1e4c5a4c-638d-400c-ad50-723306c2391e",
+          "body": "Added to your shopping list: tea.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.008Z"
+        },
+        {
+          "id": "af2d2bd4-b154-499d-a020-99799b82596d",
+          "body": "Update that pantry rice to exactly 50 grams.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.009Z"
+        },
+        {
+          "id": "dbf8b1ed-6af3-4a28-b38c-9eacc2767a17",
+          "body": "Updated: Rice.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.010Z"
+        },
+        {
+          "id": "23b6a32e-f12e-42bd-b49f-42c4a9ae02fe",
+          "body": "Remove my Release lemon rice dinner on January 14, 2027. Keep the rice side and my manual shopping items.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.011Z"
+        },
+        {
+          "id": "57d25648-405a-4df0-b610-a704bd8d443c",
+          "body": "Removed.\nDeleted the Release lemon rice dinner (Jan 14). Your Rice side and shopping list items are untouched.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.012Z"
+        },
+        {
+          "id": "9c7ee2c0-e050-467d-8267-ca02daa7979d",
+          "body": "What's left on my shopping list now?",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.013Z"
+        },
+        {
+          "id": "c4ef6304-c168-4896-ab55-2efff8572866",
+          "body": "You've got three unchecked items:\n\n- Tea\n- Rice (no quantity)\n- Rice — 50 g (linked to a meal plan)",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.014Z"
+        },
+        {
+          "id": "9ae6efe6-3a06-4330-9bc1-670e24fec6d5",
+          "body": "Set my daily protein target to 90 grams. Leave calories, carbs, fat and fiber targets unknown.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.015Z"
+        },
+        {
+          "id": "96045ee0-5712-45c3-9405-89d0545f8f1b",
+          "body": "I haven’t changed anything. What change would you like me to make?",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.016Z"
+        },
+        {
+          "id": "cd93f8ee-99ec-4650-9d97-37daaae61073",
+          "body": "Save a thought: bring my sketchbook to the cafe. Remind me tomorrow at 11 AM.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.017Z"
+        },
+        {
+          "id": "348b5a21-b428-4ec8-9fc3-4db9c041be20",
+          "body": "Saved to Thought inbox: Bring my sketchbook to the cafe.\nReminder set for Fri, Jan 15, 11:00 AM EST.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.018Z"
+        },
+        {
+          "id": "a1dd1f97-f9e5-426d-9564-fca9ee61cac6",
+          "body": "Reopen Finish release checklist.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.019Z"
+        },
+        {
+          "id": "9cc8795d-c588-4b10-989f-2d38486d3c38",
+          "body": "Updated: Finish release checklist.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.020Z"
+        },
+        {
+          "id": "53348ff9-349e-4f2d-ba0b-8adbe9af9b1a",
+          "body": "Log my Morning mobility session from my saved Wake-up mobility plan for January 14, 2027: 20 minutes of Mobility.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.021Z"
+        },
+        {
+          "id": "2d363cf5-76cb-44c3-b8b6-db5a1343b153",
+          "body": "Saved: Morning mobility. 20 minutes, 2027-01-14.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.022Z"
+        }
+      ],
+      "profile": {
+        "displayName": null,
+        "proactiveOptIn": false,
+        "quietHoursStart": null,
+        "quietHoursEnd": null
+      },
+      "memories": [],
+      "memoriesTruncated": false,
+      "remindersTruncated": false
+    },
+    "reminders": [
+      {
+        "contentMode": "text",
+        "sourceOperation": 0,
+        "id": "f0255750-c0e4-4052-9627-507dd3cf32bf",
+        "userId": "c9ff2db3-1099-4705-a29e-f84f885fbd2f",
+        "taskId": null,
+        "sourceMessageId": "cd93f8ee-99ec-4650-9d97-37daaae61073",
+        "text": "Bring my sketchbook to the cafe",
+        "remindAt": "2027-01-15T16:00:00.000Z",
+        "timezone": "America/New_York",
+        "recurrence": null,
+        "occurrenceCount": 0,
+        "status": "scheduled",
+        "idempotencyKey": "reminder:cd93f8ee-99ec-4650-9d97-37daaae61073",
+        "provider": null,
+        "providerMessageSid": null,
+        "sentAt": null,
+        "cancelledAt": null,
+        "lastError": null,
+        "createdAt": "2026-10-15T19:23:48.038Z",
+        "updatedAt": "2026-10-15T19:23:48.038Z"
+      }
+    ]
+  },
+  {
+    "decisionAt": "2027-01-14T15:00:00.023Z",
+    "input": "What is my saved protein target and which workouts have I logged?",
+    "replies": [
+      "No saved nutrition target exists yet — the attempt to set one earlier didn't go through. If you'd like to save a protein target of 90g with the rest unknown, just say the word.\n\nOne workout logged: **Morning mobility** — 20 min, Mobility, Jan 14."
+    ],
+    "providerId": "75f445d5-a0a2-4970-89b9-1e6606b5a463",
+    "duplicate": false,
+    "parserCalled": true,
+    "tools": [
+      "life_list",
+      "life_list"
+    ],
+    "elapsedMs": 7069,
+    "channel": "web",
+    "toolTrace": [
+      {
+        "command": {
+          "type": "life_list",
+          "kind": "nutrition_target"
+        },
+        "result": "{\"items\":[],\"truncated\":false,\"coverage\":{\"kind\":\"nutrition_target\",\"id\":null,\"query\":null,\"match\":\"all search words\",\"searched\":true,\"limit\":20},\"notice\":\"All records of this kind are included.\"}"
+      },
+      {
+        "command": {
+          "type": "life_list",
+          "kind": "workout"
+        },
+        "result": "{\"items\":[{\"id\":\"53348ff9-349e-4f2d-ba0b-8adbe9af9b1a\",\"version\":1,\"data\":{\"date\":\"2027-01-14\",\"kind\":\"workout\",\"title\":\"Morning mobility\",\"minutes\":20,\"activity\":\"Mobility\",\"programId\":\"1ec5eb75-21d0-4e6e-8eae-29c4b558a7c1\",\"sessionName\":\"Morning mobility\"}}],\"truncated\":false,\"coverage\":{\"kind\":\"workout\",\"id\":null,\"query\":null,\"match\":\"all search words\",\"searched\":true,\"limit\":20},\"notice\":\"All records of this kind are included.\"}"
+      }
+    ],
+    "issues": [
+      "Targets and workout history were not freshly retrieved across channels."
+    ],
+    "before": {
+      "timezone": "America/New_York",
+      "generatedAt": "2026-10-15T19:24:00.879Z",
+      "tasks": [
+        {
+          "id": "13883c93-206c-4487-911b-05f8229f1ed3",
+          "title": "Finish release checklist",
+          "status": "not_started",
+          "dueAt": "2027-01-15T22:00:00.000Z",
+          "estimatedMinutes": 15,
+          "startedAt": null,
+          "goalId": null
+        }
+      ],
+      "reminders": [
+        {
+          "id": "f0255750-c0e4-4052-9627-507dd3cf32bf",
+          "text": "Bring my sketchbook to the cafe",
+          "remindAt": "2027-01-15T16:00:00.000Z",
+          "status": "scheduled"
+        }
+      ],
+      "calendar": null,
+      "busy": [],
+      "tasksTruncated": false,
+      "goals": [],
+      "goalsTruncated": false,
+      "items": [
+        {
+          "id": "53348ff9-349e-4f2d-ba0b-8adbe9af9b1a",
+          "version": 1,
+          "data": {
+            "date": "2027-01-14",
+            "kind": "workout",
+            "title": "Morning mobility",
+            "minutes": 20,
+            "activity": "Mobility",
+            "programId": "1ec5eb75-21d0-4e6e-8eae-29c4b558a7c1",
+            "sessionName": "Morning mobility"
+          }
+        },
+        {
+          "id": "cd93f8ee-99ec-4650-9d97-37daaae61073",
+          "version": 1,
+          "data": {
+            "body": "",
+            "kind": "note",
+            "title": "Bring my sketchbook to the cafe"
+          }
+        },
+        {
+          "id": "66a92cac-5f95-437d-9419-3e25daba439e",
+          "version": 1,
+          "data": {
+            "kind": "grocery",
+            "title": "tea",
+            "checked": false
+          }
+        },
+        {
+          "id": "31340822-c413-4776-aced-bc2b498e01c1",
+          "version": 2,
+          "data": {
+            "kind": "pantry",
+            "unit": "g",
+            "title": "Rice",
+            "quantity": 50
+          }
+        },
+        {
+          "id": "1ec5eb75-21d0-4e6e-8eae-29c4b558a7c1",
+          "version": 1,
+          "data": {
+            "kind": "workout_plan",
+            "title": "Wake-up mobility",
+            "sessions": [
+              {
+                "name": "Morning mobility",
+                "minutes": 20,
+                "exercises": [
+                  {
+                    "dose": "20 minutes",
+                    "name": "Gentle mobility"
+                  }
+                ]
+              }
+            ],
+            "templateId": "release-mobility"
+          }
+        },
+        {
+          "id": "a410fa74-1ded-4a32-8e0a-989995296d3e",
+          "version": 1,
+          "data": {
+            "kind": "grocery",
+            "title": "Rice",
+            "checked": false
+          }
+        },
+        {
+          "id": "4b2e3934-060e-417a-8225-bccb00148dde",
+          "version": 5,
+          "data": {
+            "kind": "grocery",
+            "unit": "g",
+            "title": "rice",
+            "checked": false,
+            "quantity": 50,
+            "mealSources": [
+              {
+                "mealId": "6be9c68f-654a-4aa9-902b-a2b38b688ae4",
+                "quantity": 100
+              }
+            ]
+          }
+        },
+        {
+          "id": "6be9c68f-654a-4aa9-902b-a2b38b688ae4",
+          "version": 1,
+          "data": {
+            "date": "2027-01-15",
+            "kind": "meal",
+            "meal": "Lunch",
+            "title": "Rice side",
+            "servings": 1,
+            "ingredients": "100 g rice",
+            "groceriesEnabled": true,
+            "ingredientServings": 1
+          }
+        },
+        {
+          "id": "d7313c7b-c03a-44f4-b8a8-b77541cbbf98",
+          "version": 1,
+          "data": {
+            "kind": "recipe",
+            "title": "Release lemon rice",
+            "favorite": false,
+            "servings": 2,
+            "ingredients": "200 g rice\n1 lemon",
+            "prepMinutes": 20,
+            "instructions": "Cook rice, then add lemon."
+          }
+        }
+      ],
+      "messages": [
+        {
+          "id": "c986cdeb-bece-4044-a033-816d052fad8b",
+          "body": "Plan my saved Release lemon rice for dinner on January 14, 2027, for four servings.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.001Z"
+        },
+        {
+          "id": "97103fd6-f304-440a-977a-9fc3af1ae8cc",
+          "body": "Saved: Release lemon rice. Dinner, 2027-01-14. 4 servings.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.002Z"
+        },
+        {
+          "id": "bd11f93d-fdac-47f7-a714-5f00a096658b",
+          "body": "Make that January 14 dinner six servings. Keep its recipe ingredients and date.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.003Z"
+        },
+        {
+          "id": "224a8863-59c2-4f66-980f-393e2960787e",
+          "body": "Updated: Release lemon rice. Dinner, 2027-01-14. 6 servings.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.004Z"
+        },
+        {
+          "id": "31340822-c413-4776-aced-bc2b498e01c1",
+          "body": "Save rice as pantry stock. I don't know how much I have.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.005Z"
+        },
+        {
+          "id": "0b4b9860-7faf-47da-a3ae-1f24a76e3347",
+          "body": "Saved: Rice.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.006Z"
+        },
+        {
+          "id": "de060e8b-4756-4d47-8750-aaf430c8a29b",
+          "body": "Add tea to my shopping list.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.007Z"
+        },
+        {
+          "id": "1e4c5a4c-638d-400c-ad50-723306c2391e",
+          "body": "Added to your shopping list: tea.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.008Z"
+        },
+        {
+          "id": "af2d2bd4-b154-499d-a020-99799b82596d",
+          "body": "Update that pantry rice to exactly 50 grams.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.009Z"
+        },
+        {
+          "id": "dbf8b1ed-6af3-4a28-b38c-9eacc2767a17",
+          "body": "Updated: Rice.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.010Z"
+        },
+        {
+          "id": "23b6a32e-f12e-42bd-b49f-42c4a9ae02fe",
+          "body": "Remove my Release lemon rice dinner on January 14, 2027. Keep the rice side and my manual shopping items.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.011Z"
+        },
+        {
+          "id": "57d25648-405a-4df0-b610-a704bd8d443c",
+          "body": "Removed.\nDeleted the Release lemon rice dinner (Jan 14). Your Rice side and shopping list items are untouched.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.012Z"
+        },
+        {
+          "id": "9c7ee2c0-e050-467d-8267-ca02daa7979d",
+          "body": "What's left on my shopping list now?",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.013Z"
+        },
+        {
+          "id": "c4ef6304-c168-4896-ab55-2efff8572866",
+          "body": "You've got three unchecked items:\n\n- Tea\n- Rice (no quantity)\n- Rice — 50 g (linked to a meal plan)",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.014Z"
+        },
+        {
+          "id": "9ae6efe6-3a06-4330-9bc1-670e24fec6d5",
+          "body": "Set my daily protein target to 90 grams. Leave calories, carbs, fat and fiber targets unknown.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.015Z"
+        },
+        {
+          "id": "96045ee0-5712-45c3-9405-89d0545f8f1b",
+          "body": "I haven’t changed anything. What change would you like me to make?",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.016Z"
+        },
+        {
+          "id": "cd93f8ee-99ec-4650-9d97-37daaae61073",
+          "body": "Save a thought: bring my sketchbook to the cafe. Remind me tomorrow at 11 AM.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.017Z"
+        },
+        {
+          "id": "348b5a21-b428-4ec8-9fc3-4db9c041be20",
+          "body": "Saved to Thought inbox: Bring my sketchbook to the cafe.\nReminder set for Fri, Jan 15, 11:00 AM EST.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.018Z"
+        },
+        {
+          "id": "a1dd1f97-f9e5-426d-9564-fca9ee61cac6",
+          "body": "Reopen Finish release checklist.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.019Z"
+        },
+        {
+          "id": "9cc8795d-c588-4b10-989f-2d38486d3c38",
+          "body": "Updated: Finish release checklist.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.020Z"
+        },
+        {
+          "id": "53348ff9-349e-4f2d-ba0b-8adbe9af9b1a",
+          "body": "Log my Morning mobility session from my saved Wake-up mobility plan for January 14, 2027: 20 minutes of Mobility.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.021Z"
+        },
+        {
+          "id": "2d363cf5-76cb-44c3-b8b6-db5a1343b153",
+          "body": "Saved: Morning mobility. 20 minutes, 2027-01-14.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.022Z"
+        }
+      ],
+      "profile": {
+        "displayName": null,
+        "proactiveOptIn": false,
+        "quietHoursStart": null,
+        "quietHoursEnd": null
+      },
+      "memories": [],
+      "memoriesTruncated": false,
+      "remindersTruncated": false
+    },
+    "after": {
+      "timezone": "America/New_York",
+      "generatedAt": "2026-10-15T19:24:07.970Z",
+      "tasks": [
+        {
+          "id": "13883c93-206c-4487-911b-05f8229f1ed3",
+          "title": "Finish release checklist",
+          "status": "not_started",
+          "dueAt": "2027-01-15T22:00:00.000Z",
+          "estimatedMinutes": 15,
+          "startedAt": null,
+          "goalId": null
+        }
+      ],
+      "reminders": [
+        {
+          "id": "f0255750-c0e4-4052-9627-507dd3cf32bf",
+          "text": "Bring my sketchbook to the cafe",
+          "remindAt": "2027-01-15T16:00:00.000Z",
+          "status": "scheduled"
+        }
+      ],
+      "calendar": null,
+      "busy": [],
+      "tasksTruncated": false,
+      "goals": [],
+      "goalsTruncated": false,
+      "items": [
+        {
+          "id": "53348ff9-349e-4f2d-ba0b-8adbe9af9b1a",
+          "version": 1,
+          "data": {
+            "date": "2027-01-14",
+            "kind": "workout",
+            "title": "Morning mobility",
+            "minutes": 20,
+            "activity": "Mobility",
+            "programId": "1ec5eb75-21d0-4e6e-8eae-29c4b558a7c1",
+            "sessionName": "Morning mobility"
+          }
+        },
+        {
+          "id": "cd93f8ee-99ec-4650-9d97-37daaae61073",
+          "version": 1,
+          "data": {
+            "body": "",
+            "kind": "note",
+            "title": "Bring my sketchbook to the cafe"
+          }
+        },
+        {
+          "id": "66a92cac-5f95-437d-9419-3e25daba439e",
+          "version": 1,
+          "data": {
+            "kind": "grocery",
+            "title": "tea",
+            "checked": false
+          }
+        },
+        {
+          "id": "31340822-c413-4776-aced-bc2b498e01c1",
+          "version": 2,
+          "data": {
+            "kind": "pantry",
+            "unit": "g",
+            "title": "Rice",
+            "quantity": 50
+          }
+        },
+        {
+          "id": "1ec5eb75-21d0-4e6e-8eae-29c4b558a7c1",
+          "version": 1,
+          "data": {
+            "kind": "workout_plan",
+            "title": "Wake-up mobility",
+            "sessions": [
+              {
+                "name": "Morning mobility",
+                "minutes": 20,
+                "exercises": [
+                  {
+                    "dose": "20 minutes",
+                    "name": "Gentle mobility"
+                  }
+                ]
+              }
+            ],
+            "templateId": "release-mobility"
+          }
+        },
+        {
+          "id": "a410fa74-1ded-4a32-8e0a-989995296d3e",
+          "version": 1,
+          "data": {
+            "kind": "grocery",
+            "title": "Rice",
+            "checked": false
+          }
+        },
+        {
+          "id": "4b2e3934-060e-417a-8225-bccb00148dde",
+          "version": 5,
+          "data": {
+            "kind": "grocery",
+            "unit": "g",
+            "title": "rice",
+            "checked": false,
+            "quantity": 50,
+            "mealSources": [
+              {
+                "mealId": "6be9c68f-654a-4aa9-902b-a2b38b688ae4",
+                "quantity": 100
+              }
+            ]
+          }
+        },
+        {
+          "id": "6be9c68f-654a-4aa9-902b-a2b38b688ae4",
+          "version": 1,
+          "data": {
+            "date": "2027-01-15",
+            "kind": "meal",
+            "meal": "Lunch",
+            "title": "Rice side",
+            "servings": 1,
+            "ingredients": "100 g rice",
+            "groceriesEnabled": true,
+            "ingredientServings": 1
+          }
+        },
+        {
+          "id": "d7313c7b-c03a-44f4-b8a8-b77541cbbf98",
+          "version": 1,
+          "data": {
+            "kind": "recipe",
+            "title": "Release lemon rice",
+            "favorite": false,
+            "servings": 2,
+            "ingredients": "200 g rice\n1 lemon",
+            "prepMinutes": 20,
+            "instructions": "Cook rice, then add lemon."
+          }
+        }
+      ],
+      "messages": [
+        {
+          "id": "c986cdeb-bece-4044-a033-816d052fad8b",
+          "body": "Plan my saved Release lemon rice for dinner on January 14, 2027, for four servings.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.001Z"
+        },
+        {
+          "id": "97103fd6-f304-440a-977a-9fc3af1ae8cc",
+          "body": "Saved: Release lemon rice. Dinner, 2027-01-14. 4 servings.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.002Z"
+        },
+        {
+          "id": "bd11f93d-fdac-47f7-a714-5f00a096658b",
+          "body": "Make that January 14 dinner six servings. Keep its recipe ingredients and date.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.003Z"
+        },
+        {
+          "id": "224a8863-59c2-4f66-980f-393e2960787e",
+          "body": "Updated: Release lemon rice. Dinner, 2027-01-14. 6 servings.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.004Z"
+        },
+        {
+          "id": "31340822-c413-4776-aced-bc2b498e01c1",
+          "body": "Save rice as pantry stock. I don't know how much I have.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.005Z"
+        },
+        {
+          "id": "0b4b9860-7faf-47da-a3ae-1f24a76e3347",
+          "body": "Saved: Rice.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.006Z"
+        },
+        {
+          "id": "de060e8b-4756-4d47-8750-aaf430c8a29b",
+          "body": "Add tea to my shopping list.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.007Z"
+        },
+        {
+          "id": "1e4c5a4c-638d-400c-ad50-723306c2391e",
+          "body": "Added to your shopping list: tea.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.008Z"
+        },
+        {
+          "id": "af2d2bd4-b154-499d-a020-99799b82596d",
+          "body": "Update that pantry rice to exactly 50 grams.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.009Z"
+        },
+        {
+          "id": "dbf8b1ed-6af3-4a28-b38c-9eacc2767a17",
+          "body": "Updated: Rice.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.010Z"
+        },
+        {
+          "id": "23b6a32e-f12e-42bd-b49f-42c4a9ae02fe",
+          "body": "Remove my Release lemon rice dinner on January 14, 2027. Keep the rice side and my manual shopping items.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.011Z"
+        },
+        {
+          "id": "57d25648-405a-4df0-b610-a704bd8d443c",
+          "body": "Removed.\nDeleted the Release lemon rice dinner (Jan 14). Your Rice side and shopping list items are untouched.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.012Z"
+        },
+        {
+          "id": "9c7ee2c0-e050-467d-8267-ca02daa7979d",
+          "body": "What's left on my shopping list now?",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.013Z"
+        },
+        {
+          "id": "c4ef6304-c168-4896-ab55-2efff8572866",
+          "body": "You've got three unchecked items:\n\n- Tea\n- Rice (no quantity)\n- Rice — 50 g (linked to a meal plan)",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.014Z"
+        },
+        {
+          "id": "9ae6efe6-3a06-4330-9bc1-670e24fec6d5",
+          "body": "Set my daily protein target to 90 grams. Leave calories, carbs, fat and fiber targets unknown.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.015Z"
+        },
+        {
+          "id": "96045ee0-5712-45c3-9405-89d0545f8f1b",
+          "body": "I haven’t changed anything. What change would you like me to make?",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.016Z"
+        },
+        {
+          "id": "cd93f8ee-99ec-4650-9d97-37daaae61073",
+          "body": "Save a thought: bring my sketchbook to the cafe. Remind me tomorrow at 11 AM.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.017Z"
+        },
+        {
+          "id": "348b5a21-b428-4ec8-9fc3-4db9c041be20",
+          "body": "Saved to Thought inbox: Bring my sketchbook to the cafe.\nReminder set for Fri, Jan 15, 11:00 AM EST.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.018Z"
+        },
+        {
+          "id": "a1dd1f97-f9e5-426d-9564-fca9ee61cac6",
+          "body": "Reopen Finish release checklist.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.019Z"
+        },
+        {
+          "id": "9cc8795d-c588-4b10-989f-2d38486d3c38",
+          "body": "Updated: Finish release checklist.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.020Z"
+        },
+        {
+          "id": "53348ff9-349e-4f2d-ba0b-8adbe9af9b1a",
+          "body": "Log my Morning mobility session from my saved Wake-up mobility plan for January 14, 2027: 20 minutes of Mobility.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.021Z"
+        },
+        {
+          "id": "2d363cf5-76cb-44c3-b8b6-db5a1343b153",
+          "body": "Saved: Morning mobility. 20 minutes, 2027-01-14.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.022Z"
+        },
+        {
+          "id": "13c6e7c3-6bdf-460c-b93c-236297d9be08",
+          "body": "What is my saved protein target and which workouts have I logged?",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.023Z"
+        },
+        {
+          "id": "21c0415d-cdae-4bf6-80a1-3be4c97d90a3",
+          "body": "No saved nutrition target exists yet — the attempt to set one earlier didn't go through. If you'd like to save a protein target of 90g with the rest unknown, just say the word.\n\nOne workout logged: **Morning mobility** — 20 min, Mobility, Jan 14.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.024Z"
+        }
+      ],
+      "profile": {
+        "displayName": null,
+        "proactiveOptIn": false,
+        "quietHoursStart": null,
+        "quietHoursEnd": null
+      },
+      "memories": [],
+      "memoriesTruncated": false,
+      "remindersTruncated": false
+    },
+    "reminders": [
+      {
+        "contentMode": "text",
+        "sourceOperation": 0,
+        "id": "f0255750-c0e4-4052-9627-507dd3cf32bf",
+        "userId": "c9ff2db3-1099-4705-a29e-f84f885fbd2f",
+        "taskId": null,
+        "sourceMessageId": "cd93f8ee-99ec-4650-9d97-37daaae61073",
+        "text": "Bring my sketchbook to the cafe",
+        "remindAt": "2027-01-15T16:00:00.000Z",
+        "timezone": "America/New_York",
+        "recurrence": null,
+        "occurrenceCount": 0,
+        "status": "scheduled",
+        "idempotencyKey": "reminder:cd93f8ee-99ec-4650-9d97-37daaae61073",
+        "provider": null,
+        "providerMessageSid": null,
+        "sentAt": null,
+        "cancelledAt": null,
+        "lastError": null,
+        "createdAt": "2026-10-15T19:23:48.038Z",
+        "updatedAt": "2026-10-15T19:23:48.038Z"
+      }
+    ]
+  },
+  {
+    "accountIsolation": true,
+    "decisionAt": "2027-01-14T15:00:00.025Z",
+    "input": "What was that recipe I saved earlier?",
+    "replies": [
+      "It looks like there aren't any saved recipes in your account yet. It's possible it was saved under a different section, or it may not have been saved. Want to save a recipe now?"
+    ],
+    "providerId": "dd85d546-ee35-463c-a033-bb9499239cde",
+    "duplicate": false,
+    "parserCalled": true,
+    "tools": [
+      "life_list"
+    ],
+    "elapsedMs": 4590,
+    "channel": "sms",
+    "toolTrace": [
+      {
+        "command": {
+          "type": "life_list",
+          "kind": "recipe"
+        },
+        "result": "{\"items\":[],\"truncated\":false,\"coverage\":{\"kind\":\"recipe\",\"id\":null,\"query\":null,\"match\":\"all search words\",\"searched\":true,\"limit\":20},\"notice\":\"All records of this kind are included.\"}"
+      }
+    ]
+  }
+]
