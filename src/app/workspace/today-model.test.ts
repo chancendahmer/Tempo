@@ -6,7 +6,7 @@ import { previewWorkspace } from "./workspace-data";
 import { TodayView } from "./TodayView";
 
 function renderToday(data: ReturnType<typeof previewWorkspace>, now: Date) {
-  return renderToStaticMarkup(createElement(TodayView, { data, now, saving: false, go: vi.fn(), onSetup: () => {}, editTask: vi.fn(), startTask: vi.fn(), completeTask: vi.fn(), checkStep: vi.fn(), startStep: vi.fn(), editRoutine: vi.fn(), ask: vi.fn(), onResumeFocus: vi.fn() }));
+  return renderToStaticMarkup(createElement(TodayView, { motion: false, setMotion: vi.fn(), data, now, saving: false, go: vi.fn(), onSetup: () => {}, editTask: vi.fn(), startTask: vi.fn(), completeTask: vi.fn(), checkStep: vi.fn(), startStep: vi.fn(), editRoutine: vi.fn(), ask: vi.fn(), onResumeFocus: vi.fn() }));
 }
 
 function fixture() {

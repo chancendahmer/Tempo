@@ -1,80 +1,61 @@
-# Journey globe refinement — design QA
+# Today experiment — visual QA
 
-19 October 2026 · candidate `codex/tempo-calm-ui`, base `1f965cc`.
+final result: passed
 
-**final result: passed** for this scoped Journey visual/interaction refinement. This does not approve the broader beta release or assert full accessibility certification.
+## Scope and comparison
 
-## Compared evidence
+This is a local design experiment for **Today only**, based on the approved Journey aesthetic. It is not a release approval or a claim of whole-product readiness. The user requested an adaptation, so the daily agenda and checklist intentionally replace Journey's large map and milestones.
 
-Opened the combined generated target (`exec-f11f030d-46d7-450d-a4b6-ee512f5841f3.png` in this thread’s generated_images folder) and actual `qa/journey-world-2026-10-19/desktop-1440.png` together in one comparison input. The target is1487×1058; actual viewport1440×1024 with1425px document width and a full-page capture. Both show sample Level1,2active days,4wins. Actual capture had animations paused; target label shows Pause. Comparison is of the approved combined direction, not a pixel-identical landing page: retained Tempo shell, explicit fictional banner, existing Today navigation and assistant composer add height. The real UI exposes days/states/rules accurately and places compact milestones in a separate row.
+Source visual truth:
+`C:/Users/chanc/.codex/worktrees/tempo-calm-ui/Agentic AI Assistant SMS/qa/journey-world-2026-10-19/final-desktop.png`
 
-## Fixes and recheck
+Implementation:
+`http://localhost:3102/workspace/preview`
 
-- Typography: fixed inherited workspace sans-serif override; verified computed Georgia headline. Milestone heading matches the editorial style; controls retain the app’s readable sans-serif.
-- Spacing/layout: bounded the desktop globe, repaired the map mascot width, matched mobile visual and DOM order, and kept three separated48px map targets at narrow widths.
-- Color: cream foundation, coral action, sage progress; visible labels distinguish ahead/current/reached without relying on color alone.
-- Images: custom alpha WebP Earth and matching dimensional flame/sprout/sun/stones/bloom/mountain replace the rejected flat landscape and inconsistent line placeholders. Existing Tempo mascot preserved. No missing image/browser error observed.
-- Copy/content: fixed singular “1 more active day”; counts remain based on saved records, future exploration cannot grant progress, and paused/hidden states are honest.
+Final evidence:
+- `qa/today-world-2026-10-20/final-desktop.png` — 1265 × 1404 pixels, full document at 1280 × 720 CSS viewport, device scale 1. Scrollbar excludes 15px from the captured document.
+- `qa/today-world-2026-10-20/final-mobile-390.png` — 375 × 2330 pixels at 390 × 844 CSS viewport, device scale 1.
+- `qa/today-world-2026-10-20/final-mobile-320.png` — 305 × 2505 pixels at 320 × 800 CSS viewport, device scale 1.
+- `qa/today-world-2026-10-20/before-desktop.png` — earlier Today design.
 
-Post-fix desktop, keyboard,390px and320px captures and trace were independently inspected. Initial game/UI8.7 became9.1; customer final9. No remaining P0/P1/P2 finding in the scoped design. Minor polish opportunities remain: smaller secondary text, long phone journey and dense explanatory rules. The supplied full-page screenshot/focused keyboard and phone viewport images were sufficiently readable to compare those controls; no guessed pixel offsets or cloned competitor assets were used.
+State: fictional Alex preview; current local Tuesday; routine checklist selected for final screenshots. The afternoon next task and event times remain sourced from the existing fixture/model. No fake completed activity was introduced. Screenshots are local QA artifacts and are not committed.
 
-## Technical validation
+The approved Journey source (1265px-wide document) and final Today capture were opened together in one comparison input at native 1x document scale. They are different page contents by design. The existing Today capture anchors layout continuity; Journey anchors typography, color and artwork. Phone captures were opened together for the responsive pass. At these native captures, headings, card text, image edges and controls were readable, so separate cropped comparisons were unnecessary.
 
-Final `npm run check` passed: lint, typecheck, 851 tests passed / 3 skipped, production Next build and operations build. Nearest Journey tests: 24 passed. `git diff --check` passed. No paid model-provider test calls ($0).
+## Fidelity surfaces
 
-## Evidence boundaries
+- **Typography:** Georgia display headings echo Journey; Manrope remains on controls and dense task content. Higher-specificity Today selectors preserve the serif headings in both development and production builds. Long task titles wrap without truncation.
+- **Layout:** Compact illustrated welcome area, clear divider, dominant next-action card and adjacent checklist. The garden was reduced to keep the sample primary focus button within the 1280 × 720 viewport (bottom 714px). Small phones use a vertical flow. No horizontal overflow observed at 390px or 320px.
+- **Colors:** Warm cream, coral action, sage checklist and muted calendar blue carry the Journey palette while preserving readable task categories. Only Today styles change.
+- **Images:** Generated transparent garden follows the approved soft clay world; existing flame, sun, sprout and mascot are reused. Clean alpha, no missing images, no stretched artwork, no rasterized UI. Text and controls remain real HTML.
+- **Copy:** Short supportive wording; actual date/time and account-derived counts; preview label remains visible. No marketing claims, fabricated achievements or hardware promises.
 
-Root operated CUA because both reviewer browser sessions were unavailable; reviewers independently judged screenshots, traces and source. Saved local-account completion/reload/uncheck also passed, documented separately. Native touch, actual screen-reader use, production SMS/Calendar, OS reduced-motion toggling and hardware are unverified by this pass. See [complete Journey evidence](qa/journey-world-2026-10-19/README.md), [customer review](qa/journey-world-2026-10-19/customer-review.md), and [game/UI review](qa/journey-world-2026-10-19/game-review.md).
+## Comparison history
 
----
+1. **P2, phone title/art collision:** initial 390px capture (`mobile-before-fix.png`) placed the garden over the end of the title. Reserved separate title space, reduced mobile type/art and removed the secondary tagline on phones. Final 390px and 320px captures show clear separation.
+2. **P2, desktop hero density:** first draft pushed the focus action below a short desktop viewport. Reduced artwork width and welcome-card height while preserving the main visual. Final production-build capture and DOM geometry confirm the focus button is fully visible at the tested desktop size.
+3. Final full-view and phone comparison: no remaining actionable P0/P1/P2 issue within this Today experiment.
 
-# Historical QA record (prior family redesign; unchanged scope)
-# Tempo family redesign — design QA
+## Interaction and technical validation
 
-15 October 2026 · candidate `codex/tempo-calm-ui`, based on `98e61bf`.
+Observed in the browser: Routine / To-do switching; step completion and undo with matching progress; task focus start, pause, return and reopen; Journey navigation; Today animation pause shared with Journey; seven-day details; setup and hiding the streak display. Repeated routine completion/undo on the production build. Paused state computed styles report no running animations inside the Today header. Reduced-motion CSS is present; OS-level preference emulation was not run.
 
-**Result: desktop visual pass; responsive and release validation incomplete.**
+- Focused tests: 28 passed.
+- `npm run check`: passed. 115 test files passed, 2 skipped; 851 tests passed, 3 skipped. Lint, typecheck, Next production build and operations TypeScript build passed.
+- Production-build browser console: no captured error/warning entries on final inspection.
+- `git diff --check`: passed.
+- No paid provider tests, production writes, deployment or push in this run.
 
-This checkpoint implements the competitor research direction. It does not approve merging or deployment. The [previous Today QA](docs/design-research/2026-10-15/prior-today-design-qa.md) and [release checkpoint](docs/UI_RELEASE_CHECKPOINT.md) remain separate evidence.
+The inherited tests validate code paths. Browser checks used the fictional preview; they do not establish new real-account persistence, SMS delivery or Google Calendar evidence. Those subsystems were not changed.
 
-## Source comparison
+## Follow-up polish and feedback
 
-The [user nutrition reference](qa/design-research-2026-10-15/user-nutrition-reference.png), [before](qa/design-research-2026-10-15/tempo-nutrition-before.jpg), and [after](qa/design-research-2026-10-15/tempo-nutrition-target-example.jpg) were opened together for visual comparison. This adapts the reference's hierarchy rather than claiming pixel accuracy: date strip, calorie summary, three macro summaries, then meals. Desktop retains Tempo's sidebar, account identity, related subtabs and assistant composer. Typeface, colors and assets are Tempo's own.
+- At 320px, long agenda titles make the later cards closely spaced; this is a minor visual refinement, not an inaccessible action or clipped content.
+- The garden is a rendered illustration with restrained CSS motion, not an interactive 3D model.
+- The user should judge the visual direction before any extension to other sections or publication.
 
-The reference is a narrow mobile image; implementation captures use a normal 1625px desktop viewport with 1610px document content after scrollbar. Matching mobile dimensions were not successfully established. Requested 390px viewport overrides were ignored; an iframe harness was blocked by the existing frame protection and removed. No security protection was disabled. Mobile, 200% zoom and assistive-technology verification remain open.
+## Local checkpoint
 
-## Implemented visual direction
-
-- Planner: warm working paper, ruled To-do rows and time-aligned Calendar. Illustrated Goals retained.
-- Daily rhythm: honey canvas, morning/evening columns, next step before checklist. Existing wake behavior retained.
-- Food & fitness: ice-blue canvas, white rounded cards, sans-serif headings, quantitative Nutrition Tracker, recipe search, shopping beside recorded pantry, selected workout before templates.
-- Brain dump: violet structure, paper notes, separate saved facts, conversation before optional suggestions.
-
-Distinct subtab colors remain intentional. Shared family typography, borders, corner treatment and canvas establish grouping without making every screen identical.
-
-## Repairs and observations
-
-Corrected inherited green macro bars, empty meal-card stretching, checked-box icons on unfinished Calendar tasks, and small Planner metadata. Calendar row spacing was reduced. Nutrition unknown/partial/zero targets have regression coverage; no default intake target was invented.
-
-In the fictional preview, the root reviewer entered optional test targets (360 logged / 2,000 target = 1,640 remaining), searched and cleared recipes, completed a To-do, changed Calendar day, opened its edit explanation, and completed a routine step with correct progress and Undo. These are observed preview controls, not persisted account or provider evidence.
-
-## Independent review
-
-GPT-6.1 Sol reviewers inspected areas they did not implement, using the saved screenshots. After corrections: To-do 8/10, Calendar 8/10, Food suite 8/10 as a group, Routines 8.5/10, Thoughts 8/10, Memories 8.5/10, Ask Tempo 8.5/10. These are desktop visual scores only. There is no new overall beta score or individual score for unchanged Today, Goals, wake or onboarding.
-
-Minor follow-ups: clearer note expansion, less repeated introductory copy, measured secondary-text contrast and icon-target review. See the [implementation review](docs/design-research/2026-10-15/09-implementation-review.md) for captures, outcomes and limitations.
-
-## Technical validation
-
-Final `npm run check`: exit 0. Lint, typecheck, 805 tests passed / 3 skipped (106 passed / 2 skipped files), production Next build and operations TypeScript build passed. `git diff --check` passed. No paid API calls ($0), live SMS/Calendar operations, customer-account mutations or hardware tests occurred in this pass.
-
-No migrations, provider contracts, write authorization or database ownership logic changed. Assistant navigation wording follows the new Nutrition Tracker label. Real-account persistence, cross-channel regression, mobile/keyboard/contrast checks and the remaining release gates must pass before merge.
-
-## Deliverables
-
-- [Visual research gallery](qa/design-research-2026-10-15/index.html)
-- [Master direction and copyable briefs](docs/design-research/2026-10-15/00-direction-and-agent-briefs.md)
-- Eight subsection research reports plus the implementation review.
-- Local candidate preview: http://localhost:3101/workspace/preview
-
-Rebuild the self-contained gallery with `python docs/design-research/2026-10-15/build-gallery.py`. Screenshots of competitors are research references, not application assets.
+Branch: `codex/tempo-today-world`, based on `db2abde`.
+Worktree: `C:/Users/chanc/.codex/worktrees/tempo-today-world/Agentic AI Assistant SMS`.
+Run the built preview with `node qa/today-world-2026-10-20/start-today.cjs --production` after `npm run build`; omit `--production` for editing. Port 3102 is local only and autonomous sending is disabled.

@@ -22,7 +22,7 @@ function fixture() {
   return data;
 }
 function render(data = fixture(), now = new Date("2026-10-14T15:00:00Z")) {
-  return renderToStaticMarkup(createElement(TodayView, { data, now, saving: false, go: vi.fn(), onSetup: () => {}, editTask: vi.fn(), startTask: vi.fn(), completeTask: vi.fn(), checkStep: vi.fn(), startStep: vi.fn(), editRoutine: vi.fn(), ask: vi.fn(), onResumeFocus: vi.fn() }));
+  return renderToStaticMarkup(createElement(TodayView, { motion: false, setMotion: vi.fn(), data, now, saving: false, go: vi.fn(), onSetup: () => {}, editTask: vi.fn(), startTask: vi.fn(), completeTask: vi.fn(), checkStep: vi.fn(), startStep: vi.fn(), editRoutine: vi.fn(), ask: vi.fn(), onResumeFocus: vi.fn() }));
 }
 describe("Today uses authenticated calendar details", () => {
   it("replaces opaque busy windows with actual event titles and respects a successful empty response", () => {
