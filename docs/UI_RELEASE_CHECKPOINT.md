@@ -1,5 +1,22 @@
 # Calm UI release checkpoint — October 19, 2026
 
+## Globe Journey refinement — latest
+
+The user-approved combination replaces the flat landscape with a soft 3D Earth
+illustration, dimensional milestone rewards and clearer streak controls. Both
+independent reviewers reached the requested threshold: customer **9/10**, game/UI
+**9.1/10**, after artwork, state labels, singular copy and mobile focus-order fixes.
+Root operated the browser because reviewer connections were unavailable; agents
+independently inspected the requested action traces, captures and source. These
+scores apply to Journey only, not every product section or production readiness.
+
+The new UI was checked at desktop, 390px and 320px. A completion in the isolated
+Local QA Alex account updated Journey from six to seven wins, survived reload,
+and returned to six when unchecked. No personal or production data changed.
+No migrations, API contracts or provider behavior changed. Existing live release
+gates still apply; keep PR #26 in draft. See the [globe implementation and final
+validation record](../qa/journey-world-2026-10-19/README.md) and root design QA.
+
 ## Optional Today journey
 
 The latest pass adds an illustrated, interactive second Today page with six

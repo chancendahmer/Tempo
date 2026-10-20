@@ -1,3 +1,34 @@
+# Journey globe refinement — design QA
+
+19 October 2026 · candidate `codex/tempo-calm-ui`, base `1f965cc`.
+
+**final result: passed** for this scoped Journey visual/interaction refinement. This does not approve the broader beta release or assert full accessibility certification.
+
+## Compared evidence
+
+Opened the combined generated target (`exec-f11f030d-46d7-450d-a4b6-ee512f5841f3.png` in this thread’s generated_images folder) and actual `qa/journey-world-2026-10-19/desktop-1440.png` together in one comparison input. The target is1487×1058; actual viewport1440×1024 with1425px document width and a full-page capture. Both show sample Level1,2active days,4wins. Actual capture had animations paused; target label shows Pause. Comparison is of the approved combined direction, not a pixel-identical landing page: retained Tempo shell, explicit fictional banner, existing Today navigation and assistant composer add height. The real UI exposes days/states/rules accurately and places compact milestones in a separate row.
+
+## Fixes and recheck
+
+- Typography: fixed inherited workspace sans-serif override; verified computed Georgia headline. Milestone heading matches the editorial style; controls retain the app’s readable sans-serif.
+- Spacing/layout: bounded the desktop globe, repaired the map mascot width, matched mobile visual and DOM order, and kept three separated48px map targets at narrow widths.
+- Color: cream foundation, coral action, sage progress; visible labels distinguish ahead/current/reached without relying on color alone.
+- Images: custom alpha WebP Earth and matching dimensional flame/sprout/sun/stones/bloom/mountain replace the rejected flat landscape and inconsistent line placeholders. Existing Tempo mascot preserved. No missing image/browser error observed.
+- Copy/content: fixed singular “1 more active day”; counts remain based on saved records, future exploration cannot grant progress, and paused/hidden states are honest.
+
+Post-fix desktop, keyboard,390px and320px captures and trace were independently inspected. Initial game/UI8.7 became9.1; customer final9. No remaining P0/P1/P2 finding in the scoped design. Minor polish opportunities remain: smaller secondary text, long phone journey and dense explanatory rules. The supplied full-page screenshot/focused keyboard and phone viewport images were sufficiently readable to compare those controls; no guessed pixel offsets or cloned competitor assets were used.
+
+## Technical validation
+
+Final `npm run check` passed: lint, typecheck, 851 tests passed / 3 skipped, production Next build and operations build. Nearest Journey tests: 24 passed. `git diff --check` passed. No paid model-provider test calls ($0).
+
+## Evidence boundaries
+
+Root operated CUA because both reviewer browser sessions were unavailable; reviewers independently judged screenshots, traces and source. Saved local-account completion/reload/uncheck also passed, documented separately. Native touch, actual screen-reader use, production SMS/Calendar, OS reduced-motion toggling and hardware are unverified by this pass. See [complete Journey evidence](qa/journey-world-2026-10-19/README.md), [customer review](qa/journey-world-2026-10-19/customer-review.md), and [game/UI review](qa/journey-world-2026-10-19/game-review.md).
+
+---
+
+# Historical QA record (prior family redesign; unchanged scope)
 # Tempo family redesign — design QA
 
 15 October 2026 · candidate `codex/tempo-calm-ui`, based on `98e61bf`.
