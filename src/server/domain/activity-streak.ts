@@ -8,6 +8,9 @@ export type ActivityCompletion = { key: string } & (
 );
 
 export type ActivityStreak = {
+  totalActiveDays: number;
+  totalCompletions: number;
+  bestDays: number;
   currentDays: number;
   activeToday: boolean;
   completedToday: number;
@@ -46,7 +49,16 @@ export function calculateActivityStreak(completions: readonly ActivityCompletion
     currentDays += 1;
     date = shiftDay(date, -1);
   }
+  const recordedDays = [...days.keys()].sort();
+  let run = 0, bestDays = 0;
+  recordedDays.forEach((day, index) => {
+    run = index > 0 && shiftDay(recordedDays[index - 1], 1) === day ? run + 1 : 1;
+    bestDays = Math.max(bestDays, run);
+  });
   return {
+    totalActiveDays: days.size,
+    totalCompletions: [...days.values()].reduce((total, keys) => total + keys.size, 0),
+    bestDays,
     currentDays,
     activeToday,
     completedToday: days.get(today)?.size ?? 0,

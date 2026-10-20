@@ -1,5 +1,19 @@
 # Calm UI release checkpoint — October 19, 2026
 
+## Optional Today journey
+
+The latest pass adds an illustrated, interactive second Today page with six
+milestones, account-history-derived levels, separate streaks, daily encouragement
+and optional celebration. Saved display preferences hide numbers; animation pause
+survives section navigation within the workspace session. No schema or provider
+change. Existing current/best/cumulative totals use deduplicated owned history.
+
+Customer review improved from 8 to **9/10** with actual independent browser recheck.
+Game/UI review reached **8.5/10** using independently inspected images and
+reviewer-directed root/customer interactions because that reviewer's browser was
+unavailable. These scoped ratings do not close the existing release gates.
+See [journey implementation, account checks and validation](../qa/journey-2026-10-19/README.md).
+
 ## Section identities and workflow polish
 
 The next October 19 pass preserves the approved Today screen and refines Planner,

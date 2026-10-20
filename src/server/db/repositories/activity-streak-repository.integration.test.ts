@@ -58,9 +58,9 @@ describe("account activity streak persistence", () => {
       { userId: other.id, taskId: statusOnly.id, sourceMessageId: messages[5].id, eventType: "completed", createdAt: new Date("2026-10-17T16:00:00Z") },
     ]);
     const summary = await readActivityStreak(owner.id, db, new Date("2026-10-19T04:15:00Z"));
-    expect(summary).toMatchObject({ currentDays: 2, completedToday: 1, activeToday: true, latestActivityDay: "2026-10-19" });
+    expect(summary).toMatchObject({ currentDays: 2, completedToday: 1, activeToday: true, latestActivityDay: "2026-10-19", totalActiveDays: 2, totalCompletions: 2, bestDays: 2 });
     expect(summary.recentDays.find(day => day.date === "2026-10-17")?.active).toBe(false);
-    expect((await readActivityStreak(other.id, db, new Date("2026-10-19T04:15:00Z"))).currentDays).toBe(0);
+    expect(await readActivityStreak(other.id, db, new Date("2026-10-19T04:15:00Z"))).toMatchObject({ currentDays: 0, totalActiveDays: 0, totalCompletions: 0, bestDays: 0 });
   });
 
   it("counts a task command retry once and keeps its recorded completion after an explicit reopen", async () => {

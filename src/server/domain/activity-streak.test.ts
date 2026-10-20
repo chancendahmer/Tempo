@@ -2,6 +2,15 @@ import { describe, expect, it } from "vitest";
 import { calculateActivityStreak } from "./activity-streak";
 
 describe("saved activity streak", () => {
+  it("keeps earned journey days across gaps, without double-counting duplicate checkoffs", () => {
+    const summary = calculateActivityStreak([
+      { key: "one", date: "2026-10-01" }, { key: "one", date: "2026-10-01" },
+      { key: "two", date: "2026-10-01" }, { key: "one", date: "2026-10-02" },
+      { key: "one", date: "2026-10-15" },
+    ], "UTC", new Date("2026-10-19T12:00:00Z"));
+    expect(summary).toMatchObject({ currentDays: 0, totalActiveDays: 3, totalCompletions: 4, bestDays: 2 });
+  });
+
   it("starts with honest zeroes and seven empty local days", () => {
     const summary = calculateActivityStreak([], "Pacific/Kiritimati", new Date("2026-10-18T12:15:00Z"));
     expect(summary).toMatchObject({ currentDays: 0, activeToday: false, completedToday: 0, latestActivityDay: null });
