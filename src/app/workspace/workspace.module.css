@@ -718,3 +718,5 @@
 .sectionArt>svg { width:30px; height:30px; stroke-width:1.5; }
 
 @media (min-width:761px) { .toast { left:50%; max-width:min(680px,calc(100vw - 40px)); } }
+
+.app[data-section=today]{--bg:#fbfcfa;--text:#172324;--soft:#60676c}

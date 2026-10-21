@@ -1,4 +1,5 @@
 import { PgBoss } from "pg-boss";
+import { registerTaskPresentationHandler } from "../server/jobs/handlers/task-presentation";
 import { getServerEnv, requireEnv, ServerEnvKey } from "../server/config/env";
 import { closeDatabase } from "../server/db/client";
 import { startActionDispatcher } from "../server/jobs/dispatcher";
@@ -52,6 +53,7 @@ export async function runWorker() {
   boss.on("warning", (warning) => logger.warn({ warning }, "job queue warning"));
 
   await boss.start();
+  await registerTaskPresentationHandler(boss);
   await boss.createQueue(JOB_NAMES.sendSignIn, {
     policy: "standard", retryLimit: 2, retryDelay: 30, retryBackoff: true,
     expireInSeconds: 90, deleteAfterSeconds: 604_800, notify: true,

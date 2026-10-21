@@ -33,9 +33,9 @@ describe("Today uses authenticated calendar details", () => {
   it("shows the ongoing meeting in NOW without hiding the next task from the timeline", () => {
     mocked.events = [meeting];
     const html = render();
-    expect(html).toContain(`${meeting.title}</h3>`);
+    expect(html).toContain(`${meeting.title}</h2>`);
     expect(html).toContain("Happening now");
-    expect(html).toContain("<strong>Task still due this afternoon</strong>");
+    expect(html).toContain("Task still due this afternoon</button>");
     expect(html).not.toContain("Calendar time");
   });
   it("keeps persisted focus ahead of a meeting and still lists the meeting", () => {
@@ -43,15 +43,15 @@ describe("Today uses authenticated calendar details", () => {
     const data = fixture();
     data.items = [{ id: "focus", version: 1, data: { kind: "focus", title: "Writing with focus", remaining: 600, endsAt: null } }];
     const html = render(data);
-    expect(html).toContain("Writing with focus</h3>");
-    expect(html).toContain(`<strong>${meeting.title}</strong>`);
+    expect(html).toContain("Writing with focus</h2>");
+    expect(html).toContain(`<span>${meeting.title}</span>`);
   });
   it("shows all-day events without pretending they are an active timed appointment", () => {
     mocked.events = [allDay, meeting];
     const html = render();
-    expect(html).toContain("<time>All day</time>");
-    expect(html).toContain(`<strong>${allDay.title}</strong>`);
-    expect(html).toContain(`${meeting.title}</h3>`);
+    expect(html).toContain("<strong>All day");
+    expect(html).toContain(`<span>${allDay.title}</span>`);
+    expect(html).toContain(`${meeting.title}</h2>`);
     expect(html).not.toContain("Nothing else scheduled today");
     expect(todayModel(fixture(), new Date("2026-10-15T15:00:00Z"), [allDay]).events.some(event => event.id === allDay.id)).toBe(false);
   });
@@ -59,14 +59,15 @@ describe("Today uses authenticated calendar details", () => {
     mocked.events = [meeting];
     const html = render(fixture(), new Date("2026-10-14T16:00:00Z"));
     expect(html).not.toContain("Happening now");
-    expect(html).toContain("Earlier today");
+    expect(html).not.toContain(meeting.title);
+    expect(html).toContain("No more events today.");
   });
   it("does not claim the day is clear when Google details are still loading or unavailable", () => {
     mocked.events = []; mocked.loading = true;
     expect(render()).toContain("Refreshing your calendar");
     expect(render()).not.toContain("Nothing else scheduled today");
     mocked.loading = false; mocked.error = "Reconnect";
-    expect(render()).toContain("Calendar details couldn’t refresh");
+    expect(render()).toContain("Calendar couldn’t refresh");
     expect(render()).not.toContain("Nothing else scheduled today");
     mocked.error = "";
   });

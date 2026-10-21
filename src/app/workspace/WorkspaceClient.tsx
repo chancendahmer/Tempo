@@ -6,11 +6,14 @@ import { WorkspaceAvatar } from "../components/WorkspaceAvatar";
 import { useRouter } from "next/navigation";
 import { SectionArt } from "./SectionArt";
 import { TodayView } from "./TodayView";
+import { HomeHeader } from "./HomeHeader";
+import { taskPresentation } from "../../server/domain/task-presentation";
+import { readHomePreferences } from "../../server/domain/home-preferences";
 import { TodayPages } from "./TodayPages";
 import { WorkspaceTour } from "./WorkspaceTour";
 import { GentleSetup } from "./GentleSetup";
 import type { GentleSetupAction } from "@/server/domain/gentle-setup";
-import { sections, groupForSection, WorkspaceSidebarNav, WorkspaceSectionNav, WorkspaceAppLauncher, type Section } from "./WorkspaceNavigation";
+import { sections, groupForSection, WorkspaceSidebarNav, WorkspaceSectionNav, type Section } from "./WorkspaceNavigation";
 import { RoutineEditor } from "./RoutineEditor";
 import { WorkspaceMutationAttempts } from "./workspace-mutation-attempts";
 import { NutritionView } from "./NutritionView";
@@ -57,6 +60,7 @@ export function WorkspaceClient({ preview = false }: { preview?: boolean }) {
   const navigationOpener = useRef<HTMLElement | null>(null);
   const openNavigation = (group?: string) => { navigationOpener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null; setNavigationGroup(group); setNavigationOpen(true); };
   const [now, setNow] = useState<Date | null>(null);
+  const [previewTime, setPreviewTime] = useState("live");
   const [selectedDate, setSelectedDate] = useState("");
   const [draft, setDraft] = useState("");
   const [focusHidden, setFocusHidden] = useState(false);
@@ -148,6 +152,8 @@ export function WorkspaceClient({ preview = false }: { preview?: boolean }) {
   useEffect(() => { if (editor) dialog.current?.showModal(); else dialog.current?.close(); }, [editor]);
   useEffect(() => { if (section === "assistant") chatEnd.current?.scrollIntoView({ block: "nearest" }); }, [section, data?.messages.length]);
 
+  const homeNow = now ? new Date(now) : null;
+  if (preview && homeNow && previewTime !== "live") { const [hour, minute] = previewTime.split(":").map(Number); homeNow.setHours(hour, minute, 0, 0); }
   const today = now ? localDay(now, data?.timezone ?? "UTC") : "";
   const date = selectedDate || today;
   const items = data?.items ?? [];
@@ -257,6 +263,11 @@ export function WorkspaceClient({ preview = false }: { preview?: boolean }) {
           else if (action.action === "forget_memory") next.memories = next.memories?.filter(item => item.id !== action.id);
           else if (action.action === "remove_reminder") next.reminders = next.reminders.filter(item => item.id !== action.id);
           else if (action.action === "checkins") next.profile.proactiveOptIn = action.enabled;
+          else if (action.action === "home_preferences") next.homePreferences = action.preferences;
+          else if (action.action === "task_presentation") {
+            const task = next.tasks.find(task => task.id === action.taskId);
+            if (task && task.status === "not_started" && task.title === action.expectedTitle) task.presentation = { title: task.title, category: action.category, focusMinutes: action.focusMinutes, source: "manual" };
+          }
           else if (action.action === "task") {
             const c = action.command;
             if (c.type === "create_task") next.tasks.push({ id: crypto.randomUUID(), title: c.title, estimatedMinutes: c.estimatedMinutes ?? null, dueAt: c.dueAt ?? null, status: "not_started", startedAt: null, goalId: c.goalId ?? null });
@@ -264,7 +275,13 @@ export function WorkspaceClient({ preview = false }: { preview?: boolean }) {
               const task = next.tasks.find(item => item.id === c.taskId);
               if (task) {
                 if (c.type === "update_task") Object.assign(task, c.patch);
-                else if (c.type === "start_task") { task.status = "in_progress"; task.startedAt = new Date().toISOString(); }
+                else if (c.type === "start_task") {
+                  task.status = "in_progress"; task.startedAt = new Date().toISOString();
+                  if (!next.items.some(item => item.data.kind === "focus")) {
+                    const seconds = (action.focusMinutes ?? taskPresentation(task).focusMinutes) * 60;
+                    next.items.push({ id: crypto.randomUUID(), version: 1, data: { kind: "focus", title: task.title, taskId: task.id, remaining: seconds, endsAt: new Date(Date.now() + seconds * 1000).toISOString() } });
+                  }
+                }
                 else if (c.type === "reopen_task") { task.status = "not_started"; task.startedAt = null; }
                 else if (c.type === "complete_task") { task.status = "completed"; next.previewTaskCompletions = [...(next.previewTaskCompletions ?? []), { key: task.id, date: today }]; next.items = next.items.filter(item => !(item.data.kind === "focus" && item.data.taskId === task.id)); }
                 else next.tasks = next.tasks.filter(item => item.id !== task.id);
@@ -310,8 +327,8 @@ export function WorkspaceClient({ preview = false }: { preview?: boolean }) {
     }
     return act({ action: "save", ...(sourceRecipeId ? { sourceRecipeId } : {}), id: item?.id ?? crypto.randomUUID(), version: item?.version ?? 0, data: parsed.data });
   };
-  const taskAction = async (command: Extract<WorkspaceAction, { action: "task" }>["command"]) => {
-    const result = await act({ action: "task", requestId: crypto.randomUUID(), command });
+  const taskAction = async (command: Extract<WorkspaceAction, { action: "task" }>["command"], focusMinutes?: number) => {
+    const result = await act({ action: "task", requestId: crypto.randomUUID(), command, ...(focusMinutes !== undefined ? { focusMinutes } : {}) });
     if (result && command.type === "complete_task") {
       const title = data?.tasks.find(task => task.id === command.taskId)?.title ?? "Task";
       setNotice(`${title} completed.${preview ? " Preview only." : ""}`);
@@ -326,9 +343,9 @@ export function WorkspaceClient({ preview = false }: { preview?: boolean }) {
     const goal = data?.goals.find(goal => goal.id === (task?.goalId ?? goalId));
     setEditor({ title: task ? "Make this task work for you" : goal ? "One small step" : "One small thing", subtitle: goal ? `For your goal: ${goal.title}. A clear next step is enough.` : "A clear next step is enough. You can also ask Tempo by text.", fields: [
       { name: "title", label: "What would you like to do?", value: task?.title ?? draft?.title, required: true, minLength: 3 },
-      { name: "minutes", label: "Estimated minutes", type: "number", value: task?.estimatedMinutes ?? draft?.estimatedMinutes ?? 25, min: 1, max: 1440 },
+      { name: "minutes", label: "Estimated total minutes (optional)", type: "number", value: task?.estimatedMinutes ?? draft?.estimatedMinutes ?? "", min: 1, max: 1440 },
       { name: "due", label: `Schedule (device timezone: ${Intl.DateTimeFormat().resolvedOptions().timeZone})`, type: "datetime-local", value: task?.dueAt ? new Date(new Date(task.dueAt).getTime() - new Date(task.dueAt).getTimezoneOffset() * 60000).toISOString().slice(0, 16) : "" },
-    ], submit: values => taskAction(task ? { type: "update_task", taskId: task.id, patch: { title: values.title, estimatedMinutes: Number(values.minutes), dueAt: values.due ? new Date(values.due).toISOString() : null } } : { type: "create_task", title: values.title, estimatedMinutes: Number(values.minutes), ...(values.due ? { dueAt: new Date(values.due).toISOString() } : {}), ...(goalId ? { goalId } : {}) }) });
+    ], submit: values => taskAction(task ? { type: "update_task", taskId: task.id, patch: { title: values.title, estimatedMinutes: values.minutes ? Number(values.minutes) : null, dueAt: values.due ? new Date(values.due).toISOString() : null } } : { type: "create_task", title: values.title, ...(values.minutes ? { estimatedMinutes: Number(values.minutes) } : {}), ...(values.due ? { dueAt: new Date(values.due).toISOString() } : {}), ...(goalId ? { goalId } : {}) }) });
   }
   function goalEditor(goal?: Workspace["goals"][number], note?: Extract<LifeItem, { kind: "note" }>) {
     setNotice("");
@@ -378,7 +395,7 @@ export function WorkspaceClient({ preview = false }: { preview?: boolean }) {
   }
   async function startFocus(task: Workspace["tasks"][number]) {
     if (focus) { setFocusHidden(false); setNotice("Finish or leave the current focus session before starting another."); return; }
-    if (await taskAction({ type: "start_task", taskId: task.id })) setFocusHidden(false);
+    if (await taskAction({ type: "start_task", taskId: task.id }, taskPresentation(task).focusMinutes)) setFocusHidden(false);
   }
   async function routineCheck(item: SavedLifeItem, id: string) {
     if (item.data.kind !== "routine") return false;
@@ -445,16 +462,15 @@ export function WorkspaceClient({ preview = false }: { preview?: boolean }) {
     </aside>
     {navigationOpen && <button tabIndex={-1} className={c.scrim} aria-label="Close navigation" onClick={() => setNavigationOpen(false)} />}
     <div className={c.main} inert={navigationOpen || undefined}>
-      <header className={c.topbar}><div className={c.topbarStart}><button ref={menuButton} className={`${s.iconButton} ${c.menuButton}`} aria-label="Open navigation" aria-expanded={navigationOpen} aria-controls="workspace-navigation" onClick={() => openNavigation()}><FiMenu /><span>Menu</span></button><button type="button" className={c.topbarBrand} aria-label="Tempo home" onClick={() => go("today")}>Tempo</button><div className={c.breadcrumb}><span>{group ?? "Your workspace"}</span><FiChevronRight aria-hidden="true" /><strong>{sections.find(([key]) => key === section)?.[1]}</strong></div></div><div className={c.topbarActions}><button className={c.captureButton} aria-label="Capture a thought" onClick={() => itemEditor("note")} disabled={!data}><FiPlus /><span>Capture<span className={c.captureDetail}> a thought</span></span></button><button className={s.iconButton} title="Hide private content" aria-label="Hide private content" onClick={() => { setHidden(!hidden); window.speechSynthesis?.cancel(); }}><FiMoon /></button></div></header>
-      {preview && <div className={s.previewBanner}><span>Alex’s demo · fictional data · resets on reload · no messages sent</span><Link href="/workspace">Open my account <FiArrowRight /></Link></div>}
+      {section === "today" ? <HomeHeader data={hidden ? null : data} preview={preview} saving={saving} menuRef={menuButton} openNavigation={() => openNavigation()} go={go} editTask={taskEditor} editGoal={goalEditor} openItem={item => { if (item.data.kind === "meal") { setSelectedDate(item.data.date); go("meals"); } else if (item.data.kind === "recipe") go("recipes"); else itemEditor(item.data.kind, item); }} ask={ask} signOut={() => void switchAccount()} hide={() => { setHidden(!hidden); window.speechSynthesis?.cancel(); }} /> : <header className={c.topbar}><div className={c.topbarStart}><button ref={menuButton} className={`${s.iconButton} ${c.menuButton}`} aria-label="Open navigation" aria-expanded={navigationOpen} aria-controls="workspace-navigation" onClick={() => openNavigation()}><FiMenu /><span>Menu</span></button><button type="button" className={c.topbarBrand} aria-label="Tempo home" onClick={() => go("today")}>Tempo</button><div className={c.breadcrumb}><span>{group ?? "Your workspace"}</span><FiChevronRight aria-hidden="true" /><strong>{sections.find(([key]) => key === section)?.[1]}</strong></div></div><div className={c.topbarActions}><button className={c.captureButton} aria-label="Capture a thought" onClick={() => itemEditor("note")} disabled={!data}><FiPlus /><span>Capture<span className={c.captureDetail}> a thought</span></span></button><button className={s.iconButton} title="Hide private content" aria-label="Hide private content" onClick={() => { setHidden(!hidden); window.speechSynthesis?.cancel(); }}><FiMoon /></button></div></header>}
+      {preview && <div className={s.previewBanner}><span>Alex’s demo · fictional data · resets on reload · no messages sent</span>{section === "today" && <label className={c.previewClock}>Sample time <select aria-label="Preview Home time" value={previewTime} onChange={event => setPreviewTime(event.target.value)}><option value="live">Live clock</option><option value="08:10">8:10 AM</option><option value="13:00">1:00 PM</option><option value="15:05">3:05 PM · walk</option><option value="18:00">6:00 PM</option><option value="21:30">9:30 PM</option></select></label>}<Link href="/workspace">Open my account <FiArrowRight /></Link></div>}
       {error && data && <div className={s.foodNotice} role="alert">{error} <button className={s.textButton} onClick={() => void refresh()}>Try again</button></div>}
       {notice && <div className={s.toast} role="status"><WorkspaceAvatar size={28} /><span>{notice}</span>{undo && <button className={s.textButton} disabled={saving} onClick={() => void act(undo)}>Undo</button>}<button className={s.iconButton} aria-label="Dismiss message" onClick={() => setNotice("")}><FiX /></button></div>}
       {hidden ? <div className={s.gate}><FiMoon /><h1>A little privacy.</h1><button className={s.primary} onClick={() => setHidden(false)}>Show my workspace</button></div> : !data ? <div className={s.gate}><span className={s.gateIcon}><FiSun /></span><p className={s.eyebrow}>YOUR LIFE, A LITTLE LIGHTER</p><h1>Everything you need.<br />Room to breathe.</h1><p>{error || "Getting your space ready…"}</p><div className={s.row}><Link className={s.primary} href="/login">Log in to Tempo <FiArrowRight /></Link><Link className={s.secondary} href="/workspace/preview">Explore the workspace</Link></div>{error && <button className={s.textButton} onClick={() => void refresh()}>Try again</button>}</div> : <main className={c.content} id="workspace-content" aria-label={sections.find(([key]) => key === section)?.[1]} tabIndex={-1}>
         <WorkspaceSectionNav current={section} go={go} />
         <div key={section} className={c.page}>
         {section === "today" ? now && <TodayPages data={data} now={now} preview={preview} motion={journeyMotion} setMotion={setJourneyMotion} onSetup={() => { setProgressSetup(true); setSetupOpen(true); }}>
-          {now && <TodayView motion={journeyMotion} setMotion={setJourneyMotion} onSetup={() => setSetupOpen(true)} onResumeFocus={() => setFocusHidden(false)} preview={preview} data={data} now={now} saving={saving} go={go} editTask={taskEditor} startTask={task => void startFocus(task)} completeTask={task => void taskAction({ type: "complete_task", taskId: task.id })} checkStep={(item, id) => void routineCheck(item, id)} startStep={startRoutineStep} editRoutine={item => itemEditor("routine", item)} ask={ask} />}
-          <WorkspaceAppLauncher openGroup={openNavigation} />
+          {now && <TodayView motion={journeyMotion} setMotion={setJourneyMotion} onSetup={() => setSetupOpen(true)} onResumeFocus={() => setFocusHidden(false)} preview={preview} data={data} now={homeNow ?? now} saving={saving} saveHome={preferences => act({ action: "home_preferences", preferences, expected: readHomePreferences(data.homePreferences) })} saveTaskStyle={(task, category, focusMinutes) => act({ action: "task_presentation", taskId: task.id, expectedTitle: task.title, category, focusMinutes })} go={destination => { if (["meals", "movement"].includes(destination)) setSelectedDate(today); go(destination); }} editTask={taskEditor} startTask={task => void startFocus(task)} completeTask={task => void taskAction({ type: "complete_task", taskId: task.id })} checkStep={(item, id) => void routineCheck(item, id)} startStep={startRoutineStep} editRoutine={item => itemEditor("routine", item)} ask={ask} />}
         </TodayPages> : <>
           <div className={s.pageHeading}><div><h1>{section === "nutrition" ? "Nutrition Tracker" : sections.find(([key]) => key === section)?.[1]}</h1><p>{({ tasks: "A clear next step, whenever you’re ready.", goals: "The bigger things you’re working toward.", calendar: "Your events, tasks, and reminders together.", routines: "A familiar start. An easier finish.", meals: "Decide once. Enjoy your week.", recipes: "Keep the meals you want to make again.", groceries: "One list for your next shop.", nutrition: "What you ate, all in one place.", movement: "Movement that fits your day.", memories: "What Tempo knows about you. You’re in control.", reminders: "See what’s coming. Clear what’s finished.", inbox: "A home for the things on your mind.", assistant: "Text naturally. Your plans stay connected.", wake: "Ease into your morning. Let the evening settle.", settings: "Choose what works for you." } as Record<string, string>)[section]}</p></div><SectionArt section={section} /></div>
           {section === "tasks" && <TasksView reopen={task => void taskAction({ type: "reopen_task", taskId: task.id })} remove={task => setEditor({ title: `Remove ${task.title}?`, subtitle: "This removes the task from your active list.", fields: [], submit: () => taskAction({ type: "abandon_task", taskId: task.id }) })} data={data} today={today} saving={saving} edit={taskEditor} start={task => void startFocus(task)} complete={task => void taskAction({ type: "complete_task", taskId: task.id })} />}
@@ -486,8 +502,8 @@ export function WorkspaceClient({ preview = false }: { preview?: boolean }) {
           {section === "settings" && <div className={s.twoColumns}><article className={s.card}><WorkspaceAvatar size={46} /><h2>Make Tempo yours</h2><p>Your name, preferred coaching tone, and whether you see an activity streak.</p><button className={s.secondary} onClick={() => setSetupOpen(true)}>Personalize Tempo <FiArrowRight /></button><button className={s.textButton} onClick={() => setTour(true)}>Show me around <FiBookOpen /></button></article><article className={s.card}><span className={`${s.tileIcon} ${s.sage}`}><FiMessageCircle /></span><h2>Text check-ins</h2><label className={s.toggleRow}><span><strong>Proactive check-ins</strong><small>Optional · quiet hours respected</small></span><input type="checkbox" checked={data.profile.proactiveOptIn} disabled={saving} onChange={e => void act({ action: "checkins", enabled: e.target.checked })} /></label><details className={s.inlineDetails}><summary>Quiet hours & delivery</summary><p className={s.finePrint}>Quiet hours: {data.profile.quietHoursStart?.slice(0, 5) ?? "not set"}–{data.profile.quietHoursEnd?.slice(0, 5) ?? "not set"} · {data.timezone}. Includes occasional reviews of overdue or untouched items. Tempo asks before removing anything. Check-ins may be limited or paused. If a message does not arrive, you can still see your saved plans here.</p></details><Link className={s.secondary} href="/profile">Profile & coaching instructions <FiArrowRight /></Link></article><article className={s.card}><span className={`${s.tileIcon} ${s.amber}`}><FiMaximize /></span><h2>Whiteboard & audio</h2><div className={s.settingButtons}><button className={s.secondary} onClick={async () => { try { if (document.fullscreenElement) await document.exitFullscreen(); else await document.documentElement.requestFullscreen(); } catch { setNotice("Use your browser’s full-screen control on this device."); } }}><FiMaximize /> Toggle full screen</button><button className={s.secondary} onClick={readBriefing}><FiSun /> Read my day aloud</button><button className={s.textButton} onClick={() => window.speechSynthesis?.cancel()}>Stop audio</button></div><small>Audio begins only when you ask. Scheduled spoken announcements are not enabled.</small></article><article className={s.card}><FiCalendar /><h2>Connections</h2><p>Google Calendar: {preview ? "sample connection" : data.calendar?.status === "active" ? "connected" : "not connected"}</p><Link className={s.secondary} href="/extensions">Manage connections <FiArrowRight /></Link><details className={s.inlineDetails}><summary>Available integrations</summary><p>Food search and barcodes use Open Food Facts. MyFitnessPal, wearable, and health-app account imports are not connected.</p></details></article><article className={s.card}><FiBookOpen /><h2>Privacy</h2><details className={s.inlineDetails}><summary>What to keep here</summary><p>Everyday notes belong here. Keep passwords, medical records, and sensitive documents in a dedicated secure service.</p></details><button className={s.textButton} onClick={() => setHidden(true)}>Hide this workspace <FiMoon /></button></article></div>}
         </>}
         </div>
-        {section !== "assistant" && <form className={c.everywhereComposer} onSubmit={async e => { e.preventDefault(); if (!chatRequest.current || chatRequest.current.text !== draft) chatRequest.current = { text: draft, id: crypto.randomUUID() }; if (await act({ action: "chat", requestId: chatRequest.current.id, text: draft })) { setDraft(""); chatRequest.current = null; go("assistant"); } }}><WorkspaceAvatar size={38} /><input aria-label="Ask Tempo from anywhere" value={draft} onChange={e => setDraft(e.target.value)} placeholder="What would you like to add or change?" maxLength={2000} required /><button className={s.primary} type="submit" aria-label="Send to Tempo" disabled={saving || !draft.trim()}><FiSend /><span>Send</span></button></form>}
-        <footer className={c.footer}><span>{preview ? "Try the controls. Your real account stays unchanged." : "Your texts and dashboard share the same account."}</span><button className={s.textButton} onClick={() => go("assistant")}>You can always just ask <FiMessageCircle /></button></footer>
+        {section !== "assistant" && <form className={c.everywhereComposer} data-home={section === "today"} onSubmit={async e => { e.preventDefault(); if (!chatRequest.current || chatRequest.current.text !== draft) chatRequest.current = { text: draft, id: crypto.randomUUID() }; if (await act({ action: "chat", requestId: chatRequest.current.id, text: draft })) { setDraft(""); chatRequest.current = null; go("assistant"); } }}><WorkspaceAvatar size={38} /><input aria-label="Ask Tempo from anywhere" value={draft} onChange={e => setDraft(e.target.value)} placeholder="What would you like to add or change?" maxLength={2000} required /><button className={s.primary} type="submit" aria-label="Send to Tempo" disabled={saving || !draft.trim()}><FiSend /><span>Send</span></button></form>}
+        <footer className={c.footer} data-home={section === "today"}><span>{preview ? "Try the controls. Your real account stays unchanged." : "Your texts and dashboard share the same account."}</span><button className={s.textButton} onClick={() => go("assistant")}>You can always just ask <FiMessageCircle /></button></footer>
       </main>}
       {focus && focusHidden && !hidden && <button className={s.focusDock} onClick={() => setFocusHidden(false)}><FiPlay /><span>{focus.title}</span><strong>{Math.floor(remaining / 60)}:{String(remaining % 60).padStart(2, "0")}</strong><FiMaximize /></button>}
     </div>

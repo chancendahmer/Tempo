@@ -522,6 +522,7 @@ export const tasks = pgTable(
     title: text("title").notNull(),
     notes: text("notes"),
     estimatedMinutes: integer("estimated_minutes"),
+    presentation: jsonb("presentation").$type<import("../domain/task-presentation").TaskPresentation>(),
     dueAt: timestamp("due_at", { withTimezone: true }),
     status: taskStatus("status").default("not_started").notNull(),
     sourceMessageId: uuid("source_message_id").references(() => conversationMessages.id, { onDelete: "set null" }),

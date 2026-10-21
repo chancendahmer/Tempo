@@ -132,3 +132,5 @@
 @keyframes celebrate-note { from { transform:translateY(5px); opacity:.3; } to { transform:none; opacity:1; } }
 @media(max-width:800px) { .world { max-width:530px; } }
 @media(max-width:480px) { .mapAvatar { width:42px; } }
+
+.compactNav{margin-bottom:8px}.compactNav button{min-height:32px;padding-block:2px}

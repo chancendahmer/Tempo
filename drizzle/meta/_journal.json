@@ -218,6 +218,13 @@
       "when": 1792368000001,
       "tag": "0030_routine_completions",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1792623300828,
+      "tag": "0031_pink_madame_hydra",
+      "breakpoints": true
     }
   ]
 }

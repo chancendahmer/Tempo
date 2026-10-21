@@ -1,3 +1,5 @@
+import type { HomePreferences } from "../../server/domain/home-preferences";
+import type { TaskPresentation } from "../../server/domain/task-presentation";
 import type { SavedLifeItem } from "@/server/domain/life-items";
 import type { GentleSetup } from "@/server/domain/gentle-setup";
 import { calculateActivityStreak, type ActivityStreak } from "../../server/domain/activity-streak";
@@ -5,10 +7,11 @@ import { demoRecipes, savedDemoRecipe } from "./demo-recipes";
 
 export type Workspace = {
   timezone: string;
+  homePreferences?: HomePreferences;
   setup?: GentleSetup;
   activityStreak?: ActivityStreak & { historyNote: string };
   previewTaskCompletions?: { key: string; date: string }[];
-  tasks: { id: string; title: string; status: string; dueAt: string | null; estimatedMinutes: number | null; startedAt: string | null; goalId: string | null }[];
+  tasks: { id: string; title: string; status: string; dueAt: string | null; estimatedMinutes: number | null; presentation?: TaskPresentation | null; startedAt: string | null; goalId: string | null }[];
   goals: { id: string; title: string; description: string | null; status: string }[];
   items: SavedLifeItem[];
   itemsTruncated?: boolean;

@@ -29,10 +29,10 @@ describe("Today in the account timezone", () => {
     data.items = [];
     data.tasks = [{ ...data.tasks[0], title: "Carry forward this task", dueAt: "2026-10-16T03:59:00Z", status: "not_started" }];
     const html = renderToday(data, new Date("2026-10-18T18:00:00Z"));
-    expect(html).toContain("Carry forward this task</h3>");
-    expect(html).toContain("<p>Overdue · Oct 15 · By end of day</p>");
-    expect(html.match(/Overdue · Oct 15 · By end of day/g)).toHaveLength(2);
-    expect(html).toContain(`Start ${data.tasks[0].estimatedMinutes} minutes`);
+    expect(html).toContain("Carry forward this task</h2>");
+    expect(html).toContain("Overdue · Oct 15 · By end of day");
+    expect(html.match(/Overdue · Oct 15 · By end of day/g)).toHaveLength(1);
+    expect(html).toContain(`Start ${data.tasks[0].estimatedMinutes} min`);
   });
   it("keeps a date-only deadline current through the account's local end of day", () => {
     const data = fixture();
@@ -42,7 +42,7 @@ describe("Today in the account timezone", () => {
     expect(beforeMidnight).toContain("Oct 18 · By end of day");
     expect(beforeMidnight).not.toContain("Overdue");
     const afterMidnight = renderToday(data, new Date("2026-10-19T04:00:00Z"));
-    expect(afterMidnight).toContain("<p>Overdue · Oct 18 · By end of day</p>");
+    expect(afterMidnight).toContain("Overdue · Oct 18 · By end of day");
   });
   it("keeps future started work and persisted focus distinct from overdue metadata", () => {
     const data = fixture();
@@ -50,15 +50,15 @@ describe("Today in the account timezone", () => {
     data.tasks = [{ ...data.tasks[0], title: "Future work already started", dueAt: "2026-10-20T14:00:00Z", status: "in_progress" }];
     const now = new Date("2026-10-18T18:00:00Z");
     const future = renderToday(data, now);
-    expect(future).toContain("Future work already started</h3>");
+    expect(future).toContain("Future work already started</h2>");
     expect(future).not.toContain("Overdue");
     data.tasks[0].dueAt = "2026-10-16T03:59:00Z";
     data.items = [{ id: "paused-focus", version: 1, data: { kind: "focus", title: "My current focused step", taskId: data.tasks[0].id, remaining: 120, endsAt: null } }];
     const focus = renderToday(data, now);
-    expect(focus).toContain("My current focused step</h3>");
-    expect(focus).toContain("<p>Focus paused. Continue when you’re ready.</p>");
+    expect(focus).toContain("My current focused step</h2>");
+    expect(focus).toContain("Paused. Continue when you&#x27;re ready.");
     expect(focus).toContain("Continue focus");
-    expect(focus.match(/Overdue · Oct 15 · By end of day/g)).toHaveLength(1);
+    expect(focus).toContain("In progress");
   });
   it("uses the morning window, then returns to tasks without promoting tomorrow's task", () => {
     const data = fixture();
@@ -102,7 +102,7 @@ describe("Today in the account timezone", () => {
     const model = todayModel(data, now);
     expect(model.events[0]).toMatchObject({ endsAt: "2026-10-14T15:00:00Z", ongoing: true });
     const html = renderToday(data, now);
-    expect(html).toContain("Happening now");
+    expect(html).toContain("Refreshing your calendar");
     expect(html).not.toContain("Nothing else scheduled today");
     expect(html).not.toContain("Earlier today");
     expect(todayModel(data, new Date("2026-10-14T15:00:00Z")).events[0].ongoing).toBe(false);
@@ -114,7 +114,7 @@ describe("Today in the account timezone", () => {
     const now = new Date("2026-10-14T18:00:00Z");
     expect(todayModel(data, now).nextTask?.id).toBe("tomorrow");
     const html = renderToday(data, now);
-    expect(html).toContain("Already working on tomorrow’s essay</h3>");
+    expect(html).toContain("Already working on tomorrow’s essay</h2>");
     expect(html).toContain("Continue");
   });
   it("keeps the actual routine focus session prominent outside the routine window", () => {
@@ -128,14 +128,13 @@ describe("Today in the account timezone", () => {
     expect(model.focus?.title).toBe("Working on my morning step");
     expect(model.activeRoutine?.id).toBe(routine.id);
     const html = renderToday(data, now);
-    expect(html).toContain("Working on my morning step</h3>");
+    expect(html).toContain("Working on my morning step</h2>");
     expect(html).toContain("Continue focus");
     expect(html).not.toContain("Start 25 minutes");
-    const resume = html.match(new RegExp(`aria-label="Continue ${step.title}"[^>]*>`))?.[0];
-    expect(resume).toBeDefined();
-    expect(resume).not.toContain("disabled");
-    const differentStep = html.match(new RegExp(`aria-label="Start ${routine.data.steps[1].title}"[^>]*>`))?.[0];
-    expect(differentStep).toContain("disabled");
+    // The compact Home links into the routine editor; only the saved active focus can resume.
+    expect(html).toContain("Continue focus");
+    expect(html).toMatch(/aria-label="Start [^"]+" disabled=""/);
+
   });
   it("uses the persisted focus item ahead of another started task", () => {
     const data = fixture();
@@ -143,6 +142,6 @@ describe("Today in the account timezone", () => {
     data.items.unshift({ id: "current-focus", version: 1, data: { kind: "focus", title: "The session actually running", taskId: data.tasks[0].id, remaining: 120, endsAt: null } });
     const now = new Date("2026-10-14T18:00:00Z");
     expect(todayModel(data, now).nextTask?.id).toBe("tomorrow");
-    expect(renderToday(data, now)).toContain("The session actually running</h3>");
+    expect(renderToday(data, now)).toContain("The session actually running</h2>");
   });
 });

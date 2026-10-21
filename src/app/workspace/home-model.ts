@@ -1,0 +1,60 @@
+import { readHomePreferences, type HomeMode } from "../../server/domain/home-preferences";
+import { localDay, type SavedLifeItem } from "../../server/domain/life-items";
+import { taskPresentation, fallbackTaskPresentation } from "../../server/domain/task-presentation";
+import { calendarEventOccursOnDay, type CalendarEvent } from "./calendar-event-model";
+import { todayModel } from "./today-model";
+import { recipePhotoFor } from "./demo-recipes";
+import type { Workspace } from "./workspace-data";
+
+export type HeroMode = Exclude<HomeMode, "auto">;
+export type HomeHero = {
+  mode: HeroMode; label: string; title: string; detail: string; action: string;
+  destination: "routines" | "tasks" | "meals" | "movement" | "calendar";
+  image: string; imageAlt: string; routine?: SavedLifeItem; meal?: SavedLifeItem;
+  task?: Workspace["tasks"][number]; completed?: number; total?: number; ongoingFocus?: boolean;
+};
+const minutesOf = (clock: string) => { const [h, m] = clock.split(":").map(Number); return h * 60 + m; };
+const since = (now: number, then: number) => (now - then + 1440) % 1440;
+export function homeModel(data: Workspace, now: Date, calendarEvents: CalendarEvent[] = [], manualMode?: HomeMode) {
+  const preferences = readHomePreferences(data.homePreferences);
+  const day = localDay(now, data.timezone);
+  const clock = new Intl.DateTimeFormat("en-GB", { timeZone: data.timezone, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(now);
+  const minute = minutesOf(clock);
+  const today = todayModel(data, now, calendarEvents);
+  const formatTime = (at: string) => new Intl.DateTimeFormat(undefined, { timeZone: data.timezone, hour: "numeric", minute: "2-digit" }).format(new Date(at));
+  const routines = data.items.filter(item => item.data.kind === "routine");
+  const routineFor = (period: "morning" | "evening") => routines.filter(item => item.data.kind === "routine" && item.data.period === period).sort((a, b) => a.data.kind === "routine" && b.data.kind === "routine" ? since(minute, minutesOf(a.data.time)) - since(minute, minutesOf(b.data.time)) : 0)[0];
+  const morning = routineFor("morning"), evening = routineFor("evening");
+  const routineHero = (period: "morning" | "evening", routine?: SavedLifeItem): HomeHero => {
+    const r = routine?.data.kind === "routine" ? routine.data : undefined;
+    const next = r?.steps.find(step => step.completedOn !== day);
+    return { mode: period, label: period === "morning" ? "Morning routine" : "Wind-down", title: r?.title ?? (period === "morning" ? "Make room for your morning." : "Let the day settle."), detail: next ? `Next: ${next.title} · ${next.minutes} min` : r ? "Your routine is complete for today." : "A few familiar steps, at your pace.", action: next ? "Continue routine" : r ? "View routine" : "Create a routine", destination: "routines", image: `/images/home/${period}.png`, imageAlt: "", routine, completed: r?.steps.filter(step => step.completedOn === day).length, total: r?.steps.length };
+  };
+  const calendar = calendarEvents.filter(event => calendarEventOccursOnDay(event, day, data.timezone)).filter(event => event.start.date || Date.parse(event.end.dateTime!) > now.getTime() || Date.parse(event.start.dateTime!) >= now.getTime()).sort((a, b) => Number(!!b.start.date) - Number(!!a.start.date) || Date.parse(a.start.dateTime ?? `${day}T00:00:00Z`) - Date.parse(b.start.dateTime ?? `${day}T00:00:00Z`));
+  const timed = calendar.filter(event => !!event.start.dateTime);
+  const ongoing = timed.find(event => Date.parse(event.start.dateTime!) <= now.getTime() && Date.parse(event.end.dateTime!) > now.getTime());
+  const workoutEvent = timed.find(event => fallbackTaskPresentation(event.title).category === "fitness" && Date.parse(event.start.dateTime!) - now.getTime() <= preferences.workoutLeadMinutes * 60000);
+  const workoutTask = today.tasks.find(task => taskPresentation(task).category === "fitness" && task.dueAt && localDay(new Date(task.dueAt), data.timezone) === day && Date.parse(task.dueAt) - now.getTime() <= preferences.workoutLeadMinutes * 60000 && now.getTime() < Date.parse(task.dueAt) + (task.estimatedMinutes ?? 60) * 60000);
+  const workoutTitle = workoutEvent?.title ?? workoutTask?.title;
+  const workoutAt = workoutEvent?.start.dateTime ?? workoutTask?.dueAt;
+  const workout: HomeHero = { mode: "workout", label: workoutTitle ? "Up next · Movement" : "Movement", title: workoutTitle ?? "Move in a way that fits today.", detail: workoutAt ? `${formatTime(workoutAt)} · ${workoutEvent ? "On your calendar" : "Scheduled task"}` : "Choose a plan or explore a short session.", action: "Open workout", destination: "movement", image: "/images/home/workout.png", imageAlt: "" };
+  const mealSlot = minute < 11 * 60 ? "Breakfast" : minute < 15 * 60 ? "Lunch" : "Dinner";
+  const meal = data.items.find(item => item.data.kind === "meal" && item.data.date === day && item.data.meal === mealSlot);
+  const photo = meal && recipePhotoFor(meal.data);
+  const mealHero: HomeHero = { mode: "meal", label: `${mealSlot} plan`, title: meal?.data.title ?? "What sounds good today?", detail: meal?.data.kind === "meal" ? `${mealSlot} · Planned${meal.data.servings ? ` · ${meal.data.servings} ${meal.data.servings === 1 ? "serving" : "servings"}` : ""}` : "Pick a meal and keep the ingredients together.", action: meal ? "Open meal plan" : "Plan a meal", destination: "meals", image: photo?.image ?? "/images/home/meal.png", imageAlt: photo?.alt ?? "Meal planning ingredients; illustrative photo", meal };
+  const activeTask = today.tasks.find(task => task.status === "in_progress");
+  const focus: HomeHero = { mode: "focus", label: today.focus || activeTask ? "Your focus" : ongoing ? "Happening now" : "One thing to start", title: today.focus?.title ?? activeTask?.title ?? ongoing?.title ?? today.nextTask?.title ?? "A little room to begin.", detail: today.focus ? today.focus.endsAt ? "Your saved timer is ready to continue." : "Paused. Continue when you're ready." : activeTask ? "Your task is in progress." : ongoing ? `Until ${formatTime(ongoing.end.dateTime!)}` : today.nextTask ? "Start small. You can take another step later." : "Add one task, or tell Tempo what's on your mind.", action: today.focus || activeTask ? "Continue focus" : ongoing ? "View calendar" : today.nextTask ? `Start ${taskPresentation(today.nextTask).focusMinutes} min` : "Add a task", destination: ongoing && !today.focus && !activeTask ? "calendar" : "tasks", image: "/images/home/focus.png", imageAlt: "", task: today.nextTask, ongoingFocus: !!(today.focus || activeTask) };
+  const choices: Record<HeroMode, HomeHero> = { morning: routineHero("morning", morning), evening: routineHero("evening", evening), workout, meal: mealHero, focus };
+  const morningAt = minutesOf(preferences.morningTime ?? (morning?.data.kind === "routine" ? morning.data.time : "08:00"));
+  const eveningAt = minutesOf(preferences.eveningTime ?? (evening?.data.kind === "routine" ? evening.data.time : "21:00"));
+  const eveningWindow = since(minute, eveningAt) < 180;
+  const morningWindow = since(minute, morningAt) < 120;
+  const dinnerDistance = since(minute + 45, minutesOf(preferences.dinnerTime));
+  const lunchWindow = minute >= 11 * 60 + 45 && minute < 14 * 60;
+  const breakfastWindow = minute >= 7 * 60 && minute < 10 * 60;
+  const automatic: HeroMode = today.focus || activeTask ? "focus" : ongoing ? (workoutEvent?.id === ongoing.id ? "workout" : "focus") : workoutEvent || workoutTask ? "workout" : eveningWindow && evening ? "evening" : morningWindow && morning ? "morning" : meal && (dinnerDistance < 150 || lunchWindow || breakfastWindow) ? "meal" : "focus";
+  const requested = manualMode ?? preferences.pinned;
+  const mode = requested === "auto" ? automatic : requested;
+  const tasks = [...today.tasks].sort((a, b) => Number(b.status === "in_progress") - Number(a.status === "in_progress") || Number(!!a.dueAt && localDay(new Date(a.dueAt), data.timezone) > day) - Number(!!b.dueAt && localDay(new Date(b.dueAt), data.timezone) > day) || (a.dueAt ? Date.parse(a.dueAt) : Infinity) - (b.dueAt ? Date.parse(b.dueAt) : Infinity));
+  return { day, minute, greeting: minute < 12 * 60 ? "Good morning" : minute < 18 * 60 ? "Good afternoon" : "Good evening", preferences, mode, automatic, hero: choices[mode], choices, tasks, calendar, today };
+}

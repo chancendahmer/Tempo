@@ -1,61 +1,50 @@
-# Today experiment — visual QA
+# Adaptive Home design QA
 
-final result: passed
+Date: 2026-10-21. Branch: `codex/tempo-adaptive-home`, based on `74e9f09fdf1c3697f5200ec572b89344a179f65d`. This report covers the working tree committed with this report, not production.
 
-## Scope and comparison
+**Final result: passed** for the requested isolated Home implementation. No open P0/P1/P2 design findings. This is the implementing engineer's visual/interaction QA, not an independent customer score or a full-product release certification.
 
-This is a local design experiment for **Today only**, based on the approved Journey aesthetic. It is not a release approval or a claim of whole-product readiness. The user requested an adaptation, so the daily agenda and checklist intentionally replace Journey's large map and milestones.
+## Comparison evidence
 
-Source visual truth:
-`C:/Users/chanc/.codex/worktrees/tempo-calm-ui/Agentic AI Assistant SMS/qa/journey-world-2026-10-19/final-desktop.png`
-
-Implementation:
-`http://localhost:3102/workspace/preview`
-
-Final evidence:
-- `qa/today-world-2026-10-20/final-desktop.png` — 1265 × 1404 pixels, full document at 1280 × 720 CSS viewport, device scale 1. Scrollbar excludes 15px from the captured document.
-- `qa/today-world-2026-10-20/final-mobile-390.png` — 375 × 2330 pixels at 390 × 844 CSS viewport, device scale 1.
-- `qa/today-world-2026-10-20/final-mobile-320.png` — 305 × 2505 pixels at 320 × 800 CSS viewport, device scale 1.
-- `qa/today-world-2026-10-20/before-desktop.png` — earlier Today design.
-
-State: fictional Alex preview; current local Tuesday; routine checklist selected for final screenshots. The afternoon next task and event times remain sourced from the existing fixture/model. No fake completed activity was introduced. Screenshots are local QA artifacts and are not committed.
-
-The approved Journey source (1265px-wide document) and final Today capture were opened together in one comparison input at native 1x document scale. They are different page contents by design. The existing Today capture anchors layout continuity; Journey anchors typography, color and artwork. Phone captures were opened together for the responsive pass. At these native captures, headings, card text, image edges and controls were readable, so separate cropped comparisons were unnecessary.
+- Approved image: the user's `codex-clipboard-08a1bd2f-be4d-4063-b163-7fa9d258e2fe.png`, plus its refined morning concept (`exec-f94369be-f176-4cda-90fa-278606c52d6c.png`).
+- [Combined source/render comparison](qa/adaptive-home/reference-comparison.png): both images inspected side by side at equal width, including typography, spacing, palette, imagery, and copy.
+- [Desktop morning](qa/adaptive-home/morning-desktop.png), [movement](qa/adaptive-home/workout-desktop.png), [dinner](qa/adaptive-home/dinner-desktop.png), [wind-down](qa/adaptive-home/evening-desktop.png).
+- [Tablet, 1024 px](qa/adaptive-home/morning-tablet.png), [phone, 390 px](qa/adaptive-home/morning-mobile.png), [narrow phone, 320 px](qa/adaptive-home/phone-320.png).
+- Environment: isolated Next development preview, `http://localhost:3103/workspace/preview`. Alex is explicitly fictional, with local temporary changes only.
 
 ## Fidelity surfaces
 
-- **Typography:** Georgia display headings echo Journey; Manrope remains on controls and dense task content. Higher-specificity Today selectors preserve the serif headings in both development and production builds. Long task titles wrap without truncation.
-- **Layout:** Compact illustrated welcome area, clear divider, dominant next-action card and adjacent checklist. The garden was reduced to keep the sample primary focus button within the 1280 × 720 viewport (bottom 714px). Small phones use a vertical flow. No horizontal overflow observed at 390px or 320px.
-- **Colors:** Warm cream, coral action, sage checklist and muted calendar blue carry the Journey palette while preserving readable task categories. Only Today styles change.
-- **Images:** Generated transparent garden follows the approved soft clay world; existing flame, sun, sprout and mascot are reused. Clean alpha, no missing images, no stretched artwork, no rasterized UI. Text and controls remain real HTML.
-- **Copy:** Short supportive wording; actual date/time and account-derived counts; preview label remains visible. No marketing claims, fabricated achievements or hardware promises.
+| Surface | Observed result |
+| --- | --- |
+| Fonts | Manrope, sans headings, strong task names, quiet metadata. Corrected inherited global typography. Task titles increased to 18 px on desktop; narrow-phone titles wrap without colliding with Start. |
+| Spacing/layout | Oval header controls, full-width photographic activity banner, stable task/calendar columns, capsule composer. Desktop fits approximately one screen; phones stack naturally. Restored native-dialog centering after a reset stylesheet removed its margins. |
+| Colors | White/off-white foundations with restrained teal actions. Gray paperwork, green shopping/food, blue-green activity, and warm routine icons. Next calendar event uses a light blue surface; color is accompanied by text and icon shape. |
+| Image quality | New high-resolution ceramic-sun, desk, exercise, evening, and ingredient imagery. Desktop crop preserves the main object; mobile gradients retain legible copy. Matching recipe illustrations appear only for a matching saved recipe; generic food imagery is not presented as the exact user's dish. |
+| Copy/content | Real routine titles/next steps, task-specific timer labels, today's actual events, planned servings. Clear empty/error/disconnected states. Demo time and records are labeled fictional. No invented completed activity or nutrition intake. |
+| Icons | Consistent React Icons family/weight, category colors restricted to small symbols. The icon's accessible label opens an editable category/timer dialog. Added a permanent accessible name to the mobile-only settings icon. |
 
-## Comparison history
+Intentional adaptations: the existing Journey link and demo disclosure remain above the Home content. The screenshot's sample events/tasks are replaced by existing account records. Controls and metadata are somewhat denser than the concept to fit these retained elements. A real account is not filled with fictional events to match the picture. No fake attachment or microphone controls were added.
 
-1. **P2, phone title/art collision:** initial 390px capture (`mobile-before-fix.png`) placed the garden over the end of the title. Reserved separate title space, reduced mobile type/art and removed the secondary tagline on phones. Final 390px and 320px captures show clear separation.
-2. **P2, desktop hero density:** first draft pushed the focus action below a short desktop viewport. Reduced artwork width and welcome-card height while preserving the main visual. Final production-build capture and DOM geometry confirm the focus button is fully visible at the tested desktop size.
-3. Final full-view and phone comparison: no remaining actionable P0/P1/P2 issue within this Today experiment.
+## Interaction and responsive observations
 
-## Interaction and technical validation
+- Changed a task's starting timer to 7 minutes; Start opened a 7:00 focus session. Pausing, resuming, returning Home, continuing, and completing worked. A second task could not start concurrently. Reload reset the fictional preview as advertised.
+- Automatic preview time: 08:10 morning routine; 15:05 scheduled walk; 18:00 saved dinner; 21:30 evening routine. Dinner opened the current meal-plan date; movement opened Fitness. Earlier events were absent after they ended.
+- Pin/unpin and Home settings worked. Manual banner selection stays a temporary view unless pinned. Search for lemon distinguished dates; choosing October 23 opened that date's meal plan.
+- Spaces opened the four groups; Escape dismissed it. Sidebar opened and dismissed with focus returned. Journey remained reachable. Account identity and the preview/account distinction remained visible.
+- Inspected 1487, 1024, 390, and 320 px layouts. Corrected the 320 px header wrapping and calendar heading crowding. No horizontal document overflow in final phone/tablet checks. Mobile settings remain scrollable; Escape closes them and returns focus.
+- Reduced-motion media rules avoid optional transitions. Focus indicators and native form semantics remain. Final browser console query returned no warnings or errors. A DOM label check's six apparent misses were hidden sidebar buttons with text, not visible unnamed controls.
 
-Observed in the browser: Routine / To-do switching; step completion and undo with matching progress; task focus start, pause, return and reopen; Journey navigation; Today animation pause shared with Journey; seven-day details; setup and hiding the streak display. Repeated routine completion/undo on the production build. Paused state computed styles report no running animations inside the Today header. Reduced-motion CSS is present; OS-level preference emulation was not run.
+## Repair history
 
-- Focused tests: 28 passed.
-- `npm run check`: passed. 115 test files passed, 2 skipped; 851 tests passed, 3 skipped. Lint, typecheck, Next production build and operations TypeScript build passed.
-- Production-build browser console: no captured error/warning entries on final inspection.
-- `git diff --check`: passed.
-- No paid provider tests, production writes, deployment or push in this run.
+| Finding | Fix and verification |
+| --- | --- |
+| P2: global progress margin and typography distorted banner density | Scoped Home progress/typography overrides; re-rendered desktop and tablet. |
+| P2: 320 px header forced the profile onto its own row | Compact header spacing and type, remove redundant chevron at this width; final narrow-phone capture. |
+| P2: icon-only mobile Home settings lacked an accessible name | Explicit `aria-label`; opened through its accessible name. |
+| P2: dialog aligned to the top-left due to global reset | Explicit `margin:auto`; measured centered x=16/y=37 at narrow width, closed with Escape. |
+| P2: search meal results did not identify date or navigate to the selected day | Added slot/date labels and selected-date routing; opened October 23 successfully. |
+| P3: switching banner could briefly retain the previous photo | Key image by source; inspected different banner states. |
 
-The inherited tests validate code paths. Browser checks used the fictional preview; they do not establish new real-account persistence, SMS delivery or Google Calendar evidence. Those subsystems were not changed.
+## Validation boundary
 
-## Follow-up polish and feedback
-
-- At 320px, long agenda titles make the later cards closely spaced; this is a minor visual refinement, not an inaccessible action or clipped content.
-- The garden is a rendered illustration with restrained CSS motion, not an interactive 3D model.
-- The user should judge the visual direction before any extension to other sections or publication.
-
-## Local checkpoint
-
-Branch: `codex/tempo-today-world`, based on `db2abde`.
-Worktree: `C:/Users/chanc/.codex/worktrees/tempo-today-world/Agentic AI Assistant SMS`.
-Run the built preview with `node qa/today-world-2026-10-20/start-today.cjs --production` after `npm run build`; omit `--production` for editing. Port 3102 is local only and autonomous sending is disabled.
+Automated account/database tests and the live model check are documented in [the checkpoint](qa/adaptive-home/README.md). Browser QA used the fictional preview, not a signed-in production account. This report does not prove real SMS delivery, Google authorization, worker deployment, or physical-device alarm behavior. Production and the original worktrees were not changed.

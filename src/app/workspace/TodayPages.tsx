@@ -22,7 +22,7 @@ export function TodayPages({ children, data, now, preview, onSetup, motion, setM
     onTouchStart={event => { const target = event.target as HTMLElement; touch.current = event.touches.length === 1 && !target.closest("button,a,input,textarea,select,summary,[data-no-swipe]") ? { x: event.touches[0].clientX, y: event.touches[0].clientY } : null; }}
     onTouchCancel={() => { touch.current = null; }}
     onTouchEnd={event => { if (touch.current && event.changedTouches[0]) { const next = journeySwipe(touch.current, { x: event.changedTouches[0].clientX, y: event.changedTouches[0].clientY }); if (next) change(next); } touch.current = null; }}>
-    <nav className={s.pageNav} aria-label="Today pages">
+    <nav className={`${s.pageNav} ${page === "today" ? s.compactNav : ""}`} aria-label="Today pages">
       <button onClick={() => change("today")} aria-current={page === "today" ? "page" : undefined}>{page === "journey" && <FiArrowLeft />}Today <span>01</span></button>
       <span className={s.navLine} />
       <button onClick={() => change("journey")} aria-current={page === "journey" ? "page" : undefined}><FiCompass />Your journey <span>02</span>{page === "today" && <FiArrowRight />}</button>

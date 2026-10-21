@@ -1,0 +1,41 @@
+{
+  "timestamp": "2026-10-21T23:22:10.729Z",
+  "evidence": "one real provider call; fictional titles only",
+  "usage": {
+    "inputTokens": 1236,
+    "outputTokens": 230,
+    "model": "claude-sonnet-4-6"
+  },
+  "results": [
+    {
+      "title": "Write a report about nutrition",
+      "id": "00000000-0000-4000-8000-000000000001",
+      "category": "work",
+      "focusMinutes": 25
+    },
+    {
+      "title": "Pick up oats and yogurt",
+      "id": "00000000-0000-4000-8000-000000000002",
+      "category": "shopping",
+      "focusMinutes": 10
+    },
+    {
+      "title": "Pack my bag",
+      "id": "00000000-0000-4000-8000-000000000003",
+      "category": "personal",
+      "focusMinutes": 10
+    },
+    {
+      "title": "Upper body workout",
+      "id": "00000000-0000-4000-8000-000000000004",
+      "category": "fitness",
+      "focusMinutes": 15
+    },
+    {
+      "title": "Wash the dishes",
+      "id": "00000000-0000-4000-8000-000000000005",
+      "category": "home",
+      "focusMinutes": 10
+    }
+  ]
+}

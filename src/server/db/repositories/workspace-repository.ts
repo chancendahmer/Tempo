@@ -20,15 +20,19 @@ import { IngredientInputError } from "../../domain/meal-groceries";
 import { readWorkspaceLifeItems } from "./workspace-life-items";
 import { readActivityStreak, recordRoutineCompletionChanges, RoutineCompletionDateError } from "./activity-streak-repository";
 import { readGentleSetup } from "./gentle-setup-repository";
+import { homePreferencesSchema, readHomePreferences } from "../../domain/home-preferences";
+import { taskCategorySchema } from "../../domain/task-presentation";
 
 export const workspaceActionSchema = z.discriminatedUnion("action", [
+  z.object({ action: z.literal("home_preferences"), preferences: homePreferencesSchema, expected: homePreferencesSchema }).strict(),
+  z.object({ action: z.literal("task_presentation"), taskId: z.uuid(), expectedTitle: z.string().max(240), category: taskCategorySchema, focusMinutes: z.number().int().min(1).max(60) }).strict(),
   z.object({ action: z.literal("forget_memory"), id: z.uuid(), expectedContent: z.string().min(1).max(2000) }),
   z.object({ action: z.literal("remove_reminder"), id: z.uuid() }),
   z.object({ action: z.literal("add_groceries"), items: z.array(z.string().trim().min(1).max(240)).min(1).max(20) }),
   z.object({ action: z.literal("save"), id: z.uuid(), version: z.number().int().min(0), sourceRecipeId: z.uuid().optional(), data: lifeItemSchema }),
   z.object({ action: z.literal("patch"), id: z.uuid(), version: z.number().int().min(1), patch: lifePatchSchema }).strict(),
   z.object({ action: z.literal("delete"), id: z.uuid(), version: z.number().int().min(1) }),
-  z.object({ action: z.literal("task"), requestId: z.uuid(), command: taskCommandSchema }),
+  z.object({ action: z.literal("task"), requestId: z.uuid(), command: taskCommandSchema, focusMinutes: z.number().int().min(1).max(60).optional() }).refine(input => input.focusMinutes === undefined || input.command.type === "start_task", "Only starting a task can create a focus timer."),
   z.object({ action: z.literal("goal"), requestId: z.uuid(), command: goalCommandSchema }),
   z.object({ action: z.literal("chat"), requestId: z.uuid(), text: z.string().trim().min(1).max(2000) }),
   z.object({ action: z.literal("checkins"), enabled: z.boolean() }),
@@ -44,17 +48,18 @@ export async function readWorkspace(userId: string, database: TempoDatabase = ge
   const diaryDate = requestedDiaryDate ?? accountToday;
   const [board, allTasks, allGoals, life, messages, profile, memories, allReminders, activityStreak, setup] = await Promise.all([
     readBoard(userId, new Date(), database),
-    database.select({ id: tasks.id, title: tasks.title, status: tasks.status, dueAt: tasks.dueAt, estimatedMinutes: tasks.estimatedMinutes, startedAt: tasks.startedAt, goalId: tasks.goalId }).from(tasks).where(and(eq(tasks.userId, userId), inArray(tasks.status, ["not_started", "in_progress", "completed"]))).orderBy(asc(sql`case when ${tasks.status} = 'in_progress' then 0 when ${tasks.status} = 'not_started' then 1 else 2 end`), asc(sql`case when ${tasks.status} <> 'completed' then ${tasks.dueAt} end`), desc(tasks.updatedAt), desc(tasks.id)).limit(201),
+    database.select({ id: tasks.id, title: tasks.title, status: tasks.status, dueAt: tasks.dueAt, estimatedMinutes: tasks.estimatedMinutes, presentation: tasks.presentation, startedAt: tasks.startedAt, goalId: tasks.goalId }).from(tasks).where(and(eq(tasks.userId, userId), inArray(tasks.status, ["not_started", "in_progress", "completed"]))).orderBy(asc(sql`case when ${tasks.status} = 'in_progress' then 0 when ${tasks.status} = 'not_started' then 1 else 2 end`), asc(sql`case when ${tasks.status} <> 'completed' then ${tasks.dueAt} end`), desc(tasks.updatedAt), desc(tasks.id)).limit(201),
     database.select({ id: goals.id, title: goals.title, description: goals.description, status: goals.status }).from(goals).where(and(eq(goals.userId, userId), inArray(goals.status, ["active", "completed"]))).orderBy(asc(sql`case when ${goals.status} = 'active' then 0 else 1 end`), desc(goals.updatedAt), desc(goals.id)).limit(101),
     readWorkspaceLifeItems(database, userId, diaryDate),
     database.select({ id: conversationMessages.id, body: conversationMessages.body, direction: conversationMessages.direction, status: conversationMessages.status, createdAt: conversationMessages.createdAt }).from(conversationMessages).where(and(eq(conversationMessages.userId, userId), inArray(conversationMessages.kind, ["user", "coach"]))).orderBy(desc(conversationMessages.createdAt)).limit(50),
-    database.select({ displayName: users.displayName, proactiveOptIn: users.proactiveOptIn, quietHoursStart: users.quietHoursStart, quietHoursEnd: users.quietHoursEnd }).from(users).where(eq(users.id, userId)).limit(1),
+    database.select({ displayName: users.displayName, proactiveOptIn: users.proactiveOptIn, quietHoursStart: users.quietHoursStart, quietHoursEnd: users.quietHoursEnd, workspacePreferences: users.workspacePreferences }).from(users).where(eq(users.id, userId)).limit(1),
     database.select({ id: memoryEntries.id, content: memoryEntries.content, category: memoryEntries.category }).from(memoryEntries).where(and(eq(memoryEntries.userId, userId), isNull(memoryEntries.deletedAt), or(isNull(memoryEntries.expiresAt), gt(memoryEntries.expiresAt, new Date())))).orderBy(desc(memoryEntries.createdAt)).limit(201),
     database.select({ id: reminders.id, text: reminders.text, remindAt: reminders.remindAt, status: reminders.status }).from(reminders).where(and(eq(reminders.userId, userId), inArray(reminders.status, ["scheduled", "sending", "sent", "failed"]))).orderBy(asc(sql`case when ${reminders.status} in ('scheduled','sending') then 0 else 1 end`), asc(sql`case when ${reminders.status} in ('scheduled','sending') then ${reminders.remindAt} end`), desc(reminders.remindAt), desc(reminders.id)).limit(201),
     readActivityStreak(userId, database),
     readGentleSetup(userId, database),
   ]);
-  return { ...board, tasks: allTasks.slice(0, 200), tasksTruncated: allTasks.length > 200, goals: allGoals.slice(0, 100), goalsTruncated: allGoals.length > 100, ...life, messages: messages.reverse(), profile: profile[0], memories: memories.slice(0, 200), memoriesTruncated: memories.length > 200, reminders: allReminders.slice(0, 200), remindersTruncated: allReminders.length > 200, activityStreak, setup };
+  if (!profile[0]) throw new WorkspaceConflict("Account unavailable.");
+  return { ...board, tasks: allTasks.slice(0, 200), tasksTruncated: allTasks.length > 200, goals: allGoals.slice(0, 100), goalsTruncated: allGoals.length > 100, ...life, messages: messages.reverse(), profile: { displayName: profile[0].displayName, proactiveOptIn: profile[0].proactiveOptIn, quietHoursStart: profile[0].quietHoursStart, quietHoursEnd: profile[0].quietHoursEnd }, homePreferences: readHomePreferences(profile[0]?.workspacePreferences.home), memories: memories.slice(0, 200), memoriesTruncated: memories.length > 200, reminders: allReminders.slice(0, 200), remindersTruncated: allReminders.length > 200, activityStreak, setup };
 }
 
 export async function mutateWorkspace(userId: string, input: WorkspaceAction, database: TempoDatabase = getDatabase(), receiptId?: string) {
@@ -87,6 +92,16 @@ export async function mutateWorkspace(userId: string, input: WorkspaceAction, da
       }
     }
     const perform = async (): Promise<{ message: string }> => {
+    if (input.action === "home_preferences") {
+      if (!isDeepStrictEqual(readHomePreferences(user.workspacePreferences.home), input.expected)) throw new WorkspaceConflict("Home settings changed in another tab. Refresh and try again.");
+      await transaction.update(users).set({ workspacePreferences: { ...user.workspacePreferences, home: input.preferences }, updatedAt: new Date() }).where(eq(users.id, userId));
+      return { message: "Home preferences saved." };
+    }
+    if (input.action === "task_presentation") {
+      const updated = await transaction.update(tasks).set({ presentation: { category: input.category, focusMinutes: input.focusMinutes, source: "manual", title: input.expectedTitle }, updatedAt: new Date() }).where(and(eq(tasks.userId, userId), eq(tasks.id, input.taskId), eq(tasks.title, input.expectedTitle), eq(tasks.status, "not_started"))).returning({ id: tasks.id });
+      if (!updated.length) throw new WorkspaceConflict("This task changed or is already running. Refresh before editing its timer.");
+      return { message: "Task icon and starting timer saved." };
+    }
     if (input.action === "stop_focus") {
       const [focus] = await transaction.select().from(lifeItems).where(and(eq(lifeItems.userId, userId), sql`${lifeItems.data}->>'kind' = 'focus'`)).for("update");
       if (input.focus ? !focus || focus.id !== input.focus.id || focus.version !== input.focus.version : !!focus) throw new WorkspaceConflict("This focus session changed. Refresh before stopping it.");
@@ -227,7 +242,7 @@ export async function mutateWorkspace(userId: string, input: WorkspaceAction, da
     const db = transaction as unknown as TempoDatabase;
     const identity = await ensureDirectConversation(db, { userId, phoneE164: user.phoneE164 });
     const key = `web-${input.action}:${userId}:${input.requestId}`;
-    const body = input.action === "chat" ? input.text : JSON.stringify(input.command);
+    const body = input.action === "chat" ? input.text : JSON.stringify(input.action === "task" && input.focusMinutes !== undefined ? { ...input.command, focusMinutes: input.focusMinutes } : input.command);
     const [created] = await transaction.insert(conversationMessages).values({ userId, conversationId: identity.conversationId, direction: "inbound", kind: input.action === "chat" ? "user" : "system", status: input.action === "chat" ? "received" : "processed", body, idempotencyKey: key, receivedAt: new Date() }).onConflictDoNothing({ target: conversationMessages.idempotencyKey }).returning();
     const source = created ?? (await transaction.select().from(conversationMessages).where(and(eq(conversationMessages.idempotencyKey, key), eq(conversationMessages.userId, userId))).limit(1))[0];
     if (!source || source.body !== body) throw new WorkspaceConflict("Request already used for another change.");
@@ -238,6 +253,14 @@ export async function mutateWorkspace(userId: string, input: WorkspaceAction, da
     const context = { userId, sourceMessageId: source.id, now: new Date() };
     const result = input.action === "task" ? await executeTaskCommand(new DrizzleTaskRepository(db), input.command, context) : await executeGoalCommand(new DrizzleGoalRepository(db), input.command, context);
     if (result.kind !== "executed") throw new WorkspaceConflict(result.reply);
+    if (created && input.action === "task" && input.command.type === "start_task" && input.focusMinutes !== undefined && "task" in result && result.task) {
+      const [task] = await transaction.select().from(tasks).where(and(eq(tasks.id, result.task.id), eq(tasks.userId, userId)));
+      const [existing] = await transaction.select({ id: lifeItems.id }).from(lifeItems).where(and(eq(lifeItems.userId, userId), sql`${lifeItems.data}->>'kind' = 'focus'`));
+      if (task && !existing) {
+        const minutes = input.focusMinutes;
+        await transaction.insert(lifeItems).values({ id: randomUUID(), userId, data: { kind: "focus", title: task.title, taskId: task.id, remaining: minutes * 60, endsAt: new Date(Date.now() + minutes * 60000).toISOString() } });
+      }
+    }
     return { message: result.reply };
     };
     const result = await perform();
