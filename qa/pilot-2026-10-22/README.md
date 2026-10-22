@@ -1,8 +1,8 @@
 # Private-pilot hardening checkpoint — October 22, 2026
 
 Candidate branch: `codex/tempo-adaptive-home`. First sprint checkpoint:
-`4400de5`. The next commit containing this file integrates A2/R2 and the final
-review corrections. This is **not a production release or permission to invite
+`4400de5`; integrated A2/R2 and final review corrections: **`fed7d5b`**.
+This is **not a production release or permission to invite
 100 people**. No provider calls, paid API usage, hosted migrations, customer
 outreach or production changes occurred in this sprint.
 

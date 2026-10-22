@@ -2,6 +2,11 @@
 
 Updated October 22, 2026. This is a live engineering checkpoint, not release approval.
 
+Current tested code checkpoint: **`fed7d5b`** (A2/R2), following **`4400de5`**
+(A1/W1/R1), on `codex/tempo-adaptive-home`. A later documentation-only checkpoint
+may update this brief. No production merge/deploy occurred. Verify the current
+remote tip before continuing; the old PR26 is a different branch.
+
 ## Prompt for the next lead (Astra medium or Sol)
 
 You are Tempo's principal engineer and release owner. Continue the approved
