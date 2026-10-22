@@ -19,14 +19,14 @@ Windows are UTC admission days, not customer-local routine days. Every reservati
 
 ## Versioned pricing assumptions
 
-Snapshot: `anthropic-standard-2026-10-22-v1`, valid from October22 until **November22,2026 00:00UTC**. Review or expiry intentionally stops new enforced calls. Only the following pinned IDs are supported; aliases/newer models are denied until separately priced and tested. This is compatibility support, not a recommendation to migrate to these models.
+Snapshot: `anthropic-standard-2026-10-22-v1`, valid from October 22 until **November 22,2026 00:00UTC**. Review or expiry intentionally stops new enforced calls. Only the following pinned IDs are supported; aliases/newer models are denied until separately priced and tested. This is compatibility support, not a recommendation to migrate to these models.
 
 | Direct standard model | Input / million | Output / million | 5-minute cache write / million | 1-hour write / million | Cache read / million |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | `claude-haiku-4-5-20251001` | $1 | $5 | $1.25 | $2 | $0.10 |
 | `claude-sonnet-4-5-20250929` | $3 | $15 | $3.75 | $6 | $0.30 |
 
-Source: official [Haiku4.5 specifications](https://platform.claude.com/docs/en/models/haiku-4-5/overview), [Sonnet4.5 specifications](https://platform.claude.com/docs/es/models/sonnet-4-5/overview), and [provider pricing](https://platform.claude.com/docs/en/about-claude/pricing), inspected October22. Both model specifications list a 200,000-token context and 64,000 maximum output. Sonnet4.5 is deprecated; any future model replacement needs its own snapshot/validation, not an alias change.
+Source: official [Haiku 4.5 specifications](https://platform.claude.com/docs/en/models/haiku-4-5/overview), [Sonnet 4.5 specifications](https://platform.claude.com/docs/es/models/sonnet-4-5/overview), and [provider pricing](https://platform.claude.com/docs/en/about-claude/pricing), inspected October 22. Both model specifications list a 200,000-token context and 64,000 maximum output. Sonnet 4.5 is deprecated; any future model replacement needs its own snapshot/validation, not an alias change.
 
 The [web-search documentation](https://platform.claude.com/docs/en/agents-and-tools/tool-use/web-search-tool) lists $0.01 per search plus model tokens, with search results counted during server iterations. The supported tool is only `web_search_20250305`, with explicit `max_uses` of one or two. Other hosted tools and dynamic filtering are unpriced and denied.
 
@@ -40,7 +40,7 @@ Supported input/output/cache/search usage is validated and priced with integer r
 
 ## Transaction and recovery rules
 
-Migration0033 adds budget state and attempt tables. Reservation locks global then account state and checks money and call caps in one short transaction. Claim allows exactly one `reserved → submitting` transition. Independent accounting transactions use the shared PostgreSQL pool but bypass domain transaction/savepoint scopes; a later business rollback cannot erase incurred provider debt. No provider network call runs inside the accounting transaction.
+Migration 0033 adds budget state and attempt tables. Reservation locks global then account state and checks money and call caps in one short transaction. Claim allows exactly one `reserved → submitting` transition. Independent accounting transactions use the shared PostgreSQL pool but bypass domain transaction/savepoint scopes; a later business rollback cannot erase incurred provider debt. No provider network call runs inside the accounting transaction.
 
 Lost responses, timeouts, cancellation, malformed usage and unavailable settlement retain the entire commitment. Crashes can leave reserved/submitting rows; age, restart, lease expiry and midnight do not release them. The read-only operations report flags stale/uncertain debt and mismatched counters.
 

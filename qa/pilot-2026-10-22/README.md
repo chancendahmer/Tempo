@@ -1,5 +1,21 @@
 # Private-pilot hardening checkpoint — October 22, 2026
 
+Latest tested code: **`188d0f8` (C1/W2)**. See
+[current validation](c1-w2-validation.md) and [independent review](c1-independent-review.md).
+Final check passes lint, typecheck, **1,058 tests** (3 skipped), Next production
+build and operations build. Real PostgreSQL budget races and migration upgrade
+checks pass. Six fresh authenticated HTTP groups pass; browser tooling was
+unavailable, so no new visual or accessibility approval is claimed.
+
+AI spending controls and reminder clarity are implemented. Remaining gates:
+approved operating caps/retention, deployment-wide enforcement verification,
+the unreconciled historical live-test budget, fresh whole-customer/browser
+journeys and actual provider/operational release checks. This continuation spent
+**$0** and made no production changes. The older results below remain historical
+evidence; their pending C1/W2 implementation items are superseded by this checkpoint.
+
+## Earlier A1/W1/R1 and A2/R2 evidence
+
 Candidate branch: `codex/tempo-adaptive-home`. First sprint checkpoint:
 `4400de5`; integrated A2/R2 and final review corrections: **`fed7d5b`**.
 This is **not a production release or permission to invite

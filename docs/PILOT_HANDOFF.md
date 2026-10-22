@@ -2,8 +2,8 @@
 
 Updated October 22, 2026. This is a live engineering checkpoint, not release approval.
 
-Current tested code checkpoint: **`fed7d5b`** (A2/R2), following **`4400de5`**
-(A1/W1/R1), on `codex/tempo-adaptive-home`. A later documentation-only checkpoint
+Current tested code checkpoint: **`188d0f8`** (C1/W2), following **`fed7d5b`**
+(A2/R2) and **`4400de5`** (A1/W1/R1), on `codex/tempo-adaptive-home`. A later documentation-only checkpoint
 may update this brief. No production merge/deploy occurred. Verify the current
 remote tip before continuing; the old PR26 is a different branch.
 
@@ -37,6 +37,48 @@ research. Resolve the highest-risk unfinished package, validate, then checkpoint
 Continue independent work when a live provider/access dependency is blocked.
 
 ## Current work and evidence
+
+### Latest C1/W2 checkpoint — supersedes the older pending work below
+
+- C1 implementation and local validation are complete: all five AI adapters use
+  durable per-call reservations, trusted account scope, monetary/call caps,
+  versioned pinned pricing, zero SDK retries, uncertain-debt retention across
+  rollover and account erasure, atomic overage halts and sanitized reporting.
+  Migration 0033 and its snapshot are additive. Enforcement remains off.
+- C1 rollout is not approved. Read `docs/PILOT_AI_ACCOUNTING.md` for operating
+  caps, retention/disclosure, deployment-wide enforcement and live billing gates.
+  The pricing snapshot expires November 22. Current attestations cannot prove AI
+  budget configuration; the report correctly says unverified with null headroom.
+- W2 saved cadence/timezone, cancelled/completed history and task/reminder copy
+  are implemented. Task completion preserves a separately requested reminder.
+  The bounded scripted November 2–8 fixture is not all three complete novice weeks.
+- Final `npm run check`: lint/typecheck, **1,058 passing / 3 skipped tests**,
+  143 passing / 2 skipped files, Next production and operations builds pass.
+  Scripted assistant simulation: 33 turns, zero detected issues, not live AI.
+- Two-client real PostgreSQL race: 100 global attempts admit exactly ten at the cap;
+  duplicate claim/settlement has one winner; 200 account attempts admit one per
+  100 accounts. All 110 admitted attempts settled, zero outstanding debt. This is
+  synthetic accounting, not provider invoice or production-capacity evidence.
+- RealPG migration 0032→0033 and rerun preserved existing account/task/feedback
+  rows, 34 stable migration records and matching constraints/indexes. No hosted
+  migration or production deployment occurred.
+- Independent C1 review found no confirmed accounting/security defect in the
+  reviewed final code and focused suites. Deferred search `pause_turn` behavior
+  still needs provider validation; see the review's precise limitation.
+- Q1 browser tooling returned no browsers and IAB creation failed. Six fresh
+  authenticated local HTTP/PG groups passed; they do not replace rendered UI,
+  physical-phone, keyboard, clipboard-denial or screen-reader evidence. No new
+  visual score was assigned.
+- This continuation spent **$0**. Historical visible estimates are $5.554488
+  spent and $5.737773 carried commitments, including $0.183285 unresolved.
+  These incomplete subtotals do not establish remaining aggregate $10 allowance.
+
+Authoritative current results: `qa/pilot-2026-10-22/c1-w2-validation.md`,
+`c1-independent-review.md`, `c1-budget-race.json`, `c1-migration-review.md`,
+`w2-reminder-clarity.md`, `w2-browser-review.md`, and
+`live-budget-reconciliation.md`. Read final addenda over earlier pending items.
+
+### Prior A1/W1/R1 and A2/R2 checkpoints
 
 Initial sprint HEAD was `d7e1a0e` over code checkpoint `864fecb`. Previous Home
 customer/design ratings were 8/10 and 8.4/10; these are not whole-product release
@@ -94,18 +136,17 @@ findings with unresolved defects; read their implementation addenda.
 
 ## Next work packages
 
-1. **C1 spend/rate safety — highest engineering priority.** Follow
-   `docs/PILOT_COST_CONTROL_BRIEF.md`. Implement aggregate model usage/budget
-   protection across all call paths with atomic reservation/reconciliation, or
-   document a verified interim provider cap + very small cohort. Existing QA
-   ledger and per-request token limits do not bound production aggregate spend.
-   Always permit STOP, cancellation and privacy controls. Avoid adding speculative
-   infrastructure; measure actual calls before choosing limits.
-2. **W2 first-week clarity.** Show recurring-reminder cadence in its dashboard
-   projection. Explain that a task's scheduled time does not itself request a
-   text and completing a task currently does not cancel its explicitly requested
-   reminder. Preserve consent/explicit intent; do not silently invent a new policy.
-   Execute the three fresh week-long scenarios in customer-release-matrix.md.
+1. **C1 rollout decisions and verification.** Do not rebuild the implemented
+   ledger. Follow `docs/PILOT_AI_ACCOUNTING.md`: approve operating caps and
+   retention, reconcile the old live-test ledger, verify every AI-producing
+   process uses the intended enforced policy and complete an authorized billing
+   canary. Never enable with guessed caps or substitute the test budget for a
+   pilot operating budget. Keep STOP independent.
+2. **W2 fresh first-week acceptance.** The reminder copy/projection is complete.
+   Execute the three fresh week-long scenarios in customer-release-matrix.md,
+   including food and returning the next day. Preserve explicit intent and
+   distinguish scripted adapters from observed live AI. Do not silently change
+   completion/reminder policy to make a scenario pass.
 3. **Q1 fresh customer + designer reviews.** Use current authenticated local build,
    new and populated synthetic accounts, phone/desktop/keyboard and relevant
    workflows. Observe UI + records, record screenshot authorship and limits.
@@ -132,6 +173,7 @@ npm run check
 npm run simulate:assistant -- --scripted
 npx tsx scripts/pilot-load.ts --accounts 20
 npx tsx scripts/pilot-load.ts --accounts 100
+npx tsx scripts/pilot-budget-race.ts
 node qa/adaptive-home/start.cjs
 ```
 
@@ -189,7 +231,7 @@ production. Do not publish short-lived local sign-in links or cookies.
 - PR26 (`https://github.com/chancendahmer/Tempo/pull/26`) targets main from
   **codex/tempo-calm-ui**, not this adaptive branch. Verify branches/ancestry and
   latest remote before publication; don't accidentally merge the older UI.
-- Production: `https://tempo-production-8e25.up.railway.app`. No October22 production
+- Production: `https://tempo-production-8e25.up.railway.app`. No October 22 production
   write, migration, release or customer outreach has occurred at this checkpoint.
 - Adaptive Home migration0031 and new feedback0032 were not applied to production
   by this run. Local additive upgrade/rerun and rollback compatibility were
@@ -199,3 +241,6 @@ production. Do not publish short-lived local sign-in links or cookies.
 Final handoff must name the actual commit/branch, completed packages and check
 results, observed reviews, remaining blockers, API spend and next exact action.
 Never label all 100 seats ready from preview scores or synthetic throughput.
+
+C1 migration 0033 likewise remains undeployed. Preserve its ledger during rollback;
+never roll back to unmetered code while AI-producing processes continue to run.
