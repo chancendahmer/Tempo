@@ -2,6 +2,8 @@
 
 2026-10-21 · isolated implementation for user review.
 
+Follow-up: [independent reviews, repaired workflows, authenticated local account evidence, and remaining release work](../adaptive-followthrough/README.md). The historical evidence below describes the initial implementation; the follow-up adds real local PostgreSQL/HTTP/browser verification without claiming production provider delivery.
+
 ## Location
 
 - Branch: `codex/tempo-adaptive-home`.
