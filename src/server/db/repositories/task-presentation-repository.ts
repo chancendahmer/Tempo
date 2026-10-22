@@ -1,4 +1,6 @@
 import { and, asc, eq, isNull } from "drizzle-orm";
+import { randomUUID } from "node:crypto";
+import { withAiInvocationScope } from "../../domain/ai-invocation-scope";
 import { getDatabase, type TempoDatabase } from "../client";
 import { tasks } from "../schema";
 import { fallbackTaskPresentation } from "../../domain/task-presentation";
@@ -10,7 +12,7 @@ export async function enrichTaskPresentations(suggest: (input: PresentationInput
   if (!first) return { saved: 0, source: "none" as const };
   const pending = await database.select({ id: tasks.id, title: tasks.title, estimatedMinutes: tasks.estimatedMinutes }).from(tasks).where(and(eq(tasks.userId, first.userId), isNull(tasks.presentation), eq(tasks.status, "not_started"))).orderBy(asc(tasks.createdAt)).limit(8);
   let suggestions: PresentationBatch | undefined;
-  try { suggestions = await suggest(pending); } catch { /* Keep capture usable; no endless paid retry loop. */ }
+  try { suggestions = await withAiInvocationScope({ accountId: first.userId, executionId: randomUUID() }, () => suggest(pending)); } catch { /* Keep capture usable; no endless paid retry loop. */ }
   let saved = 0;
   for (const task of pending) {
     const suggestion = suggestions?.tasks.find(item => item.id === task.id);

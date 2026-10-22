@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  bigint,
   boolean,
   check,
   date,
@@ -20,6 +21,50 @@ const timestamps = {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 };
+
+// Operational accounting survives account erasure without message or identity content.
+export const aiBudgetStates = pgTable("ai_budget_states", {
+  scopeKey: text("scope_key").primaryKey(),
+  accountId: uuid("account_id").references(() => users.id, { onDelete: "set null" }),
+  windowDay: date("window_day", { mode: "string" }).notNull(),
+  settledMicrodollars: bigint("settled_microdollars", { mode: "number" }).default(0).notNull(),
+  settledCalls: bigint("settled_calls", { mode: "number" }).default(0).notNull(),
+  outstandingMicrodollars: bigint("outstanding_microdollars", { mode: "number" }).default(0).notNull(),
+  outstandingCalls: bigint("outstanding_calls", { mode: "number" }).default(0).notNull(),
+  halted: boolean("halted").default(false).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, table => [
+  index("ai_budget_states_account_idx").on(table.accountId),
+  check("ai_budget_states_nonnegative", sql`${table.settledMicrodollars} >= 0 AND ${table.settledCalls} >= 0 AND ${table.outstandingMicrodollars} >= 0 AND ${table.outstandingCalls} >= 0`),
+]);
+
+export const aiBudgetAttempts = pgTable("ai_budget_attempts", {
+  id: uuid("id").primaryKey(),
+  accountId: uuid("account_id").references(() => users.id, { onDelete: "set null" }),
+  accountKey: text("account_key").notNull(),
+  executionId: uuid("execution_id").notNull(),
+  operation: text("operation").notNull(),
+  model: text("model").notNull(),
+  priceVersion: text("price_version").notNull(),
+  policyVersion: text("policy_version").notNull(),
+  reservationFingerprint: text("reservation_fingerprint").notNull(),
+  windowDay: date("window_day", { mode: "string" }).notNull(),
+  reservedMicrodollars: bigint("reserved_microdollars", { mode: "number" }).notNull(),
+  actualMicrodollars: bigint("actual_microdollars", { mode: "number" }),
+  state: text("state").default("reserved").notNull(),
+  usage: jsonb("usage").$type<import("../domain/ai-budget").AiBudgetUsage>(),
+  failureCategory: text("failure_category"),
+  boundViolation: boolean("bound_violation").default(false).notNull(),
+  reconciliationId: uuid("reconciliation_id"),
+  ...timestamps,
+}, table => [
+  index("ai_budget_attempts_account_idx").on(table.accountId),
+  index("ai_budget_attempts_window_idx").on(table.windowDay, table.state),
+  index("ai_budget_attempts_execution_idx").on(table.executionId),
+  check("ai_budget_attempts_nonnegative", sql`${table.reservedMicrodollars} >= 0 AND (${table.actualMicrodollars} IS NULL OR ${table.actualMicrodollars} >= 0)`),
+  check("ai_budget_attempts_state_check", sql`${table.state} IN ('reserved', 'submitting', 'uncertain', 'settled')`),
+  check("ai_budget_attempts_operation_check", sql`${table.operation} IN ('assistant', 'turn_authorization', 'intervention_review', 'intervention_composition', 'task_presentation')`),
+]);
 
 export const lifeItems = pgTable("life_items", {
   id: uuid("id").primaryKey(),

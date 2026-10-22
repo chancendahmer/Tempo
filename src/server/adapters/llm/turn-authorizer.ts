@@ -1,3 +1,4 @@
+import { invokePaidMessage } from "./paid-invocation";
 import { ZodError } from "zod";
 import Anthropic from "@anthropic-ai/sdk";
 import { requireEnv } from "../../config/env";
@@ -35,7 +36,7 @@ export class AnthropicTurnAuthorizer implements TurnAuthorizer {
     try {
       const env = requireEnv(["ANTHROPIC_API_KEY", "ANTHROPIC_MODEL"]);
       this.client ??= new Anthropic({ apiKey: env.ANTHROPIC_API_KEY!, timeout: 30_000, maxRetries: 0 });
-      const response = await this.client.messages.create({
+      const response = await invokePaidMessage(this.client, {
         model: env.ANTHROPIC_MODEL!, max_tokens: 300,
         system: [
           "Classify the user's permission for this turn, independently of any proposed action. You cannot execute actions.",
@@ -58,7 +59,7 @@ export class AnthropicTurnAuthorizer implements TurnAuthorizer {
           }, required: ["mode", "commands"], additionalProperties: false,
         } }],
         tool_choice: { type: "tool", name: "classify_turn", disable_parallel_tool_use: true },
-      });
+      }, "turn_authorization");
       if (response.stop_reason === "max_tokens" || response.stop_reason === "refusal") throw new Error("incomplete_classification");
       const block = response.content.length === 1 ? response.content[0] : undefined;
       if (block?.type === "tool_use" && block.name === "classify_turn") return turnAuthorizationSchema.parse(block.input);

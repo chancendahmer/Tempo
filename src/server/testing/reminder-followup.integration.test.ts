@@ -12,7 +12,7 @@ vi.mock("../adapters/llm/turn-authorizer", () => ({ AnthropicTurnAuthorizer: cla
   authorize = async () => ({ mode: "write", commands: ["create_reminder"] });
 } }));
 vi.mock("../config/env", async importOriginal => ({ ...(await importOriginal<typeof import("../config/env")>()),
-  requireEnv: () => ({ ANTHROPIC_API_KEY: "test-only", ANTHROPIC_MODEL: "test-model", ASSISTANT_WEB_SEARCH_ENABLED: false }),
+  requireEnv: () => ({ AI_BUDGET_MODE: "off", ANTHROPIC_API_KEY: "test-only", ANTHROPIC_MODEL: "test-model", ASSISTANT_WEB_SEARCH_ENABLED: false }),
 }));
 
 it("adds a 5 PM SMS follow-up without losing 3 PM, leaking context or duplicating delivery work (scripted provider)", async () => {

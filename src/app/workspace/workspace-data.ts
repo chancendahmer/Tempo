@@ -23,7 +23,7 @@ export type Workspace = {
   tasksTruncated?: boolean;
   goalsTruncated?: boolean;
   messages: { id: string; body: string; direction: string; status: string; createdAt: string }[];
-  reminders: { id: string; text: string; remindAt: string; status: string }[];
+  reminders: { id: string; text: string; remindAt: string; status: string; timezone?: string; recurrence?: "daily" | "weekdays" | "weekly" | null }[];
   calendar: { status: string; lastSyncedAt: string | null } | null;
   busy: { id: string; startsAt: string; endsAt: string }[];
   demoCalendarEvents?: { id: string; title: string; startsAt: string; endsAt: string }[];

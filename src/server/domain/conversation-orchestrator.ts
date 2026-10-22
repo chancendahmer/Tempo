@@ -46,6 +46,7 @@ import { buildRundown, parseRundownRequest, isRundownQuestion } from "./rundown"
 import { connectionStatusReply } from "./connection-status-reply";
 import { assessTaskDeadline } from "./task-deadline";
 import { CHECKIN_CONSENT_REPLY, hasExplicitNoWriteRequest, isReadOnlyAssistantCommand, NO_WRITE_REPLY, requestedCheckinConsent, TurnWritePolicy } from "./turn-write-policy";
+import { withAiInvocationScope } from "./ai-invocation-scope";
 import { inOwnedExecution, ownedService } from "./inbound-execution";
 
 export type InboundConversationContext = {
@@ -158,7 +159,8 @@ export class ConversationOrchestrator {
     try {
       const reply = context.replyBody ?? await this.conversations.persistReply(context,
         await inOwnedExecution({ run: operation => this.conversations.withOwnership(context, operation) },
-          () => this.decideReply(context, now)) ?? "");
+          () => withAiInvocationScope({ accountId: context.userId, executionId: context.messageId, signal },
+            () => this.decideReply(context, now))) ?? "");
       if (reply) {
         await this.sms.send({
           userId: context.userId,

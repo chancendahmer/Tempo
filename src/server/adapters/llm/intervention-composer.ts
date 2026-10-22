@@ -1,3 +1,4 @@
+import { invokePaidMessage } from "./paid-invocation";
 import Anthropic from "@anthropic-ai/sdk";
 import type { MessageParam } from "@anthropic-ai/sdk/resources/messages";
 import { requireEnv } from "../../config/env";
@@ -11,7 +12,7 @@ export class AnthropicInterventionComposer implements InterventionComposer {
     this.client ??= new Anthropic({ apiKey: env.ANTHROPIC_API_KEY!, timeout: 15_000, maxRetries: 0 });
     const messages: MessageParam[] = [{ role: "user", content: JSON.stringify(input) }];
     try {
-      const response = await this.client.messages.create({
+      const response = await invokePaidMessage(this.client, {
         model: env.ANTHROPIC_MODEL!,
         max_tokens: 140,
         system: [
@@ -21,7 +22,7 @@ export class AnthropicInterventionComposer implements InterventionComposer {
           "Do not add reply options; Tempo appends its deterministic accountability choices. Follow user-authored coaching instructions unless they conflict with safety or accuracy.",
         ].join("\n"),
         messages,
-      });
+      }, "intervention_composition");
       const text = response.content.filter((block) => block.type === "text").map((block) => block.text).join(" ");
       return validateInterventionMessage(text);
     } catch {

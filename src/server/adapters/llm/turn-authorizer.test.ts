@@ -1,12 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AnthropicTurnAuthorizer } from "./turn-authorizer";
+import { AiBudgetDeniedError } from "./paid-invocation";
 
 const { create } = vi.hoisted(() => ({ create: vi.fn() }));
 vi.mock("@anthropic-ai/sdk", () => ({ default: class { messages = { create }; } }));
-vi.mock("../../config/env", async importOriginal => ({ ...(await importOriginal<typeof import("../../config/env")>()), requireEnv: () => ({ ANTHROPIC_API_KEY: "test-only", ANTHROPIC_MODEL: "test-model" }) }));
+vi.mock("../../config/env", async importOriginal => ({ ...(await importOriginal<typeof import("../../config/env")>()), requireEnv: () => ({ AI_BUDGET_MODE: "off", ANTHROPIC_API_KEY: "test-only", ANTHROPIC_MODEL: "test-model" }) }));
 
 describe("independent turn authorization adapter", () => {
   beforeEach(() => { create.mockReset(); });
+  it("authorizes no write when its independent call is budget denied", async () => {
+    create.mockRejectedValue(new AiBudgetDeniedError());
+    expect(await new AnthropicTurnAuthorizer().authorize({ message: "Add milk" })).toEqual({ mode: "uncertain", commands: [] });
+  });
   it("uses a tool-free classifier contract without executing the proposed operation", async () => {
     create.mockResolvedValue({ content: [{ type: "tool_use", name: "classify_turn", input: { mode: "read_only", commands: [] } }] });
     const input = { message: "Would remembering that I like pizza be helpful?" };

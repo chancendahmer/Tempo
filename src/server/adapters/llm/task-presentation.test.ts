@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 const { create } = vi.hoisted(() => ({ create: vi.fn() }));
 vi.mock("@anthropic-ai/sdk", () => ({ default: class { messages = { create }; } }));
-vi.mock("../../config/env", () => ({ requireEnv: () => ({ ANTHROPIC_API_KEY: "test-only", ANTHROPIC_MODEL: "test-model" }) }));
+vi.mock("../../config/env", () => ({ requireEnv: () => ({ AI_BUDGET_MODE: "off", ANTHROPIC_API_KEY: "test-only", ANTHROPIC_MODEL: "test-model" }) }));
 import { suggestTaskPresentations } from "./task-presentation";
 const id = "00000000-0000-4000-8000-000000000001";
 const input = [{ id, title: "Write a report about food", estimatedMinutes: null }];

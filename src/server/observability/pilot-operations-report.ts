@@ -1,6 +1,7 @@
 import type { PoolClient } from "pg";
 import { JOB_NAMES } from "../jobs/names";
 import { summarizeWorkerAttestations, type WorkerHeartbeat } from "./worker-attestation";
+import { readAiBudgetReport } from "./ai-budget-report";
 
 const jobNames = [...Object.values(JOB_NAMES), "tempo.task-presentation"];
 const actionKinds = ["send_signin", "send_welcome", "send_compliance", "process_inbound_message", "deliver_reminder", "sync_calendar", "evaluate_context", "deliver_intervention", "accountability_followup", "feedback_followup", "feedback_timeout"];
@@ -53,18 +54,20 @@ export async function readPilotOperationsReport(client: Pick<PoolClient, "query"
         from pgboss.job where state in ('created','retry','active','failed') group by 1,2 order by 1,2 limit 56`, [jobNames, now]);
       jobs = result.rows;
     }
-    const problems = [...worker.problems, ...worker.queueProblems,
+    const aiBudget = await readAiBudgetReport(client, since, now);
+    const problems = [...worker.problems, ...worker.queueProblems, ...aiBudget.problems,
       ...(!queueExists.rows[0]?.present ? ["queue_table_unavailable"] : []),
       ...(held.rows[0].uncertainOutbound > 0 ? ["outbound_reconciliation_required"] : []),
       ...((held.rows[0].oldestPendingSeconds ?? 0) > 660 ? ["inbound_backlog_stale"] : []),
       ...(jobs.some(row => row.state === "failed") ? ["failed_jobs_require_review"] : []),
       ...(actions.rows.some(row => row.state === "failed") ? ["failed_actions_require_review"] : []),
     ];
-    const report = { generatedAt: now.toISOString(), windowHours: hours, worker,
+    const report = { generatedAt: now.toISOString(), windowHours: hours, worker, aiBudget,
       accounts: accounts.rows[0], recentMessages: messages.rows[0], heldWorkAllTime: held.rows[0],
       dueActionsAllTime: actions.rows, queueAvailable: Boolean(queueExists.rows[0]?.present), queuedJobsAllTime: jobs,
       recoveryAuditsAllTime: recovery.rows[0]?.audits ?? 0, problems: [...new Set(problems)],
       nextActions: [
+        ...aiBudget.nextActions,
         ...(!worker.ok || !worker.policyKnown ? ["Verify all worker deployments, build stamps and unretired instance records; web liveness cannot prove worker configuration or termination."] : []),
         ...(held.rows[0].uncertainOutbound > 0 ? ["Compare provider receipts before reconciling uncertain sends; never blindly resend or reset the ledger."] : []),
         ...(jobs.some(row => row.state === "failed") ? ["Inspect failed jobs securely; use recover-inbound dry run for one verified account/job after confirming provider state."] : []),

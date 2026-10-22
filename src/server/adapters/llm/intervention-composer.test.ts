@@ -4,7 +4,7 @@ import { fallbackIntervention, type InterventionComposer } from "../../domain/in
 
 const { create, construct } = vi.hoisted(() => ({ create: vi.fn(), construct: vi.fn() }));
 vi.mock("@anthropic-ai/sdk", () => ({ default: class { constructor(options: unknown) { construct(options); } messages = { create }; } }));
-vi.mock("../../config/env", () => ({ requireEnv: () => ({ ANTHROPIC_API_KEY: "test-only", ANTHROPIC_MODEL: "fixture-model" }) }));
+vi.mock("../../config/env", () => ({ requireEnv: () => ({ AI_BUDGET_MODE: "off", ANTHROPIC_API_KEY: "test-only", ANTHROPIC_MODEL: "fixture-model" }) }));
 const input: Parameters<InterventionComposer["compose"]>[0] = { style: "micro_start", taskTitle: "Write outline", freeMinutes: 30, tone: "balanced", memories: [] };
 beforeEach(() => vi.clearAllMocks());
 

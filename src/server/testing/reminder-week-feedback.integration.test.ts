@@ -7,7 +7,7 @@ import { conversationMessages, reminders, scheduledActions } from "../db/schema"
 const { create, authorize } = vi.hoisted(() => ({ create: vi.fn(), authorize: vi.fn() }));
 vi.mock("@anthropic-ai/sdk", () => ({ default: class { messages = { create }; } }));
 vi.mock("../adapters/llm/turn-authorizer", () => ({ AnthropicTurnAuthorizer: class { authorize = authorize; } }));
-vi.mock("../config/env", async original => ({ ...(await original<typeof import("../config/env")>()), requireEnv: () => ({ ANTHROPIC_API_KEY: "test", ANTHROPIC_MODEL: "test", ASSISTANT_WEB_SEARCH_ENABLED: false }) }));
+vi.mock("../config/env", async original => ({ ...(await original<typeof import("../config/env")>()), requireEnv: () => ({ AI_BUDGET_MODE: "off", ANTHROPIC_API_KEY: "test", ANTHROPIC_MODEL: "test", ASSISTANT_WEB_SEARCH_ENABLED: false }) }));
 const now = new Date("2026-10-02T16:00:00Z");
 const input = { message: "", timezone: "America/New_York", now, openTasks: [], openGoals: [], memories: [] };
 const tool = (name: string, sourceQuote: string, data: object) => ({ content: [{ type: "tool_use", id: name, name, input: { ...data, sourceQuote } }] });

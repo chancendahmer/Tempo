@@ -33,10 +33,13 @@ it("reads one bounded read-only snapshot and reports recovery causes without raw
   expect(query.mock.calls.at(-1)?.[0]).toBe("COMMIT");
   expect(report.problems).toEqual(expect.arrayContaining(["outbound_reconciliation_required", "inbound_backlog_stale", "failed_jobs_require_review", "failed_actions_require_review"]));
   expect(report.worker).toMatchObject({ ok: true, allCoachingDisabled: true });
+  expect(report.aiBudget).toMatchObject({ available: false, enforcementVerified: false, headroomMicrodollars: null });
+  expect(report.problems).toContain("ai_budget_schema_unavailable");
   for (const value of ["private-id", "private-token", "+12025550199"]) expect(JSON.stringify(report)).not.toContain(value);
   const sql = query.mock.calls.map(call => call[0]).join("\n");
   expect(sql).not.toMatch(/\b(insert|update|delete|create|alter|drop)\b/i);
   expect(sql).not.toMatch(/phone_e164|body|last_error|provider_error|access_token|refresh_token/i);
+  expect(sql).not.toContain("from public.ai_budget_attempts");
 });
 it("reports an uninitialized queue without starting pg-boss or attempting migrations", async () => {
   const { query, client } = fixture(false);

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AnthropicTaskIntentParser, hasCurrentActionEvidence, parseTaskIntentResponse } from "./task-intent-parser";
 import { isExplicitReminderRequest } from "../../domain/reminder-commands";
 import { AssistantProviderFailure } from "../../domain/assistant-provider-failure";
+import { AiBudgetDeniedError } from "./paid-invocation";
 import { HEALTH_CAPABILITY_LIMIT } from "../../domain/connection-status-reply";
 import { RUNDOWN_HISTORY_LIMIT } from "../../domain/rundown";
 import { WRITE_COMMANDS } from "../../domain/turn-write-policy";
@@ -10,11 +11,21 @@ import { navigationGroups, sections } from "../../../app/workspace/WorkspaceNavi
 const { create, authorize, settings } = vi.hoisted(() => ({ create: vi.fn(), authorize: vi.fn(), settings: { webSearch: false } }));
 vi.mock("@anthropic-ai/sdk", () => ({ default: class { messages = { create }; } }));
 vi.mock("./turn-authorizer", () => ({ AnthropicTurnAuthorizer: class { authorize = authorize; } }));
-vi.mock("../../config/env", async (importOriginal) => ({ ...(await importOriginal<typeof import("../../config/env")>()), requireEnv: () => ({ ANTHROPIC_API_KEY: "test-only", ANTHROPIC_MODEL: "test-model", ASSISTANT_WEB_SEARCH_ENABLED: settings.webSearch }) }));
+vi.mock("../../config/env", async (importOriginal) => ({ ...(await importOriginal<typeof import("../../config/env")>()), requireEnv: () => ({ AI_BUDGET_MODE: "off", ANTHROPIC_API_KEY: "test-only", ANTHROPIC_MODEL: "test-model", ASSISTANT_WEB_SEARCH_ENABLED: settings.webSearch }) }));
 
 vi.mock("./turn-authorizer", () => ({ AnthropicTurnAuthorizer: class { authorize = authorize; } }));
 
 describe("current-message routing", () => {
+  it("preserves a completed write confirmation when the next physical call is budget denied", async () => {
+    const message = "Add milk to my groceries";
+    authorize.mockResolvedValue({ mode: "write", commands: ["grocery_add"] });
+    create.mockResolvedValueOnce({ content: [{ type: "tool_use", id: "write", name: "grocery_add", input: { items: ["Milk"], sourceQuote: message } }] })
+      .mockRejectedValueOnce(new AiBudgetDeniedError());
+    const execute = vi.fn(async () => "Added Milk.");
+    expect(await new AnthropicTaskIntentParser().parse({ ...input, message, execute })).toEqual({ kind: "conversation", reply: "Added Milk." });
+    expect(execute).toHaveBeenCalledExactlyOnceWith({ type: "grocery_add", items: ["Milk"] });
+    expect(create).toHaveBeenCalledTimes(2);
+  });
   it("repairs a UTC-midnight tomorrow error internally before any write", async () => {
     const message = 'Remind me at 12pm tomorrow about "innovation center"';
     authorize.mockResolvedValue({mode: "write", commands: ["create_reminder"]});

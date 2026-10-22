@@ -20,7 +20,7 @@ it("renders stored facts and past reminders with accessible removal controls", (
   expect(memory).toContain('aria-label="Remove Keys in blue bowl"');
   data.reminders = [{ id: "reminder", text: "Book class", status: "sent", remindAt: "2026-09-01T12:00:00Z" }];
   const reminders = renderToStaticMarkup(createElement(SavedContextViews, { section: "reminders", data, saving: false, remove: vi.fn(), ask: vi.fn() }));
-  expect(reminders).toContain('aria-label="Remove Book class"');
+  expect(reminders).toContain('aria-label="Cancel Book class"');
   expect(reminders).toContain("sent");
 });
 
@@ -59,6 +59,35 @@ it("distinguishes overdue scheduled reminders from upcoming, sending and deliver
   expect(html).not.toContain("Overdue · sending");
   expect(html).not.toContain("Overdue · sent");
   expect(html).toContain("This reminder is being sent and cannot be recalled.");
-  expect(html).toMatch(/<button[^>]*disabled=""[^>]*aria-label="Remove In flight"/);
-  expect(html).toContain('aria-label="Remove Previously delivered"');
+  expect(html).toMatch(/<button[^>]*disabled=""[^>]*aria-label="Cancel In flight"/);
+  expect(html).toContain('aria-label="Cancel Previously delivered"');
+});
+
+
+it("shows saved recurrence in its own timezone and keeps cancelled/completed reminders as past history", () => {
+  const data = previewWorkspace();
+  data.timezone = "UTC";
+  data.reminders = [
+    { id: "daily", text: "Daily check", remindAt: "2026-10-20T00:00:00Z", status: "scheduled", recurrence: "daily", timezone: "America/Los_Angeles" },
+    { id: "weekday", text: "Workday check", remindAt: "2026-10-20T00:00:00Z", status: "scheduled", recurrence: "weekdays", timezone: "America/Los_Angeles" },
+    { id: "weekly", text: "Weekly check", remindAt: "2026-10-20T00:00:00Z", status: "scheduled", recurrence: "weekly", timezone: "America/Los_Angeles" },
+    { id: "cancelled", text: "Ended repeat", remindAt: "2026-10-01T00:00:00Z", status: "cancelled", recurrence: "daily", timezone: "America/Los_Angeles" },
+    { id: "completed", text: "Finished reminder", remindAt: "2026-10-01T00:00:00Z", status: "completed", recurrence: null, timezone: "America/Los_Angeles" },
+  ];
+  const html = renderToStaticMarkup(createElement(SavedContextViews, { section: "reminders", data, now: new Date("2026-10-19T00:00:00Z"), saving: false, remove: vi.fn(), ask: vi.fn() }));
+  expect(html).toContain("Daily · Next:");
+  expect(html).toContain("Weekdays · Next:");
+  expect(html).toContain("Weekly on Monday · Next:");
+  expect(html).toContain("America/Los_Angeles");
+  expect(html).toContain("Daily · Last scheduled:");
+  expect(html).toContain("One time · Last scheduled:");
+  expect(html).toContain(">cancelled</span>");
+  expect(html).toContain(">completed</span>");
+  expect(html).not.toContain("Overdue · cancelled");
+  expect(html).not.toContain("Overdue · completed");
+  expect(html).not.toContain('aria-label="Cancel Ended repeat"');
+  expect(html).not.toContain('aria-label="Cancel Finished reminder"');
+  expect(html.match(/Change with Tempo/g)).toHaveLength(3);
+  expect(html).toContain("A task time does not request a text.");
+  expect(html).toContain("Completing a task keeps its reminder scheduled");
 });

@@ -55,7 +55,7 @@ export async function readWorkspace(userId: string, database: TempoDatabase = ge
     database.select({ id: conversationMessages.id, body: conversationMessages.body, direction: conversationMessages.direction, status: conversationMessages.status, createdAt: conversationMessages.createdAt }).from(conversationMessages).where(and(eq(conversationMessages.userId, userId), inArray(conversationMessages.kind, ["user", "coach"]))).orderBy(desc(conversationMessages.createdAt)).limit(50),
     database.select({ displayName: users.displayName, proactiveOptIn: users.proactiveOptIn, quietHoursStart: users.quietHoursStart, quietHoursEnd: users.quietHoursEnd, workspacePreferences: users.workspacePreferences }).from(users).where(eq(users.id, userId)).limit(1),
     database.select({ id: memoryEntries.id, content: memoryEntries.content, category: memoryEntries.category }).from(memoryEntries).where(and(eq(memoryEntries.userId, userId), isNull(memoryEntries.deletedAt), or(isNull(memoryEntries.expiresAt), gt(memoryEntries.expiresAt, new Date())))).orderBy(desc(memoryEntries.createdAt)).limit(201),
-    database.select({ id: reminders.id, text: reminders.text, remindAt: reminders.remindAt, status: reminders.status }).from(reminders).where(and(eq(reminders.userId, userId), inArray(reminders.status, ["scheduled", "sending", "sent", "failed"]))).orderBy(asc(sql`case when ${reminders.status} in ('scheduled','sending') then 0 else 1 end`), asc(sql`case when ${reminders.status} in ('scheduled','sending') then ${reminders.remindAt} end`), desc(reminders.remindAt), desc(reminders.id)).limit(201),
+    database.select({ id: reminders.id, text: reminders.text, remindAt: reminders.remindAt, timezone: reminders.timezone, recurrence: reminders.recurrence, status: reminders.status }).from(reminders).where(and(eq(reminders.userId, userId), inArray(reminders.status, ["scheduled", "sending", "sent", "failed", "cancelled", "completed"]))).orderBy(asc(sql`case when ${reminders.status} in ('scheduled','sending') then 0 else 1 end`), asc(sql`case when ${reminders.status} in ('scheduled','sending') then ${reminders.remindAt} end`), desc(reminders.remindAt), desc(reminders.id)).limit(201),
     readActivityStreak(userId, database),
     readGentleSetup(userId, database),
   ]);
@@ -142,7 +142,7 @@ export async function mutateWorkspace(userId: string, input: WorkspaceAction, da
     if (input.action === "remove_reminder") {
       const result = await new DrizzleReminderRepository(transaction as unknown as TempoDatabase).cancel({ userId, reminderId: input.id, now: new Date() });
       if (result.kind !== "cancelled") throw new WorkspaceConflict("This reminder is unavailable or is already being sent. Refresh and try again.");
-      return { message: "Removed the reminder. Messages already delivered stay in your conversation." };
+      return { message: "Cancelled the reminder. Messages already delivered stay in your conversation." };
     }
     if (input.action === "add_groceries") {
       const normalize = (title: string) => title.trim().replace(/\s+/g, " ").toLowerCase();

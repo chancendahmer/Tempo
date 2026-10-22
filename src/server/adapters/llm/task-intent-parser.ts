@@ -1,3 +1,4 @@
+import { invokePaidMessage } from "./paid-invocation";
 import Anthropic from "@anthropic-ai/sdk";
 import { ZodError } from "zod";
 import { randomUUID } from "node:crypto";
@@ -320,7 +321,7 @@ export class AnthropicTaskIntentParser implements TaskIntentParser {
       logger.error({ category: "configuration", operation: "assistant_response" }, "assistant provider configuration unavailable");
       throw new AssistantProviderFailure("configuration");
     }
-    try { this.client ??= new Anthropic({ apiKey: env.ANTHROPIC_API_KEY!, timeout: 30_000, maxRetries: 1 }); }
+    try { this.client ??= new Anthropic({ apiKey: env.ANTHROPIC_API_KEY!, timeout: 30_000, maxRetries: env.AI_BUDGET_MODE === "off" ? 1 : 0 }); }
     catch {
       logger.error({ category: "configuration", operation: "assistant_response" }, "assistant provider configuration unavailable");
       throw new AssistantProviderFailure("configuration");
@@ -427,7 +428,7 @@ export class AnthropicTaskIntentParser implements TaskIntentParser {
     for (let step = 0; step < 6; step += 1) {
     let response;
     try {
-      response = await this.client.messages.create(request);
+      response = await invokePaidMessage(this.client, request, "assistant");
     } catch (error) {
       // A completed write must still get its truthful confirmation if synthesis fails.
       const failure = normalizeProviderFailure(error);

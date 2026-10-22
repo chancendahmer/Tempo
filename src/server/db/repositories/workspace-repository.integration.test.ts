@@ -14,6 +14,12 @@ import { DrizzleConversationHistoryRepository } from "./conversation-history-rep
 import { lifeItemSchema, localDay, type LifeItem } from "../../domain/life-items";
 import { executeTaskCommand } from "../../domain/task-service";
 import { DrizzleTaskRepository } from "./task-repository";
+import { DrizzleReminderRepository } from "./reminder-repository";
+import { DrizzleOutboundMessageRepository } from "./outbound-message-repository";
+import { SafeSmsSender } from "../../domain/outbound-messaging";
+import { createAssistantSimulator } from "../../../../scripts/lib/assistant-simulator";
+import type { CoachingCommand } from "../../adapters/llm/task-intent-parser";
+
 
 describe("shared life workspace", () => {
   let client: PGlite, db: TempoDatabase, owner: string, other: string;
@@ -183,6 +189,84 @@ describe("shared life workspace", () => {
     expect(workspace.reminders[0].text).toBe("Upcoming reminder");
     expect(workspace).toMatchObject({ tasksTruncated: true, goalsTruncated: true, remindersTruncated: true });
   });
+
+  it("projects saved reminder cadence, timezone and terminal history without leaking another account", async () => {
+    const [person, outsider] = await db.insert(schema.users).values([{ phoneE164: "+12025550791", timezone: "UTC" }, { phoneE164: "+12025550792" }]).returning();
+    const remindAt = new Date("2026-10-20T00:00:00Z");
+    await db.insert(schema.reminders).values([
+      ...(["daily", "weekdays", "weekly"] as const).map(recurrence => ({ userId: person.id, text: recurrence, remindAt, timezone: "America/Los_Angeles", recurrence, idempotencyKey: `cadence:${person.id}:${recurrence}` })),
+      ...(["cancelled", "completed"] as const).map(status => ({ userId: person.id, text: status, remindAt, timezone: "America/Los_Angeles", recurrence: "daily" as const, status, idempotencyKey: `history:${person.id}:${status}` })),
+      { userId: outsider.id, text: "Private foreign reminder", remindAt, timezone: "UTC", idempotencyKey: `foreign:${outsider.id}` },
+    ]);
+    const workspace = await readWorkspace(person.id, db);
+    expect(workspace.reminders).toHaveLength(5);
+    for (const recurrence of ["daily", "weekdays", "weekly"]) expect(workspace.reminders).toContainEqual(expect.objectContaining({ text: recurrence, recurrence, timezone: "America/Los_Angeles", status: "scheduled" }));
+    expect(workspace.reminders.slice(0, 3).every(row => row.status === "scheduled")).toBe(true);
+    expect(workspace.reminders).toContainEqual(expect.objectContaining({ status: "cancelled", recurrence: "daily" }));
+    expect(workspace.reminders).toContainEqual(expect.objectContaining({ status: "completed", recurrence: "daily" }));
+    expect(workspace.reminders.some(row => row.text === "Private foreign reminder")).toBe(false);
+  });
+
+  it("replays a provider-free seven-day reminder week with separate task time, captured delivery and terminal history", async () => {
+    // Scripted commands exercise persistence and presentation, not live model interpretation.
+    let commands: CoachingCommand[] = [];
+    const sim = await createAssistantSimulator({ parse: async input => {
+      const replies: string[] = [];
+      for (const command of commands) replies.push(await input.execute!(command));
+      return { kind: "conversation", reply: replies.join(" ") || "Fixture acknowledgement." };
+    } });
+    try {
+      const person = await sim.user(), otherPerson = await sim.user();
+      const day = (value: number) => { const now = new Date(`2026-11-${String(value).padStart(2, "0")}T15:00:00Z`); sim.setTime(now); return now; };
+      const send = async (message: string, next: CoachingCommand[]) => { commands = next; return person.send(message); };
+      day(2); // Monday: saving a task time alone creates no requested text.
+      await send("Add call studio on Friday November 6 at 3 PM", [{ type: "create_task", title: "Call studio", dueAt: "2026-11-06T15:00:00-05:00" }]);
+      const task = (await person.state()).tasks[0];
+      expect((await person.workspace()).reminders).toHaveLength(0);
+      expect((await person.workspace()).tasks[0].dueAt?.toISOString()).toBe("2026-11-06T20:00:00.000Z");
+      day(3); // Tuesday: an explicit repeat is separate, and a replay is idempotent.
+      const request = "Remind me every weekday at 11 AM to call studio";
+      const created = await send(request, [{ type: "create_reminder", text: "Call studio", recurrence: "weekdays", remindAt: "2026-11-04T11:00:00-05:00", taskId: task.id }]);
+      await person.send(request, { providerId: created.providerId });
+      const reminder = (await person.state()).reminders[0];
+      expect((await person.workspace()).reminders).toMatchObject([{ recurrence: "weekdays", timezone: "America/New_York", status: "scheduled" }]);
+      expect((await sim.database.select().from(schema.scheduledActions).where(and(eq(schema.scheduledActions.reminderId, reminder.id), eq(schema.scheduledActions.status, "scheduled"))))).toHaveLength(1);
+      const repository = new DrizzleReminderRepository(sim.database);
+      day(4); // Wednesday: capture one outbound occurrence and advance to Thursday.
+      const occurrenceAt = reminder.remindAt;
+      const context = await repository.getDeliveryContext(reminder.id, occurrenceAt);
+      expect(context).not.toBeNull();
+      expect(await repository.markSending(reminder.id, occurrenceAt, occurrenceAt)).toBe(true);
+      const sender = new SafeSmsSender(new DrizzleOutboundMessageRepository(sim.database), sim.transport);
+      const delivery = { userId: person.id, body: "Reminder: Call studio", kind: "coach" as const, relatedReminderId: reminder.id, idempotencyKey: repository.getOccurrenceIdempotencyKey(reminder.id, occurrenceAt) };
+      const before = sim.transport.sent.length;
+      const sent = await sender.send(delivery);
+      expect(sent.sent).toBe(true);
+      if (!sent.sent) throw new Error("Expected captured fixture delivery");
+      await repository.recordSuccessfulDelivery(context!, occurrenceAt, sent.provider, sent.providerMessageSid, occurrenceAt);
+      expect(await sender.send(delivery)).toMatchObject({ sent: false, reason: "duplicate" });
+      expect(sim.transport.sent.length - before).toBe(1);
+      expect((await person.workspace()).reminders[0].remindAt.toISOString()).toBe("2026-11-05T16:00:00.000Z");
+      day(5); // Thursday: task completion retains the separately requested repeat.
+      await send("Complete my call studio task", [{ type: "complete_task", taskId: task.id }]);
+      expect((await person.workspace()).tasks[0].status).toBe("completed");
+      expect((await person.workspace()).reminders[0].status).toBe("scheduled");
+      day(6); // Friday: explicitly snooze the reminder; preserve its cadence.
+      await send("Move my call studio reminder to Monday November 9 at noon", [{ type: "list_reminders" }, { type: "reschedule_reminder", reminderId: reminder.id, remindAt: "2026-11-09T12:00:00-05:00" }]);
+      expect((await person.workspace()).reminders[0]).toMatchObject({ recurrence: "weekdays", remindAt: new Date("2026-11-09T17:00:00Z"), status: "scheduled" });
+      day(7); // Saturday: DONE ends the reminder and remains readable as history.
+      await send("Mark my call studio reminder done", [{ type: "list_reminders", includePast: true }, { type: "complete_reminder", reminderId: reminder.id }]);
+      expect((await person.workspace()).reminders[0].status).toBe("completed");
+      day(8); // Sunday: explicit cancellation is durable; no pending delivery remains.
+      const cancellation = await send("Cancel my call studio reminder", [{ type: "cancel_reminder", reminderId: reminder.id }]);
+      await person.send("Cancel my call studio reminder", { providerId: cancellation.providerId });
+      expect((await person.workspace()).reminders).toMatchObject([{ id: reminder.id, status: "cancelled", recurrence: "weekdays" }]);
+      expect(await repository.getDeliveryContext(reminder.id, new Date("2026-11-09T17:00:00Z"))).toBeNull();
+      expect((await sim.database.select().from(schema.scheduledActions).where(and(eq(schema.scheduledActions.reminderId, reminder.id), eq(schema.scheduledActions.status, "scheduled"))))).toHaveLength(0);
+      expect((await otherPerson.workspace()).reminders).toHaveLength(0);
+      expect((await otherPerson.workspace()).tasks).toHaveLength(0);
+    } finally { await sim.close(); }
+  }, 30_000);
 
   it("finds bounded meal candidates when conversational date words do not match stored dates", async () => {
     const [person, outsider] = await db.insert(schema.users).values([{ phoneE164: "+12025550641" }, { phoneE164: "+12025550642" }]).returning();

@@ -1,4 +1,5 @@
 import { PgBoss } from "pg-boss";
+import { withAiInvocationScope } from "../../domain/ai-invocation-scope";
 import { AnthropicInterventionComposer } from "../../adapters/llm/intervention-composer";
 import { createMessagingTransport } from "../../adapters/sms/messaging-provider";
 import { getServerEnv } from "../../config/env";
@@ -70,7 +71,7 @@ export async function registerDeliverInterventionHandler(boss: PgBoss) {
           continue;
         }
 
-        const nudge = context.messageText ?? await new AnthropicInterventionComposer().compose({
+        const nudge = context.messageText ?? await withAiInvocationScope({ accountId: context.userId, executionId: job.data.scheduledActionId, signal: job.signal }, () => new AnthropicInterventionComposer().compose({
             style: context.style,
             taskTitle: context.taskTitle,
             dueAt: context.dueAt,
@@ -80,7 +81,7 @@ export async function registerDeliverInterventionHandler(boss: PgBoss) {
             timezone: signals.timezone,
             tone: context.coachingTone,
             memories: context.memories,
-          });
+          }));
         const message = validateInterventionMessage(buildInitialAccountabilityPrompt(nudge));
         await interventions.markQueued(context.id, message, "intervention-v1", env.ANTHROPIC_MODEL ?? "deterministic-fallback");
         const sent = await new SafeSmsSender(new DrizzleOutboundMessageRepository(), createMessagingTransport()).send({

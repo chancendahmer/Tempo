@@ -3,7 +3,9 @@ import { resolve } from "node:path";
 import { PGlite } from "@electric-sql/pglite";
 import { and, count, desc, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/pglite";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { resetEnvCacheForTests } from "../../config/env";
+import { mutateWorkspace } from "./workspace-repository";
 import { TestSmsTransport } from "../../adapters/sms/sms-transport";
 import { SafeSmsSender } from "../../domain/outbound-messaging";
 import { recordWebConsent } from "../../domain/consent";
@@ -13,6 +15,7 @@ import {
   conversations,
   conversationMessages,
   memoryEntries,
+  reminders,
   providerConversations,
   providerMessageBindings,
   scheduledActions,
@@ -24,6 +27,12 @@ import { DrizzleMessagingRepository } from "./messaging-repository";
 import { DrizzleConsentRepository } from "./consent-repository";
 import { DrizzleOutboundMessageRepository } from "./outbound-message-repository";
 import { WebSessionService } from "../../security/web-session";
+
+const budgetGuard = vi.hoisted(() => ({ access: vi.fn(), outage: false }));
+vi.mock("./ai-budget-repository", () => ({ DrizzleAiBudgetRepository: class {
+  constructor() { budgetGuard.access(); if (budgetGuard.outage) throw new Error("Synthetic unavailable accounting database"); }
+  async reserve() { return { allowed: false, reason: "budget_exhausted" }; }
+} }));
 
 async function migratedTestDatabase() {
   const client = new PGlite();
@@ -56,6 +65,37 @@ describe("messaging repositories with migrated PostgreSQL", () => {
 
   afterEach(async () => {
     await client.close();
+    vi.unstubAllEnvs();
+    resetEnvCacheForTests();
+  });
+
+  it.each(["zero_caps", "accounting_outage"])("keeps STOP, HELP, pause and authenticated cancellation independent of AI %s", async failure => {
+    vi.stubEnv("AI_BUDGET_MODE", "enforce");
+    vi.stubEnv("AI_BUDGET_GLOBAL_DAILY_MICRODOLLARS", "0");
+    vi.stubEnv("AI_BUDGET_ACCOUNT_DAILY_MICRODOLLARS", "0");
+    vi.stubEnv("AI_BUDGET_GLOBAL_DAILY_CALLS", "0");
+    vi.stubEnv("AI_BUDGET_ACCOUNT_DAILY_CALLS", "0");
+    resetEnvCacheForTests(); budgetGuard.access.mockClear(); budgetGuard.outage = failure === "accounting_outage";
+    const repository = new DrizzleMessagingRepository(database);
+    const numbers = ["+12025550701", "+12025550702", "+12025550703", "+12025550704"];
+    for (const from of numbers) await repository.ingestInbound({ provider: "sendblue", providerMessageId: `${failure}-start-${from}`, from, to: "+12025550000", body: "START" });
+    for (const [index, body] of ["STOP", "HELP", "leave me alone"].entries()) {
+      await repository.ingestInbound({ provider: "sendblue", providerMessageId: `${failure}-${index}`, from: numbers[index], to: "+12025550000", body });
+    }
+    const rows = await database.select().from(users);
+    expect(rows.find(row => row.phoneE164 === numbers[0])?.status).toBe("opted_out");
+    expect(rows.find(row => row.phoneE164 === numbers[2])?.pausedUntil?.getTime()).toBeGreaterThan(Date.now() + 6 * 86400000);
+    const helpUser = rows.find(row => row.phoneE164 === numbers[1])!;
+    expect(await database.select().from(scheduledActions).where(and(eq(scheduledActions.userId, helpUser.id), eq(scheduledActions.kind, "send_compliance")))).toHaveLength(1);
+    const owner = rows.find(row => row.phoneE164 === numbers[3])!;
+    const sessions = new WebSessionService(database);
+    const session = await sessions.create(owner.id, new Date(), true);
+    const account = await sessions.findAccount(session.token);
+    expect(account?.userId).toBe(owner.id);
+    const [reminder] = await database.insert(reminders).values({ userId: owner.id, text: "Stretch", remindAt: new Date(Date.now() + 3600000), timezone: "UTC", idempotencyKey: `${failure}-manual-cancel` }).returning();
+    await mutateWorkspace(account!.userId, { action: "remove_reminder", id: reminder.id }, database);
+    expect((await database.select().from(reminders).where(eq(reminders.id, reminder.id)))[0].status).toBe("cancelled");
+    expect(budgetGuard.access).not.toHaveBeenCalled();
   });
 
   it("handles returning-account START as sign-in, never as AI input or memory", async () => {

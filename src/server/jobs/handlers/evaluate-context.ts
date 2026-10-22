@@ -1,4 +1,5 @@
 import { inOwnedExecution, ownedService } from "../../domain/inbound-execution";
+import { withAiInvocationScope } from "../../domain/ai-invocation-scope";
 import { DrizzleItemReviewRepository } from "../../db/repositories/item-review-repository";
 import { DrizzleOutboundMessageRepository } from "../../db/repositories/outbound-message-repository";
 import { SafeSmsSender } from "../../domain/outbound-messaging";
@@ -30,13 +31,13 @@ export async function registerEvaluateContextHandler(boss: PgBoss) {
           await actions.completeAndScheduleContextEvaluation(job.data.scheduledActionId, job.data.userId, new Date(Date.now() + EVALUATION_INTERVAL_MS));
           continue;
         }
-        const result = await inOwnedExecution(ownership, () => evaluateUserContext({
+        const result = await inOwnedExecution(ownership, () => withAiInvocationScope({ accountId: job.data.userId, executionId: job.data.scheduledActionId, signal: job.signal }, () => evaluateUserContext({
           userId: job.data.userId,
           repository: ownedService(new DrizzleContextEngineRepository()),
           shadowMode,
           planner: ownedService(new DrizzleInterventionRepository()),
           reviewer: !shadowMode && env.HYBRID_AI_REVIEW_ENABLED ? new AnthropicInterventionDecisionReviewer() : undefined,
-        }));
+        })));
         if (result.evaluated) {
           await actions.completeAndScheduleContextEvaluation(job.data.scheduledActionId, job.data.userId, new Date(Date.now() + EVALUATION_INTERVAL_MS));
           logger.debug({ userId: job.data.userId, decision: result.evaluation.decision, score: result.evaluation.score }, "context evaluated");
