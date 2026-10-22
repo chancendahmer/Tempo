@@ -205,6 +205,25 @@ export const webSessions = pgTable(
   ],
 );
 
+export const pilotFeedback = pgTable("pilot_feedback", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  requestId: uuid("request_id").notNull(),
+  type: text("type").$type<"problem" | "improvement">().notNull(),
+  section: text("section").notNull(),
+  impact: text("impact").$type<"blocked" | "slowed" | "minor" | "idea">().notNull(),
+  encryptedDetail: text("encrypted_detail"),
+  followUpConsent: boolean("follow_up_consent").default(false).notNull(),
+  payloadHmac: text("payload_hmac").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, table => [
+  uniqueIndex("pilot_feedback_user_request_unique").on(table.userId, table.requestId),
+  index("pilot_feedback_created_idx").on(table.createdAt),
+  check("pilot_feedback_type_check", sql`${table.type} in ('problem','improvement')`),
+  check("pilot_feedback_impact_check", sql`${table.impact} in ('blocked','slowed','minor','idea')`),
+  check("pilot_feedback_section_check", sql`${table.section} in ('today','tasks','calendar','goals','reminders','routines','wake','meals','recipes','groceries','nutrition','movement','inbox','memories','assistant','settings','other')`),
+]);
+
 export const consentRecords = pgTable(
   "consent_records",
   {

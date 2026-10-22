@@ -1,0 +1,27 @@
+.timezone { display: grid; gap: 10px; min-width: 0; margin-top: 18px; }
+.timezone h3 { margin: 0; font-size: 17px; }
+.timezone p, .timezone small { margin: 0; color: #746b77; line-height: 1.55; font-size: 13px; overflow-wrap: anywhere; }
+.timezone label { font-size: 13px; font-weight: 600; }
+.timezone input, .timezone select, .dialog input, .dialog select, .dialog textarea { box-sizing: border-box; min-width: 0; max-width: 100%; width: 100%; border: 1px solid #d7cfc7; border-radius: 10px; background: white; color: #302b38; padding: 12px; font: inherit; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+.actions button, .submit { border: 1px solid #d7cfc7; border-radius: 10px; padding: 10px 12px; min-height: 44px; cursor: pointer; background: white; color: #302b38; font: inherit; font-size: 13px; }
+.actions button:last-child, .submit { background: #a64d35; color: white; border-color: #a64d35; }
+.timezone button:disabled, .dialog button:disabled { opacity: .6; cursor: default; }
+.timezone[aria-busy="true"] button:disabled, .dialog[aria-busy="true"] button:disabled { cursor: wait; }
+.timezone :focus-visible, .dialog :focus-visible { outline: 3px solid #9c563b; outline-offset: 3px; }
+.dialog { box-sizing: border-box; width: min(540px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); margin: auto; padding: 26px; border: 1px solid #e4ddd5; border-radius: 24px; background: #fffcf8; color: #302b38; overflow-y: auto; box-shadow: 0 24px 90px #29213526; }
+.dialog::backdrop { background: #29213561; backdrop-filter: blur(4px); }
+.dialog header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.dialog h2 { margin: 0 0 14px; font-size: 25px; }
+.dialog p { font-size: 13px; line-height: 1.6; color: #746b77; }
+.dialog label { display: grid; gap: 7px; margin: 14px 0; font-size: 13px; }
+.dialog fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+.dialog textarea { resize: vertical; }
+.dialog .checkbox { display: flex; align-items: flex-start; gap: 10px; line-height: 1.6; }
+.checkbox input { width: 18px; min-width: 18px; height: 18px; margin: 2px 0 0; accent-color: #a64d35; }
+.close { min-width: 44px; min-height: 44px; border: 0; border-radius: 50%; background: transparent; color: #746b77; font-size: 22px; cursor: pointer; }
+.receipt { overflow-wrap: anywhere; }
+.dialog .receipt { font-size: 13px; }
+.copy { display: inline-flex; align-items: center; min-height: 44px; margin: 0 0 8px; padding: 10px 12px; border: 1px solid #d7cfc7; border-radius: 10px; background: white; color: #302b38; font: inherit; font-size: 13px; cursor: pointer; }
+.error, .timezone .error { color: #9c3525; }
+@media (max-width: 480px) { .dialog { padding: 22px; } }

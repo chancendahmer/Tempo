@@ -20,8 +20,8 @@ Read `AGENTS.md`, `docs/AI_CONTEXT.md`, this brief and the relevant current resu
 file; consult local `node_modules/next/dist/docs/` before changing Next code.
 Search narrowly. Never read populated secret files or print environment secrets.
 
-Use up to three Sol 6.1 agents with bounded file ownership: activation, workflows,
-and reliability. Rotate one to independent review; authors cannot be their own
+Use up to three Sol 6.1 agents with bounded file ownership: cost controls,
+workflow acceptance, and operational release checks. Rotate one to independent review; authors cannot be their own
 sole reviewers. You own shared files, migration compatibility, integration and
 release. Agent scores require actual evidence and cannot override a broken gate.
 Check usage at milestones; save a checkpoint before remaining usage falls below
@@ -55,52 +55,68 @@ October 22 packages:
   transport. Last successful 100-account observation: 200 turns, 100 duplicate
   suppressions, 100 captured acceptances, 10 deliberate rejection/retry recoveries,
   zero unfinished/uncertain/blocked work. Workload drain 28.029s, p95 completion
-  26.526s. This is synthetic local correctness evidence, not production capacity.
+  26.526s. A fresh replacement-cluster run subsequently passed in 28.302s with
+  p95 26.919s and the same counts/zero stranded states. An independent 20-account
+  run also passed. This is synthetic local correctness, not production capacity.
 - **Independent A1/R1 review:** found a P1 STOP → pause → web-reconsent bypass.
   Author repaired it; reviewer independently verified STOP remains authoritative.
-  A small harness ambient-env dependency was also identified for repair.
-- **Integrated initial check:** lint, typecheck, 929 passing tests / 3 skipped,
-  Next production build and operations build passed. STOP/pause follow-up has
-  separate targeted and independent passes; rerun final check on the final source.
+  The harness ambient-env dependency was repaired and independently exercised.
+- **A2 implemented:** explicit durable account timezone confirmation, dedicated
+  encrypted/idempotent/rate-limited feedback records, private receipts, optional
+  follow-up consent and metadata-first operator retrieval. Migration 0032 is
+  additive; its constraint name was independently corrected before checkpoint.
+- **R2 implemented:** per-instance worker build/policy attestation, separate web
+  health scope and a read-only aggregate operations report. Independent review
+  found and closed stale-worker false-safe reporting and a heartbeat shutdown
+  race. Unknown/stale history cannot prove sending is disabled. Deployment docs
+  now correctly describe both migration runners and their shared advisory lock.
+- **Final integrated check:** lint, typecheck, **1,004 passing tests / 3 skipped**
+  across 137 passing / 2 skipped files, Next production build and operations
+  build passed. Scripted assistant simulation: 33 turns, zero detected issues.
+  This is not observed live model output.
+- **Authenticated local checks:** ten HTTP acceptance groups passed; browser
+  timezone confirmation survived reload, feedback receipt/copy/focus worked at
+  phone width, and thought → six-minute task → completion preserved the original
+  thought after reload. Customer review 9/10; designer review 7.5/10 with no open
+  observed visual defect but requested interaction/accessibility coverage still
+  outstanding. Do not promote these to whole-product or live-provider ratings.
 
 Current result files under `qa/pilot-2026-10-22/` are the authority for updated
-counts and limitations: admission-contract, workflows-audit, reliability-results,
-independent-platform-review and the load JSON. Do not confuse audit pre-fix
+counts and limitations: README, browser-journey, activation-feedback,
+independent-wave2-review, migration-release-review, reliability-r2 and the load JSON.
+Do not confuse audit pre-fix
 findings with unresolved defects; read their implementation addenda.
 
 ## Next work packages
 
-1. **A2 activation/feedback.** Implement validated explicit timezone confirmation
-   through existing setup/shared users.timezone. Browser zone is only a suggestion;
-   don't silently shift reminder instants or enable consent. Add a short feedback
-   dialog, account-owned encrypted optional detail in a dedicated feedback table,
-   idempotent and rate-limited authenticated POST, deletion cascade and masked
-   operator retrieval. No transcript or personal data automatically attached.
-2. **R2 operator visibility.** Attest worker build and effective sending policy
-   in heartbeat; account for overlapping replicas, malformed/stale attestations,
-   canary overrides and independent cleanup switch. Public output is a selected
-   boolean/count/build projection, never arbitrary metadata. Add a read-only
-   pilot operations CLI and correct the emergency runbook: web health does not
-   prove worker configuration. No new infrastructure.
-3. **C1 spend/rate safety.** Design and implement aggregate model usage/budget
+1. **C1 spend/rate safety — highest engineering priority.** Follow
+   `docs/PILOT_COST_CONTROL_BRIEF.md`. Implement aggregate model usage/budget
    protection across all call paths with atomic reservation/reconciliation, or
    document a verified interim provider cap + very small cohort. Existing QA
    ledger and per-request token limits do not bound production aggregate spend.
    Always permit STOP, cancellation and privacy controls. Avoid adding speculative
    infrastructure; measure actual calls before choosing limits.
-4. **Q1 fresh customer + designer reviews.** Use current authenticated local build,
+2. **W2 first-week clarity.** Show recurring-reminder cadence in its dashboard
+   projection. Explain that a task's scheduled time does not itself request a
+   text and completing a task currently does not cancel its explicitly requested
+   reminder. Preserve consent/explicit intent; do not silently invent a new policy.
+   Execute the three fresh week-long scenarios in customer-release-matrix.md.
+3. **Q1 fresh customer + designer reviews.** Use current authenticated local build,
    new and populated synthetic accounts, phone/desktop/keyboard and relevant
    workflows. Observe UI + records, record screenshot authorship and limits.
-   Confirm thought conversion links, setup, feedback, timer, food flow and return
-   next day. Keep approved Home structure. Fix findings, recheck affected journeys.
-5. **L1 live integration and deployment.** Reconcile live-test budget and access,
+   Complete remaining physical-phone keyboard, failed-save/retry, clipboard-denied
+   fallback and screen-reader evidence for feedback. Current root checks already
+   cover successful save/copy, Tab wrapping, Escape/Done focus restoration and
+   thought completion. Broaden to food flow and return next day. Keep approved
+   Home structure; no open-ended redesign. Fix findings, recheck affected journeys.
+4. **L1 live integration and deployment.** Reconcile live-test budget and access,
    actual candidate SMS + Google + model/search + food/barcode provider paths,
    migrations, backup restore, alert delivery and rollback. Only then prepare a
    release branch/PR and complete release gates. No automatic production merge.
 
-The R2 audit also found `railway.worker.toml` runs migrations while deployment
-documentation says only web does. Reconcile the intended deployment ordering and
-migration locking before release; don't blindly remove a predeploy command.
+Both web and worker run the shared locked migration runner; the prior docs
+contradiction is fixed. Local additive upgrade/rerun passed, but hosted migration
+ordering, backup restoration and actual deployment compatibility remain gates.
 
 ## Safe local validation
 
@@ -119,14 +135,25 @@ populated env-file loading. Preview is `http://localhost:3103/workspace/preview`
 authenticated local workspace is `/workspace`. Preview is fictional, resets on
 reload and proves neither account persistence nor provider delivery.
 
-Historical local PG target:
+Current isolated local PG target:
 `postgresql://postgres@127.0.0.1:55437/tempo_ui_release`.
-**New local infrastructure blocker found October 22:** after successful harness
-runs, an independent CREATE DATABASE failed because template1 was missing
-`base/1/4171`; a template0 probe also found a missing file. Do not reset that shared
-cluster or present later runs as passing. Preserve its existing fixture data.
-Check the newest reliability result for any subsequent isolated recovery/new
-cluster. The successful earlier run remains attributed historical evidence.
+The old temp-directory cluster had missing template files. It was gracefully
+stopped and left untouched at
+`C:\Users\chanc\AppData\Local\Temp\tempo-ui-release-pg17\data`.
+A fresh official PostgreSQL 17.11 runtime and synthetic cluster now live under
+`C:\Users\chanc\.codex\runtimes\tempo-pg17-20261022` (binary directory
+`pgsql\bin`, data directory `data`, log `server.log`). It binds loopback only.
+Migrations through 0032 were applied, and fresh 20/100 harnesses passed. This is
+replacement fixture infrastructure, not restoration or repair of the old cluster.
+The preview DB received 0032 before its unshipped constraint-name correction;
+fresh integration/upgrade fixtures verified the corrected final SQL. Do not
+delete the preview DB or rewrite a shipped migration to hide that difference.
+
+Use the development launcher for authenticated HTTP-local QA. Its optional
+`--production` mode starts the optimized server but authenticated APIs correctly
+reject its HTTP localhost APP_BASE_URL under production security validation.
+Do not weaken HTTPS validation to make that local mode pass. Production build
+success is distinct from a hosted authenticated runtime test.
 
 Prior HTTP checks, once the isolated runtime is healthy:
 
@@ -159,9 +186,10 @@ production. Do not publish short-lived local sign-in links or cookies.
   latest remote before publication; don't accidentally merge the older UI.
 - Production: `https://tempo-production-8e25.up.railway.app`. No October22 production
   write, migration, release or customer outreach has occurred at this checkpoint.
-- Adaptive Home migration0031 already exists but was not applied to production
-  by the UI pass. Any new feedback migration needs compatibility and rollback
-  review. Don't drop old data to roll code back.
+- Adaptive Home migration0031 and new feedback0032 were not applied to production
+  by this run. Local additive upgrade/rerun and rollback compatibility were
+  reviewed. Keep additive schema and ledger when rolling code back; never drop
+  customer data merely to undo an application deployment.
 
 Final handoff must name the actual commit/branch, completed packages and check
 results, observed reviews, remaining blockers, API spend and next exact action.

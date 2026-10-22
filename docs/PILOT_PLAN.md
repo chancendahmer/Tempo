@@ -60,8 +60,8 @@ file boundary; only the integration owner changes shared migration metadata.
 | A1 — Admission | Activation engineer | Opt-in invite gate before provider side effects; preserve STOP and grandfather verified accounts; accurate Calendar privacy copy | Web and repository tests, denied/invited/legacy/STOP cases |
 | W1 — Connected records | Workflow engineer | Atomic thought/task backlink and duplicate prevention; workout plan relationship integrity; small explanatory copy repairs | Shared-channel, ownership, retry and lifecycle regressions |
 | R1 — Queue envelope | Reliability engineer | Bounded isolated 20/100-account pg-boss drill; explicit intervention model deadlines | Real PostgreSQL harness report, captured transport, no live-capacity claim |
-| A2 — Activation and feedback | Next activation package | Web timezone confirmation plus a short persistent feedback/report-problem flow; operator retrieval | Empty account, reload/re-login, isolation and browser checks |
-| R2 — Operator visibility | Next reliability package | Worker build/effective-policy attestation and a read-only pilot operations report | Sanitized report, wrong/missing worker config cases, recovery instructions |
+| A2 — Activation and feedback | Activation engineer — implemented | Web timezone confirmation plus a short persistent feedback/report-problem flow; operator retrieval | Repository/API tests and authenticated phone/desktop observations; broader accessibility checks pending |
+| R2 — Operator visibility | Reliability engineer — implemented | Worker build/effective-policy attestation and a read-only pilot operations report | Sanitized report, wrong/missing/stale worker config cases, recovery instructions; hosted verification pending |
 | C1 — Cost boundary | Platform package after design | Reconcile all paid call paths; durable aggregate usage and bounded admission/rate controls with truthful fallback | Retry/concurrent reservation tests, limits that do not block STOP or explicit cancellation |
 | Q1 — Independent review | A different engineer | Review other authors' changes, novice journeys, mobile/keyboard, abuse/failure paths | Reproducible findings and evidence; no score laundering |
 | L1 — Real integration/release | Principal + operator | Candidate real-account SMS, Google, migration/rollback, deployment and post-release canary | Provider handles and sanitized state evidence, compatible web/worker commit |
@@ -86,12 +86,18 @@ Fresh audits in `qa/pilot-2026-10-22/` identified:
 - Worker heartbeats did not attest the worker's actual sending policy/build.
 - No durable aggregate production model-cost ledger was found. QA cost files are
   not production spend controls.
-- Product feedback and web timezone confirmation need a complete customer flow.
+- Product feedback and web timezone confirmation lacked a complete customer flow;
+  A2 now implements both with local persistence and browser evidence.
 - Hosted backups/restore, alert delivery, commercial provider capacity and final
   real-channel canaries remain unverified for this candidate.
 
-The A1/W1/R1 implementation pass is addressing the first four gaps. Refer to the
-handoff and current result files before claiming completion.
+The A1/W1/R1 and A2/R2 passes have implemented the admission, connected-record,
+queue, feedback, timezone and operator-visibility packages. Independent review
+found and closed a STOP/pause bypass, stale-worker false-safe verdict, heartbeat
+retirement race, migration constraint-name mismatch and small UI issues.
+The customer review for the new flows is 9/10; the designer review is 7.5/10
+pending additional interaction/accessibility evidence. These bounded scores are
+not whole-product certification. Refer to the handoff and current result files.
 
 ## Cohort gates — ten, then twenty-five, then one hundred
 

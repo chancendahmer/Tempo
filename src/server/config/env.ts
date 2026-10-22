@@ -11,6 +11,8 @@ export const serverEnvSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   APP_BASE_URL: z.url().default("http://localhost:3000"),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).default("info"),
+  TEMPO_BUILD_SHA: z.preprocess(value => value === "" ? undefined : value, z.string().regex(/^[a-f0-9]{7,40}$/i).optional()),
+  RAILWAY_GIT_COMMIT_SHA: z.string().regex(/^[a-f0-9]{7,40}$/i).optional().catch(undefined),
   PILOT_ADMISSION_MODE: z.enum(["open", "invite_only"]).default("open").nullable().catch(null),
   PILOT_INVITED_PHONES: z.string().default("").transform(parsePilotInvitedPhones).catch(null),
   INTERVENTION_SHADOW_MODE: z

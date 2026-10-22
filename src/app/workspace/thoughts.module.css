@@ -4,3 +4,4 @@
 .fullNote summary:focus-visible { outline: 2px solid #71548d; outline-offset: 4px; border-radius: 3px; }
 .fullNote p { line-height: 1.7; color: #453e50; white-space: pre-wrap; overflow-wrap: anywhere; }
 .footnote { color: #625a6c; font-size: .86rem; margin: 1.25rem 0 0; }
+.taskStatus { margin: .75rem 0; color: #51435e; font-size: 14px; font-weight: 550; line-height: 1.6; overflow-wrap: anywhere; }

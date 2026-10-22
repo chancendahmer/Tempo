@@ -42,6 +42,31 @@ describe("operational controls", () => {
     });
   });
 
+  it("bounds worker instance reads and removes only an exact owned instance on shutdown", async () => {
+    const now = new Date("2026-10-22T12:00:00Z");
+    const keys = Array.from({ length: 23 }, (_, index) => `tempo-worker:00000000-0000-4000-8000-${String(index).padStart(12, "0")}`);
+    for (const key of keys) await repository.heartbeat(key, { schemaVersion: 1 }, now);
+    await repository.heartbeat("other-service", {}, now);
+    const rows = await repository.getWorkerHeartbeats();
+    expect(rows).toHaveLength(22);
+    expect(rows.every(row => row.serviceKey.startsWith("tempo-worker:"))).toBe(true);
+    await expect(repository.removeWorkerHeartbeat("tempo-worker")).rejects.toThrow();
+    await repository.removeWorkerHeartbeat(keys[0]);
+    expect(await repository.getHeartbeat(keys[0])).toBeNull();
+    expect(await repository.getHeartbeat("other-service")).not.toBeNull();
+  });
+
+  it("retains old unknown instance evidence instead of inferring termination from its age", async () => {
+    const now = new Date("2026-11-22T12:00:00Z"), old = new Date(now.getTime() - 8 * 86_400_000);
+    const expired = "tempo-worker:00000000-0000-4000-8000-111111111111";
+    await repository.heartbeat(expired, {}, old);
+    await repository.heartbeat("other-service", {}, old);
+    expect((await repository.getWorkerHeartbeats()).some(row => row.serviceKey === expired)).toBe(true);
+    expect(await repository.getHeartbeat(expired)).not.toBeNull();
+    expect(await repository.getHeartbeat("tempo-worker")).not.toBeNull();
+    expect(await repository.getHeartbeat("other-service")).not.toBeNull();
+  });
+
   it("removes expired OAuth state and old rate-limit buckets without touching current rows", async () => {
     const now = new Date("2026-08-18T12:00:00Z");
     const [user] = await database.insert(users).values({ phoneE164: "+12025550176" }).returning({ id: users.id });

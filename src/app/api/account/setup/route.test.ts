@@ -49,4 +49,14 @@ describe("workspace setup account boundary", () => {
     expect((await POST(request({ action: "save", displayName: "a".repeat(2100) }))).status).toBe(413);
     expect(mocks.save).not.toHaveBeenCalled();
   });
+  it("accepts explicit named-zone confirmation and rejects inference or authority-bearing fields", async () => {
+    expect((await POST(request({ action: "timezone", timezone: "Europe/London" }))).status).toBe(200);
+    expect(mocks.save).toHaveBeenCalledWith("session-owner", { action: "timezone", timezone: "Europe/London" });
+    for (const input of [
+      { action: "timezone", timezone: "+04:00" },
+      { action: "timezone", detectedTimezone: "Europe/London" },
+      { action: "timezone", timezone: "UTC", proactiveOptIn: true },
+    ]) expect((await POST(request(input))).status).toBe(400);
+    expect(mocks.save).toHaveBeenCalledTimes(1);
+  });
 });

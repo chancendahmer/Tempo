@@ -1,4 +1,5 @@
 import { PgBoss } from "pg-boss";
+import { randomUUID } from "node:crypto";
 import { registerTaskPresentationHandler } from "../server/jobs/handlers/task-presentation";
 import { getServerEnv, requireEnv, ServerEnvKey } from "../server/config/env";
 import { closeDatabase } from "../server/db/client";
@@ -19,6 +20,8 @@ import { JOB_NAMES } from "../server/jobs/names";
 import { logger } from "../server/observability/logger";
 import { OperationalRepository } from "../server/db/repositories/operational-repository";
 import { queueHealthProblems } from "../server/domain/queue-health";
+import { createWorkerAttestation, WORKER_INSTANCE_PREFIX } from "../server/observability/worker-attestation";
+import { createHeartbeatLifecycle } from "./heartbeat-lifecycle";
 
 export async function runWorker() {
   const messagingProvider = getServerEnv().MESSAGING_PROVIDER;
@@ -171,17 +174,21 @@ export async function runWorker() {
     scheduledActionRepository.seedMissingCalendarSyncs(),
   ]);
   const operations = new OperationalRepository();
-  const heartbeat = async () => {
+  const heartbeatKey = `${WORKER_INSTANCE_PREFIX}${randomUUID()}`;
+  const heartbeat = createHeartbeatLifecycle(async () => {
     const [messages, blocked] = await Promise.all([operations.messageHealth(), boss.getBlockedKeys(JOB_NAMES.processInbound)]);
     const queueHealth = { ...messages, blockedAccounts: blocked.length };
     const problems = queueHealthProblems(queueHealth);
     if (problems.length) logger.error({ queueHealth, problems }, "inbound queue requires recovery");
-    await operations.heartbeat("tempo-worker", { workerId: env.WORKER_ID, pid: process.pid, queueHealth });
-  };
+    const attestation = createWorkerAttestation(env, queueHealth);
+    await operations.heartbeat(heartbeatKey, attestation);
+    // Preserve the existing demo-report contract; readiness uses instance rows.
+    await operations.heartbeat("tempo-worker", { ...attestation, workerId: env.WORKER_ID, pid: process.pid });
+  });
   const cleanup = () => operations.cleanupExpiredData();
-  await heartbeat();
+  await heartbeat.pulse();
   await cleanup();
-  const heartbeatInterval = setInterval(() => void heartbeat().catch((error) => logger.error({ err: error }, "worker heartbeat failed")), 30_000);
+  const heartbeatInterval = setInterval(() => void heartbeat.pulse().catch((error) => logger.error({ err: error }, "worker heartbeat failed")), 30_000);
   const cleanupInterval = setInterval(
     () => void cleanup().catch((error) => logger.error({ err: error }, "expired operational data cleanup failed")),
     6 * 3_600_000,
@@ -197,7 +204,12 @@ export async function runWorker() {
     stopDispatcher();
     clearInterval(heartbeatInterval);
     clearInterval(cleanupInterval);
+    await heartbeat.stop().catch(error => logger.error({ err: error }, "final worker heartbeat failed"));
     await boss.stop({ graceful: true, timeout: 30_000 });
+    // pg-boss may return after its timeout while application handlers are still
+    // unwinding. Only an empty worker list proves their loops have drained.
+    if (boss.getWipData().length === 0) await operations.removeWorkerHeartbeat(heartbeatKey);
+    else logger.warn("worker stopped with unresolved handlers; retaining instance attestation for operator review");
     await closeDatabase();
   };
 

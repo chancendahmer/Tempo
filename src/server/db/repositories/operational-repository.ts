@@ -1,6 +1,7 @@
-import { eq, lt, sql } from "drizzle-orm";
+import { desc, eq, like, lt, or, sql } from "drizzle-orm";
 import { getDatabase, TempoDatabase } from "../client";
 import { consentRecords, oauthStates, rateLimitBuckets, serviceHeartbeats, users } from "../schema";
+import { MAX_ATTESTED_WORKERS, WORKER_INSTANCE_PREFIX } from "../../observability/worker-attestation";
 
 export class OperationalRepository {
   constructor(private readonly database: TempoDatabase = getDatabase()) {}
@@ -29,6 +30,17 @@ export class OperationalRepository {
     const [heartbeat] = await this.database.select().from(serviceHeartbeats)
       .where(eq(serviceHeartbeats.serviceKey, serviceKey)).limit(1);
     return heartbeat ?? null;
+  }
+
+  async getWorkerHeartbeats() {
+    return this.database.select({ serviceKey: serviceHeartbeats.serviceKey, lastSeenAt: serviceHeartbeats.lastSeenAt, metadata: serviceHeartbeats.metadata })
+      .from(serviceHeartbeats).where(or(eq(serviceHeartbeats.serviceKey, "tempo-worker"), like(serviceHeartbeats.serviceKey, `${WORKER_INSTANCE_PREFIX}%`)))
+      .orderBy(desc(serviceHeartbeats.lastSeenAt)).limit(MAX_ATTESTED_WORKERS + 2);
+  }
+
+  async removeWorkerHeartbeat(serviceKey: string) {
+    if (!/^tempo-worker:[a-f0-9-]{36}$/.test(serviceKey)) throw new Error("Expected an instance heartbeat key");
+    await this.database.delete(serviceHeartbeats).where(eq(serviceHeartbeats.serviceKey, serviceKey));
   }
 
   async countEarlyAccess() {

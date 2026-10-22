@@ -5,6 +5,7 @@ import { FiArrowRight, FiCheck, FiX } from "react-icons/fi";
 import type { GentleSetup as Setup, GentleSetupAction } from "@/server/domain/gentle-setup";
 import { WorkspaceAvatar } from "../components/WorkspaceAvatar";
 import { loopDialogTab } from "./dialog-keyboard";
+import { TimezoneSettings } from "./TimezoneSettings";
 import s from "./gentle-setup.module.css";
 
 const tones = [
@@ -13,7 +14,7 @@ const tones = [
   { value: "direct", label: "Keep it direct", detail: "Short, clear suggestions to get going." },
 ] as const;
 
-export function GentleSetup({ initial, onSave, onClose, progressOnly = false }: { initial: Setup; onSave: (action: GentleSetupAction) => Promise<void>; onClose: () => void; progressOnly?: boolean }) {
+export function GentleSetup({ initial, onSave, onClose, progressOnly = false, preview = false }: { initial: Setup; onSave: (action: GentleSetupAction) => Promise<void>; onClose: () => void; progressOnly?: boolean; preview?: boolean }) {
   const [step, setStep] = useState(progressOnly ? 2 : 0);
   const [name, setName] = useState(initial.displayName ?? "");
   const [tone, setTone] = useState(initial.coachingTone);
@@ -55,6 +56,7 @@ export function GentleSetup({ initial, onSave, onClose, progressOnly = false }: 
       <fieldset disabled={saving} className={s.fields}>
         {step === 0 ? <label className={s.name}><span>What should we call you? <small>Optional</small></span><input value={name} maxLength={80} autoComplete="given-name" placeholder="Your name, or leave it blank" onChange={event => setName(event.target.value)} /></label> : step === 1 ? <><legend className={s.srOnly}>Coaching tone</legend>{tones.map(option => <label className={s.choice} key={option.value}><input type="radio" name="coachingTone" value={option.value} checked={tone === option.value} onChange={() => setTone(option.value)} /><span><strong>{option.label}</strong><small>{option.detail}</small></span></label>)}</> : <><legend className={s.srOnly}>Display activity streak</legend>{[{ value: true, label: "Show my activity streak", detail: "Days when I complete a task or routine step." }, { value: false, label: "Keep numbers out of it", detail: "Keep my daily view focused on what’s next." }].map(option => <label className={s.choice} key={String(option.value)}><input type="radio" name="showStreak" checked={showStreak === option.value} onChange={() => setShowStreak(option.value)} /><span><strong>{option.label}</strong><small>{option.detail}</small></span></label>)}</>}
       </fieldset>
+      {step === 0 && <TimezoneSettings timezone={initial.timezone ?? "UTC"} timezoneConfirmedAt={initial.timezoneConfirmedAt} preview={preview} onSave={onSave} />}
       <p className={s.note}>{step === 0 ? "Your texts and this workspace share the same Tempo account. " : ""}You’re in charge. This setup won’t turn on text check-ins.</p>
       {error && <p role="alert" className={s.error}>{error}</p>}
       <footer className={s.actions}><button type="button" className={s.skip} disabled={saving} onClick={dismiss}>{progressOnly ? "Cancel" : "Skip for now"}</button><div>{step > 0 && !progressOnly && <button type="button" className={s.back} disabled={saving} onClick={() => setStep(value => value - 1)}>Back</button>}<button type="submit" className={s.next} disabled={saving}>{saving ? "Saving…" : step === 2 ? <>{progressOnly ? "Save display" : "Make it mine"} <FiCheck /></> : <>Continue <FiArrowRight /></>}</button></div></footer>

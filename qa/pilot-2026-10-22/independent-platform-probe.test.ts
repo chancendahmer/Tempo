@@ -10,6 +10,7 @@ import { DrizzleMessagingRepository } from "../../src/server/db/repositories/mes
 import { PilotAdmissionRepository } from "../../src/server/db/repositories/pilot-admission-repository";
 import { DrizzleConsentRepository } from "../../src/server/db/repositories/consent-repository";
 import { recordWebConsent } from "../../src/server/domain/consent";
+import { createWorkerAttestation, summarizeWorkerAttestations } from "../../src/server/observability/worker-attestation";
 
 // Independent regression of the reviewer's original STOP/pause reproduction.
 it("retains STOP suppression through natural-language pause and website consent", async () => {
@@ -35,3 +36,17 @@ it("retains STOP suppression through natural-language pause and website consent"
     expect(await db.select().from(schema.scheduledActions).where(eq(schema.scheduledActions.userId, user.id))).toHaveLength(0);
   } finally { await client.close(); }
 }, 30000);
+
+it.each([121_000, 601_000, 8 * 86_400_000])("does not prove all coaching disabled while an observed worker's sending policy is %s ms stale", age => {
+  const now = new Date("2026-10-22T12:00:00Z"), build = "abcdef1234567";
+  const safe = { TEMPO_BUILD_SHA: build, RAILWAY_GIT_COMMIT_SHA: undefined, INTERVENTION_SHADOW_MODE: true, AUTONOMOUS_SENDING_ENABLED: false, CLEANUP_CHECKINS_ENABLED: false, PROACTIVE_CANARY_USER_IDS: [] as string[] };
+  const queue = { blockedAccounts: 0, ambiguousOutbound: 0, pendingInbound: 0, oldestPendingSeconds: null };
+  const result = summarizeWorkerAttestations([
+    { serviceKey: "tempo-worker:safe", lastSeenAt: now, metadata: createWorkerAttestation(safe, queue) },
+    { serviceKey: "tempo-worker:stale-sender", lastSeenAt: new Date(now.getTime() - age), metadata: createWorkerAttestation({ ...safe, INTERVENTION_SHADOW_MODE: false, AUTONOMOUS_SENDING_ENABLED: true }, queue) },
+  ], build, now);
+  expect(result.staleInstances).toBe(1);
+  expect(result.allCoachingDisabled).toBe(false);
+  expect(result.policyKnown).toBe(false);
+  expect(result.problems).toContain("stale_worker_policy_unknown");
+});
