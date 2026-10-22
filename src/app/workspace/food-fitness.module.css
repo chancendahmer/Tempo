@@ -96,3 +96,14 @@
 @media(max-width:850px) { .programGrid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 @media(max-width:600px) { .programGrid { grid-template-columns:1fr 1fr; gap:10px; }.programCard { gap:7px; padding-bottom:14px; }.programCard>strong,.programCard>span,.programCard>small { margin-inline:12px; }.programCard>strong { font-size:15px; }.programCard>small { display:none; }.programArt { height:100px; }.fields { grid-template-columns:1fr; }.entry { flex-wrap:wrap; }.entryMain { flex-basis:calc(100% - 50px); }.entry>.actions { margin-left:0; }.exerciseEdit { grid-template-columns:minmax(0,1fr) 44px; }.exerciseEdit label:first-child { grid-column:1 / -1; }.sessionEdit { padding:13px; } }
 @media(max-width:600px) { .movementLog { padding:16px; gap:10px; flex-wrap:wrap; }.movementLog>.entryMain { flex:1; min-width:0; }.movementLog>.actions { margin-left:auto; }.programCard .templateChoice { font-size:10px; } }
+.mealPlanGrid .mealItem{padding-bottom:12px;margin-bottom:8px}
+.mealPlanGrid .mealItem figure{margin-bottom:10px}
+.mealPlanGrid .mealItem figure img{height:190px;aspect-ratio:auto}
+.mealPlanGrid .mealItem h4{margin:10px 0 4px;font-size:19px}
+.mealPlanGrid .mealItem details{margin:6px 0}
+.mealPlanGrid .mealItem details summary{min-height:44px;padding:10px 0}
+.mealPlanGrid .shoppingToggle{display:flex;align-items:center;gap:10px;min-height:44px;margin:0 0 8px;padding:8px 0;border-bottom:1px solid #e4edf4;cursor:pointer;color:#385b71}
+.shoppingToggle input{width:20px;height:20px;flex-shrink:0}
+.mealPlanGrid .mealItem select{display:block;width:100%;min-height:44px;margin:4px 0 8px}
+.mealPlanGrid>article>button{margin-top:0;min-height:44px}
+@media(max-width:600px){.mealPlanGrid .mealItem figure img{height:170px}}

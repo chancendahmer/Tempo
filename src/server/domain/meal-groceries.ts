@@ -12,7 +12,11 @@ export const normalizeIngredient = (title: string) => title.trim().replace(/\s+/
 export function parseIngredient(line: string): Ingredient {
   const title = line.trim().replace(/^[-•]\s*/, "").replace(/\s+/g, " ");
   if (!title || title.length > 240) throw new IngredientInputError("Use one ingredient per line, with each ingredient under 240 characters.");
-  const expanded = title.replace(/(\d)([½¼¾⅓⅔⅛⅜⅝⅞])/g, "$1 $2").replace(/[½¼¾⅓⅔⅛⅜⅝⅞]/g, value => unicodeFractions[value]);
+  let expanded = title.replace(/(\d)([½¼¾⅓⅔⅛⅜⅝⅞])/g, "$1 $2").replace(/[½¼¾⅓⅔⅛⅜⅝⅞]/g, value => unicodeFractions[value]);
+  // Recipes commonly join an amount to its unit. Insert a separator only for
+  // supported units, so compact counts, ranges, and multiplication stay opaque.
+  const compact = /^(\d+\s+\d+\/\d+|\d+\/\d+|\d+(?:\.\d+)?)([a-z]+\.?)(\s+.+)$/i.exec(expanded);
+  if (compact && aliases[compact[2].toLowerCase().replace(/\.$/, "")]) expanded = `${compact[1]} ${compact[2]}${compact[3]}`;
   const match = /^(\d+(?:\.\d+)?(?:\s+\d+\/\d+)?|\d+\/\d+)\s+(.+)$/.exec(expanded);
   if (!match) return { title };
   const amount = match[1].split(" ").reduce((sum, token) => {
@@ -33,8 +37,23 @@ export function canonicalIngredient(item: Ingredient): Ingredient {
   return { title: item.title.trim().replace(/\s+/g, " "), ...(item.quantity === undefined ? {} : { quantity: item.quantity * multiplier }), ...(unit ? { unit } : {}) };
 }
 export const ingredientKey = (item: Ingredient) => `${normalizeIngredient(item.title)}|${item.quantity === undefined ? "unknown" : item.unit ?? "piece"}`;
+const shoppingAmountFormat = new Intl.NumberFormat("en-US", { maximumSignificantDigits: 4, useGrouping: false });
+const displayFractions = Object.entries(unicodeFractions).map(([glyph, fraction]) => {
+  const [numerator, denominator] = fraction.split("/").map(Number);
+  return { glyph, value: numerator / denominator };
+});
+function shoppingQuantityLabel(quantity: number, unit?: Unit) {
+  // Match the six-decimal persisted precision, without rounding stored needs or
+  // suggesting that a rounded quantity is exact. Metric amounts stay decimal.
+  const whole = Math.floor(quantity);
+  const fraction = ["g", "kg", "ml", "l"].includes(unit ?? "") ? undefined
+    : displayFractions.find(fraction => Math.abs(quantity - whole - fraction.value) <= 0.000001);
+  const displayed = fraction ? whole + fraction.value : Number(shoppingAmountFormat.format(quantity));
+  const approximate = Math.abs(quantity - displayed) > Number.EPSILON * Math.max(1, quantity) * 4;
+  return `${approximate ? "about " : ""}${fraction ? `${whole || ""}${fraction.glyph}` : shoppingAmountFormat.format(quantity)}`;
+}
 export function ingredientLabel(item: Ingredient) {
-  return `${item.quantity === undefined ? "" : `${Number(item.quantity.toFixed(3))}${item.unit && item.unit !== "piece" ? ` ${item.unit}` : ""} `}${item.title}`;
+  return `${item.quantity === undefined ? "" : `${shoppingQuantityLabel(item.quantity, item.unit)}${item.unit && item.unit !== "piece" ? ` ${item.unit}` : ""} `}${item.title}`;
 }
 
 /** Manual groceries and purchase checkboxes are never treated as pantry stock. */

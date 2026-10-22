@@ -132,7 +132,7 @@ export class ConversationOrchestrator {
     private readonly history?: ConversationHistoryRepository,
     private readonly reminders?: ReminderRepository,
     private readonly integrations?: AssistantIntegrations,
-    private readonly life?: { execute(userId: string, sourceMessageId: string, command: Extract<AssistantCommand, { type: "food_search" | "life_list" | "life_save" | "life_patch" | "life_remove" | "grocery_add" }>): Promise<string>;
+    private readonly life?: { execute(userId: string, sourceMessageId: string, command: Extract<AssistantCommand, { type: "food_search" | "life_list" | "life_save" | "life_patch" | "life_remove" | "grocery_add" }>, now?: Date): Promise<string>;
       captureWithReminder?(userId: string, sourceMessageId: string, command: Extract<AssistantCommand, {type:"capture_with_reminder"}>, now: Date, timezone: string): Promise<string> },
     private readonly itemReviews?: ItemReviewResponder,
   ) {
@@ -436,14 +436,14 @@ export class ConversationOrchestrator {
     if (command.type === "capture_with_reminder") return this.life?.captureWithReminder?.(context.userId, context.messageId, command, now, context.timezone) ?? "Saving a plan with its reminder is temporarily unavailable. Nothing was saved.";
     if (command.type === "get_rundown") return buildRundown({ tasks: this.tasks, goals: this.goals, reminders: this.reminders, integrations: this.integrations }, { ...context, now }, command);
     if (command.type === "grocery_add" || command.type === "food_search" || command.type === "life_list" || command.type === "life_save" || command.type === "life_patch" || command.type === "life_remove") {
-      return this.life?.execute(context.userId, context.messageId, command) ?? "Your life workspace is not configured in this environment.";
+      return this.life?.execute(context.userId, context.messageId, command, now) ?? "Your life workspace is not configured in this environment.";
     }
     if (command.type === "recall_memories") {
       const search = await this.memories?.searchRelevant(context.userId, now, command.query, 20)
         ?? { items: [], truncated: false, coverage: "Saved fact search is unavailable." };
       const facts = search.items.map(memory => memory.content);
       if (command.query) {
-        const rawNotes = await this.life?.execute(context.userId, context.messageId, { type: "life_list", kind: "note", query: command.query });
+        const rawNotes = await this.life?.execute(context.userId, context.messageId, { type: "life_list", kind: "note", query: command.query }, now);
         let noteSearch: unknown = { items: [], notice: "Note search is unavailable; do not claim no note exists." };
         if (rawNotes) { try { noteSearch = JSON.parse(rawNotes); } catch { /* Preserve the explicit unavailable notice. */ } }
         return JSON.stringify({ facts, memories: search.items.map(({ id, content }) => ({ id, content })), factsTruncated: search.truncated, factsCoverage: search.coverage, noteSearch });

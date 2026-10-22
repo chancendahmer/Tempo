@@ -22,6 +22,7 @@ import { readActivityStreak, recordRoutineCompletionChanges, RoutineCompletionDa
 import { readGentleSetup } from "./gentle-setup-repository";
 import { homePreferencesSchema, readHomePreferences } from "../../domain/home-preferences";
 import { taskCategorySchema } from "../../domain/task-presentation";
+import { workoutCompletionDateError } from "../../domain/workout";
 
 export const workspaceActionSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("home_preferences"), preferences: homePreferencesSchema, expected: homePreferencesSchema }).strict(),
@@ -62,7 +63,8 @@ export async function readWorkspace(userId: string, database: TempoDatabase = ge
   return { ...board, tasks: allTasks.slice(0, 200), tasksTruncated: allTasks.length > 200, goals: allGoals.slice(0, 100), goalsTruncated: allGoals.length > 100, ...life, messages: messages.reverse(), profile: { displayName: profile[0].displayName, proactiveOptIn: profile[0].proactiveOptIn, quietHoursStart: profile[0].quietHoursStart, quietHoursEnd: profile[0].quietHoursEnd }, homePreferences: readHomePreferences(profile[0]?.workspacePreferences.home), memories: memories.slice(0, 200), memoriesTruncated: memories.length > 200, reminders: allReminders.slice(0, 200), remindersTruncated: allReminders.length > 200, activityStreak, setup };
 }
 
-export async function mutateWorkspace(userId: string, input: WorkspaceAction, database: TempoDatabase = getDatabase(), receiptId?: string) {
+// The optional clock is supplied by trusted orchestration, never by the action payload.
+export async function mutateWorkspace(userId: string, input: WorkspaceAction, database: TempoDatabase = getDatabase(), receiptId?: string, now = new Date()) {
   input = workspaceActionSchema.parse(input);
   return database.transaction(async transaction => {
     // Serialize edits from this user's tabs, and keep source events and mutations atomic.
@@ -170,6 +172,8 @@ export async function mutateWorkspace(userId: string, input: WorkspaceAction, da
       catch (error) { throw new WorkspaceConflict(error instanceof Error ? error.message : "That edit is invalid."); }
       if (existing.data.kind === "grocery" && existing.data.mealSources && Object.keys(input.patch).some(key => !["kind", "checked"].includes(key))) throw new WorkspaceConflict("Edit the source meal to change its ingredients. You can check off this grocery or add a separate manual item.");
       if (data.kind === "meal" && existing.data.kind === "meal") data = { ...data, ingredientServings: existing.data.ingredientServings ?? existing.data.servings ?? data.servings, groceriesEnabled: data.groceriesEnabled ?? true };
+      const completionError = workoutCompletionDateError(data, now, user.timezone);
+      if (completionError) throw new WorkspaceConflict(completionError);
       const rows = await transaction.update(lifeItems).set({ data, version: sql`${lifeItems.version} + 1`, updatedAt: new Date() }).where(and(eq(lifeItems.id, input.id), eq(lifeItems.userId, userId), eq(lifeItems.version, input.version))).returning();
       if (!rows.length) throw new WorkspaceConflict("This item changed elsewhere. Read it again before editing.");
       if (data.kind === "meal" || data.kind === "pantry") await syncGroceries();
@@ -196,6 +200,8 @@ export async function mutateWorkspace(userId: string, input: WorkspaceAction, da
       }
       if (existing && existing.version === input.version + 1 && isDeepStrictEqual(existing.data, input.data)) return { message: "Saved." };
       if (existing && existing.data.kind !== input.data.kind) throw new WorkspaceConflict("An item's type cannot change.");
+      const completionError = workoutCompletionDateError(input.data, now, user.timezone);
+      if (completionError) throw new WorkspaceConflict(completionError);
       if (input.data.kind === "nutrition_target") {
         const [target] = await transaction.select({ id: lifeItems.id }).from(lifeItems).where(and(eq(lifeItems.userId, userId), sql`${lifeItems.data}->>'kind' = 'nutrition_target'`)).limit(1);
         if (target && target.id !== input.id) throw new WorkspaceConflict("Nutrition targets already exist. Refresh and edit those targets.");

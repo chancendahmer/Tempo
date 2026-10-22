@@ -14,7 +14,7 @@ import type { WorkspaceAction } from "../../src/server/db/repositories/workspace
 import type { readWorkspaceLifeItems } from "../../src/server/db/repositories/workspace-life-items";
 
 const base = process.argv[2] ?? "http://localhost:3101";
-assert.equal(new URL(base).origin, "http://localhost:3101", "Only the isolated candidate is allowed");
+assert.ok(["http://localhost:3101", "http://localhost:3103"].includes(new URL(base).origin), "Only an isolated local candidate is allowed");
 const pool = new Pool({ connectionString: "postgresql://postgres@127.0.0.1:55437/tempo_ui_release", max: 2 });
 const database = scopedDatabase(drizzle(pool, { schema }));
 const testKey = Buffer.alloc(32, 7).toString("base64");

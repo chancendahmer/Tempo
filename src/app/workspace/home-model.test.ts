@@ -29,8 +29,14 @@ describe("Home uses local time and saved plans", () => {
     const data = fixture();
     data.items.push({ id: "logged", version: 1, data: { kind: "workout", title: "Morning run", activity: "Cardio", minutes: 30, date: "2026-10-21" } });
     expect(homeModel(data, new Date("2026-10-21T20:00:00Z"), [workout]).mode).toBe("focus");
-    expect(homeModel(data, new Date("2026-10-21T20:30:00Z"), [workout]).hero).toMatchObject({ mode: "workout", title: workout.title, destination: "movement" });
+    expect(homeModel(data, new Date("2026-10-21T20:30:00Z"), [workout]).hero).toMatchObject({ mode: "workout", title: workout.title, destination: "calendar", action: "View activity" });
     expect(homeModel(data, new Date("2026-10-21T22:01:00Z"), [workout]).mode).toBe("focus");
+  });
+  it("starts the exact scheduled movement task promoted in the banner", () => {
+    const data = fixture();
+    const walk = { ...data.tasks[0], id: "walk", title: "Walk home from design lab", estimatedMinutes: 20, dueAt: "2026-10-21T19:10:00Z" };
+    data.tasks.push(walk);
+    expect(homeModel(data, new Date("2026-10-21T19:05:00Z")).hero).toMatchObject({ mode: "workout", destination: "tasks", action: "Start 20 min", task: { id: "walk" } });
   });
   it("keeps a running focus first; explicit pin and temporary selection remain user controlled", () => {
     const data = fixture(), now = new Date("2026-10-21T20:30:00Z");

@@ -24,6 +24,25 @@ describe("transactional meal shopping", () => {
   const meal: Extract<LifeItem, { kind: "meal" }> = { kind: "meal", title: "Rice bowl", ingredients: "Untrusted model shortcut", date: "2027-01-14", meal: "Dinner", servings: 4 };
   const groceries = async () => (await readWorkspace(owner, db)).items.filter(item => item.data.kind === "grocery");
 
+  it("reconciles compact recipe units through serving edits, pantry changes and retries", async () => {
+    const [person] = await db.insert(schema.users).values({ phoneE164: "+12025550694" }).returning();
+    const recipeId = randomUUID(), mealId = randomUUID(), pantryId = randomUUID();
+    await mutateWorkspace(person.id, { action: "save", id: recipeId, version: 0, data: { ...recipe, ingredients: "500g rice\n1/2kg RICE\n250ml milk\n1½cups flour" } }, db);
+    const saveMeal = { action: "save" as const, id: mealId, version: 0, sourceRecipeId: recipeId, data: meal };
+    await mutateWorkspace(person.id, saveMeal, db);
+    await mutateWorkspace(person.id, saveMeal, db);
+    const initial = (await readWorkspace(person.id, db)).items.filter(item => item.data.kind === "grocery");
+    expect(initial.map(item => ingredientLabel(item.data)).sort()).toEqual(["2000 g rice", "500 ml milk", "3 cup flour"].sort());
+    const rice = initial.find(item => item.data.title === "rice")!;
+    await mutateWorkspace(person.id, { action: "save", id: pantryId, version: 0, data: { kind: "pantry", title: "Rice", quantity: 0.5, unit: "kg" } }, db);
+    await mutateWorkspace(person.id, { action: "patch", id: mealId, version: 1, patch: { kind: "meal", servings: 2 } }, db);
+    const after = (await readWorkspace(person.id, db)).items.filter(item => item.data.kind === "grocery");
+    expect(after.map(item => ingredientLabel(item.data)).sort()).toEqual(["500 g rice", "250 ml milk", "1½ cup flour"].sort());
+    expect(after.find(item => item.id === rice.id)?.data).toMatchObject({ quantity: 500, mealSources: [{ mealId, quantity: 1000 }] });
+    const reread = (await readWorkspace(person.id, db)).items.filter(item => item.data.kind === "grocery");
+    expect(reread).toEqual(after);
+  });
+
   it("preserves the labeled ingredient basis when UI or assistant edits ingredient text", async () => {
     const [person] = await db.insert(schema.users).values({ phoneE164: "+12025550693" }).returning();
     const recipeId = randomUUID(), mealId = randomUUID();

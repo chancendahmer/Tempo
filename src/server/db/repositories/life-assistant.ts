@@ -14,7 +14,7 @@ export class LifeAssistant {
   captureWithReminder(userId: string, sourceMessageId: string, command: Extract<AssistantCommand, {type: "capture_with_reminder"}>, now: Date, timezone: string) {
     return captureWithReminder(this.database, userId, sourceMessageId, command, now, timezone);
   }
-  async execute(userId: string, sourceMessageId: string, command: Extract<AssistantCommand, { type: "food_search" | "life_list" | "life_save" | "life_patch" | "life_remove" | "grocery_add" }>) {
+  async execute(userId: string, sourceMessageId: string, command: Extract<AssistantCommand, { type: "food_search" | "life_list" | "life_save" | "life_patch" | "life_remove" | "grocery_add" }>, now = new Date()) {
     if (command.type === "food_search") return JSON.stringify(await foodCatalog(userId, command, this.database));
     if (command.type === "life_list") {
       if (command.kind === "grocery") await refreshMealGroceries(this.database, userId);
@@ -46,19 +46,19 @@ export class LifeAssistant {
     try {
       if (command.type === "grocery_add") {
         if (isSensitiveMemory(JSON.stringify(command.items))) return "I can save everyday groceries, but not secrets or sensitive medical details.";
-        return (await mutateWorkspace(userId, { action: "add_groceries", items: command.items }, this.database, sourceMessageId)).message;
+        return (await mutateWorkspace(userId, { action: "add_groceries", items: command.items }, this.database, sourceMessageId, now)).message;
       }
-      if (command.type === "life_remove") return (await mutateWorkspace(userId, { action: "delete", id: command.id, version: command.version }, this.database, sourceMessageId)).message;
+      if (command.type === "life_remove") return (await mutateWorkspace(userId, { action: "delete", id: command.id, version: command.version }, this.database, sourceMessageId, now)).message;
       if (command.type === "life_patch") {
         if (isSensitiveMemory(JSON.stringify(command.patch))) return "I can save everyday plans and preferences, but not secrets or sensitive medical details.";
-        return (await mutateWorkspace(userId, { action: "patch", id: command.id, version: command.version, patch: command.patch }, this.database, sourceMessageId)).message;
+        return (await mutateWorkspace(userId, { action: "patch", id: command.id, version: command.version, patch: command.patch }, this.database, sourceMessageId, now)).message;
       }
       // Protect direct callers as well as the model schema: creation cannot be
       // used to replace an existing item or to bypass the patch contract.
       if ("id" in command || "version" in command) return "Existing items require life_patch with their current id and version; no change was made.";
       if (command.data.kind === "focus") return "Start or pause a focus session using the workspace controls, or start its task.";
       if (isSensitiveMemory(JSON.stringify(command.data))) return "I can save everyday plans and preferences, but not secrets or sensitive medical details.";
-      const result = await mutateWorkspace(userId, { action: "save", id: sourceMessageId, version: 0, data: command.data, sourceRecipeId: command.sourceRecipeId }, this.database, sourceMessageId);
+      const result = await mutateWorkspace(userId, { action: "save", id: sourceMessageId, version: 0, data: command.data, sourceRecipeId: command.sourceRecipeId }, this.database, sourceMessageId, now);
       if (result.message !== "Saved.") return result.message;
       return lifeSavedReply(command.data);
     } catch (error) {
