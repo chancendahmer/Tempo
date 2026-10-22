@@ -22,7 +22,7 @@ export class AnthropicInterventionDecisionReviewer implements InterventionDecisi
 
   async review(input: Parameters<InterventionDecisionReviewer["review"]>[0]) {
     const env = requireEnv(["ANTHROPIC_API_KEY", "ANTHROPIC_MODEL"]);
-    this.client ??= new Anthropic({ apiKey: env.ANTHROPIC_API_KEY! });
+    this.client ??= new Anthropic({ apiKey: env.ANTHROPIC_API_KEY!, timeout: 15_000, maxRetries: 0 });
     try {
       const response = await this.client.messages.create({
         model: env.ANTHROPIC_MODEL!,

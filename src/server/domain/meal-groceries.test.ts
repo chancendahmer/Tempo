@@ -23,11 +23,13 @@ describe("conservative ingredient quantities", () => {
     const original = structuredClone(ingredient);
     expect(ingredientLabel(ingredient)).toBe("about ⅔ onion");
     expect(ingredientLabel({ title: "carrots", quantity: 1.333333, unit: "piece" })).toBe("about 1⅓ carrots");
-    expect(ingredientLabel({ title: "flour", quantity: 1.5, unit: "cup" })).toBe("1½ cup flour");
-    expect(ingredientLabel({ title: "bread", quantity: 2, unit: "slice" })).toBe("2 slice bread");
+    expect(ingredientLabel({ title: "flour", quantity: 1.5, unit: "cup" })).toBe("1½ cups flour");
+    expect(ingredientLabel({ title: "bread", quantity: 2, unit: "slice" })).toBe("2 slices bread");
+    expect(ingredientLabel({ title: "bread", quantity: 1, unit: "slice" })).toBe("1 slice bread");
+    expect(ingredientLabel({ title: "garlic", quantity: 2, unit: "clove" })).toBe("2 cloves garlic");
     expect(ingredientLabel({ title: "tomatoes", quantity: 266.666667, unit: "g" })).toBe("about 266.7 g tomatoes");
     expect(ingredientLabel({ title: "spice", quantity: 0.000001, unit: "g" })).toBe("0.000001 g spice");
-    expect(ingredientLabel({ title: "rice", quantity: 0.2, unit: "cup" })).toBe("0.2 cup rice");
+    expect(ingredientLabel({ title: "rice", quantity: 0.2, unit: "cup" })).toBe("0.2 cups rice");
     expect(ingredientLabel({ title: "Salt to taste" })).toBe("Salt to taste");
     expect(ingredient).toEqual(original);
   });
@@ -36,8 +38,8 @@ describe("conservative ingredient quantities", () => {
     const manual: SavedLifeItem = { id: "00000000-0000-4000-8000-000000000092", version: 1, data: { kind: "grocery", title: "Rice", checked: true } };
     const stock: SavedLifeItem = { id: "00000000-0000-4000-8000-000000000093", version: 1, data: { kind: "pantry", title: "rice", quantity: 0.5, unit: "kg" } };
     const result = [...groceriesForMeals([meal, manual, stock]).values()];
-    expect(result.map(ingredientLabel)).toEqual(["1000 g rice", "2 cup rice", "Rice", "Salt to taste"]);
+    expect(result.map(ingredientLabel)).toEqual(["1000 g rice", "2 cups rice", "Rice", "Salt to taste"]);
     expect(result[0].mealSources).toEqual([{ mealId: meal.id, quantity: 1500 }]);
-    expect([...groceriesForMeals([meal, { ...stock, data: { kind: "pantry", title: "Rice" } }]).values()].map(ingredientLabel)).toEqual(["1500 g rice", "2 cup rice", "Rice", "Salt to taste"]);
+    expect([...groceriesForMeals([meal, { ...stock, data: { kind: "pantry", title: "Rice" } }]).values()].map(ingredientLabel)).toEqual(["1500 g rice", "2 cups rice", "Rice", "Salt to taste"]);
   });
 });

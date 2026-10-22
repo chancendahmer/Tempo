@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { TaskPresentation } from "./task-presentation";
 
 const title = z.string().trim().min(1).max(240);
 const day = z.iso.date();
@@ -13,14 +14,15 @@ export const lifeItemSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("recipe"), title, ingredients: z.string().max(10000), instructions: z.string().max(10000), servings: z.number().int().min(1).max(100), prepMinutes: z.number().int().min(0).max(1440), favorite: z.boolean() }),
   z.object({ kind: z.literal("meal"), title, date: day, meal: z.enum(["Breakfast", "Lunch", "Dinner", "Snack"]), ingredients: z.string().max(4000), servings: z.number().int().min(1).max(100).optional(), ingredientServings: z.number().int().min(1).max(100).optional(), groceriesEnabled: z.boolean().optional() }),
   z.object({ kind: z.literal("workout"), title, date: day, minutes: z.number().int().min(1).max(1440), activity: z.enum(["Walk", "Strength", "Cardio", "Mobility", "Other"]), programId: z.uuid().optional(), sessionName: title.optional(), notes: z.string().max(4000).optional() }),
-  z.object({ kind: z.literal("note"), title, body: z.string().max(10000) }),
+  z.object({ kind: z.literal("note"), title, body: z.string().max(10000), taskId: z.uuid().optional() }),
   z.object({ kind: z.literal("grocery"), title, checked: z.boolean(), quantity: quantity.optional(), unit: groceryUnitSchema.optional(), mealSources: z.array(z.object({ mealId: z.uuid(), quantity: quantity.nullable() })).max(1000).optional() }),
   z.object({ kind: z.literal("pantry"), title, quantity: quantity.optional(), unit: groceryUnitSchema.optional() }),
   z.object({ kind: z.literal("workout_plan"), title, templateId: z.string().trim().min(1).max(100), sessions: z.array(z.object({ name: title, minutes: z.number().int().min(1).max(1440), exercises: z.array(z.object({ name: title, dose: title })).min(1).max(30) })).min(1).max(30) }),
   z.object({ kind: z.literal("nutrition_target"), title, calories: nutrient, protein: nutrient, carbs: nutrient, fat: nutrient, fiber: nutrient }),
 ]);
 export type LifeItem = z.infer<typeof lifeItemSchema>;
-export type SavedLifeItem = { id: string; version: number; data: LifeItem };
+export type ThoughtTask = { id: string; title: string; status: string; estimatedMinutes: number | null; dueAt: string | null; startedAt: string | null; goalId: string | null; presentation?: TaskPresentation | null };
+export type SavedLifeItem = { id: string; version: number; data: LifeItem; linkedTask?: ThoughtTask | null };
 export function localDay(now: Date, timezone: string) {
   const parts = new Intl.DateTimeFormat("en-US", { timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(now);
   return ["year", "month", "day"].map(type => parts.find(part => part.type === type)!.value).join("-");

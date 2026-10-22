@@ -8,7 +8,7 @@ export class AnthropicInterventionComposer implements InterventionComposer {
 
   async compose(input: Parameters<InterventionComposer["compose"]>[0]): Promise<string> {
     const env = requireEnv(["ANTHROPIC_API_KEY", "ANTHROPIC_MODEL"]);
-    this.client ??= new Anthropic({ apiKey: env.ANTHROPIC_API_KEY! });
+    this.client ??= new Anthropic({ apiKey: env.ANTHROPIC_API_KEY!, timeout: 15_000, maxRetries: 0 });
     const messages: MessageParam[] = [{ role: "user", content: JSON.stringify(input) }];
     try {
       const response = await this.client.messages.create({

@@ -17,7 +17,7 @@ export const lifePatchSchema = z.discriminatedUnion("kind", [
   lifeItemSchema.options[3].partial().extend({ kind: z.literal("recipe") }).strict(),
   lifeItemSchema.options[4].omit({ ingredientServings: true }).partial().extend({ kind: z.literal("meal") }).strict(),
   lifeItemSchema.options[5].partial().extend({ kind: z.literal("workout") }).strict(),
-  lifeItemSchema.options[6].partial().extend({ kind: z.literal("note") }).strict(),
+  lifeItemSchema.options[6].omit({ taskId: true }).partial().extend({ kind: z.literal("note") }).strict(),
   lifeItemSchema.options[7].omit({ mealSources: true }).partial().extend({ kind: z.literal("grocery") }).strict(),
   lifeItemSchema.options[8].partial().extend({ kind: z.literal("pantry") }).strict(),
   lifeItemSchema.options[9].partial().extend({ kind: z.literal("workout_plan") }).strict(),

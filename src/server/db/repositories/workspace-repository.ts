@@ -5,7 +5,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { getDatabase, TempoDatabase } from "../client";
 import { conversationMessages, goals, lifeItems, lifeActionReceipts, memoryEntries, reminders, scheduledActions, tasks, users } from "../schema";
 import { DrizzleReminderRepository } from "./reminder-repository";
-import { lifeItemSchema, localDay, type LifeItem } from "../../domain/life-items";
+import { lifeItemSchema, localDay, type LifeItem, type SavedLifeItem } from "../../domain/life-items";
 import { applyLifePatch, lifePatchSchema, lifeSavedReply } from "../../domain/life-patch";
 import { taskCommandSchema } from "../../domain/task-commands";
 import { goalCommandSchema } from "../../domain/goal-commands";
@@ -60,7 +60,15 @@ export async function readWorkspace(userId: string, database: TempoDatabase = ge
     readGentleSetup(userId, database),
   ]);
   if (!profile[0]) throw new WorkspaceConflict("Account unavailable.");
-  return { ...board, tasks: allTasks.slice(0, 200), tasksTruncated: allTasks.length > 200, goals: allGoals.slice(0, 100), goalsTruncated: allGoals.length > 100, ...life, messages: messages.reverse(), profile: { displayName: profile[0].displayName, proactiveOptIn: profile[0].proactiveOptIn, quietHoursStart: profile[0].quietHoursStart, quietHoursEnd: profile[0].quietHoursEnd }, homePreferences: readHomePreferences(profile[0]?.workspacePreferences.home), memories: memories.slice(0, 200), memoriesTruncated: memories.length > 200, reminders: allReminders.slice(0, 200), remindersTruncated: allReminders.length > 200, activityStreak, setup };
+  const thoughtTaskIds = life.items.flatMap(item => item.data.kind === "note" && item.data.taskId ? [item.data.taskId] : []);
+  const thoughtTasks = thoughtTaskIds.length ? await database.select().from(tasks).where(and(eq(tasks.userId, userId), inArray(tasks.id, thoughtTaskIds))) : [];
+  const linkedLifeItems: SavedLifeItem[] = life.items.map(item => {
+    if (item.data.kind !== "note" || !item.data.taskId) return item;
+    const taskId = item.data.taskId;
+    const task = thoughtTasks.find(task => task.id === taskId);
+    return { ...item, linkedTask: task ? { id: task.id, title: task.title, status: task.status, estimatedMinutes: task.estimatedMinutes, dueAt: task.dueAt?.toISOString() ?? null, startedAt: task.startedAt?.toISOString() ?? null, goalId: task.goalId, presentation: task.presentation } : null };
+  });
+  return { ...board, tasks: allTasks.slice(0, 200), tasksTruncated: allTasks.length > 200, goals: allGoals.slice(0, 100), goalsTruncated: allGoals.length > 100, ...life, items: linkedLifeItems, messages: messages.reverse(), profile: { displayName: profile[0].displayName, proactiveOptIn: profile[0].proactiveOptIn, quietHoursStart: profile[0].quietHoursStart, quietHoursEnd: profile[0].quietHoursEnd }, homePreferences: readHomePreferences(profile[0]?.workspacePreferences.home), memories: memories.slice(0, 200), memoriesTruncated: memories.length > 200, reminders: allReminders.slice(0, 200), remindersTruncated: allReminders.length > 200, activityStreak, setup };
 }
 
 // The optional clock is supplied by trusted orchestration, never by the action payload.
@@ -83,6 +91,11 @@ export async function mutateWorkspace(userId: string, input: WorkspaceAction, da
         if (error instanceof IngredientInputError) throw new WorkspaceConflict(error.message);
         throw error;
       }
+    };
+    const validateWorkoutProgram = async (data: LifeItem, previous?: LifeItem) => {
+      if (data.kind !== "workout" || !data.programId || (previous?.kind === "workout" && previous.programId === data.programId)) return;
+      const [plan] = await transaction.select({ id: lifeItems.id }).from(lifeItems).where(and(eq(lifeItems.userId, userId), eq(lifeItems.id, data.programId), sql`${lifeItems.data}->>'kind' = 'workout_plan'`)).limit(1);
+      if (!plan) throw new WorkspaceConflict("That saved workout plan is unavailable. Choose a plan from your account or log movement without a plan.");
     };
     const receiptKey = receiptId ? `life:${userId}:${receiptId}` : input.action === "save" || input.action === "patch" || input.action === "delete" ? `workspace:${userId}:${input.action}:${input.id}:${input.version}` : input.action === "stop_focus" ? `workspace:${userId}:stop_focus:${input.requestId}` : null;
     const fingerprint = createHash("sha256").update(JSON.stringify(input)).digest("hex");
@@ -170,6 +183,7 @@ export async function mutateWorkspace(userId: string, input: WorkspaceAction, da
       let data;
       try { data = applyLifePatch(existing.data, input.patch, randomUUID); }
       catch (error) { throw new WorkspaceConflict(error instanceof Error ? error.message : "That edit is invalid."); }
+      await validateWorkoutProgram(data, existing.data);
       if (existing.data.kind === "grocery" && existing.data.mealSources && Object.keys(input.patch).some(key => !["kind", "checked"].includes(key))) throw new WorkspaceConflict("Edit the source meal to change its ingredients. You can check off this grocery or add a separate manual item.");
       if (data.kind === "meal" && existing.data.kind === "meal") data = { ...data, ingredientServings: existing.data.ingredientServings ?? existing.data.servings ?? data.servings, groceriesEnabled: data.groceriesEnabled ?? true };
       const completionError = workoutCompletionDateError(data, now, user.timezone);
@@ -181,6 +195,12 @@ export async function mutateWorkspace(userId: string, input: WorkspaceAction, da
     }
     if (input.action === "save") {
       const [existing] = await transaction.select().from(lifeItems).where(and(eq(lifeItems.id, input.id), eq(lifeItems.userId, userId))).limit(1);
+      if (input.data.kind === "note") {
+        const taskId = existing?.data.kind === "note" ? existing.data.taskId : undefined;
+        if (input.data.taskId && input.data.taskId !== taskId) throw new WorkspaceConflict("Thought task links are created when you add a thought to To-do.");
+        input = { ...input, data: { ...input.data, ...(taskId ? { taskId } : {}) } };
+      }
+      await validateWorkoutProgram(input.data, existing?.data);
       if (input.sourceRecipeId && input.data.kind !== "meal") throw new WorkspaceConflict("A saved recipe can only supply ingredients for a meal plan.");
       if (input.data.kind === "grocery") {
         if (existing?.data.kind === "grocery" && existing.data.mealSources) {

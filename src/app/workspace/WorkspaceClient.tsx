@@ -36,7 +36,7 @@ import c from "./workspace-chrome.module.css";
 import rb from "./rhythm-brain.module.css";
 
 type Field = { name: string; label: string; type?: string; value?: string | number; options?: string[]; required?: boolean; min?: number; max?: number; minLength?: number; maxLength?: number };
-type Editor = { title: string; subtitle: string; fields: Field[]; submit: (values: Record<string, string>) => Promise<boolean> };
+type Editor = { title: string; subtitle: string; fields: Field[]; submitLabel?: string; submit: (values: Record<string, string>) => Promise<boolean> };
 type FocusData = Extract<LifeItem, { kind: "focus" }>;
 
 export function WorkspaceClient({ preview = false }: { preview?: boolean }) {
@@ -270,7 +270,14 @@ export function WorkspaceClient({ preview = false }: { preview?: boolean }) {
           }
           else if (action.action === "task") {
             const c = action.command;
-            if (c.type === "create_task") next.tasks.push({ id: crypto.randomUUID(), title: c.title, estimatedMinutes: c.estimatedMinutes ?? null, dueAt: c.dueAt ?? null, status: "not_started", startedAt: null, goalId: c.goalId ?? null });
+            if (c.type === "create_task") {
+              const note = c.sourceNoteId ? next.items.find(item => item.id === c.sourceNoteId && item.data.kind === "note") : undefined;
+              if (!c.sourceNoteId || (note?.data.kind === "note" && !note.data.taskId)) {
+                const task = { id: crypto.randomUUID(), title: c.title, estimatedMinutes: c.estimatedMinutes ?? null, dueAt: c.dueAt ?? null, status: "not_started", startedAt: null, goalId: c.goalId ?? null };
+                next.tasks.push(task);
+                if (note?.data.kind === "note") { note.data.taskId = task.id; note.linkedTask = task; note.version++; }
+              }
+            }
             else if (c.type !== "list_tasks") {
               const task = next.tasks.find(item => item.id === c.taskId);
               if (task) {
@@ -304,6 +311,7 @@ export function WorkspaceClient({ preview = false }: { preview?: boolean }) {
               next.items.push({ id: prior?.id ?? crypto.randomUUID(), version: (prior?.version ?? 0) + 1, data: { ...grocery, checked: prior?.data.kind === "grocery" ? prior.data.checked : false } });
             }
           }
+          next.items = next.items.map(item => item.data.kind === "note" && item.data.taskId ? { ...item, linkedTask: next.tasks.find(task => item.data.kind === "note" && task.id === item.data.taskId) ?? null } : item);
           return refreshPreviewActivity(next);
         });
         setNotice("Updated in preview. Sample changes reset on reload."); return true;
@@ -338,18 +346,27 @@ export function WorkspaceClient({ preview = false }: { preview?: boolean }) {
   };
   const goalAction = (command: Extract<WorkspaceAction, { action: "goal" }>["command"]) => act({ action: "goal", requestId: crypto.randomUUID(), command });
 
-  function taskEditor(task?: Workspace["tasks"][number], goalId?: string, draft?: { title: string; estimatedMinutes: number }) {
+  function taskEditor(task?: Workspace["tasks"][number], goalId?: string, draft?: { title: string; estimatedMinutes: number; sourceNoteId?: string }) {
     setNotice("");
     const goal = data?.goals.find(goal => goal.id === (task?.goalId ?? goalId));
     setEditor({ title: task ? "Make this task work for you" : goal ? "One small step" : "One small thing", subtitle: goal ? `For your goal: ${goal.title}. A clear next step is enough.` : "A clear next step is enough. You can also ask Tempo by text.", fields: [
       { name: "title", label: "What would you like to do?", value: task?.title ?? draft?.title, required: true, minLength: 3 },
       { name: "minutes", label: "Estimated total minutes (optional)", type: "number", value: task?.estimatedMinutes ?? draft?.estimatedMinutes ?? "", min: 1, max: 1440 },
       { name: "due", label: `Schedule (device timezone: ${Intl.DateTimeFormat().resolvedOptions().timeZone})`, type: "datetime-local", value: task?.dueAt ? new Date(new Date(task.dueAt).getTime() - new Date(task.dueAt).getTimezoneOffset() * 60000).toISOString().slice(0, 16) : "" },
-    ], submit: values => taskAction(task ? { type: "update_task", taskId: task.id, patch: { title: values.title, estimatedMinutes: values.minutes ? Number(values.minutes) : null, dueAt: values.due ? new Date(values.due).toISOString() : null } } : { type: "create_task", title: values.title, ...(values.minutes ? { estimatedMinutes: Number(values.minutes) } : {}), ...(values.due ? { dueAt: new Date(values.due).toISOString() } : {}), ...(goalId ? { goalId } : {}) }) });
+    ], submit: values => taskAction(task ? { type: "update_task", taskId: task.id, patch: { title: values.title, estimatedMinutes: values.minutes ? Number(values.minutes) : null, dueAt: values.due ? new Date(values.due).toISOString() : null } } : { type: "create_task", title: values.title, ...(draft?.sourceNoteId ? { sourceNoteId: draft.sourceNoteId } : {}), ...(values.minutes ? { estimatedMinutes: Number(values.minutes) } : {}), ...(values.due ? { dueAt: new Date(values.due).toISOString() } : {}), ...(goalId ? { goalId } : {}) }) });
   }
   function goalEditor(goal?: Workspace["goals"][number], note?: Extract<LifeItem, { kind: "note" }>) {
     setNotice("");
     setEditor({ title: goal ? "Shape your goal" : "Something to work toward", subtitle: note ? "Shape a short goal from this thought. Your complete original note stays saved." : "Make it meaningful to you. Progress can be small.", fields: [{ name: "title", label: "Your goal", value: goal?.title ?? note?.title, required: true, minLength: 3 }, { name: "description", label: "Why it matters", type: "textarea", value: goal?.description ?? note?.body.slice(0, 1000) ?? "", maxLength: 1000 }], submit: v => goalAction(goal ? { type: "update_goal", goalId: goal.id, patch: { title: v.title, description: v.description || null } } : { type: "create_goal", title: v.title, ...(v.description ? { description: v.description } : {}) }) });
+  }
+  function openThoughtTask(task: Workspace["tasks"][number]) {
+    go("tasks");
+    const completed = task.status === "completed", minutes = taskPresentation(task).focusMinutes;
+    setEditor({ title: task.title, subtitle: `${completed ? "Completed" : "Saved in To-do"}${task.dueAt ? ` · ${time(task.dueAt)}` : " · Anytime"}. Your original thought stays saved.`, fields: [], submitLabel: completed ? "Reopen task" : `Start ${minutes} min`, submit: async () => {
+      const ok = await taskAction(completed ? { type: "reopen_task", taskId: task.id } : { type: "start_task", taskId: task.id }, completed ? undefined : minutes);
+      if (ok) setFocusHidden(false);
+      return ok;
+    } });
   }
   function itemEditor(kind: LifeItem["kind"], item?: SavedLifeItem, meal = "Breakfast") {
     setNotice("");
@@ -488,7 +505,7 @@ export function WorkspaceClient({ preview = false }: { preview?: boolean }) {
           {section === "nutrition" && data.diaryCoverage?.food.truncated && <p role="alert">This day has more entries than the display limit. Totals below are incomplete.</p>}
           {section === "nutrition" && (preview || !selectedDate || data.diaryCoverage?.date === selectedDate) && <NutritionView items={items} date={date} today={today} setDate={setSelectedDate} saving={saving} preview={preview} save={saveItem} remove={remove} />}
           {section === "movement" && (preview || !selectedDate || data.diaryCoverage?.date === selectedDate) && <FitnessView save={saveItem} remove={remove} data={data} today={today} date={date} setDate={setSelectedDate} saving={saving} plan={draft => taskEditor(undefined, undefined, draft)} log={() => itemEditor("workout")} actions={itemActions} showTasks={() => go("tasks")} />}
-          {section === "inbox" && <ThoughtsView items={items} truncated={data.itemCoverage?.note?.truncated} saving={saving} edit={item => itemEditor("note", item)} remove={remove} toTask={item => taskEditor(undefined, undefined, { title: item.data.title, estimatedMinutes: 15 })} toGoal={item => { if (item.data.kind === "note") goalEditor(undefined, item.data); }} />}
+          {section === "inbox" && <ThoughtsView items={items} truncated={data.itemCoverage?.note?.truncated} saving={saving} edit={item => itemEditor("note", item)} remove={remove} toTask={item => taskEditor(undefined, undefined, { title: item.data.title, estimatedMinutes: 15, sourceNoteId: item.id })} openTask={openThoughtTask} toGoal={item => { if (item.data.kind === "note") goalEditor(undefined, item.data); }} />}
           {section === "assistant" && <div className={rb.assistant}>
             <article className={rb.conversation}><div className={rb.chatHeader}><WorkspaceAvatar size={38} /><div><strong>Tempo</strong><small>{preview ? "Scripted example · no AI calls" : "Your shared web & text conversation"}</small></div></div>
               <div className={rb.messages}>{!data.messages.length && empty("Start wherever you are", "Try asking for one manageable next step.")}{data.messages.map(message => <div key={message.id} className={rb.message} data-direction={message.direction}><small>{message.direction === "inbound" ? "You" : "Tempo"} · {time(message.createdAt)}</small><ChatMessage body={message.body} />{["received", "processing"].includes(message.status) && <small role="status">{now && now.getTime() - new Date(message.createdAt).getTime() > 30_000 ? "Your message is saved. Tempo is taking longer than usual; no need to resend." : "Tempo is working on your message…"}</small>}</div>)}<div ref={chatEnd} /></div>
@@ -511,6 +528,6 @@ export function WorkspaceClient({ preview = false }: { preview?: boolean }) {
     {tour && <WorkspaceTour onClose={() => setTour(false)} onGo={value => { go(value); setTour(false); }} />}
     {setupOpen && data && <GentleSetup progressOnly={progressSetup} initial={data.setup ?? { displayName: data.profile.displayName, coachingTone: "balanced", showStreak: true, setupStatus: "new" }} onSave={saveSetup} onClose={() => { setSetupOpen(false); setProgressSetup(false); }} />}
     {routineEditor && <RoutineEditor key={`${routineEditor.item?.id ?? "new-routine"}-${routineEditor.item?.version ?? 0}`} item={routineEditor.item} latestItem={items.find(item => item.id === routineEditor.item?.id)} saveError={notice} onReload={item => { setNotice(""); setRoutineEditor({ item }); }} timezone={data?.timezone ?? "UTC"} saving={saving} onSave={saveItem} onClose={() => setRoutineEditor(null)} />}
-    <dialog onKeyDown={loopDialogTab} ref={dialog} className={s.dialog} aria-label={editor?.title ?? "Edit item"} onCancel={() => setEditor(null)} onClick={event => { if (event.target === event.currentTarget) setEditor(null); }}>{editor && <form onSubmit={async (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); const values = Object.fromEntries(new FormData(event.currentTarget).entries()) as Record<string, string>; try { if (await editor.submit(values)) setEditor(null); } catch { setNotice("Check the values and try again. Nothing was saved."); } }}><div className={s.between}><p className={s.eyebrow}>MAKE A LITTLE SPACE</p><button type="button" className={s.iconButton} aria-label="Close editor" onClick={() => setEditor(null)}><FiX /></button></div><h2>{editor.title}</h2><p>{editor.subtitle}</p><div className={s.formFields}>{editor.fields.map(field => <label key={field.name}><span>{field.label}</span>{field.options ? <select name={field.name} defaultValue={field.value}>{field.options.map(option => <option key={option}>{option}</option>)}</select> : field.type === "textarea" ? <textarea name={field.name} defaultValue={field.value} required={field.required} rows={5} minLength={field.minLength} maxLength={field.maxLength ?? 10000} /> : <input name={field.name} type={field.type ?? "text"} defaultValue={field.value} required={field.required} min={field.min} max={field.max} step={field.type === "number" ? "any" : undefined} minLength={field.minLength} maxLength={field.maxLength ?? 240} />}</label>)}</div>{notice && <p role="status">{notice}</p>}<div className={s.dialogActions}><button type="button" className={s.secondary} onClick={() => setEditor(null)}>Cancel</button><button type="submit" className={s.primary} disabled={saving}>{saving ? "Saving…" : editor.fields.length ? "Save" : "Remove"}<FiCheck /></button></div></form>}</dialog>
+    <dialog onKeyDown={loopDialogTab} ref={dialog} className={s.dialog} aria-label={editor?.title ?? "Edit item"} onCancel={() => setEditor(null)} onClick={event => { if (event.target === event.currentTarget) setEditor(null); }}>{editor && <form onSubmit={async (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); const values = Object.fromEntries(new FormData(event.currentTarget).entries()) as Record<string, string>; try { if (await editor.submit(values)) setEditor(null); } catch { setNotice("Check the values and try again. Nothing was saved."); } }}><div className={s.between}><p className={s.eyebrow}>MAKE A LITTLE SPACE</p><button type="button" className={s.iconButton} aria-label="Close editor" onClick={() => setEditor(null)}><FiX /></button></div><h2>{editor.title}</h2><p>{editor.subtitle}</p><div className={s.formFields}>{editor.fields.map(field => <label key={field.name}><span>{field.label}</span>{field.options ? <select name={field.name} defaultValue={field.value}>{field.options.map(option => <option key={option}>{option}</option>)}</select> : field.type === "textarea" ? <textarea name={field.name} defaultValue={field.value} required={field.required} rows={5} minLength={field.minLength} maxLength={field.maxLength ?? 10000} /> : <input name={field.name} type={field.type ?? "text"} defaultValue={field.value} required={field.required} min={field.min} max={field.max} step={field.type === "number" ? "any" : undefined} minLength={field.minLength} maxLength={field.maxLength ?? 240} />}</label>)}</div>{notice && <p role="status">{notice}</p>}<div className={s.dialogActions}><button type="button" className={s.secondary} onClick={() => setEditor(null)}>Cancel</button><button type="submit" className={s.primary} disabled={saving}>{saving ? "Saving…" : editor.submitLabel ?? (editor.fields.length ? "Save" : "Remove")}<FiCheck /></button></div></form>}</dialog>
   </div>;
 }

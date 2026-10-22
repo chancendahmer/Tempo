@@ -16,6 +16,7 @@ export type TaskMutation = {
   completedAt?: Date | null;
   abandonedAt?: Date | null;
 };
+export class TaskSourceNoteError extends Error {}
 
 export interface TaskRepository {
   findActionBySourceMessage(sourceMessageId: string): Promise<{
@@ -29,6 +30,7 @@ export interface TaskRepository {
     estimatedMinutes?: number;
     dueAt?: Date;
     goalId?: string;
+    sourceNoteId?: string;
   }): Promise<TaskRecord>;
   list(userId: string, status: "open" | "completed" | "all"): Promise<TaskRecord[]>;
   listForResolution(userId: string): Promise<TaskRecord[]>;
@@ -83,15 +85,20 @@ export async function executeTaskCommand(
   }
 
   if (command.type === "create_task") {
-    const task = await repository.create({
+    let task;
+    try { task = await repository.create({
       userId: context.userId,
       sourceMessageId: context.sourceMessageId,
       title: command.title,
       estimatedMinutes: command.estimatedMinutes,
       dueAt: command.dueAt ? new Date(command.dueAt) : undefined,
       goalId: command.goalId,
-    });
-    return { kind: "executed", task, reply: `Added: ${task.title}.` };
+      sourceNoteId: command.sourceNoteId,
+    }); } catch (error) {
+      if (error instanceof TaskSourceNoteError) return { kind: "not_found", reply: error.message };
+      throw error;
+    }
+    return { kind: "executed", task, reply: command.sourceNoteId ? `Task for your thought: ${task.title}. Your original thought stays saved.` : `Added: ${task.title}.` };
   }
 
   if (command.type === "list_tasks") {

@@ -13,6 +13,7 @@ export const taskCommandSchema = z
       estimatedMinutes: z.number().int().min(1).max(1440).optional(),
       dueAt: z.iso.datetime({ offset: true }).optional(),
       goalId: z.uuid().optional(),
+      sourceNoteId: z.uuid().optional(),
     }),
     z.object({
       type: z.literal("list_tasks"),

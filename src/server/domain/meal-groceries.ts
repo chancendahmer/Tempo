@@ -53,7 +53,8 @@ function shoppingQuantityLabel(quantity: number, unit?: Unit) {
   return `${approximate ? "about " : ""}${fraction ? `${whole || ""}${fraction.glyph}` : shoppingAmountFormat.format(quantity)}`;
 }
 export function ingredientLabel(item: Ingredient) {
-  return `${item.quantity === undefined ? "" : `${shoppingQuantityLabel(item.quantity, item.unit)}${item.unit && item.unit !== "piece" ? ` ${item.unit}` : ""} `}${item.title}`;
+  const plural = item.quantity !== 1 && ["cup", "slice", "clove", "can", "package"].includes(item.unit ?? "");
+  return `${item.quantity === undefined ? "" : `${shoppingQuantityLabel(item.quantity, item.unit)}${item.unit && item.unit !== "piece" ? ` ${item.unit}${plural ? "s" : ""}` : ""} `}${item.title}`;
 }
 
 /** Manual groceries and purchase checkboxes are never treated as pantry stock. */

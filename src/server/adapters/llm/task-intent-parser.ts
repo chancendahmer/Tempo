@@ -63,7 +63,7 @@ export const TASK_TOOLS: Tool[] = [
   ...ASSISTANT_TOOLS,
   {
     name: "create_task",
-    description: "Create one concrete task the user has committed to doing.",
+    description: "Create one concrete task the user has committed to doing. When converting a saved thought, first life_list kind note, then pass its sourceNoteId. This preserves the original thought and returns its existing task on repeated conversion; never create a second unlinked task for that conversion.",
     input_schema: {
       type: "object",
       properties: {
@@ -71,6 +71,7 @@ export const TASK_TOOLS: Tool[] = [
         estimatedMinutes: { type: "integer", minimum: 1, maximum: 1440 },
         dueAt: { type: "string", format: "date-time", description: "ISO 8601 timestamp with an offset." },
         goalId: { type: "string", format: "uuid", description: "Exact active goal ID when this task belongs to a known goal." },
+        sourceNoteId: { type: "string", format: "uuid", description: "Exact account-owned note ID from life_list when turning that thought into a task." },
       },
       required: ["title"],
       additionalProperties: false,

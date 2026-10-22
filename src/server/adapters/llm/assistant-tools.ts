@@ -9,7 +9,7 @@ const routineCreation = lifeItemSchema.options[1].extend({
   title: lifeItemSchema.options[1].shape.title.optional().describe("Optional name; defaults to Morning routine or Evening routine. Do not ask for a name."),
   steps: z.array(lifeItemSchema.options[1].shape.steps.element.omit({ id: true, completedOn: true })).max(30),
 });
-const lifeCreationSchema = z.union([routineCreation, ...lifeItemSchema.options.filter((_, index) => ![1, 4, 7].includes(index)), lifeItemSchema.options[4].omit({ ingredientServings: true }), lifeItemSchema.options[7].omit({ mealSources: true })]);
+const lifeCreationSchema = z.union([routineCreation, ...lifeItemSchema.options.filter((_, index) => ![1, 4, 6, 7].includes(index)), lifeItemSchema.options[4].omit({ ingredientServings: true }), lifeItemSchema.options[6].omit({ taskId: true }), lifeItemSchema.options[7].omit({ mealSources: true })]);
 
 export const ASSISTANT_TOOLS: Tool[] = [
   { name: "capture_with_reminder", description: "Atomically save a NEW task, goal, or note in Thoughts AND one reminder for it when the user requests both. This is one write operation. Does not set a task deadline or create Calendar events. Ask only for genuinely missing reminder time; do not save half the request.", input_schema: { type: "object", properties: { destination: {type:"string",enum:["task","goal","note"]}, title:{type:"string"}, details:{type:"string"}, remindAt:{type:"string",format:"date-time"} }, required:["destination","title","remindAt"], additionalProperties:false } },

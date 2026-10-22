@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { parsePilotInvitedPhones } from "../domain/pilot-admission";
 
 const optionalSecret = z.string().trim().min(1).optional();
 const optionalEncryptionKey = optionalSecret.refine(
@@ -10,6 +11,8 @@ export const serverEnvSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   APP_BASE_URL: z.url().default("http://localhost:3000"),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).default("info"),
+  PILOT_ADMISSION_MODE: z.enum(["open", "invite_only"]).default("open").nullable().catch(null),
+  PILOT_INVITED_PHONES: z.string().default("").transform(parsePilotInvitedPhones).catch(null),
   INTERVENTION_SHADOW_MODE: z
     .enum(["true", "false"])
     .default("true")

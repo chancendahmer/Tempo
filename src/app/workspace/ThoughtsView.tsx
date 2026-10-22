@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { FiArrowRight, FiEdit2, FiInbox, FiPlus, FiSearch, FiTrash2, FiX } from "react-icons/fi";
-import type { SavedLifeItem } from "@/server/domain/life-items";
+import type { SavedLifeItem, ThoughtTask } from "@/server/domain/life-items";
 import s from "./workspace.module.css";
 import rb from "./rhythm-brain.module.css";
 import n from "./thoughts.module.css";
@@ -13,6 +13,7 @@ type Props = {
   remove: (item: SavedLifeItem) => void;
   toTask: (item: SavedLifeItem) => void;
   toGoal: (item: SavedLifeItem) => void;
+  openTask?: (task: ThoughtTask) => void;
 };
 
 export function findThoughts(items: SavedLifeItem[], query: string) {
@@ -20,7 +21,7 @@ export function findThoughts(items: SavedLifeItem[], query: string) {
   return items.filter(({ data }) => data.kind === "note" && terms.every(term => `${data.title}\n${data.body}`.toLocaleLowerCase().includes(term)));
 }
 
-export function ThoughtsView({ items, truncated = false, saving, edit, remove, toTask, toGoal }: Props) {
+export function ThoughtsView({ items, truncated = false, saving, edit, remove, toTask, toGoal, openTask }: Props) {
   const [query, setQuery] = useState("");
   const notes = findThoughts(items, "");
   const visible = findThoughts(items, query);
@@ -36,7 +37,8 @@ export function ThoughtsView({ items, truncated = false, saving, edit, remove, t
       <div className={rb.cardTop}><h3>{item.data.title}</h3><div className={s.row}><button className={s.iconButton} disabled={saving} aria-label={`Edit ${item.data.title}`} onClick={() => edit(item)}><FiEdit2 /></button><button className={s.iconButton} disabled={saving} aria-label={`Remove ${item.data.title}`} onClick={() => remove(item)}><FiTrash2 /></button></div></div>
       {item.data.body && <p className={n.excerpt}>{item.data.body.length > 180 ? `${item.data.body.slice(0, 180).trimEnd()}…` : item.data.body}</p>}
       {item.data.body.length > 180 && <details className={n.fullNote}><summary aria-label={`Read full thought: ${item.data.title}`}>Read full thought</summary><p>{item.data.body}</p></details>}
-      <div className={rb.rowActions}><button className={s.textButton} disabled={saving} onClick={() => toTask(item)}>Add to To-do <FiArrowRight /></button><button className={s.textButton} disabled={saving} onClick={() => toGoal(item)}>Make a goal <FiArrowRight /></button></div>
+      {item.data.taskId && <p className={s.finePrint}>{!item.linkedTask || item.linkedTask.status === "abandoned" ? "The task made from this thought was removed. Your thought stays saved. Add a separate new task for another step." : item.linkedTask.status === "completed" ? `Completed: ${item.linkedTask.title}` : `In To-do: ${item.linkedTask.title}`}</p>}
+      <div className={rb.rowActions}>{item.data.taskId ? item.linkedTask && item.linkedTask.status !== "abandoned" && <button className={s.textButton} disabled={saving} onClick={() => openTask?.(item.linkedTask!)}>Open task <FiArrowRight /></button> : <button className={s.textButton} disabled={saving} onClick={() => toTask(item)}>Add to To-do <FiArrowRight /></button>}<button className={s.textButton} disabled={saving} onClick={() => toGoal(item)}>Make a goal <FiArrowRight /></button></div>
     </article>)}</div>
     {notes.length > 0 && visible.length === 0 && <div className={s.empty}><FiSearch /><h3>No matching thoughts</h3><p>Try a word from the title or the thought itself.</p><button className={s.secondary} onClick={() => setQuery("")}>Show all thoughts</button></div>}
     {notes.length === 0 && <div className={s.empty}><FiInbox /><h3>A place for the loose ends</h3><p>Nothing captured yet. Add a thought here or text Tempo.</p><button className={s.primary} disabled={saving} onClick={() => edit()}><FiPlus /> Capture a thought</button></div>}

@@ -32,12 +32,12 @@ describe("transactional meal shopping", () => {
     await mutateWorkspace(person.id, saveMeal, db);
     await mutateWorkspace(person.id, saveMeal, db);
     const initial = (await readWorkspace(person.id, db)).items.filter(item => item.data.kind === "grocery");
-    expect(initial.map(item => ingredientLabel(item.data)).sort()).toEqual(["2000 g rice", "500 ml milk", "3 cup flour"].sort());
+    expect(initial.map(item => ingredientLabel(item.data)).sort()).toEqual(["2000 g rice", "500 ml milk", "3 cups flour"].sort());
     const rice = initial.find(item => item.data.title === "rice")!;
     await mutateWorkspace(person.id, { action: "save", id: pantryId, version: 0, data: { kind: "pantry", title: "Rice", quantity: 0.5, unit: "kg" } }, db);
     await mutateWorkspace(person.id, { action: "patch", id: mealId, version: 1, patch: { kind: "meal", servings: 2 } }, db);
     const after = (await readWorkspace(person.id, db)).items.filter(item => item.data.kind === "grocery");
-    expect(after.map(item => ingredientLabel(item.data)).sort()).toEqual(["500 g rice", "250 ml milk", "1½ cup flour"].sort());
+    expect(after.map(item => ingredientLabel(item.data)).sort()).toEqual(["500 g rice", "250 ml milk", "1½ cups flour"].sort());
     expect(after.find(item => item.id === rice.id)?.data).toMatchObject({ quantity: 500, mealSources: [{ mealId, quantity: 1000 }] });
     const reread = (await readWorkspace(person.id, db)).items.filter(item => item.data.kind === "grocery");
     expect(reread).toEqual(after);

@@ -12,6 +12,8 @@ import { LifeAssistant } from "./life-assistant";
 import { WebReplySender, isWebMessage } from "./web-reply-repository";
 import { DrizzleConversationHistoryRepository } from "./conversation-history-repository";
 import { lifeItemSchema, localDay, type LifeItem } from "../../domain/life-items";
+import { executeTaskCommand } from "../../domain/task-service";
+import { DrizzleTaskRepository } from "./task-repository";
 
 describe("shared life workspace", () => {
   let client: PGlite, db: TempoDatabase, owner: string, other: string;
@@ -24,6 +26,69 @@ describe("shared life workspace", () => {
   }, 30000);
   afterAll(async () => client.close());
   const recipe: LifeItem = { kind: "recipe", title: "Lemon rice", ingredients: "Rice\nLemon", instructions: "Cook rice, add lemon.", servings: 2, prepMinutes: 20, favorite: true };
+
+  it("converts an owned thought once across new requests and assistant channels, preserving edits and removed state", async () => {
+    const [person] = await db.insert(schema.users).values({ phoneE164: "+12025550715" }).returning();
+    const noteId = randomUUID(), note = { kind: "note" as const, title: "Project thought", body: "Full original detail. ".repeat(30) };
+    await mutateWorkspace(person.id, { action: "save", id: noteId, version: 0, data: note }, db);
+    const convert = { type: "create_task" as const, title: "Call the project team", sourceNoteId: noteId, estimatedMinutes: 5 };
+    await Promise.all([1, 2].map(() => mutateWorkspace(person.id, { action: "task", requestId: randomUUID(), command: convert }, db)));
+    let workspace = await readWorkspace(person.id, db);
+    const created = workspace.tasks.filter(task => task.title === convert.title);
+    expect(created).toHaveLength(1);
+    const savedNote = workspace.items.find(item => item.id === noteId)!;
+    expect(savedNote).toMatchObject({ version: 2, data: { ...note, taskId: created[0].id }, linkedTask: { id: created[0].id, title: convert.title } });
+    const [source] = await db.insert(schema.conversationMessages).values({ userId: person.id, conversationId: (await db.select().from(schema.conversations).where(eq(schema.conversations.ownerUserId, person.id)))[0].id, direction: "inbound", kind: "user", status: "received", body: "Make this thought a task" }).returning();
+    const result = await executeTaskCommand(new DrizzleTaskRepository(db), { ...convert, title: "A different proposed title" }, { userId: person.id, sourceMessageId: source.id, now: new Date() });
+    expect(result).toMatchObject({ kind: "executed", task: { id: created[0].id, title: convert.title } });
+    await mutateWorkspace(person.id, { action: "save", id: noteId, version: 2, data: { ...note, body: "Edited thought; task unchanged." } }, db);
+    await new LifeAssistant(db).execute(person.id, randomUUID(), { type: "life_patch", id: noteId, version: 3, patch: { kind: "note", title: "Edited title" } });
+    workspace = await readWorkspace(person.id, db);
+    expect(workspace.items.find(item => item.id === noteId)?.data).toEqual({ ...note, title: "Edited title", body: "Edited thought; task unchanged.", taskId: created[0].id });
+    expect(workspace.tasks.filter(task => task.title === convert.title)).toHaveLength(1);
+    await mutateWorkspace(person.id, { action: "task", requestId: randomUUID(), command: { type: "complete_task", taskId: created[0].id } }, db);
+    await db.insert(schema.tasks).values(Array.from({ length: 205 }, (_, n) => ({ userId: person.id, title: `Open task ${n}` })));
+    const bounded = await readWorkspace(person.id, db);
+    expect(bounded.tasks.some(task => task.id === created[0].id)).toBe(false);
+    expect(bounded.items.find(item => item.id === noteId)?.linkedTask).toMatchObject({ id: created[0].id, status: "completed" });
+    await mutateWorkspace(person.id, { action: "task", requestId: randomUUID(), command: convert }, db);
+    expect((await db.select().from(schema.tasks).where(and(eq(schema.tasks.userId, person.id), eq(schema.tasks.title, convert.title))))).toHaveLength(1);
+    await mutateWorkspace(person.id, { action: "task", requestId: randomUUID(), command: { type: "reopen_task", taskId: created[0].id } }, db);
+    await expect(mutateWorkspace(other, { action: "task", requestId: randomUUID(), command: convert }, db)).rejects.toThrow("unavailable");
+    await expect(mutateWorkspace(person.id, { action: "task", requestId: randomUUID(), command: { ...convert, sourceNoteId: randomUUID() } }, db)).rejects.toThrow("unavailable");
+    await expect(mutateWorkspace(person.id, { action: "save", id: randomUUID(), version: 0, data: { ...note, taskId: created[0].id } }, db)).rejects.toThrow("links");
+    await expect(mutateWorkspace(person.id, { action: "task", requestId: randomUUID(), command: { ...convert, sourceNoteId: created[0].id } }, db)).rejects.toThrow("unavailable");
+    await mutateWorkspace(person.id, { action: "task", requestId: randomUUID(), command: { type: "abandon_task", taskId: created[0].id } }, db);
+    await expect(mutateWorkspace(person.id, { action: "task", requestId: randomUUID(), command: convert }, db)).rejects.toThrow("removed");
+    expect((await readWorkspace(person.id, db)).items.find(item => item.id === noteId)).toMatchObject({ data: { taskId: created[0].id }, linkedTask: { status: "abandoned" } });
+    await db.delete(schema.tasks).where(eq(schema.tasks.id, created[0].id));
+    await expect(mutateWorkspace(person.id, { action: "task", requestId: randomUUID(), command: convert }, db)).rejects.toThrow("removed");
+    expect((await readWorkspace(person.id, db)).items.find(item => item.id === noteId)?.linkedTask).toBeNull();
+  });
+
+  it("validates newly assigned workout plans across channels and permits historical logs after plan deletion", async () => {
+    const [person, neighbor] = await db.insert(schema.users).values([{ phoneE164: "+12025550716" }, { phoneE164: "+12025550717" }]).returning();
+    const ownPlan = randomUUID(), foreignPlan = randomUUID(), nonPlan = randomUUID(), workoutId = randomUUID();
+    const plan = { kind: "workout_plan" as const, title: "My plan", templateId: "full-body", sessions: [{ name: "A", minutes: 10, exercises: [{ name: "Walk", dose: "10 minutes" }] }] };
+    await mutateWorkspace(person.id, { action: "save", id: ownPlan, version: 0, data: plan }, db);
+    await mutateWorkspace(neighbor.id, { action: "save", id: foreignPlan, version: 0, data: plan }, db);
+    await mutateWorkspace(person.id, { action: "save", id: nonPlan, version: 0, data: { kind: "note", title: "Not a plan", body: "" } }, db);
+    const workout = { kind: "workout" as const, title: "My session", date: "2020-01-01", minutes: 10, activity: "Walk" as const };
+    const assistant = new LifeAssistant(db);
+    for (const programId of [foreignPlan, nonPlan, randomUUID()]) {
+      await expect(mutateWorkspace(person.id, { action: "save", id: randomUUID(), version: 0, data: { ...workout, programId } }, db)).rejects.toThrow("plan is unavailable");
+      expect(await assistant.execute(person.id, randomUUID(), { type: "life_save", data: { ...workout, programId } })).toContain("plan is unavailable");
+    }
+    await mutateWorkspace(person.id, { action: "save", id: workoutId, version: 0, data: { ...workout, programId: ownPlan } }, db);
+    for (const programId of [foreignPlan, nonPlan, randomUUID()]) {
+      await expect(mutateWorkspace(person.id, { action: "save", id: workoutId, version: 1, data: { ...workout, programId } }, db)).rejects.toThrow("plan is unavailable");
+      expect(await assistant.execute(person.id, randomUUID(), { type: "life_patch", id: workoutId, version: 1, patch: { kind: "workout", programId } })).toContain("plan is unavailable");
+    }
+    await mutateWorkspace(person.id, { action: "delete", id: ownPlan, version: 1 }, db);
+    await mutateWorkspace(person.id, { action: "save", id: workoutId, version: 1, data: { ...workout, programId: ownPlan, notes: "Still completed" } }, db);
+    expect(await assistant.execute(person.id, randomUUID(), { type: "life_patch", id: workoutId, version: 2, patch: { kind: "workout", notes: "Historical note edited" } })).toContain("Updated");
+    expect((await readWorkspace(person.id, db)).items.find(item => item.id === workoutId)?.data).toMatchObject({ programId: ownPlan, notes: "Historical note edited" });
+  });
 
   it("retains durable settings independently of diary growth and loads the complete requested old day", async () => {
     const [reader, neighbor] = await db.insert(schema.users).values([{ phoneE164: "+12025550644" }, { phoneE164: "+12025550645" }]).returning();

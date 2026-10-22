@@ -9,6 +9,8 @@ import { OperationalRepository } from "@/server/db/repositories/operational-repo
 import { LinqOnboardingService } from "@/server/adapters/sms/linq-onboarding";
 import { SendblueOnboardingService } from "@/server/adapters/sms/sendblue-onboarding";
 import { WEB_SESSION_COOKIE, WEB_SESSION_TTL_SECONDS, WebSessionService } from "@/server/security/web-session";
+import { pilotAdmissionAllowed } from "@/server/domain/pilot-admission";
+import { PilotAdmissionRepository } from "@/server/db/repositories/pilot-admission-repository";
 
 export const dynamic = "force-dynamic";
 
@@ -45,6 +47,13 @@ export async function POST(request: NextRequest) {
     const body: unknown = await request.json();
     const parsedInput = webConsentInputSchema.parse(body);
     const phoneE164 = phonePartsToE164(parsedInput);
+    if (!pilotAdmissionAllowed(env, phoneE164)
+      && !await new PilotAdmissionRepository().isVerifiedExisting(phoneE164)) {
+      return NextResponse.json({ error: "Tempo is currently invite-only. Use the phone number on your invitation, or ask your pilot organizer to add it before trying again." }, { status: 403 });
+    }
+    if (await new PilotAdmissionRepository().isOptedOut(phoneE164)) {
+      return NextResponse.json({ error: "Texts to this number are stopped. Reply START to your existing Tempo conversation to opt in again, then return here. Joining the pilot does not undo STOP." }, { status: 403 });
+    }
     const phoneLimit = await new OperationalRepository().consumeRateLimit({
       key: `signin-phone:${hashAuditValue(phoneE164, env.FIELD_ENCRYPTION_KEY!)}`,
       limit: 3, windowMs: 15 * 60_000,
