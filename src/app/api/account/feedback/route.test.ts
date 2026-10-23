@@ -5,13 +5,13 @@ import { FeedbackConflict, FeedbackRateLimited } from "../../../../server/domain
 
 const mocks = vi.hoisted(() => ({ account: vi.fn(), submit: vi.fn(), log: vi.fn() }));
 vi.mock("../../../../server/config/env", () => ({ requireEnv: () => ({ APP_BASE_URL: "https://tempo.test", FIELD_ENCRYPTION_KEY: "synthetic" }) }));
-vi.mock("../../../../server/security/web-session", () => ({ WEB_SESSION_COOKIE: "tempo_session", WebSessionService: class { findAccount = mocks.account; }, isTrustedMutationOrigin: (origin: string | null) => origin === "https://tempo.test" }));
+vi.mock("../../../../server/security/web-session", () => ({ accountCacheKey: (userId: string) => `cache:${userId}`, WEB_SESSION_COOKIE: "tempo_session", WebSessionService: class { findAccount = mocks.account; }, isTrustedMutationOrigin: (origin: string | null) => origin === "https://tempo.test" }));
 vi.mock("../../../../server/db/repositories/pilot-feedback-repository", () => ({ PilotFeedbackRepository: class { submit = mocks.submit; } }));
 vi.mock("../../../../server/observability/logger", () => ({ logger: { error: mocks.log } }));
 import { POST } from "./route";
 
 const body = () => ({ requestId: randomUUID(), type: "problem", section: "tasks", impact: "slowed", followUpConsent: false });
-const request = (input: unknown = body(), origin = "https://tempo.test") => new NextRequest("https://tempo.test/api/account/feedback", { method: "POST", headers: { origin, "content-type": "application/json", cookie: "tempo_session=synthetic" }, body: JSON.stringify(input) });
+const request = (input: unknown = body(), origin = "https://tempo.test") => new NextRequest("https://tempo.test/api/account/feedback", { method: "POST", headers: { "x-tempo-account": "cache:session-owner", origin, "content-type": "application/json", cookie: "tempo_session=synthetic" }, body: JSON.stringify(input) });
 describe("feedback verified account HTTP boundary", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -33,7 +33,7 @@ describe("feedback verified account HTTP boundary", () => {
     expect(response.status).toBe(201);
     expect(response.headers.get("cache-control")).toBe("private, no-store");
     expect(mocks.submit).toHaveBeenCalledWith("session-owner", { ...input, detail: null }, "synthetic");
-    expect(Object.keys(await response.json())).toEqual(["receipt"]);
+    expect(Object.keys(await response.json())).toEqual(["receipt", "cacheKey"]);
     expect((await POST(request({ ...body(), userId: "neighbor" }))).status).toBe(400);
   });
   it("rejects oversized and undeclared private attachments", async () => {
@@ -54,4 +54,16 @@ describe("feedback verified account HTTP boundary", () => {
     expect(JSON.stringify(mocks.log.mock.calls)).not.toContain("private text");
     expect(JSON.stringify(mocks.log.mock.calls)).not.toContain("Sensitive SQL");
   });
+});
+
+
+it("rejects a stale or missing expected account before any persistence", async () => {
+    mocks.account.mockResolvedValue({ userId: "session-owner", phoneVerified: true });
+    mocks.submit.mockClear();
+    for (const owner of [null, "cache:previous-account"]) {
+      const req = new NextRequest("https://tempo.test/api/account/feedback", { method: "POST", headers: { origin: "https://tempo.test", cookie: "tempo_session=synthetic", ...(owner ? { "x-tempo-account": owner } : {}) }, body: JSON.stringify({ action: "skip" }) });
+      const response = await POST(req);
+      expect(response.status).toBe(409); expect(await response.json()).toMatchObject({ code: "account_changed" });
+    }
+    expect(mocks.submit).not.toHaveBeenCalled();
 });

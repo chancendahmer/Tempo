@@ -136,6 +136,11 @@ export class WebSessionService {
   }
 }
 
+/** Opaque UI cache discriminator only. It grants no authority or session access. */
+export function accountCacheKey(userId: string) {
+  return createHash("sha256").update(`tempo-account-cache:v1:${userId}`).digest("hex");
+}
+
 export function publicAccount(account: WebAccount) {
   if (!account.phoneVerified) {
     return {
@@ -149,6 +154,7 @@ export function publicAccount(account: WebAccount) {
     };
   }
   return {
+    cacheKey: accountCacheKey(account.userId),
     displayName: account.displayName,
     phoneLast4: account.phoneLast4,
     phoneVerified: account.phoneVerified,

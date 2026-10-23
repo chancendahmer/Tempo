@@ -101,7 +101,7 @@ export interface ConversationRepository {
   claimInbound(messageId: string, now: Date): Promise<InboundConversationContext | null>;
   releaseInbound(messageId: string, processingToken: string): Promise<void>;
   markProcessed(userId: string, messageId: string, processingToken: string): Promise<void>;
-  withOwnership<T>(context: InboundConversationContext, operation: () => Promise<T>): Promise<T>;
+  withOwnership<T>(context: InboundConversationContext, operation: () => Promise<T>, options?: { accountFirst?: boolean }): Promise<T>;
   persistReply(context: InboundConversationContext, body: string): Promise<string>;
   getPendingAction(userId: string): Promise<StoredPendingAction | null>;
   savePendingAction(userId: string, action: StoredPendingAction): Promise<void>;
@@ -427,7 +427,7 @@ export class ConversationOrchestrator {
       const result = await this.executeCommandOwned(context, now, command);
       await this.conversations.persistReply(context, result);
       return result;
-    });
+    }, isReminderCommand(command) ? { accountFirst: true } : undefined);
   }
 
   private async executeCommandOwned(context: InboundConversationContext, now: Date, command: CoachingCommand): Promise<string> {

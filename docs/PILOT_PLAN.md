@@ -63,7 +63,7 @@ file boundary; only the integration owner changes shared migration metadata.
 | A2 — Activation and feedback | Activation engineer — implemented | Web timezone confirmation plus a short persistent feedback/report-problem flow; operator retrieval | Repository/API tests and authenticated phone/desktop observations; broader accessibility checks pending |
 | R2 — Operator visibility | Reliability engineer — implemented | Worker build/effective-policy attestation and a read-only pilot operations report | Sanitized report, wrong/missing/stale worker config cases, recovery instructions; hosted verification pending |
 | C1 — Cost boundary | Implemented and locally validated; rollout gated | All five AI adapters use durable reservations, pinned pricing, caps and uncertain-debt accounting | Real PG races and independent review pass; caps, retention, deployment attestation and live canary remain |
-| W2 — Reminder clarity | Implemented; full novice weeks pending | Saved cadence/timezone and terminal history; explain task time/completion versus requested texts | Bounded seven-day and fresh HTTP checks pass; current browser evidence unavailable |
+| W2 — Reminder clarity | Implemented; three scripted novice weeks pass | Cadence/timezone and terminal history; one linked follow-up to a delivered one-time reminder | 21 durable day checkpoints and real two-client races pass; live language/delivery remain separate |
 | Q1 — Independent review | A different engineer | Review other authors' changes, novice journeys, mobile/keyboard, abuse/failure paths | Reproducible findings and evidence; no score laundering |
 | L1 — Real integration/release | Principal + operator | Candidate real-account SMS, Google, migration/rollback, deployment and post-release canary | Provider handles and sanitized state evidence, compatible web/worker commit |
 
@@ -99,6 +99,14 @@ retirement race, migration constraint-name mismatch and small UI issues.
 The customer review for the new flows is 9/10; the designer review is 7.5/10
 pending additional interaction/accessibility evidence. These bounded scores are
 not whole-product certification. Refer to the handoff and current result files.
+
+Latest continuation supersedes the earlier browser-access limitation: authenticated
+food, nutrition, routine, goal, memory deletion, fitness and failure/retry flows
+were exercised by root, with ten durable-state assertion groups. Independent
+visual review of food/feedback/routine screenshots scored 8.3/10, without claiming
+independent interaction. Full check: 1,183 tests pass, lint/typecheck and both
+builds pass. Local backup restore and policy-attestation checks also pass; hosted
+operations, live integration and complete per-section customer review remain gates.
 
 ## Cohort gates — ten, then twenty-five, then one hundred
 

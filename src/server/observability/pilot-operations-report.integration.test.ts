@@ -5,6 +5,8 @@ import { PGlite } from "@electric-sql/pglite";
 import { expect, it } from "vitest";
 import { readPilotOperationsReport } from "./pilot-operations-report";
 import { createWorkerAttestation } from "./worker-attestation";
+import { createAiBudgetAttestation } from "./ai-budget-attestation";
+import { AI_PRICE_VERSION } from "../adapters/llm/ai-pricing";
 
 it("runs real report SQL in a read-only snapshot, folds private queue names, and rejects accidental writes", async () => {
   const client = new PGlite();
@@ -48,6 +50,8 @@ it("runs real report SQL in a read-only snapshot, folds private queue names, and
     });
     expect(report.problems).toEqual(expect.arrayContaining(["ai_budget_admission_review_required", "ai_budget_uncertain_usage_requires_reconciliation", "ai_budget_commitments_stale", "ai_budget_window_stale"]));
     expect(report.problems).not.toContain("ai_budget_ledger_mismatch");
+    // Historical accounting activity alone cannot establish current runtime policy.
+    expect(report.aiBudget.runtimeConfiguration.observedEnforcedConfiguration).toBe(false);
     for (const value of ["+12025550199", "private-queue-name", "private-instance", "private-token", "private-account-key", "private-fingerprint"]) expect(JSON.stringify(report)).not.toContain(value);
     const accidentalWrite = async (text: string, values?: unknown[]) => {
       if (text.includes("from service_heartbeats")) await client.query("insert into users (phone_e164) values ($1)", ["+12025550198"]);
@@ -55,6 +59,14 @@ it("runs real report SQL in a read-only snapshot, folds private queue names, and
     };
     await expect(readPilotOperationsReport({ query: accidentalWrite } as unknown as Pick<PoolClient, "query">, { hours: 24, webBuild: build, now })).rejects.toMatchObject({ code: "25006" });
     expect((await client.query<{ count: number }>("select count(*)::int as count from users")).rows[0].count).toBe(1);
+    const budget = createAiBudgetAttestation({ AI_BUDGET_MODE: "enforce", ANTHROPIC_MODEL: "claude-haiku-4-5-20251001", AI_BUDGET_PRICE_VERSION: AI_PRICE_VERSION,
+      AI_BUDGET_GLOBAL_DAILY_MICRODOLLARS: "1000", AI_BUDGET_ACCOUNT_DAILY_MICRODOLLARS: "100", AI_BUDGET_GLOBAL_DAILY_CALLS: "10", AI_BUDGET_ACCOUNT_DAILY_CALLS: "1" }, undefined, now);
+    await client.query("update service_heartbeats set metadata=$1 where service_key='tempo-worker:private-instance'", [JSON.stringify({ ...metadata, aiBudget: budget })]);
+    await client.query("insert into service_heartbeats(service_key,last_seen_at,metadata) values('tempo-web:private-web-instance',$1,$2)", [now, JSON.stringify({ schemaVersion: 1, build, aiBudget: budget })]);
+    const observed = await readPilotOperationsReport({ query } as unknown as Pick<PoolClient, "query">, { hours: 24, webBuild: build, now });
+    expect(observed.aiBudget).toMatchObject({ enforcementVerified: false, headroomMicrodollars: null,
+      runtimeConfiguration: { observedEnforcedConfiguration: true, freshWebInstances: 1, freshWorkerInstances: 1, inventoryComplete: false } });
+    expect(JSON.stringify(observed)).not.toContain("private-web-instance");
     await client.query("alter table ai_budget_attempts drop column bound_violation");
     const outdated = await readPilotOperationsReport({ query } as unknown as Pick<PoolClient, "query">, { hours: 24, webBuild: build, now });
     expect(outdated.aiBudget).toMatchObject({ available: false, tables: { states: true, attempts: true, boundViolation: false }, global: null, commitmentsAllTime: null });

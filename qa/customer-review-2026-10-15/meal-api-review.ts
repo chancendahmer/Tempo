@@ -11,9 +11,10 @@ const prefix = `Meal review ${randomUUID().slice(0, 8)}`;
 const owned: string[] = [];
 const evidence: string[] = [];
 let cookie = "";
+let cacheKey = "";
 const endpoint = `${base}/api/account/workspace`;
-async function board() { const response = await fetch(endpoint, { headers: { cookie } }); assert.equal(response.status, 200); return response.json() as Promise<{ items: SavedLifeItem[] }>; }
-async function write(value: unknown) { const response = await fetch(endpoint, { method: "POST", headers: { cookie, origin: base, "Content-Type": "application/json" }, body: JSON.stringify(value) }); const body = await response.json(); assert.equal(response.status, 200, JSON.stringify(body)); }
+async function board() { const response = await fetch(endpoint, { headers: { cookie } }); assert.equal(response.status, 200); const body = await response.json() as { items: SavedLifeItem[]; cacheKey: string }; assert.ok(body.cacheKey); cacheKey = body.cacheKey; return body; }
+async function write(value: unknown) { if (!cacheKey) await board(); const response = await fetch(endpoint, { method: "POST", headers: { "x-tempo-account": cacheKey, cookie, origin: base, "Content-Type": "application/json" }, body: JSON.stringify(value) }); const body = await response.json(); assert.equal(response.status, 200, JSON.stringify(body)); }
 async function create(data: LifeItem, sourceRecipeId?: string) { const id = randomUUID(); owned.push(id); await write({ action: "save", id, version: 0, data, ...(sourceRecipeId ? { sourceRecipeId } : {}) }); return id; }
 async function item(id: string) { const value = (await board()).items.find(value => value.id === id); assert.ok(value, `Missing ${id}`); return value; }
 async function save(value: SavedLifeItem, data: LifeItem) { await write({ action: "save", id: value.id, version: value.version, data }); }

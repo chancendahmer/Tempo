@@ -1,4 +1,5 @@
 import type { PoolClient } from "pg";
+import { summarizeAiBudgetAttestations } from "./ai-budget-attestation";
 
 const STALE_COMMITMENT_SECONDS = 120;
 type GlobalState = { windowDay: string; settledMicrodollars: string; settledCalls: string; outstandingMicrodollars: string; outstandingCalls: string; halted: boolean; updatedAt: string };
@@ -8,7 +9,7 @@ type Violations = { boundViolations: number; actualOverReserved: number };
 type Version = { priceVersion: string; policyVersion: string; attempts: number };
 
 /** Caller owns the existing read-only snapshot. Never loads config, mutates or migrates. */
-export async function readAiBudgetReport(client: Pick<PoolClient, "query">, since: Date, now: Date) {
+export async function readAiBudgetReport(client: Pick<PoolClient, "query">, since: Date, now: Date, runtimeConfiguration = summarizeAiBudgetAttestations([], null, now)) {
   const availability = await client.query<{ states: boolean; attempts: boolean; boundViolation: boolean }>(`select
     to_regclass('public.ai_budget_states') is not null as states,
     to_regclass('public.ai_budget_attempts') is not null as attempts,
@@ -22,8 +23,11 @@ export async function readAiBudgetReport(client: Pick<PoolClient, "query">, sinc
   let violationsAllTime: Violations | null = null;
   let versions: Version[] = [];
   let versionsTruncated = false;
-  const problems = ["ai_budget_enforcement_unverified", "ai_budget_headroom_unknown"];
-  const nextActions = ["Verify budget mode, approved caps and pricing/policy versions for every AI-producing web/worker deployment; current worker attestations do not prove budget enforcement."];
+  const problems = ["ai_budget_enforcement_unverified", "ai_budget_headroom_unknown", ...runtimeConfiguration.problems];
+  const nextActions = ["Compare observed web/worker configuration with the complete deployment inventory and approved caps; heartbeats cannot prove unobserved instances stopped.",
+    ...(!runtimeConfiguration.observedEnforcedConfiguration ? ["Resolve missing, stale, mixed or expired web/worker budget snapshots; do not infer active enforcement from historical ledger usage."] : []),
+    ...(runtimeConfiguration.priceExpired ? ["Review verified provider pricing and deploy a renewed versioned snapshot before any enforced paid calls; never extend the expiry without review."] : []),
+  ];
   if (!available) {
     problems.push("ai_budget_schema_unavailable");
     nextActions.push("Review the accounting migration/schema with the deployment owner; this report does not migrate or enable metering.");
@@ -66,8 +70,9 @@ export async function readAiBudgetReport(client: Pick<PoolClient, "query">, sinc
   return {
     available, tables, units: "USD microdollars (1 USD = 1000000); money and call totals use integer strings",
     enforcementVerified: false as const,
-    enforcementExplanation: "Current attestations do not prove budget mode, policy or pricing across all AI-producing processes.",
-    headroomMicrodollars: null, headroomExplanation: "Approved monetary/call caps and deployment-wide policy configuration are not attested; headroom cannot be inferred from spend alone.",
+    runtimeConfiguration,
+    enforcementExplanation: "Fresh registered instance configuration is reported separately; complete deployment inventory and approved intended policy are not attested.",
+    headroomMicrodollars: null, headroomExplanation: "Approved monetary/call caps and complete deployment inventory are not attested; headroom cannot be inferred from observed configuration and spend alone.",
     global, commitmentsAllTime, staleCommitmentSeconds: STALE_COMMITMENT_SECONDS, settlementsInWindow,
     settlementWindowBasis: "Authoritative settlement updated_at; charges remain attributed to each attempt's original admission day.",
     violationsAllTime, versions, versionsTruncated, problems, nextActions,

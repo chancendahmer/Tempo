@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-22T00:40:54.275Z",
+  "generatedAt": "2026-10-22T23:19:14.877Z",
   "base": "http://localhost:3103",
   "database": "127.0.0.1:55437/tempo_ui_release",
   "checks": [
@@ -14,8 +14,8 @@
     "Concurrent Start persists one running task and one seven-minute focus; changed replay/second focus/foreign update rejected",
     "Independent PostgreSQL reads match HTTP state; isolation account unchanged; no scheduled provider work"
   ],
-  "accountId": "867b76ce-0cb4-4dbb-b640-7895bd11334d",
-  "isolationAccountId": "ab9285f2-8a34-424b-8e52-2290dbc48103",
+  "accountId": "6bc04a17-1fe0-4274-9037-633d3bdfe89a",
+  "isolationAccountId": "4480c570-5c80-4528-8492-4193cc87ba72",
   "preferences": {
     "pinned": "auto",
     "morningTime": "07:30",
@@ -23,8 +23,8 @@
     "eveningTime": "21:00",
     "workoutLeadMinutes": 30
   },
-  "taskId": "4bcb570a-f555-4284-95e8-843d230861f7",
-  "focusId": "6eb3c349-835b-4a60-8397-3a38ea023ae4",
+  "taskId": "48ffd47a-fb07-4e17-846e-320e495d088b",
+  "focusId": "64a3d631-7d4d-4e03-91dc-80a4c4baa95c",
   "runningTask": {
     "title": "Write a short project outline",
     "minutes": 7

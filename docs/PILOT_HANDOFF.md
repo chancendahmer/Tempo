@@ -2,9 +2,9 @@
 
 Updated October 22, 2026. This is a live engineering checkpoint, not release approval.
 
-Current tested code checkpoint: **`188d0f8`** (C1/W2), following **`fed7d5b`**
-(A2/R2) and **`4400de5`** (A1/W1/R1), on `codex/tempo-adaptive-home`. A later documentation-only checkpoint
-may update this brief. No production merge/deploy occurred. Verify the current
+Current tested continuation: the commit containing this brief, based on **`3892b74`**,
+on `codex/tempo-adaptive-home`. It follows `188d0f8` (C1/W2), `fed7d5b`
+(A2/R2) and `4400de5` (A1/W1/R1). No production merge/deploy occurred. Verify the current
 remote tip before continuing; the old PR26 is a different branch.
 
 ## Prompt for the next lead (Astra medium or Sol)
@@ -37,6 +37,46 @@ research. Resolve the highest-risk unfinished package, validate, then checkpoint
 Continue independent work when a live provider/access dependency is blocked.
 
 ## Current work and evidence
+
+### Latest integrated continuation — supersedes pending claims in older checkpoints
+
+- **Full `npm run check` passed:** lint, typecheck, 1,183 passing / 3 skipped
+  tests (158 passing / 2 skipped files), Next production and operations builds.
+  The isolated build directory was `.next-pilot-final`; generated path churn was
+  restored afterward. See `qa/pilot-2026-10-22/integrated-continuation.md`.
+- Delivered one-time reminders can create one linked follow-up without rewriting
+  sent history. Real two-client PostgreSQL races exposed two lock-order defects;
+  both were fixed and independently rechecked, including account deletion.
+- Three scripted novice weeks now run across 21 durable daily checkpoints.
+  They use fake providers, not a live model or actual week of customer use.
+- Workspace, setup, feedback and profile writes bind the initiating UI to its
+  authenticated account. Auth loss clears private drafts; same-account transient
+  failures preserve them. Profile/Board/Extensions gained recoverable loading.
+- A real browser found an unbound native-fetch feedback failure. Repaired code
+  passed local database outage → retained draft → retry → one saved receipt,
+  copy and keyboard focus checks. Unexpected errors on seven authenticated
+  routes no longer log raw database errors/parameters.
+- Root interacted with authenticated food, groceries/pantry, nutrition, routine,
+  goal, memory deletion and fitness flows. Ten independent database assertion
+  groups confirmed the resulting records. See `fresh-browser/README.md` and
+  `records.json`. Independent visual review of captures 01–09 scored **8.3/10**;
+  it is not independent browser interaction or whole-product certification.
+- C1 web/worker heartbeats now attest observed policy/model configuration. They
+  still cannot establish complete deployment inventory, approved caps or verified
+  enforcement; reported headroom stays unknown. Search continuation is fixed and
+  unit-tested, with live provider validation still outstanding.
+- A guarded local dump/restore rehearsal passed all 55 tables, 34 migrations,
+  encryption/debt/constraints/sequence checks and database cleanup. Independently
+  rerun with conflicting synthetic environment settings. Hosted backup, key
+  custody, point-in-time recovery and worker restart remain separate evidence.
+- Paid API spending this continuation: **$0**. Source-pinned historical review
+  confirms estimates of $5.554488 usage / $5.737773 commitments, but missing and
+  overwriteable artifacts prevent proving aggregate allowance. Do not spend the
+  conditional $4.262227 remainder without reconciliation.
+
+Next independent work: real HTTP/PG cross-account stale-owner cases; remaining
+mutation-route audit; browser recovery and onboarding gaps. Root owns checkpoint
+commits. No candidate PR exists as of this checkpoint; PR26 is still unrelated.
 
 ### Latest C1/W2 checkpoint — supersedes the older pending work below
 
@@ -142,18 +182,17 @@ findings with unresolved defects; read their implementation addenda.
    process uses the intended enforced policy and complete an authorized billing
    canary. Never enable with guessed caps or substitute the test budget for a
    pilot operating budget. Keep STOP independent.
-2. **W2 fresh first-week acceptance.** The reminder copy/projection is complete.
-   Execute the three fresh week-long scenarios in customer-release-matrix.md,
-   including food and returning the next day. Preserve explicit intent and
-   distinguish scripted adapters from observed live AI. Do not silently change
-   completion/reminder policy to make a scenario pass.
+2. **W2 remaining live-language acceptance.** The three scripted novice weeks and
+   delivered-reminder follow-up are complete. Read first-week-acceptance.md before
+   adding tests. Remaining live-model/combined-language and real delivery checks
+   must preserve explicit intent and distinguish fixture adapters from providers.
 3. **Q1 fresh customer + designer reviews.** Use current authenticated local build,
    new and populated synthetic accounts, phone/desktop/keyboard and relevant
    workflows. Observe UI + records, record screenshot authorship and limits.
-   Complete remaining physical-phone keyboard, failed-save/retry, clipboard-denied
-   fallback and screen-reader evidence for feedback. Current root checks already
-   cover successful save/copy, Tab wrapping, Escape/Done focus restoration and
-   thought completion. Broaden to food flow and return next day. Keep approved
+   Complete physical-phone, clipboard-denied fallback and screen-reader evidence.
+   Root checks cover successful save/copy, real failed-save/retry, Tab wrapping,
+   Escape focus restoration, food, routines, goals, fitness and memory deletion.
+   Continue account-switch and remaining settings/onboarding recovery. Keep approved
    Home structure; no open-ended redesign. Fix findings, recheck affected journeys.
 4. **L1 live integration and deployment.** Reconcile live-test budget and access,
    actual candidate SMS + Google + model/search + food/barcode provider paths,

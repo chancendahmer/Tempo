@@ -60,4 +60,16 @@ describe("account polling cancellation", () => {
     expect(window.setInterval).not.toHaveBeenCalled();
     expect(window.addEventListener).not.toHaveBeenCalled();
   });
+  it("invalidates cached ownership immediately on an explicit account event", async () => {
+    let finish!: (response: Response) => void;
+    vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>(resolve => { finish = resolve; })));
+    useAccountStatus(4000);
+    hooks.effects[0]();
+    const [, changed] = vi.mocked(window.addEventListener).mock.calls[0] as unknown as [string, () => void];
+    changed();
+    expect(hooks.setters[0].mock.calls[0]).toEqual([undefined]);
+    expect(hooks.setters[1].mock.calls[0]).toEqual([null]);
+    finish(Response.json({ account: { cacheKey: "new-owner", phoneVerified: true } }));
+    await Promise.resolve(); await Promise.resolve();
+  });
 });

@@ -354,7 +354,9 @@ export class AnthropicTaskIntentParser implements TaskIntentParser {
     ];
     const offeredTools: ToolUnion[] = [...tools];
     if (env.ASSISTANT_WEB_SEARCH_ENABLED && !explicitReminder && !conversationOnly) {
-      offeredTools.push({ type: "web_search_20250305", name: "web_search", max_uses: 2 });
+      // One use per physical request leaves room to resume a deferred search
+      // with the exact same tool definition under the two-use turn allowance.
+      offeredTools.push({ type: "web_search_20250305", name: "web_search", max_uses: 1 });
     }
     const request = {
       model: env.ANTHROPIC_MODEL!,
@@ -418,14 +420,24 @@ export class AnthropicTaskIntentParser implements TaskIntentParser {
     let timeRepairUsed = false;
     const verifiedReports: string[] = [];
     const withVerifiedReports = (reply: string): string => [reply, ...verifiedReports.filter(report => !reply.includes(report))].filter(Boolean).join("\n\n");
+    const searchLimitReply = "I couldn’t finish the live search within this message’s limit. Please narrow the question and try again.";
     let searchFallbackUsed = false;
+    let awaitingServerSearch = false;
     let searchesUsed = 0;
+    let reportedSearches = 0;
+    let unidentifiedSearches = 0;
+    const announcedSearches = new Set<string>();
+    const resolvedSearches = new Set<string>();
     const knownReminderTimes = new Map<string, string>();
     const knownEventIds = new Set<string>();
     const knownLifeVersions = new Map<string, number>();
     let nutritionTargetsRead = false;
     const knownMemories = new Map<string, string>();
     for (let step = 0; step < 6; step += 1) {
+    const searchTool = request.tools.find(offered => offered.name === "web_search");
+    if (searchTool && "max_uses" in searchTool && searchesUsed + (searchTool.max_uses ?? 2) > 2) {
+      return { kind: "conversation", reply: withVerifiedReports([actionResult, searchLimitReply].filter(Boolean).join("\n")) };
+    }
     let response;
     try {
       response = await invokePaidMessage(this.client, request, "assistant");
@@ -434,7 +446,7 @@ export class AnthropicTaskIntentParser implements TaskIntentParser {
       const failure = normalizeProviderFailure(error);
       logger.error({ status: failure.status, category: failure.category, operation: "assistant_response" }, "assistant provider request failed");
       if (actionResult || verifiedReports.length) return { kind: "conversation", reply: withVerifiedReports(actionResult ?? "") };
-      if (!searchFallbackUsed && failure.status === 400 && /web.?search/i.test(String((error as { message?: unknown } | null)?.message ?? ""))) {
+      if (!awaitingServerSearch && !searchFallbackUsed && failure.status === 400 && /web.?search/i.test(String((error as { message?: unknown } | null)?.message ?? ""))) {
         searchFallbackUsed = true;
         request.tools = tools;
         request.system += "\nWeb search failed or is unavailable for this provider account. Do not claim live verification. Answer from general knowledge when suitable and disclose the limitation.";
@@ -443,13 +455,29 @@ export class AnthropicTaskIntentParser implements TaskIntentParser {
       throw failure;
     }
     const blocks = response.content as ResponseBlock[];
-    searchesUsed += blocks.filter((block) => block.type === "server_tool_use"
-      && (block as { name?: string }).name === "web_search").length;
-    // The budget belongs to the whole inbound turn, including tool-result
-    // synthesis and pause_turn continuations, rather than each API call.
-    if (searchesUsed > 0) {
+    const searchCalls = blocks.filter(block => block.type === "server_tool_use"
+      && (block as { name?: string }).name === "web_search") as Array<{ type: string; id?: string }>;
+    for (const call of searchCalls) {
+      if (call.id) announcedSearches.add(call.id);
+      else unidentifiedSearches += 1;
+    }
+    const reported = response.usage?.server_tool_use?.web_search_requests;
+    if (reported != null) reportedSearches += Number.isSafeInteger(reported) && reported >= 0 ? reported : 2;
+    // Announced calls include pending work: do not guess that it is unbillable.
+    // Authoritative usage can also expose work not represented by visible IDs.
+    searchesUsed = Math.max(announcedSearches.size + unidentifiedSearches, reportedSearches);
+    for (const block of blocks) {
+      const id = (block as { tool_use_id?: string }).tool_use_id;
+      if (block.type === "web_search_tool_result" && id) resolvedSearches.add(id);
+    }
+    const pendingSearch = [...announcedSearches].some(id => !resolvedSearches.has(id)) || unidentifiedSearches > 0;
+    awaitingServerSearch = response.stop_reason === "pause_turn" || pendingSearch;
+    // Paused/mixed turns must keep their exact tool definitions until resumed.
+    // If that unchanged allowance cannot fit, the next loop stops truthfully
+    // before another reserved network attempt instead of dropping a waiting tool.
+    if (response.stop_reason !== "pause_turn" && !pendingSearch && searchesUsed > 0) {
       request.tools = request.tools.flatMap((offered) => offered.name !== "web_search" ? [offered]
-        : searchesUsed >= 2 ? [] : [{ type: "web_search_20250305" as const, name: "web_search" as const, max_uses: 2 - searchesUsed }]);
+        : searchesUsed >= 2 ? [] : [{ type: "web_search_20250305" as const, name: "web_search" as const, max_uses: 1 }]);
     }
     const tool = blocks.find((block): block is Extract<ResponseBlock, { type: "tool_use" }> => block.type === "tool_use");
     if (tool) {
@@ -576,7 +604,7 @@ export class AnthropicTaskIntentParser implements TaskIntentParser {
     if (parsed.kind === "conversation") return { kind: "conversation", reply: withVerifiedReports(actionResult ? `${actionResult}\n${parsed.reply}` : parsed.reply) };
     return parsed;
     }
-    return { kind: "conversation", reply: withVerifiedReports(actionResult ?? "That took too many steps to finish in one text. Could you narrow it to the first thing you need?") };
+    return { kind: "conversation", reply: withVerifiedReports(awaitingServerSearch ? [actionResult, searchLimitReply].filter(Boolean).join("\n") : actionResult ?? "That took too many steps to finish in one text. Could you narrow it to the first thing you need?") };
   }
 }
 

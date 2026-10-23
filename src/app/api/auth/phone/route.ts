@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireEnv } from "../../../../server/config/env";
 import { InvalidActionTokenError, verifyActionToken } from "../../../../server/security/action-token";
 import { WEB_SESSION_COOKIE, WEB_SESSION_TTL_SECONDS, WebSessionService } from "../../../../server/security/web-session";
+import { logger } from "../../../../server/observability/logger";
 
 export const dynamic = "force-dynamic";
 const headers = { "cache-control": "no-store", "referrer-policy": "no-referrer", "x-frame-options": "DENY" };
@@ -9,12 +10,15 @@ const headers = { "cache-control": "no-store", "referrer-policy": "no-referrer",
 function failure() {
   return new NextResponse('This sign-in link has expired or was already used. Return to Tempo and request another link.', { status: 400, headers });
 }
+function unavailable() {
+  return new NextResponse("Sign-in is temporarily unavailable. Return to Tempo and try again shortly.", { status: 503, headers });
+}
 
 // GET is intentionally read-only: messaging apps may preview links automatically.
 export async function GET(request: NextRequest) {
-  const env = requireEnv(["FIELD_ENCRYPTION_KEY"]);
-  const token = request.nextUrl.searchParams.get("token") ?? "";
   try {
+    const env = requireEnv(["FIELD_ENCRYPTION_KEY"]);
+    const token = request.nextUrl.searchParams.get("token") ?? "";
     const action = verifyActionToken(token, "account:signin", env.FIELD_ENCRYPTION_KEY!);
     if (!action.sessionId) return failure();
     // Verified tokens contain only base64url characters and a dot.
@@ -23,15 +27,16 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     if (error instanceof InvalidActionTokenError) return failure();
-    throw error;
+    logger.error({ operation: "preview_phone_signin" }, "phone sign-in unavailable");
+    return unavailable();
   }
 }
 
 export async function POST(request: NextRequest) {
-  const env = requireEnv(["FIELD_ENCRYPTION_KEY", "DATABASE_URL", "APP_BASE_URL"]);
-  const origin = request.headers.get("origin");
-  if (origin && origin !== new URL(env.APP_BASE_URL).origin) return failure();
   try {
+    const env = requireEnv(["FIELD_ENCRYPTION_KEY", "DATABASE_URL", "APP_BASE_URL"]);
+    const origin = request.headers.get("origin");
+    if (origin && origin !== new URL(env.APP_BASE_URL).origin) return failure();
     const form = await request.formData();
     const session = await new WebSessionService().redeemSignIn(String(form.get("token") ?? ""), env.FIELD_ENCRYPTION_KEY!);
     const response = NextResponse.redirect(new URL("/workspace", env.APP_BASE_URL), 303);
@@ -43,6 +48,7 @@ export async function POST(request: NextRequest) {
     return response;
   } catch (error) {
     if (error instanceof InvalidActionTokenError) return failure();
-    throw error;
+    logger.error({ operation: "redeem_phone_signin" }, "phone sign-in unavailable");
+    return unavailable();
   }
 }

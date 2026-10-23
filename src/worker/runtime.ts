@@ -22,6 +22,7 @@ import { OperationalRepository } from "../server/db/repositories/operational-rep
 import { queueHealthProblems } from "../server/domain/queue-health";
 import { createWorkerAttestation, WORKER_INSTANCE_PREFIX } from "../server/observability/worker-attestation";
 import { createHeartbeatLifecycle } from "./heartbeat-lifecycle";
+import { createAiBudgetAttestation } from "../server/observability/ai-budget-attestation";
 
 export async function runWorker() {
   const messagingProvider = getServerEnv().MESSAGING_PROVIDER;
@@ -180,7 +181,7 @@ export async function runWorker() {
     const queueHealth = { ...messages, blockedAccounts: blocked.length };
     const problems = queueHealthProblems(queueHealth);
     if (problems.length) logger.error({ queueHealth, problems }, "inbound queue requires recovery");
-    const attestation = createWorkerAttestation(env, queueHealth);
+    const attestation = { ...createWorkerAttestation(env, queueHealth), aiBudget: createAiBudgetAttestation(env, process.env.ANTHROPIC_BASE_URL) };
     await operations.heartbeat(heartbeatKey, attestation);
     // Preserve the existing demo-report contract; readiness uses instance rows.
     await operations.heartbeat("tempo-worker", { ...attestation, workerId: env.WORKER_ID, pid: process.pid });

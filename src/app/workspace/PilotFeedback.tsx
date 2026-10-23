@@ -2,16 +2,19 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { feedbackSections, type PilotFeedbackInput, type PilotFeedbackReceipt } from "../../server/domain/pilot-feedback";
+import { ACCOUNT_EVENT } from "../components/account-state";
 import { loopDialogTab } from "./dialog-keyboard";
+import { FeedbackSubmission, FeedbackSubmissionError, FEEDBACK_RECOVERY_MESSAGE } from "./feedback-submission";
 import s from "./pilot-settings.module.css";
 
 const sectionLabels: Record<typeof feedbackSections[number], string> = { today: "Home", tasks: "To-do", calendar: "Calendar", goals: "Goals", reminders: "Reminders", routines: "Routines", wake: "Sunrise & sunset", meals: "Meal plan", recipes: "Recipes", groceries: "Groceries", nutrition: "Nutrition", movement: "Fitness", inbox: "Thoughts", memories: "Memories", assistant: "Ask Tempo", settings: "Settings", other: "Something else" };
 
-export function PilotFeedback({ initialType, initialSection, preview = false, onClose }: { initialType: "problem" | "improvement"; initialSection: typeof feedbackSections[number]; preview?: boolean; onClose: () => void }) {
+export function PilotFeedback({ initialType, initialSection, preview = false, owner, unavailable = false, onClose }: { initialType: "problem" | "improvement"; initialSection: typeof feedbackSections[number]; preview?: boolean; owner?: string; unavailable?: boolean; onClose: () => void }) {
+  const mounted = useRef(true);
   const dialog = useRef<HTMLDialogElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const reference = useRef<HTMLInputElement>(null);
-  const attempt = useRef<{ content: string; requestId: string } | null>(null);
+  const submission = useRef<FeedbackSubmission | null>(null);
   const [type, setType] = useState(initialType);
   const [section, setSection] = useState(initialSection);
   const [impact, setImpact] = useState<PilotFeedbackInput["impact"]>(initialType === "improvement" ? "idea" : "slowed");
@@ -22,10 +25,11 @@ export function PilotFeedback({ initialType, initialSection, preview = false, on
   const [receipt, setReceipt] = useState<PilotFeedbackReceipt | null>(null);
   const [copyStatus, setCopyStatus] = useState("");
   useEffect(() => {
+    mounted.current = true;
     const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const modal = dialog.current;
     modal?.showModal(); heading.current?.focus();
-    return () => { modal?.close(); if (opener?.isConnected) opener.focus({ preventScroll: true }); };
+    return () => { mounted.current = false; modal?.close(); if (opener?.isConnected) opener.focus({ preventScroll: true }); };
   }, []);
   useEffect(() => { if (receipt) heading.current?.focus({ preventScroll: true }); }, [receipt]);
   async function copyReference() {
@@ -41,17 +45,13 @@ export function PilotFeedback({ initialType, initialSection, preview = false, on
   }
   async function submit(event: FormEvent) {
     event.preventDefault();
-    if (saving || preview) return;
-    const content = JSON.stringify({ type, section, impact, detail: detail.trim(), followUpConsent });
-    if (!attempt.current || attempt.current.content !== content) attempt.current = { content, requestId: crypto.randomUUID() };
+    if (saving || preview || unavailable) return;
     setSaving(true); setError("");
     try {
-      const response = await fetch("/api/account/feedback", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...JSON.parse(content), requestId: attempt.current.requestId }) });
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error ?? "Your report could not be confirmed. Retry with the same details.");
-      if (!payload.receipt?.id || !payload.receipt.createdAt) throw new Error("Your receipt could not be confirmed. Retry with the same details.");
-      setReceipt(payload.receipt);
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "Your report could not be confirmed. Retry with the same details."); }
+      submission.current ??= new FeedbackSubmission();
+      const saved = await submission.current.submit({ type, section, impact, detail, followUpConsent }, owner ?? "");
+      if (mounted.current) setReceipt(saved);
+    } catch (cause) { if (!mounted.current) return; if (cause instanceof FeedbackSubmissionError && cause.accountChanged) window.dispatchEvent(new Event(ACCOUNT_EVENT)); setError(cause instanceof FeedbackSubmissionError ? cause.message : FEEDBACK_RECOVERY_MESSAGE); }
     finally { setSaving(false); }
   }
   return <dialog ref={dialog} className={s.dialog} aria-busy={saving} aria-labelledby="pilot-feedback-title" aria-describedby="pilot-feedback-description" onKeyDown={loopDialogTab} onCancel={event => { event.preventDefault(); if (!saving) onClose(); }}>
@@ -67,7 +67,7 @@ export function PilotFeedback({ initialType, initialSection, preview = false, on
         <label className={s.checkbox}><input type="checkbox" checked={followUpConsent} onChange={event => setFollowUpConsent(event.target.checked)} /><span>Tempo’s pilot team may contact me about this report. Optional.</span></label>
       </fieldset>
       {error && <p className={s.error} role="alert">{error}</p>}
-      <div className={s.actions}><button type="button" disabled={saving} onClick={onClose}>Cancel</button><button className={s.submit} type="submit" disabled={saving || preview}>{saving ? "Saving…" : "Send report"}</button></div>
+      <div className={s.actions}><button type="button" disabled={saving} onClick={onClose}>Cancel</button><button className={s.submit} type="submit" disabled={saving || preview || unavailable}>{saving ? "Saving…" : "Send report"}</button></div>
     </form>}
   </dialog>;
 }

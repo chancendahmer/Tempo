@@ -1,4 +1,5 @@
 "use client";
+import { ACCOUNT_EVENT, useAccountStatus } from "../components/account-state";
 import { loopDialogTab } from "./dialog-keyboard";
 
 import Link from "next/link";
@@ -42,7 +43,16 @@ type Editor = { title: string; subtitle: string; fields: Field[]; submitLabel?: 
 type FocusData = Extract<LifeItem, { kind: "focus" }>;
 
 export function WorkspaceClient({ preview = false }: { preview?: boolean }) {
+  const { account, error, refresh } = useAccountStatus(6000, !preview);
+  if (preview) return <WorkspaceView key="preview" preview />;
+  if (!account?.phoneVerified || !account.cacheKey) return <main className={s.gate}><h1>Your Tempo workspace</h1><p>{error ?? (account === undefined ? "Opening your account…" : "Log in to open your workspace.")}</p>{error ? <button onClick={() => void refresh()}>Try again</button> : <Link href="/login">Log in</Link>}</main>;
+  // Every draft, editor, undo and retry identity belongs to this immutable owner.
+  return <WorkspaceView key={account.cacheKey} owner={account.cacheKey} unavailable={Boolean(error)} retryAccount={refresh} />;
+}
+
+function WorkspaceView({ preview = false, owner, unavailable = false, retryAccount }: { preview?: boolean; owner?: string; unavailable?: boolean; retryAccount?: () => Promise<void> }) {
   const router = useRouter();
+  const accountChanged = () => window.dispatchEvent(new Event(ACCOUNT_EVENT));
   const [data, setData] = useState<Workspace | null>(null);
   const [section, setSection] = useState<Section>("today");
   const [tour, setTour] = useState(false);
@@ -69,6 +79,8 @@ export function WorkspaceClient({ preview = false }: { preview?: boolean }) {
   const [focusHidden, setFocusHidden] = useState(false);
   const [hidden, setHidden] = useState(false);
   const busyRef = useRef(false);
+  const mounted = useRef(true);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   const mutationAttempts = useRef(new WorkspaceMutationAttempts());
   const requestSequence = useRef(0);
   const previewInitialized = useRef(false);
@@ -112,14 +124,17 @@ export function WorkspaceClient({ preview = false }: { preview?: boolean }) {
     const sequence = ++requestSequence.current;
     try {
       const response = await fetch(`/api/account/workspace${selectedDate ? `?date=${encodeURIComponent(selectedDate)}` : ""}`, { cache: "no-store" });
+      if (sequence !== requestSequence.current) return;
+      if (response.status === 401) { setData(null); accountChanged(); return; }
       const body = await response.json();
       if (sequence !== requestSequence.current) return;
-      if (!response.ok) { if (response.status === 401) setData(null); setError(body.error ?? "Could not open your workspace."); return; }
+      if (!response.ok) { setError(body.error ?? "Could not open your workspace."); return; }
+      if (body.cacheKey !== owner) { setData(null); accountChanged(); return; }
       const pending = (body as Workspace).messages.filter(message => message.direction === "inbound" && ["received", "processing"].includes(message.status));
       fastPollUntil.current = pending.reduce((latest, message) => Math.max(latest, new Date(message.createdAt).getTime() + 120_000), 0);
       setData(body); setError("");
     } catch { if (sequence === requestSequence.current) { setError("Unable to refresh. Showing the last loaded view; reconnect to see current changes."); } }
-  }, [preview, selectedDate]);
+  }, [preview, selectedDate, owner]);
 
   useEffect(() => {
     const sequenceRef = requestSequence;
@@ -201,11 +216,16 @@ export function WorkspaceClient({ preview = false }: { preview?: boolean }) {
       setNotice(action.action === "skip" ? "Setup skipped. You can personalize Tempo in Settings." : "Choices updated in preview. They reset on reload.");
       return;
     }
+    if (unavailable || error || !owner) throw new Error("Reconnect to your account before saving.");
     if (busyRef.current) throw new Error("Please wait for your current change to finish.");
     busyRef.current = true; setSaving(true); requestSequence.current++;
     try {
-      const response = await fetch("/api/account/setup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(action) });
+      const response = await fetch("/api/account/setup", { method: "POST", headers: { "Content-Type": "application/json", "x-tempo-account": owner! }, body: JSON.stringify(action) });
+      if (!mounted.current) return;
+      if (response.status === 401) { setData(null); accountChanged(); throw new Error("Sign in again before saving your choices."); }
       const body = await response.json();
+      if (!mounted.current) return;
+      if (body.code === "account_changed" || (response.ok && body.cacheKey !== owner)) { accountChanged(); throw new Error("Your account changed. Reopen this form before saving."); }
       if (!response.ok) throw new Error(body.error ?? "Your choices could not be saved. Please try again.");
       setData(current => current ? { ...current, timezone: body.setup.timezone ?? current.timezone, setup: body.setup, profile: { ...current.profile, displayName: body.setup.displayName } } : current);
       setNotice(action.action === "skip" ? "You can personalize Tempo anytime in Settings." : action.action === "timezone" ? `Your time zone is saved: ${body.setup.timezone}.` : "Your choices are saved. Make yourself at home.");
@@ -229,6 +249,7 @@ export function WorkspaceClient({ preview = false }: { preview?: boolean }) {
   }
 
   async function act(action: WorkspaceAction): Promise<boolean> {
+    if (!preview && (unavailable || error || !owner)) { setNotice("Reconnect to your account before saving."); return false; }
     if (busyRef.current) return false;
     busyRef.current = true; setSaving(true); setUndo(null); requestSequence.current++;
     try {
@@ -321,10 +342,14 @@ export function WorkspaceClient({ preview = false }: { preview?: boolean }) {
         setNotice("Updated in preview. Sample changes reset on reload."); return true;
       }
       const attempt = mutationAttempts.current.begin(action);
-      const response = await fetch("/api/account/workspace", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(attempt.action) });
+      const response = await fetch("/api/account/workspace", { method: "POST", headers: { "Content-Type": "application/json", "x-tempo-account": owner! }, body: JSON.stringify(attempt.action) });
+      if (!mounted.current) return false;
+      if (response.status === 401) { setData(null); accountChanged(); return false; }
       const body = await response.json();
+      if (!mounted.current) return false;
+      if (body.code === "account_changed" || (response.ok && body.cacheKey !== owner)) { accountChanged(); return false; }
       mutationAttempts.current.settle(attempt, response.status);
-      if (!response.ok) { if (response.status === 401) setData(null); if (response.status === 409) await refresh(); throw new Error(body.error ?? "Could not save. Please try again."); }
+      if (!response.ok) { if (response.status === 409) await refresh(); throw new Error(body.error ?? "Could not save. Please try again."); }
       await refresh(); setNotice(body.message ?? "Saved."); return true;
     } catch (e) { setNotice(e instanceof Error ? e.message : "Could not save. Your changes have not been confirmed."); return false; }
     finally { busyRef.current = false; setSaving(false); }
@@ -485,7 +510,7 @@ export function WorkspaceClient({ preview = false }: { preview?: boolean }) {
     <div className={c.main} inert={navigationOpen || undefined}>
       {section === "today" ? <HomeHeader data={hidden ? null : data} preview={preview} saving={saving} menuRef={menuButton} openNavigation={() => openNavigation()} go={go} editTask={taskEditor} editGoal={goalEditor} openItem={item => { if (item.data.kind === "meal") { setSelectedDate(item.data.date); go("meals"); } else if (item.data.kind === "recipe") go("recipes"); else itemEditor(item.data.kind, item); }} ask={ask} signOut={() => void switchAccount()} hide={() => { setHidden(!hidden); window.speechSynthesis?.cancel(); }} /> : <header className={c.topbar}><div className={c.topbarStart}><button ref={menuButton} className={`${s.iconButton} ${c.menuButton}`} aria-label="Open navigation" aria-expanded={navigationOpen} aria-controls="workspace-navigation" onClick={() => openNavigation()}><FiMenu /><span>Menu</span></button><button type="button" className={c.topbarBrand} aria-label="Tempo home" onClick={() => go("today")}>Tempo</button><div className={c.breadcrumb}><span>{group ?? "Your workspace"}</span><FiChevronRight aria-hidden="true" /><strong>{sections.find(([key]) => key === section)?.[1]}</strong></div></div><div className={c.topbarActions}><button className={c.captureButton} aria-label="Capture a thought" onClick={() => itemEditor("note")} disabled={!data}><FiPlus /><span>Capture<span className={c.captureDetail}> a thought</span></span></button><button className={s.iconButton} title="Hide private content" aria-label="Hide private content" onClick={() => { setHidden(!hidden); window.speechSynthesis?.cancel(); }}><FiMoon /></button></div></header>}
       {preview && <div className={s.previewBanner}><span>Alex’s demo · fictional data · resets on reload · no messages sent</span>{section === "today" && <label className={c.previewClock}>Sample time <select aria-label="Preview Home time" value={previewTime} onChange={event => setPreviewTime(event.target.value)}><option value="live">Live clock</option><option value="08:10">8:10 AM</option><option value="13:00">1:00 PM</option><option value="15:05">3:05 PM · walk</option><option value="18:00">6:00 PM</option><option value="21:30">9:30 PM</option></select></label>}<Link href="/workspace">Open my account <FiArrowRight /></Link></div>}
-      {error && data && <div className={s.foodNotice} role="alert">{error} <button className={s.textButton} onClick={() => void refresh()}>Try again</button></div>}
+      {(error || unavailable) && data && <div className={s.foodNotice} role="alert">{error || "We couldn’t verify your account. Showing your last loaded view; reconnect before saving."} <button className={s.textButton} onClick={() => { void retryAccount?.(); void refresh(); }}>Try again</button></div>}
       {notice && <div className={s.toast} role="status"><WorkspaceAvatar size={28} /><span>{notice}</span>{undo && <button className={s.textButton} disabled={saving} onClick={() => void act(undo)}>Undo</button>}<button className={s.iconButton} aria-label="Dismiss message" onClick={() => setNotice("")}><FiX /></button></div>}
       {hidden ? <div className={s.gate}><FiMoon /><h1>A little privacy.</h1><button className={s.primary} onClick={() => setHidden(false)}>Show my workspace</button></div> : !data ? <div className={s.gate}><span className={s.gateIcon}><FiSun /></span><p className={s.eyebrow}>YOUR LIFE, A LITTLE LIGHTER</p><h1>Everything you need.<br />Room to breathe.</h1><p>{error || "Getting your space ready…"}</p><div className={s.row}><Link className={s.primary} href="/login">Log in to Tempo <FiArrowRight /></Link><Link className={s.secondary} href="/workspace/preview">Explore the workspace</Link></div>{error && <button className={s.textButton} onClick={() => void refresh()}>Try again</button>}</div> : <main className={c.content} id="workspace-content" aria-label={sections.find(([key]) => key === section)?.[1]} tabIndex={-1}>
         <WorkspaceSectionNav current={section} go={go} />
@@ -530,7 +555,7 @@ export function WorkspaceClient({ preview = false }: { preview?: boolean }) {
     </div>
     <dialog onKeyDown={loopDialogTab} ref={focusDialog} className={s.focusDialog} onCancel={() => setFocusHidden(true)} aria-label="Current focus session">{focus && data && <div className={s.focusOverlay}><div className={s.focusTop}><span className={s.brand}><WorkspaceAvatar size={39} />Tempo</span><button className={s.secondary} onClick={() => setFocusHidden(true)}><FiArrowLeft /> Back to my day</button></div><div className={s.focusCenter}><p className={s.eyebrow}>{remaining ? "JUST THIS. JUST NOW." : "A MOMENT TO CHECK IN"}</p><h1>{focus.title}</h1><p>{remaining ? "The rest can wait. You’re in the right place." : "Time is up. Finished, or would a little more time help?"}</p><div className={s.timerRing}><span role="timer" aria-label={`${Math.floor(remaining / 60)} minutes ${remaining % 60} seconds remaining`}>{Math.floor(remaining / 60)}<i>:</i>{String(remaining % 60).padStart(2, "0")}</span><small>{focus.endsAt ? "one small step at a time" : "paused · take the time you need"}</small></div><div className={s.focusActions}><button className={s.secondary} disabled={saving} onClick={() => void saveItem({ ...focus, remaining, endsAt: focus.endsAt ? null : new Date(Date.now() + remaining * 1000).toISOString() }, focusItem)}>{focus.endsAt ? <FiPause /> : <FiPlay />}{focus.endsAt ? "Pause" : "Resume"}</button><button className={s.darkButton} disabled={saving} onClick={() => void finishFocus()}><FiCheck /> I’m done</button><button className={s.secondary} disabled={saving} onClick={() => void saveItem({ ...focus, remaining: remaining + 300, endsAt: new Date(Date.now() + (remaining + 300) * 1000).toISOString() }, focusItem)}>+ 5 minutes</button></div><button className={s.textButton} disabled={saving} onClick={() => void stopFocus()}>Stop for now</button><button className={s.textButton} onClick={() => { setFocusHidden(true); ask(`I’m working on "${focus.title}" and feeling stuck. Help me make the next step smaller.`); }}>Feeling stuck? Let’s make it smaller <FiArrowRight /></button></div><p className={s.focusFoot}>Your effort counts. Even when the plan changes.</p></div>}</dialog>
     {tour && <WorkspaceTour onClose={() => setTour(false)} onGo={value => { go(value); setTour(false); }} />}
-    {feedbackType && data && <PilotFeedback initialType={feedbackType} initialSection={section} preview={preview} onClose={() => setFeedbackType(null)} />}
+    {feedbackType && data && <PilotFeedback owner={owner} unavailable={unavailable || Boolean(error)} initialType={feedbackType} initialSection={section} preview={preview} onClose={() => setFeedbackType(null)} />}
     {setupOpen && data && <GentleSetup progressOnly={progressSetup} preview={preview} initial={{ ...(data.setup ?? { displayName: data.profile.displayName, coachingTone: "balanced", showStreak: true, setupStatus: "new" }), timezone: data.timezone }} onSave={saveSetup} onClose={() => { setSetupOpen(false); setProgressSetup(false); }} />}
     {routineEditor && <RoutineEditor key={`${routineEditor.item?.id ?? "new-routine"}-${routineEditor.item?.version ?? 0}`} item={routineEditor.item} latestItem={items.find(item => item.id === routineEditor.item?.id)} saveError={notice} onReload={item => { setNotice(""); setRoutineEditor({ item }); }} timezone={data?.timezone ?? "UTC"} saving={saving} onSave={saveItem} onClose={() => setRoutineEditor(null)} />}
     <dialog onKeyDown={loopDialogTab} ref={dialog} className={s.dialog} aria-label={editor?.title ?? "Edit item"} onCancel={() => setEditor(null)} onClick={event => { if (event.target === event.currentTarget) setEditor(null); }}>{editor && <form onSubmit={async (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); const values = Object.fromEntries(new FormData(event.currentTarget).entries()) as Record<string, string>; try { if (await editor.submit(values)) setEditor(null); } catch { setNotice("Check the values and try again. Nothing was saved."); } }}><div className={s.between}><p className={s.eyebrow}>MAKE A LITTLE SPACE</p><button type="button" className={s.iconButton} aria-label="Close editor" onClick={() => setEditor(null)}><FiX /></button></div><h2>{editor.title}</h2><p>{editor.subtitle}</p><div className={s.formFields}>{editor.fields.map(field => <label key={field.name}><span>{field.label}</span>{field.options ? <select name={field.name} defaultValue={field.value}>{field.options.map(option => <option key={option}>{option}</option>)}</select> : field.type === "textarea" ? <textarea name={field.name} defaultValue={field.value} required={field.required} rows={5} minLength={field.minLength} maxLength={field.maxLength ?? 10000} /> : <input name={field.name} type={field.type ?? "text"} defaultValue={field.value} required={field.required} min={field.min} max={field.max} step={field.type === "number" ? "any" : undefined} minLength={field.minLength} maxLength={field.maxLength ?? 240} />}</label>)}</div>{notice && <p role="status">{notice}</p>}<div className={s.dialogActions}><button type="button" className={s.secondary} onClick={() => setEditor(null)}>Cancel</button><button type="submit" className={s.primary} disabled={saving}>{saving ? "Saving…" : editor.submitLabel ?? (editor.fields.length ? "Save" : "Remove")}<FiCheck /></button></div></form>}</dialog>

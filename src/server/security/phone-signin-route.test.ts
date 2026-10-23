@@ -5,6 +5,7 @@ import { issueActionToken, InvalidActionTokenError } from "./action-token";
 
 const mocks = vi.hoisted(() => ({ redeem: vi.fn(), env: { FIELD_ENCRYPTION_KEY: "", DATABASE_URL: "test", APP_BASE_URL: "https://tempo.test", NODE_ENV: "production" } }));
 vi.mock("../config/env", () => ({ requireEnv: () => mocks.env }));
+vi.mock("../observability/logger", () => ({ logger: { error: vi.fn() } }));
 vi.mock("./web-session", () => ({
   WEB_SESSION_COOKIE: "tempo_session", WEB_SESSION_TTL_SECONDS: 2592000,
   WebSessionService: class { redeemSignIn = mocks.redeem; },

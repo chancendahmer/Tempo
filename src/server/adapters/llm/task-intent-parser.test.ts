@@ -735,7 +735,7 @@ describe("current-message routing", () => {
     expect(execute).not.toHaveBeenCalled();
   });
 
-  it("caps hosted searches across model continuations and preserves citations", async () => {
+  it("stops incomplete hosted search before omitting an exhausted pending tool", async () => {
     settings.webSearch = true;
     const budgets: Array<number | undefined> = [];
     create.mockImplementation(async (request: { tools: Array<{ name: string; max_uses?: number }> }) => {
@@ -744,8 +744,8 @@ describe("current-message routing", () => {
       return { content: [{ type: "text", text: "Here is the current information.", citations: [{ type: "web_search_result_location", url: "https://example.test/source" }] }] };
     });
     const result = await new AnthropicTaskIntentParser().parse({ ...input, message: "Search for current information" });
-    expect(budgets).toEqual([2, 1, undefined]);
-    expect(result).toMatchObject({ kind: "conversation", reply: expect.stringContaining("https://example.test/source") });
+    expect(budgets).toEqual([1, 1]);
+    expect(result).toMatchObject({ kind: "conversation", reply: expect.stringContaining("couldn’t finish the live search") });
   });
 
   it("feeds a completed memory action back to the model for the rest of the request", async () => {

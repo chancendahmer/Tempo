@@ -2,6 +2,7 @@ import type { PoolClient } from "pg";
 import { JOB_NAMES } from "../jobs/names";
 import { summarizeWorkerAttestations, type WorkerHeartbeat } from "./worker-attestation";
 import { readAiBudgetReport } from "./ai-budget-report";
+import { MAX_AI_ATTESTATION_ROWS, summarizeAiBudgetAttestations } from "./ai-budget-attestation";
 
 const jobNames = [...Object.values(JOB_NAMES), "tempo.task-presentation"];
 const actionKinds = ["send_signin", "send_welcome", "send_compliance", "process_inbound_message", "deliver_reminder", "sync_calendar", "evaluate_context", "deliver_intervention", "accountability_followup", "feedback_followup", "feedback_timeout"];
@@ -54,7 +55,11 @@ export async function readPilotOperationsReport(client: Pick<PoolClient, "query"
         from pgboss.job where state in ('created','retry','active','failed') group by 1,2 order by 1,2 limit 56`, [jobNames, now]);
       jobs = result.rows;
     }
-    const aiBudget = await readAiBudgetReport(client, since, now);
+    const aiInstances = await client.query<WorkerHeartbeat>(`select service_key as "serviceKey",last_seen_at as "lastSeenAt",metadata
+      from service_heartbeats where service_key='tempo-worker' or service_key like 'tempo-worker:%' or service_key like 'tempo-web:%'
+      order by last_seen_at desc limit $1`, [MAX_AI_ATTESTATION_ROWS]);
+    const aiConfiguration = summarizeAiBudgetAttestations(aiInstances.rows, options.webBuild, now);
+    const aiBudget = await readAiBudgetReport(client, since, now, aiConfiguration);
     const problems = [...worker.problems, ...worker.queueProblems, ...aiBudget.problems,
       ...(!queueExists.rows[0]?.present ? ["queue_table_unavailable"] : []),
       ...(held.rows[0].uncertainOutbound > 0 ? ["outbound_reconciliation_required"] : []),

@@ -21,7 +21,7 @@ const pool = new Pool({ connectionString: databaseUrl, max: 2 });
 const database = scopedDatabase(drizzle(pool, { schema }));
 const testKey = Buffer.alloc(32, 7).toString("base64");
 const directory = resolve("qa/adaptive-followthrough");
-type Actor = { id: string; cookie: string };
+type Actor = { id: string; cookie: string; cacheKey?: string };
 const checks: string[] = [];
 function pass(label: string) { checks.push(label); console.log(`PASS ${label}`); }
 
@@ -57,11 +57,14 @@ async function read(who: Actor): Promise<Workspace> {
   const response = await fetch(`${base}/api/account/workspace`, { headers: { Cookie: who.cookie }, redirect: "manual" });
   assert.equal(response.status, 200);
   assert.equal(response.headers.get("cache-control"), "private, no-store");
-  return response.json() as Promise<Workspace>;
+  const body = await response.json() as Workspace;
+  assert.ok(body.cacheKey); who.cacheKey = body.cacheKey;
+  return body;
 }
 async function submit(who: Actor, input: WorkspaceAction, origin = base) {
+  if (!who.cacheKey) await read(who);
   const response = await fetch(`${base}/api/account/workspace`, {
-    method: "POST", redirect: "manual", headers: { Cookie: who.cookie, Origin: origin, "Content-Type": "application/json" }, body: JSON.stringify(input),
+    method: "POST", redirect: "manual", headers: { "x-tempo-account": who.cacheKey!, Cookie: who.cookie, Origin: origin, "Content-Type": "application/json" }, body: JSON.stringify(input),
   });
   return { status: response.status, body: await response.json() as { message?: string; error?: string } };
 }

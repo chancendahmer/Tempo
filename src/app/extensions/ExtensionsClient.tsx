@@ -1,37 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
 import { FiArrowRight, FiCalendar, FiCheck, FiCheckSquare, FiHeart, FiLock } from "react-icons/fi";
-import { useAccountStatus } from "../components/account-state";
+import { useAccountStatus, type PublicAccount } from "../components/account-state";
+import { useAccountResource } from "../components/account-resource";
 import { calendarConnectionCopy } from "./calendar-status";
 
 type ExtensionData = {
+  cacheKey: string;
   calendar: { status: "active" | "requires_reauth" | "disconnected"; connectUrl: string; disconnectUrl: string | null };
 };
 
 export function ExtensionsClient() {
   const { account, error: accountError, refresh } = useAccountStatus(6_000);
-  const [data, setData] = useState<ExtensionData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState("");
-  const [reload, setReload] = useState(0);
-
-  useEffect(() => {
-    if (!account?.phoneVerified) return;
-    let current = true;
-    void fetch("/api/account/extensions", { cache: "no-store" })
-      .then(async (response) => {
-        if (!response.ok) throw new Error("Could not check your Google Calendar connection.");
-        return await response.json() as ExtensionData;
-      })
-      .then(value => { if (current) { setData(value); setLoadError(""); } })
-      .catch(() => { if (current) { setData(null); setLoadError("Could not check your Google Calendar connection. Try again."); } })
-      .finally(() => { if (current) setLoading(false); });
-    return () => { current = false; };
-  }, [account?.phoneVerified, account?.calendarStatus, reload]);
-
-  if (accountError) return <section className="account-gate extensions-gate" role="alert">
+  if (accountError && !account?.phoneVerified || account?.phoneVerified && !account.cacheKey) return <section className="account-gate extensions-gate" role="alert">
     <h1>Your account is temporarily unavailable.</h1>
     <p>{accountError}</p>
     <button className="black-button" type="button" onClick={() => void refresh()}>Try again</button>
@@ -49,10 +31,19 @@ export function ExtensionsClient() {
     );
   }
 
-  const calendarStatus = data?.calendar.status ?? account.calendarStatus ?? "disconnected";
+  return <ExtensionsView key={`${account.cacheKey}:${account.calendarStatus}`} account={account} accountUnavailable={!!accountError} refreshAccount={() => void refresh()} />;
+}
+
+function ExtensionsView({ account, accountUnavailable, refreshAccount }: { account: PublicAccount; accountUnavailable: boolean; refreshAccount: () => void }) {
+  const { data, loading, unavailable, unauthorized, refresh } = useAccountResource<ExtensionData>("/api/account/extensions", account.cacheKey);
+  const stale = unavailable || accountUnavailable;
+  if (unauthorized) return <section className="account-gate extensions-gate"><h1>Log in to manage extensions.</h1><Link className="black-button" href="/login">Log in</Link></section>;
+
+  const calendarStatus = data?.calendar.status;
   const calendarActive = calendarStatus === "active";
   const calendarNeedsReauth = calendarStatus === "requires_reauth";
-  const calendarCopy = calendarConnectionCopy(calendarActive ? "active" : calendarNeedsReauth ? "requires_reauth" : "disconnected");
+  const calendarCopy = calendarStatus ? calendarConnectionCopy(calendarActive ? "active" : calendarNeedsReauth ? "requires_reauth" : "disconnected")
+    : { badge: loading ? "Checking connection" : "Unavailable", badgeClass: "available", action: "", description: "Refresh to confirm your Google Calendar connection." };
   return (
     <>
       <header className="extensions-heading">
@@ -72,14 +63,15 @@ export function ExtensionsClient() {
             <p className="extension-provider">Google Workspace</p>
             <h2>Google Calendar</h2>
             <p>{calendarCopy.description}</p>
+            {data && stale && <p role="status">Showing your last known connection status. It may be out of date.</p>}
           </div>
           <div className="extension-actions">
-            {data ? (
+            {data && !stale && !loading ? (
               <a className="black-button" href={data.calendar.connectUrl}>
                 {calendarCopy.action} <FiArrowRight />
               </a>
-            ) : loading ? <span className="extension-loading" role="status">Checking connection…</span> : <div className="extension-load-error" role="alert">{loadError || "Connection details are unavailable."}<button type="button" onClick={() => { setLoading(true); setReload(value => value + 1); }}>Try again</button></div>}
-            {calendarActive && data?.calendar.disconnectUrl && <a className="disconnect-link" href={data.calendar.disconnectUrl}>Disconnect</a>}
+            ) : loading ? <span className="extension-loading" role="status">Checking connection…</span> : <div className="extension-load-error" role="alert">Connection details are temporarily unavailable.<button type="button" onClick={() => { refreshAccount(); void refresh(); }}>Try again</button></div>}
+            {!stale && !loading && calendarActive && data?.calendar.disconnectUrl && <a className="disconnect-link" href={data.calendar.disconnectUrl}>Disconnect</a>}
           </div>
         </article>
 

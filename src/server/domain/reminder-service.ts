@@ -19,6 +19,9 @@ export interface ReminderRepository {
 
   update?(input: { userId: string; sourceMessageId: string; reminderId?: string; reminderQuery?: string; remindAt?: Date; now: Date }): Promise<
     | { kind: "updated"; reminder: ReminderRecord }
+    | { kind: "followup"; originalReminderId: string; reminder: ReminderRecord }
+    | { kind: "blocked" }
+    | { kind: "conflict" }
     | { kind: "not_found" }
     | { kind: "ambiguous"; reminders: ReminderRecord[] }
   >;
@@ -209,8 +212,11 @@ export async function executeReminderCommand(
     const remindAt = command.type === "reschedule_reminder" ? new Date(command.remindAt) : undefined;
     if (remindAt && (!Number.isFinite(remindAt.getTime()) || remindAt <= context.now)) return "That time has already passed. What future date and time should I use?";
     const result = await repository.update({ ...context, reminderId: command.reminderId, reminderQuery: command.reminderQuery, remindAt });
+    if (result.kind === "blocked") return "I couldn’t schedule another text while messaging is unavailable for this account. Your delivered reminder is unchanged.";
+    if (result.kind === "conflict") return "That request differs from its earlier saved change. Nothing else was scheduled.";
     if (result.kind === "not_found") return "I couldn’t find an editable reminder with that description.";
     if (result.kind === "ambiguous") return `Please send the change again with a more specific reminder title: ${result.reminders.map((item) => item.text).join("; ")}.`;
+    if (result.kind === "followup") return `The original reminder was already delivered. A new reminder was saved for ${formatReminderTime(result.reminder.remindAt, result.reminder.timezone)}: ${result.reminder.text}`;
     return remindAt ? `Reminder moved to ${formatReminderTime(result.reminder.remindAt, result.reminder.timezone)}: ${result.reminder.text}` : `Completed reminder: ${result.reminder.text}.`;
   }
 

@@ -7,8 +7,15 @@ import { useRouter } from "next/navigation";
 import { ACCOUNT_EVENT, PublicAccount, useAccountStatus } from "../components/account-state";
 
 export function ProfileClient() {
-  const { account } = useAccountStatus(6_000);
+  const { account, error, refresh } = useAccountStatus(6_000);
+  const [recovery, setRecovery] = useState<"owner" | "auth" | null>(null);
 
+  if (recovery === "auth") return <section className="account-gate" role="alert"><h1>Log in to your profile.</h1><p>Your session ended. Your changes were not saved. Log in again before editing your profile.</p><Link className="black-button" href="/login">Log in</Link></section>;
+  if (recovery === "owner") return <section className="account-gate" role="alert"><h1>Check your signed-in account.</h1><p>Your changes were not saved. Reload your profile and review the account before entering your changes again.</p><button className="black-button" type="button" onClick={() => { setRecovery(null); void refresh(); }}>Reload profile</button></section>;
+  if (error && !account?.phoneVerified || account?.phoneVerified && !account.cacheKey) return <section className="account-gate" role="alert">
+    <h1>Your profile is temporarily unavailable.</h1><p>We couldn’t confirm your account. Please try again.</p>
+    <button className="black-button" type="button" onClick={() => void refresh()}>Try again</button>
+  </section>;
   if (account === undefined) return <div className="account-loading">Loading your profile…</div>;
   if (!account?.phoneVerified) {
     return (
@@ -22,10 +29,10 @@ export function ProfileClient() {
     );
   }
 
-  return <ProfileEditor account={account} />;
+  return <ProfileEditor key={account.cacheKey} account={account} unavailable={!!error} retry={() => void refresh()} invalidateOwner={reason => { setRecovery(reason); window.dispatchEvent(new Event(ACCOUNT_EVENT)); }} />;
 }
 
-function ProfileEditor({ account }: { account: PublicAccount }) {
+function ProfileEditor({ account, unavailable, retry, invalidateOwner }: { account: PublicAccount; unavailable: boolean; retry: () => void; invalidateOwner: (reason: "owner" | "auth") => void }) {
   const [displayName, setDisplayName] = useState(account.displayName ?? "");
   const [instructions, setInstructions] = useState(account.profileInstructions ?? "");
   const [saving, setSaving] = useState(false);
@@ -34,14 +41,17 @@ function ProfileEditor({ account }: { account: PublicAccount }) {
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (unavailable) return;
     setSaving(true);
     setMessage("");
     try {
       const response = await fetch("/api/account/me", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ displayName, profileInstructions: instructions }),
+        body: JSON.stringify({ displayName, profileInstructions: instructions, expectedCacheKey: account.cacheKey }),
       });
+      if (response.status === 401) { invalidateOwner("auth"); return; }
+      if (response.status === 409) { invalidateOwner("owner"); return; }
       const payload = (await response.json()) as { error?: string };
       setMessage(response.ok ? "Saved. Tempo will use these instructions in future coaching." : payload.error ?? "Could not save your profile.");
       if (response.ok) window.dispatchEvent(new Event(ACCOUNT_EVENT));
@@ -74,6 +84,7 @@ function ProfileEditor({ account }: { account: PublicAccount }) {
         <Link href="/workspace">Open my workspace <FiArrowRight /></Link>
       </aside>
       <form className="profile-form" onSubmit={save}>
+        {unavailable && <div role="status"><p>Showing your last known profile. It may be out of date. Your draft is still here; refresh your account before saving.</p><button className="text-action" type="button" onClick={retry}>Try again</button></div>}
         <div>
           <p className="eyebrow">Profile</p>
           <h2>Teach Tempo how to coach you.</h2>
@@ -95,8 +106,8 @@ function ProfileEditor({ account }: { account: PublicAccount }) {
           <small>{instructions.length}/2,000 characters</small>
         </label>
         <div className="profile-actions">
-          <button className="black-button" type="submit" disabled={saving}>{saving ? "Saving…" : "Save profile"}</button>
-          <button className="text-action" type="button" disabled={saving} onClick={logout}><FiLogOut /> Log out</button>
+          <button className="black-button" type="submit" disabled={saving || unavailable}>{saving ? "Saving…" : "Save profile"}</button>
+          <button className="text-action" type="button" disabled={saving || unavailable} onClick={logout}><FiLogOut /> Log out</button>
         </div>
         {message && <p className="profile-save-message" role="status">{message}</p>}
       </form>

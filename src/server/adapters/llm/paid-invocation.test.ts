@@ -103,6 +103,17 @@ it("keeps all five production SDK entry points behind this boundary", () => {
     // Twilio's messages.create is SMS delivery, outside the AI ledger.
     .filter(name => name.replaceAll("\\", "/") !== "adapters/sms/twilio-transport.ts")
     .filter(name => name.endsWith(".ts") && !name.endsWith(".test.ts") && !name.endsWith("paid-invocation.ts"))
-    .filter(name => /\.messages\.create\s*\(|count_tokens|api\.anthropic\.com/.test(readFileSync(new URL(name.replaceAll("\\", "/"), directory), "utf8")));
+    .filter(name => {
+      const normalized = name.replaceAll("\\", "/");
+      const source = readFileSync(new URL(normalized, directory), "utf8");
+      if (/\.messages\.create\s*\(|count_tokens/.test(source)) return true;
+      // Operational attestation compares the official host as data; it never
+      // constructs a client or sends a request. Keep that exception narrow.
+      if (normalized === "observability/ai-budget-attestation.ts") {
+        expect(source).not.toMatch(/\bfetch\s*\(|\bnew\s+Anthropic\s*\(/);
+        return false;
+      }
+      return /api\.anthropic\.com/.test(source);
+    });
   expect(direct).toEqual([]);
 });

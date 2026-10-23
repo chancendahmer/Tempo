@@ -18,7 +18,7 @@ assert.ok(["http://localhost:3101", "http://localhost:3103"].includes(new URL(ba
 const pool = new Pool({ connectionString: "postgresql://postgres@127.0.0.1:55437/tempo_ui_release", max: 2 });
 const database = scopedDatabase(drizzle(pool, { schema }));
 const testKey = Buffer.alloc(32, 7).toString("base64");
-type Actor = { id: string; cookie: string };
+type Actor = { id: string; cookie: string; cacheKey?: string };
 type ActualWorkspace = Workspace & Awaited<ReturnType<typeof readWorkspaceLifeItems>>;
 let checks = 0;
 function pass(label: string) { checks++; console.log(`PASS ${label}`); }
@@ -54,10 +54,13 @@ async function read(who: Actor, date?: string): Promise<ActualWorkspace> {
   const response = await fetch(`${base}/api/account/workspace${date ? `?date=${encodeURIComponent(date)}` : ""}`, { headers: { Cookie: who.cookie } });
   assert.equal(response.status, 200);
   assert.equal(response.headers.get("cache-control"), "private, no-store");
-  return response.json() as Promise<ActualWorkspace>;
+  const body = await response.json() as ActualWorkspace;
+  assert.ok(body.cacheKey); who.cacheKey = body.cacheKey;
+  return body;
 }
 async function action(who: Actor, input: WorkspaceAction, status = 200) {
-  const response = await fetch(`${base}/api/account/workspace`, { method: "POST", headers: { Cookie: who.cookie, Origin: base, "Content-Type": "application/json" }, body: JSON.stringify(input) });
+  if (!who.cacheKey) await read(who);
+  const response = await fetch(`${base}/api/account/workspace`, { method: "POST", headers: { "x-tempo-account": who.cacheKey!, Cookie: who.cookie, Origin: base, "Content-Type": "application/json" }, body: JSON.stringify(input) });
   const body = await response.json();
   assert.equal(response.status, status, `${input.action}: ${JSON.stringify(body)}`);
   return body;
@@ -119,7 +122,7 @@ async function main() {
   pass("Goal completion persists; removed task is absent from active/completed workspace list");
   await action(a, { action: "checkins", enabled: true }); assert.equal((await read(a)).profile.proactiveOptIn, true);
   await action(a, { action: "checkins", enabled: false }); assert.equal((await read(a)).profile.proactiveOptIn, false);
-  const profile = await fetch(`${base}/api/account/me`, { method: "PUT", headers: { Cookie: a.cookie, Origin: base, "Content-Type": "application/json" }, body: JSON.stringify({ displayName: "QA Updated Name", profileInstructions: "Use short steps." }) });
+  const profile = await fetch(`${base}/api/account/me`, { method: "PUT", headers: { Cookie: a.cookie, Origin: base, "Content-Type": "application/json" }, body: JSON.stringify({ displayName: "QA Updated Name", profileInstructions: "Use short steps.", expectedCacheKey: a.cacheKey }) });
   assert.equal(profile.status, 200);
   const me = await (await fetch(`${base}/api/account/me`, { headers: { Cookie: a.cookie } })).json();
   assert.equal(me.account.displayName, "QA Updated Name"); assert.equal(me.account.profileInstructions, "Use short steps.");

@@ -112,3 +112,37 @@ it("asks for a missing briefing time before consulting semantic write authority"
   expect(await new AnthropicTaskIntentParser().parse({...input,message,execute})).toEqual({kind:"conversation",reply:"What time would you like that reminder?"});
   expect(execute).not.toHaveBeenCalled(); expect(authorize).not.toHaveBeenCalled();
 });
+
+
+it("moves a delivered reminder through the existing parser tool contract into one explained follow-up after an interruption", async () => {
+  const sim = await createAssistantSimulator(new AnthropicTaskIntentParser()); sim.setTime(now);
+  try {
+    const person = await sim.user(), other = await sim.user();
+    const request = "Remind me Saturday October 3 at 2 PM to call the studio";
+    create.mockResolvedValueOnce(tool("create_reminder", request, { text: "Call the studio", remindAt: "2026-10-03T14:00:00-04:00" }));
+    const initial = await person.send(request);
+    const original = (await person.state()).reminders[0];
+    await sim.database.update(reminders).set({ status: "sent", sentAt: now }).where(eq(reminders.id, original.id));
+    const [source] = await sim.database.select().from(conversationMessages).where(eq(conversationMessages.providerMessageSid, initial.providerId));
+    await sim.database.insert(conversationMessages).values({ userId: person.id, conversationId: source.conversationId, direction: "outbound", kind: "coach", status: "sent", body: "Reminder: Call the studio", relatedReminderId: original.id, idempotencyKey: "synthetic-delivered-studio" });
+    create.mockResolvedValueOnce({ content: [{ type: "text", text: "Scripted unrelated conversation" }] });
+    await person.send("I have another unrelated question");
+    const edit = "Move my delivered call the studio reminder to Sunday October 4 at 2 PM";
+    create.mockResolvedValueOnce(tool("list_reminders", edit, { includePast: true }))
+      .mockResolvedValueOnce(tool("reschedule_reminder", edit, { reminderId: original.id, remindAt: "2026-10-04T14:00:00-04:00" })).mockResolvedValueOnce(ack);
+    const moved = await person.send(edit);
+    expect(moved.tools).toEqual(["list_reminders", "reschedule_reminder"]);
+    expect(moved.replies.join(" ")).toContain("original reminder was already delivered. A new reminder was saved");
+    const saved = (await person.state()).reminders;
+    expect(saved).toHaveLength(2);
+    expect(saved.find(row => row.id === original.id)).toMatchObject({ status: "sent", remindAt: original.remindAt });
+    const followup = saved.find(row => row.id !== original.id)!;
+    expect(followup).toMatchObject({ status: "scheduled", recurrence: null, remindAt: new Date("2026-10-04T18:00:00Z") });
+    const calls = create.mock.calls.length;
+    await person.send(edit, { providerId: moved.providerId });
+    expect(create).toHaveBeenCalledTimes(calls);
+    expect((await person.state()).reminders).toHaveLength(2);
+    expect((await sim.database.select().from(scheduledActions).where(eq(scheduledActions.reminderId, followup.id))).filter(row => row.status === "scheduled")).toHaveLength(1);
+    expect((await other.state()).reminders).toHaveLength(0);
+  } finally { await sim.close(); }
+}, 30_000);

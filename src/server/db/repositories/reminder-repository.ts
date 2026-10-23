@@ -1,9 +1,12 @@
 import { and, asc, eq, gt, gte, lt, or, isNotNull, ilike, inArray, sql } from "drizzle-orm";
+import { z } from "zod";
+import { DrizzleOutboundMessageRepository } from "./outbound-message-repository";
+import { evaluateMessagingPermission } from "../../domain/outbound-messaging";
 import { createHash } from "node:crypto";
 import { MessagingProvider } from "../../adapters/sms/sms-transport";
 import { formatReminderTime, nextRecurringOccurrence, ReminderRepository, ReminderRecord } from "../../domain/reminder-service";
 import { getDatabase, TempoDatabase } from "../client";
-import { conversationMessages, lifeActionReceipts, reminders, scheduledActions } from "../schema";
+import { conversationMessages, lifeActionReceipts, reminders, scheduledActions, users } from "../schema";
 
 function asRecord(row: typeof reminders.$inferSelect): ReminderRecord {
   return {
@@ -143,20 +146,64 @@ export class DrizzleReminderRepository implements ReminderRepository {
   async update(input: Parameters<NonNullable<ReminderRepository["update"]>>[0]) {
     if (!input.reminderId && !input.reminderQuery) return { kind: "not_found" as const };
     return this.database.transaction(async (transaction) => {
+      // Match authenticated workspace cancellation: account before source and
+      // reminder rows. The outer owned command must use the same lock order.
+      const [account] = await transaction.select({ id: users.id }).from(users).where(eq(users.id, input.userId)).for("update");
+      if (!account) return { kind: "not_found" as const };
+      const [source] = await transaction.select({ id: conversationMessages.id }).from(conversationMessages)
+        .where(and(eq(conversationMessages.id, input.sourceMessageId), eq(conversationMessages.userId, input.userId), eq(conversationMessages.direction, "inbound"))).limit(1).for("update");
+      if (!source) return { kind: "not_found" as const };
+      if (input.remindAt && !Number.isFinite(input.remindAt.getTime())) return { kind: "not_found" as const };
+      const receiptKey = `reminder-followup:${input.userId}:${input.sourceMessageId}`;
+      const fingerprint = createHash("sha256").update(JSON.stringify({ reminderId: input.reminderId ?? null, reminderQuery: input.reminderQuery ?? null, remindAt: input.remindAt?.toISOString() ?? null })).digest("hex");
+      const [receipt] = await transaction.select().from(lifeActionReceipts).where(and(eq(lifeActionReceipts.key, receiptKey), eq(lifeActionReceipts.userId, input.userId))).limit(1);
+      if (receipt) {
+        if (receipt.fingerprint !== fingerprint) return { kind: "conflict" as const };
+        const saved = z.object({ originalReminderId: z.uuid(), reminderId: z.uuid(), remindAt: z.iso.datetime() }).strict().parse(JSON.parse(receipt.message));
+        const [followup] = await transaction.select().from(reminders).where(and(eq(reminders.id, saved.reminderId), eq(reminders.userId, input.userId))).limit(1);
+        return followup ? { kind: "followup" as const, originalReminderId: saved.originalReminderId, reminder: { ...asRecord(followup), remindAt: new Date(saved.remindAt) } } : { kind: "not_found" as const };
+      }
+      if (input.remindAt && (!Number.isFinite(input.remindAt.getTime()) || input.remindAt <= input.now)) return { kind: "not_found" as const };
       const key = `reminder-update:${input.sourceMessageId}`;
-      const [prior] = await transaction.select({ reminderId: scheduledActions.reminderId }).from(scheduledActions)
+      const [prior] = await transaction.select({ reminderId: scheduledActions.reminderId, payload: scheduledActions.payload }).from(scheduledActions)
         .where(and(eq(scheduledActions.userId, input.userId), eq(scheduledActions.idempotencyKey, key))).limit(1);
       if (prior?.reminderId) {
+        if ((typeof prior.payload.requestFingerprint === "string" && prior.payload.requestFingerprint !== fingerprint)
+          || (input.reminderId && input.reminderId !== prior.reminderId)) return { kind: "conflict" as const };
         const [row] = await transaction.select().from(reminders).where(and(eq(reminders.id, prior.reminderId), eq(reminders.userId, input.userId))).limit(1);
         if (row) return { kind: "updated" as const, reminder: asRecord(row) };
       }
       const matches = await transaction.select().from(reminders).where(and(
         eq(reminders.userId, input.userId),
-        input.remindAt ? inArray(reminders.status, ["scheduled", "failed"]) : inArray(reminders.status, ["scheduled", "sent", "failed", "completed"]),
+        input.remindAt ? inArray(reminders.status, ["scheduled", "failed", "sent"]) : inArray(reminders.status, ["scheduled", "sent", "failed", "completed"]),
         input.reminderId ? eq(reminders.id, input.reminderId) : ilike(reminders.text, `%${input.reminderQuery!.replaceAll("\\", "\\\\").replaceAll("%", "\\%").replaceAll("_", "\\_")}%`),
       )).orderBy(asc(reminders.remindAt)).limit(6).for("update");
       if (!matches.length) return { kind: "not_found" as const };
       if (matches.length > 1) return { kind: "ambiguous" as const, reminders: matches.map(asRecord) };
+      const original = matches[0];
+      if (input.remindAt && original.status === "sent") {
+        // A delivered occurrence is immutable. Repeating it is an explicitly
+        // requested one-time follow-up, never a second recurring series.
+        if (original.recurrence) return { kind: "not_found" as const };
+        const [createdBySource] = await transaction.select({ id: reminders.id }).from(reminders).where(and(eq(reminders.userId, input.userId), eq(reminders.sourceMessageId, input.sourceMessageId))).limit(1);
+        if (createdBySource) return { kind: "conflict" as const };
+        const permission = await new DrizzleOutboundMessageRepository(transaction as unknown as TempoDatabase).getPermission(input.userId);
+        if (!evaluateMessagingPermission(permission, input.now).allowed) return { kind: "blocked" as const };
+        const [followup] = await transaction.insert(reminders).values({ userId: input.userId, sourceMessageId: input.sourceMessageId, sourceOperation: 0,
+          contentMode: original.contentMode, text: original.text, remindAt: input.remindAt, timezone: original.timezone,
+          taskId: original.taskId, recurrence: null, idempotencyKey: `reminder-followup:${input.sourceMessageId}`,
+        }).returning();
+        await transaction.insert(scheduledActions).values({ userId: input.userId, reminderId: followup.id, kind: "deliver_reminder",
+          payload: { reminderId: followup.id, occurrenceAt: followup.remindAt.toISOString(), followsReminderId: original.id },
+          idempotencyKey: key, runAt: followup.remindAt,
+        });
+        // Existing account-owned receipt storage preserves provenance even if
+        // completed jobs are later trimmed. Account erasure removes the receipt.
+        await transaction.insert(lifeActionReceipts).values({ key: receiptKey, userId: input.userId, fingerprint,
+          message: JSON.stringify({ originalReminderId: original.id, reminderId: followup.id, remindAt: followup.remindAt.toISOString() }),
+        });
+        return { kind: "followup" as const, originalReminderId: original.id, reminder: asRecord(followup) };
+      }
       const [changed] = await transaction.update(reminders).set(input.remindAt
         ? { remindAt: input.remindAt, status: "scheduled", lastError: null, updatedAt: input.now }
         : { status: "completed", updatedAt: input.now })
@@ -166,7 +213,7 @@ export class DrizzleReminderRepository implements ReminderRepository {
       // The source-keyed action also records completed updates for retry recovery.
       await transaction.insert(scheduledActions).values({
         userId: input.userId, reminderId: changed.id, kind: "deliver_reminder",
-        payload: { reminderId: changed.id, occurrenceAt: changed.remindAt.toISOString() },
+        payload: { reminderId: changed.id, occurrenceAt: changed.remindAt.toISOString(), requestFingerprint: fingerprint },
         idempotencyKey: key, runAt: changed.remindAt,
         status: input.remindAt ? "scheduled" : "cancelled", completedAt: input.remindAt ? null : input.now,
       }).onConflictDoNothing({ target: scheduledActions.idempotencyKey });

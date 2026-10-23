@@ -6,6 +6,7 @@ import { calculateActivityStreak, type ActivityStreak } from "../../server/domai
 import { demoRecipes, savedDemoRecipe } from "./demo-recipes";
 
 export type Workspace = {
+  cacheKey?: string;
   timezone: string;
   homePreferences?: HomePreferences;
   setup?: GentleSetup;

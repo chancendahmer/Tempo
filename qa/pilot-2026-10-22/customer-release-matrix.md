@@ -6,7 +6,12 @@ also cover thought conversion, timer completion and original-note preservation.
 See browser-journey.md and activation-feedback.md. The table retains the audit's
 original wording for provenance; its A2 “missing/in-progress” and W1 “browser
 pending” statements are superseded by that evidence, not current defects.
-The three proposed week-long scenarios below still have not been executed.
+The three proposed week-long scenarios below have since been implemented as
+provider-free fixtures with 21 durable daily checkpoints; see first-week-acceptance.md
+for exact coverage and remaining language limits. Root also exercised food,
+nutrition, routine/timer, goal, memory deletion, fitness and feedback recovery in
+the authenticated local browser, with record checks in fresh-browser/README.md.
+The original audit below is historical; these addenda do not certify live providers.
 
 Read-only source/evidence audit; no new browser interaction, login, provider call or participant observation. The reviewer authored W1, so its entries below describe implementation and required independent acceptance, not an independent endorsement. Root owns current browser review of W1/A2. Historical October 21 preview/account checks remain attributed to `qa/adaptive-followthrough/README.md`; they do not certify the current whole product.
 

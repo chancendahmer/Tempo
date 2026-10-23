@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 export const ACCOUNT_EVENT = "tempo-account-change";
 
 export type PublicAccount = {
+  cacheKey?: string;
   displayName: string | null;
   phoneLast4: string;
   phoneVerified: boolean;
@@ -54,13 +55,19 @@ export function useAccountStatus(pollMs = 0, enabled = true) {
     if (!enabled) return;
     suspended.current = false;
     const initial = window.setTimeout(refresh, 0);
-    window.addEventListener(ACCOUNT_EVENT, refresh);
+    const accountChanged = () => {
+      request.current?.abort();
+      setAccount(undefined);
+      setError(null);
+      void refresh();
+    };
+    window.addEventListener(ACCOUNT_EVENT, accountChanged);
     const interval = pollMs > 0 ? window.setInterval(refresh, pollMs) : undefined;
     return () => {
       suspended.current = true;
       request.current?.abort();
       window.clearTimeout(initial);
-      window.removeEventListener(ACCOUNT_EVENT, refresh);
+      window.removeEventListener(ACCOUNT_EVENT, accountChanged);
       if (interval) window.clearInterval(interval);
     };
   }, [enabled, pollMs, refresh]);
