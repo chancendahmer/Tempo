@@ -1,0 +1,16 @@
+{
+  "checkedAt": "2026-10-15T19:14:34.968Z",
+  "syntheticOnly": true,
+  "origin": "http://localhost:3101",
+  "status": "passed",
+  "checks": [
+    "Recipe with 200 g for 2 servings planned for 4 produces 400 g shopping after authenticated reload.",
+    "Renaming a saved meal preserves its original ingredient portion basis.",
+    "150 g recorded pantry stock reduces shopping to 250 g; marking purchased does not change pantry.",
+    "Changing planned servings to 2 recomputes 50 g remaining shopping while preserving the user's purchased checkbox.",
+    "Deleting the meal removes its derived shopping and leaves the manual grocery intact.",
+    "Disconnected Google Calendar returns HTTP 503; no fake authenticated calendar success was observed."
+  ],
+  "cleanup": "All created recipe, meal, pantry and manual grocery fixtures removed.",
+  "limits": "HTTP journey only. Browser unavailable; no visual, camera, Google-auth, worker, carrier, or live AI claims."
+}

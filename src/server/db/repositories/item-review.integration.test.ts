@@ -49,11 +49,12 @@ async function answer(a: Awaited<ReturnType<typeof account>>, body: string) {
   return (await db.insert(s.conversationMessages).values({ userId: a.user.id, conversationId: a.conversationId, direction: "inbound", kind: "user", status: "received", body, idempotencyKey: randomUUID(), createdAt: new Date(now.getTime() + 1000) }).returning())[0];
 }
 
-it("shows undated tasks, memories and old reminders only in their owner's workspace; removal is durable", async () => {
+it("shows owned records, durably forgets memories and retains cancelled reminder history", async () => {
   const a = await account(), other = await account();
   await db.insert(s.tasks).values({ userId: a.user.id, title: "Undated task" });
   const [memory] = await db.insert(s.memoryEntries).values({ userId: a.user.id, category: "preference", content: "I like gentle check-ins" }).returning();
   const [reminder] = await db.insert(s.reminders).values({ userId: a.user.id, text: "Old reminder", remindAt: old, timezone: "UTC", status: "sent", idempotencyKey: randomUUID() }).returning();
+  const [delivered] = await db.insert(s.conversationMessages).values({ userId: a.user.id, conversationId: a.conversationId, direction: "outbound", kind: "coach", status: "sent", body: "Reminder: Old reminder", relatedReminderId: reminder.id, idempotencyKey: randomUUID() }).returning();
   const view = await readWorkspace(a.user.id, db);
   expect(view.tasks.some(row => row.title === "Undated task")).toBe(true);
   expect(view.memories).toEqual([expect.objectContaining({ id: memory.id })]);
@@ -66,7 +67,10 @@ it("shows undated tasks, memories and old reminders only in their owner's worksp
   await mutateWorkspace(a.user.id, action, db); await mutateWorkspace(a.user.id, action, db);
   await mutateWorkspace(a.user.id, { action: "remove_reminder", id: reminder.id }, db);
   expect((await readWorkspace(a.user.id, db)).memories).toEqual([]);
-  expect((await readWorkspace(a.user.id, db)).reminders).toEqual([]);
+  expect((await readWorkspace(a.user.id, db)).reminders).toEqual([expect.objectContaining({ id: reminder.id, text: reminder.text, status: "cancelled" })]);
+  expect((await db.select().from(s.reminders).where(eq(s.reminders.id, reminder.id)))[0]).toMatchObject({ userId: a.user.id, status: "cancelled", cancelledAt: expect.any(Date) });
+  expect((await db.select().from(s.conversationMessages).where(eq(s.conversationMessages.id, delivered.id)))[0]).toMatchObject({ body: delivered.body, relatedReminderId: reminder.id, status: "sent" });
+  expect((await readWorkspace(other.user.id, db)).reminders).toEqual([]);
   expect(await new DrizzleMemoryRepository(db).retrieveRelevant(a.user.id, now, 20)).toEqual([]);
 });
 
@@ -128,7 +132,12 @@ it.each(["goal", "reminder", "life"] as const)("reviews and removes an old %s us
   const inbound = await answer(a, "REMOVE");
   expect(await a.repo.respond(a.user.id, inbound.id, "REMOVE", now)).toBeTruthy();
   const workspace = await readWorkspace(a.user.id, db);
-  expect(kind === "goal" ? workspace.goals : kind === "reminder" ? workspace.reminders : workspace.items).toEqual([]);
+  if (kind === "reminder") {
+    expect(workspace.reminders).toEqual([expect.objectContaining({ id: review.target.id, text: "Book dentist", status: "cancelled" })]);
+    expect((await db.select().from(s.reminders).where(eq(s.reminders.id, review.target.id)))[0]).toMatchObject({ userId: a.user.id, status: "cancelled", cancelledAt: now });
+    expect(await new DrizzleReminderRepository(db).getDeliveryContext(review.target.id, old)).toBeNull();
+  } else expect(kind === "goal" ? workspace.goals : workspace.items).toEqual([]);
+  expect((await db.select().from(s.itemReviews).where(eq(s.itemReviews.id, review.id)))[0].status).toBe("closed");
 });
 
 it.each(["optout", "quiet", "paused", "busy", "stale-calendar", "consent", "cap", "recent-chat"])("blocks stale-item outreach for %s", async reason => {

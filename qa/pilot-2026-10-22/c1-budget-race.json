@@ -1,0 +1,29 @@
+{
+  "passed": true,
+  "evidence": "isolated real PostgreSQL; synthetic pricing/usage; no provider requests",
+  "independentPools": 2,
+  "accounts": 100,
+  "globalRaceAttempts": 100,
+  "globalAccepted": 10,
+  "globalDenied": 90,
+  "globalReservedMicrodollars": "1000",
+  "globalCapMicrodollars": 1000,
+  "duplicateReservations": 100,
+  "duplicateClaimWinners": 1,
+  "duplicateSettlementWinners": 1,
+  "duplicateSettlementReplays": 99,
+  "conflictingSettlementRejected": true,
+  "accountRaceAttempts": 200,
+  "accountAccepted": 100,
+  "accountDenied": 100,
+  "final": {
+    "attempts": 110,
+    "settled": 110,
+    "cost": "700",
+    "outstandingMicrodollars": "0",
+    "outstandingCalls": 0
+  },
+  "runtimeMs": 1939,
+  "runtimeCeilingMs": 120000,
+  "isolatedDatabaseRemoved": true
+}

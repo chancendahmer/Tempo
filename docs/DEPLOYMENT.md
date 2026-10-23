@@ -15,7 +15,18 @@ Tempo deploys as three Railway services in one project environment: `tempo-web`,
 9. Set `APP_BASE_URL` and `GOOGLE_REDIRECT_URI` to the public HTTPS web domain.
 10. Keep `INTERVENTION_SHADOW_MODE=true` and `AUTONOMOUS_SENDING_ENABLED=false`.
 
-The web pre-deploy command applies database migrations. The worker never migrates, which avoids two services racing on deploy.
+Both service configurations run the shared migration runner before deployment:
+compiled `node dist-ops/scripts/migrate.js` on web and `npm run db:migrate` on the worker. The
+shared PostgreSQL advisory lock in the migration runner serializes migration
+application when web and worker deployments overlap. Do not remove one service's
+pre-deploy command without changing and verifying the deployment ordering.
+
+For additive releases, verify the backup and apply migrations before starting
+new code, then deploy the web service and compatible worker revision. Confirm
+both build stamps and worker readiness after rollout. A code rollback should
+retain additive tables, columns and the migration ledger; do not drop customer
+data to roll code back. The pilot's local upgrade tests do not prove a hosted
+backup restore or Railway deployment.
 
 ## Migration startup failures
 

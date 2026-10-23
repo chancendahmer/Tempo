@@ -6,7 +6,12 @@ const mocks = vi.hoisted(() => ({
   reconcileDelivery: vi.fn(), getDeliveryContext: vi.fn(), markSending: vi.fn(),
   recordSuccessfulDelivery: vi.fn(), reminderFailed: vi.fn(), send: vi.fn(),
   reservedBody: vi.fn(), markRunning: vi.fn(), markCompleted: vi.fn(), markCancelled: vi.fn(), actionFailed: vi.fn(),
+  budgetAccess: vi.fn(), accountingOutage: false,
 }));
+vi.mock("../../db/repositories/ai-budget-repository", () => ({ DrizzleAiBudgetRepository: class {
+  constructor() { mocks.budgetAccess(); if (mocks.accountingOutage) throw new Error("Synthetic accounting outage"); }
+  async reserve() { return { allowed: false, reason: "budget_exhausted" }; }
+} }));
 vi.mock("../../db/repositories/reminder-repository", () => ({ DrizzleReminderRepository: class {
   reconcileDelivery = mocks.reconcileDelivery; getDeliveryContext = mocks.getDeliveryContext;
   markSending = mocks.markSending; recordSuccessfulDelivery = mocks.recordSuccessfulDelivery;
@@ -28,6 +33,21 @@ beforeEach(() => {
   mocks.markRunning.mockResolvedValue(true);
   mocks.markSending.mockResolvedValue(true);
   mocks.getDeliveryContext.mockResolvedValue({ id: "r", userId: "u", text: "Stretch" });
+});
+
+it.each([false, true])("delivers an existing reminder with enforced zero AI caps (accounting outage=%s)", async outage => {
+  vi.stubEnv("AI_BUDGET_MODE", "enforce");
+  vi.stubEnv("AI_BUDGET_GLOBAL_DAILY_MICRODOLLARS", "0");
+  vi.stubEnv("AI_BUDGET_ACCOUNT_DAILY_MICRODOLLARS", "0");
+  mocks.accountingOutage = outage;
+  try {
+    const work = vi.fn(); await registerDeliverReminderHandler({ work } as unknown as PgBoss);
+    mocks.send.mockResolvedValue({ sent: true, provider: "test", providerMessageSid: "synthetic-accepted" });
+    await work.mock.calls[0][2]([{ data: { reminderId: "r", scheduledActionId: "a", occurrenceAt: "2026-10-22T15:00:00Z" } }]);
+    expect(mocks.send).toHaveBeenCalledWith(expect.objectContaining({ body: "Reminder: Stretch", userId: "u" }));
+    expect(mocks.recordSuccessfulDelivery).toHaveBeenCalledOnce();
+    expect(mocks.budgetAccess).not.toHaveBeenCalled();
+  } finally { vi.unstubAllEnvs(); }
 });
 
 it("retries an in-flight duplicate, then reconciles without another provider submission", async () => {

@@ -39,7 +39,7 @@ export async function captureWithReminder(database: TempoDatabase, userId: strin
       await new DrizzleGoalRepository(tx).create({userId, sourceMessageId, title: command.title, description: command.details});
     }
     const reminder = await new DrizzleReminderRepository(tx).create({userId, sourceMessageId, text: command.title, remindAt, timezone, taskId});
-    const destination = { note: "Thought inbox", task: "Tasks", goal: "Goals" }[command.destination];
+    const destination = { note: "Thoughts", task: "To-do", goal: "Goals" }[command.destination];
     const message = `Saved to ${destination}: ${command.title}.\nReminder set for ${formatReminderTime(reminder.remindAt, timezone)}.`;
     await tx.insert(lifeActionReceipts).values({key, userId, fingerprint, message});
     return message;

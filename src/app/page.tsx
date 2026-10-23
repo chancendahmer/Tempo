@@ -27,7 +27,7 @@ export default function Home() {
           <ProfileReminder />
           <PhoneSignup />
           <p className="signup-note" id="signup-note">
-            Tempo will text you to start setup. Reply STOP anytime.
+            Your texts and dashboard share one account. Reply STOP anytime.
           </p>
           <div className="proof-row">
             <EarlyAccessCounter />

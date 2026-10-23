@@ -9,7 +9,7 @@ import { plainSmsText } from "../domain/sms-text";
 const { create, authorize } = vi.hoisted(() => ({ create: vi.fn(), authorize: vi.fn() }));
 vi.mock("@anthropic-ai/sdk", () => ({ default: class { messages = { create }; } }));
 vi.mock("../adapters/llm/turn-authorizer", () => ({ AnthropicTurnAuthorizer: class { authorize = authorize; } }));
-vi.mock("../config/env", async original => ({ ...(await original<typeof import("../config/env")>()), requireEnv: () => ({ ANTHROPIC_API_KEY: "test", ANTHROPIC_MODEL: "test", ASSISTANT_WEB_SEARCH_ENABLED: false }) }));
+vi.mock("../config/env", async original => ({ ...(await original<typeof import("../config/env")>()), requireEnv: () => ({ AI_BUDGET_MODE: "off", ANTHROPIC_API_KEY: "test", ANTHROPIC_MODEL: "test", ASSISTANT_WEB_SEARCH_ENABLED: false }) }));
 beforeEach(() => { create.mockReset(); authorize.mockReset().mockResolvedValue({ mode: "write", commands: ["create_reminders", "reschedule_reminders", "reschedule_reminder"] }); });
 
 it.each(["extra-time", "wrong-day", "advice", "negated"])("blocks a fabricated reminder batch: %s", async scenario => {

@@ -115,9 +115,15 @@ export class DrizzleConversationRepository implements ConversationRepository {
     });
   }
 
-  async withOwnership<T>(context: InboundConversationContext, operation: () => Promise<T>): Promise<T> {
+  async withOwnership<T>(context: InboundConversationContext, operation: () => Promise<T>, options?: { accountFirst?: boolean }): Promise<T> {
     context.signal?.throwIfAborted();
     return this.database.transaction(async transaction => {
+      if (options?.accountFirst) {
+        // Short reminder mutations share the account-first order used by UI
+        // cancellation/deletion. Never request this option around provider work.
+        const [account] = await transaction.select({ id: users.id }).from(users).where(eq(users.id, context.userId)).for("update");
+        if (!account) throw new InboundOwnershipLostError();
+      }
       const [owned] = await transaction.select({ id: conversationMessages.id }).from(conversationMessages)
         .where(and(eq(conversationMessages.id, context.messageId), eq(conversationMessages.userId, context.userId),
           eq(conversationMessages.status, "processing"), eq(conversationMessages.processingToken, context.processingToken)))

@@ -12,12 +12,14 @@ async function main() {
     ok: boolean;
     shadowMode: boolean;
     autonomousSendingEnabled: boolean;
+    configurationScope: string;
   };
-  if (!health.ok || !health.shadowMode || health.autonomousSendingEnabled) {
+  if (!health.ok || health.configurationScope !== "web" || !health.shadowMode || health.autonomousSendingEnabled) {
     throw new Error("Staging must be healthy, in shadow mode, and have autonomous sending disabled");
   }
-  const ready = await (await check("/api/ready")).json() as { ok: boolean; database: string; worker: string };
+  const ready = await (await check("/api/ready")).json() as { ok: boolean; database: string; worker: string; workerAttestation?: { allCoachingDisabled: boolean; buildMatchesWeb: boolean } };
   if (!ready.ok || ready.database !== "ready" || ready.worker !== "ready") throw new Error("Database or worker is not ready");
+  if (!ready.workerAttestation?.allCoachingDisabled || !ready.workerAttestation.buildMatchesWeb) throw new Error("Staging workers must attest matching builds and disabled global, canary and cleanup coaching permissions");
   for (const path of ["/", "/how-it-works", "/pricing", "/terms", "/privacy"]) await check(path);
   process.stdout.write("Staging smoke checks passed: web, database, worker, safety switches, and public pages.\n");
 }

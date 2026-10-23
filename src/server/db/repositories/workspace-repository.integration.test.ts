@@ -11,7 +11,15 @@ import { mutateWorkspace, readWorkspace } from "./workspace-repository";
 import { LifeAssistant } from "./life-assistant";
 import { WebReplySender, isWebMessage } from "./web-reply-repository";
 import { DrizzleConversationHistoryRepository } from "./conversation-history-repository";
-import { lifeItemSchema, type LifeItem } from "../../domain/life-items";
+import { lifeItemSchema, localDay, type LifeItem } from "../../domain/life-items";
+import { executeTaskCommand } from "../../domain/task-service";
+import { DrizzleTaskRepository } from "./task-repository";
+import { DrizzleReminderRepository } from "./reminder-repository";
+import { DrizzleOutboundMessageRepository } from "./outbound-message-repository";
+import { SafeSmsSender } from "../../domain/outbound-messaging";
+import { createAssistantSimulator } from "../../../../scripts/lib/assistant-simulator";
+import type { CoachingCommand } from "../../adapters/llm/task-intent-parser";
+
 
 describe("shared life workspace", () => {
   let client: PGlite, db: TempoDatabase, owner: string, other: string;
@@ -24,6 +32,241 @@ describe("shared life workspace", () => {
   }, 30000);
   afterAll(async () => client.close());
   const recipe: LifeItem = { kind: "recipe", title: "Lemon rice", ingredients: "Rice\nLemon", instructions: "Cook rice, add lemon.", servings: 2, prepMinutes: 20, favorite: true };
+
+  it("converts an owned thought once across new requests and assistant channels, preserving edits and removed state", async () => {
+    const [person] = await db.insert(schema.users).values({ phoneE164: "+12025550715" }).returning();
+    const noteId = randomUUID(), note = { kind: "note" as const, title: "Project thought", body: "Full original detail. ".repeat(30) };
+    await mutateWorkspace(person.id, { action: "save", id: noteId, version: 0, data: note }, db);
+    const convert = { type: "create_task" as const, title: "Call the project team", sourceNoteId: noteId, estimatedMinutes: 5 };
+    await Promise.all([1, 2].map(() => mutateWorkspace(person.id, { action: "task", requestId: randomUUID(), command: convert }, db)));
+    let workspace = await readWorkspace(person.id, db);
+    const created = workspace.tasks.filter(task => task.title === convert.title);
+    expect(created).toHaveLength(1);
+    const savedNote = workspace.items.find(item => item.id === noteId)!;
+    expect(savedNote).toMatchObject({ version: 2, data: { ...note, taskId: created[0].id }, linkedTask: { id: created[0].id, title: convert.title } });
+    const [source] = await db.insert(schema.conversationMessages).values({ userId: person.id, conversationId: (await db.select().from(schema.conversations).where(eq(schema.conversations.ownerUserId, person.id)))[0].id, direction: "inbound", kind: "user", status: "received", body: "Make this thought a task" }).returning();
+    const result = await executeTaskCommand(new DrizzleTaskRepository(db), { ...convert, title: "A different proposed title" }, { userId: person.id, sourceMessageId: source.id, now: new Date() });
+    expect(result).toMatchObject({ kind: "executed", task: { id: created[0].id, title: convert.title } });
+    await mutateWorkspace(person.id, { action: "save", id: noteId, version: 2, data: { ...note, body: "Edited thought; task unchanged." } }, db);
+    await new LifeAssistant(db).execute(person.id, randomUUID(), { type: "life_patch", id: noteId, version: 3, patch: { kind: "note", title: "Edited title" } });
+    workspace = await readWorkspace(person.id, db);
+    expect(workspace.items.find(item => item.id === noteId)?.data).toEqual({ ...note, title: "Edited title", body: "Edited thought; task unchanged.", taskId: created[0].id });
+    expect(workspace.tasks.filter(task => task.title === convert.title)).toHaveLength(1);
+    await mutateWorkspace(person.id, { action: "task", requestId: randomUUID(), command: { type: "complete_task", taskId: created[0].id } }, db);
+    await db.insert(schema.tasks).values(Array.from({ length: 205 }, (_, n) => ({ userId: person.id, title: `Open task ${n}` })));
+    const bounded = await readWorkspace(person.id, db);
+    expect(bounded.tasks.some(task => task.id === created[0].id)).toBe(false);
+    expect(bounded.items.find(item => item.id === noteId)?.linkedTask).toMatchObject({ id: created[0].id, status: "completed" });
+    await mutateWorkspace(person.id, { action: "task", requestId: randomUUID(), command: convert }, db);
+    expect((await db.select().from(schema.tasks).where(and(eq(schema.tasks.userId, person.id), eq(schema.tasks.title, convert.title))))).toHaveLength(1);
+    await mutateWorkspace(person.id, { action: "task", requestId: randomUUID(), command: { type: "reopen_task", taskId: created[0].id } }, db);
+    await expect(mutateWorkspace(other, { action: "task", requestId: randomUUID(), command: convert }, db)).rejects.toThrow("unavailable");
+    await expect(mutateWorkspace(person.id, { action: "task", requestId: randomUUID(), command: { ...convert, sourceNoteId: randomUUID() } }, db)).rejects.toThrow("unavailable");
+    await expect(mutateWorkspace(person.id, { action: "save", id: randomUUID(), version: 0, data: { ...note, taskId: created[0].id } }, db)).rejects.toThrow("links");
+    await expect(mutateWorkspace(person.id, { action: "task", requestId: randomUUID(), command: { ...convert, sourceNoteId: created[0].id } }, db)).rejects.toThrow("unavailable");
+    await mutateWorkspace(person.id, { action: "task", requestId: randomUUID(), command: { type: "abandon_task", taskId: created[0].id } }, db);
+    await expect(mutateWorkspace(person.id, { action: "task", requestId: randomUUID(), command: convert }, db)).rejects.toThrow("removed");
+    expect((await readWorkspace(person.id, db)).items.find(item => item.id === noteId)).toMatchObject({ data: { taskId: created[0].id }, linkedTask: { status: "abandoned" } });
+    await db.delete(schema.tasks).where(eq(schema.tasks.id, created[0].id));
+    await expect(mutateWorkspace(person.id, { action: "task", requestId: randomUUID(), command: convert }, db)).rejects.toThrow("removed");
+    expect((await readWorkspace(person.id, db)).items.find(item => item.id === noteId)?.linkedTask).toBeNull();
+  });
+
+  it("validates newly assigned workout plans across channels and permits historical logs after plan deletion", async () => {
+    const [person, neighbor] = await db.insert(schema.users).values([{ phoneE164: "+12025550716" }, { phoneE164: "+12025550717" }]).returning();
+    const ownPlan = randomUUID(), foreignPlan = randomUUID(), nonPlan = randomUUID(), workoutId = randomUUID();
+    const plan = { kind: "workout_plan" as const, title: "My plan", templateId: "full-body", sessions: [{ name: "A", minutes: 10, exercises: [{ name: "Walk", dose: "10 minutes" }] }] };
+    await mutateWorkspace(person.id, { action: "save", id: ownPlan, version: 0, data: plan }, db);
+    await mutateWorkspace(neighbor.id, { action: "save", id: foreignPlan, version: 0, data: plan }, db);
+    await mutateWorkspace(person.id, { action: "save", id: nonPlan, version: 0, data: { kind: "note", title: "Not a plan", body: "" } }, db);
+    const workout = { kind: "workout" as const, title: "My session", date: "2020-01-01", minutes: 10, activity: "Walk" as const };
+    const assistant = new LifeAssistant(db);
+    for (const programId of [foreignPlan, nonPlan, randomUUID()]) {
+      await expect(mutateWorkspace(person.id, { action: "save", id: randomUUID(), version: 0, data: { ...workout, programId } }, db)).rejects.toThrow("plan is unavailable");
+      expect(await assistant.execute(person.id, randomUUID(), { type: "life_save", data: { ...workout, programId } })).toContain("plan is unavailable");
+    }
+    await mutateWorkspace(person.id, { action: "save", id: workoutId, version: 0, data: { ...workout, programId: ownPlan } }, db);
+    for (const programId of [foreignPlan, nonPlan, randomUUID()]) {
+      await expect(mutateWorkspace(person.id, { action: "save", id: workoutId, version: 1, data: { ...workout, programId } }, db)).rejects.toThrow("plan is unavailable");
+      expect(await assistant.execute(person.id, randomUUID(), { type: "life_patch", id: workoutId, version: 1, patch: { kind: "workout", programId } })).toContain("plan is unavailable");
+    }
+    await mutateWorkspace(person.id, { action: "delete", id: ownPlan, version: 1 }, db);
+    await mutateWorkspace(person.id, { action: "save", id: workoutId, version: 1, data: { ...workout, programId: ownPlan, notes: "Still completed" } }, db);
+    expect(await assistant.execute(person.id, randomUUID(), { type: "life_patch", id: workoutId, version: 2, patch: { kind: "workout", notes: "Historical note edited" } })).toContain("Updated");
+    expect((await readWorkspace(person.id, db)).items.find(item => item.id === workoutId)?.data).toMatchObject({ programId: ownPlan, notes: "Historical note edited" });
+  });
+
+  it("retains durable settings independently of diary growth and loads the complete requested old day", async () => {
+    const [reader, neighbor] = await db.insert(schema.users).values([{ phoneE164: "+12025550644" }, { phoneE164: "+12025550645" }]).returning();
+    const old = new Date("2020-01-01T00:00:00Z"), recent = new Date("2026-10-01T00:00:00Z");
+    const food = { kind: "food" as const, title: "Oats", date: "2020-01-01", meal: "Breakfast" as const, calories: 120, protein: 4, carbs: null, fat: null, fiber: null };
+    const oldFoods = [randomUUID(), randomUUID()], oldWorkout = randomUUID(), routine = randomUUID(), target = randomUUID();
+    const diaryRows: (typeof schema.lifeItems.$inferInsert)[] = [
+      { id: routine, userId: reader.id, createdAt: old, data: { kind: "routine", title: "Morning", period: "morning", time: "08:00", steps: [{ id: randomUUID(), title: "Water", minutes: 2, completedOn: null }] } },
+      { id: target, userId: reader.id, createdAt: old, data: { kind: "nutrition_target", title: "My targets", calories: null, protein: 90, carbs: null, fat: null, fiber: null } },
+      ...oldFoods.map(id => ({ id, userId: reader.id, createdAt: old, data: food })),
+      { id: oldWorkout, userId: reader.id, createdAt: old, data: { kind: "workout", title: "Walk", date: food.date, minutes: 20, activity: "Walk" } },
+      ...Array.from({ length: 1000 }, (_, n) => ({ id: randomUUID(), userId: reader.id, createdAt: recent, data: { ...food, title: `Recent oats ${n}`, date: "2026-10-01" } })),
+      ...Array.from({ length: 501 }, (_, n) => ({ id: randomUUID(), userId: reader.id, createdAt: recent, data: { kind: "workout" as const, title: `Recent walk ${n}`, date: "2026-10-01", minutes: 10, activity: "Walk" as const } })),
+      { id: randomUUID(), userId: neighbor.id, createdAt: old, data: { ...food, title: "Foreign food" } },
+    ];
+    await db.insert(schema.lifeItems).values(diaryRows);
+    const history = await readWorkspace(reader.id, db, { diaryDate: "1999-01-01" });
+    expect(history.items.map(row => row.id)).toEqual(expect.arrayContaining([routine, target]));
+    expect(history.items.some(row => oldFoods.some(id => id === row.id) || row.id === oldWorkout)).toBe(false);
+    expect(history.itemsTruncated).toBe(true);
+    expect(history.itemCoverage.food).toEqual({ included: 500, total: 1002, limit: 1500, truncated: true });
+    expect(history.itemCoverage.workout).toEqual({ included: 500, total: 502, limit: 1500, truncated: true });
+    expect(history.diaryCoverage?.date).toBe("1999-01-01");
+    const selected = await readWorkspace(reader.id, db, { diaryDate: food.date });
+    expect(selected.items.map(row => row.id)).toEqual(expect.arrayContaining([routine, target, oldWorkout, ...oldFoods]));
+    expect(selected.items.filter(row => row.data.kind === "food" && row.data.date === food.date).reduce((sum, row) => sum + (row.data.kind === "food" ? row.data.calories ?? 0 : 0), 0)).toBe(240);
+    expect(selected.itemCoverage.food).toEqual({ included: 502, total: 1002, limit: 1500, truncated: true });
+    expect(selected.diaryCoverage).toEqual({ date: food.date, food: { included: 2, total: 2, limit: 1000, truncated: false }, workout: { included: 1, total: 1, limit: 1000, truncated: false } });
+    expect(JSON.stringify(selected)).not.toContain("Foreign food");
+    await expect(readWorkspace(reader.id, db, { diaryDate: "2026-02-30" })).rejects.toThrow();
+  });
+
+  it("reports the exact partial-day boundary independently of other diary history", async () => {
+    const [reader] = await db.insert(schema.users).values({ phoneE164: "+12025550646" }).returning();
+    const food = { kind: "food" as const, title: "Diary entry", date: "2020-02-01", meal: "Snack" as const, calories: 1, protein: null, carbs: null, fat: null, fiber: null };
+    await db.insert(schema.lifeItems).values([
+      ...Array.from({ length: 1001 }, () => ({ id: randomUUID(), userId: reader.id, data: food })),
+      { id: randomUUID(), userId: reader.id, data: { ...food, date: "2026-10-01" } },
+    ]);
+    const result = await readWorkspace(reader.id, db, { diaryDate: food.date });
+    expect(result.items.filter(row => row.data.kind === "food" && row.data.date === food.date)).toHaveLength(1000);
+    expect(result.itemCoverage.food).toEqual({ included: 1001, total: 1002, limit: 1500, truncated: true });
+    expect(result.diaryCoverage).toEqual({ date: food.date, food: { included: 1000, total: 1001, limit: 1000, truncated: true }, workout: { included: 0, total: 0, limit: 1000, truncated: false } });
+    const empty = await readWorkspace(reader.id, db, { diaryDate: "1999-01-01" });
+    expect(empty.diaryCoverage?.food).toEqual({ included: 0, total: 0, limit: 1000, truncated: false });
+  });
+
+  it("defaults an undated read to account-local today, keeping its diary complete or explicitly partial", async () => {
+    const now = new Date(), utcDay = localDay(now, "UTC");
+    const timezone = localDay(now, "Pacific/Kiritimati") !== utcDay ? "Pacific/Kiritimati" : "Etc/GMT+12";
+    const today = localDay(now, timezone);
+    expect(today).not.toBe(utcDay);
+    const [person] = await db.insert(schema.users).values({ phoneE164: "+12025550650", timezone }).returning();
+    const food = { kind: "food" as const, title: "Today's older logged meal", date: today, meal: "Snack" as const, calories: 1, protein: null, carbs: null, fat: null, fiber: null };
+    await db.insert(schema.lifeItems).values([
+      ...Array.from({ length: 600 }, () => ({ id: randomUUID(), userId: person.id, createdAt: new Date("2020-01-01T00:00:00Z"), data: food })),
+      ...Array.from({ length: 1001 }, () => ({ id: randomUUID(), userId: person.id, createdAt: now, data: { ...food, date: "1999-01-01" } })),
+      { id: randomUUID(), userId: person.id, data: { kind: "workout", title: "Today's walk", date: today, minutes: 10, activity: "Walk" } },
+    ]);
+    const complete = await readWorkspace(person.id, db);
+    expect(complete.diaryCoverage).toEqual({ date: today, food: { included: 600, total: 600, limit: 1000, truncated: false }, workout: { included: 1, total: 1, limit: 1000, truncated: false } });
+    expect(complete.items.filter(row => row.data.kind === "food" && row.data.date === today)).toHaveLength(600);
+    expect(complete.itemCoverage.food).toMatchObject({ total: 1601, included: 1100, truncated: true });
+    await db.insert(schema.lifeItems).values(Array.from({ length: 401 }, () => ({ id: randomUUID(), userId: person.id, data: food })));
+    const partial = await readWorkspace(person.id, db);
+    expect(partial.diaryCoverage?.food).toEqual({ included: 1000, total: 1001, limit: 1000, truncated: true });
+    expect(partial.items.filter(row => row.data.kind === "food" && row.data.date === today)).toHaveLength(1000);
+    expect(partial.itemsTruncated).toBe(true);
+  });
+
+  it("keeps active records ahead of bounded completed history and reports truncation", async () => {
+    const [person] = await db.insert(schema.users).values({ phoneE164: "+12025550643" }).returning();
+    const completed = new Date("2020-01-01T00:00:00Z"), upcoming = new Date("2030-01-01T12:00:00Z");
+    await db.insert(schema.tasks).values([
+      ...Array.from({ length: 205 }, (_, index) => ({ userId: person.id, title: `Completed ${index}`, status: "completed" as const, dueAt: completed, updatedAt: completed })),
+      { userId: person.id, title: "Still to do", status: "not_started", dueAt: upcoming },
+    ]);
+    await db.insert(schema.goals).values([
+      ...Array.from({ length: 105 }, (_, index) => ({ userId: person.id, title: `Old goal ${index}`, status: "completed" as const })),
+      { userId: person.id, title: "Current goal", status: "active" },
+    ]);
+    await db.insert(schema.reminders).values([
+      ...Array.from({ length: 205 }, (_, index) => ({ userId: person.id, text: `Sent ${index}`, status: "sent" as const, remindAt: completed, timezone: "UTC", idempotencyKey: `workspace-history:${person.id}:${index}` })),
+      { userId: person.id, text: "Upcoming reminder", status: "scheduled", remindAt: upcoming, timezone: "UTC", idempotencyKey: `workspace-upcoming:${person.id}` },
+    ]);
+    const workspace = await readWorkspace(person.id, db);
+    expect(workspace.tasks).toHaveLength(200);
+    expect(workspace.tasks[0].title).toBe("Still to do");
+    expect(workspace.goals).toHaveLength(100);
+    expect(workspace.goals[0].title).toBe("Current goal");
+    expect(workspace.reminders).toHaveLength(200);
+    expect(workspace.reminders[0].text).toBe("Upcoming reminder");
+    expect(workspace).toMatchObject({ tasksTruncated: true, goalsTruncated: true, remindersTruncated: true });
+  });
+
+  it("projects saved reminder cadence, timezone and terminal history without leaking another account", async () => {
+    const [person, outsider] = await db.insert(schema.users).values([{ phoneE164: "+12025550791", timezone: "UTC" }, { phoneE164: "+12025550792" }]).returning();
+    const remindAt = new Date("2026-10-20T00:00:00Z");
+    await db.insert(schema.reminders).values([
+      ...(["daily", "weekdays", "weekly"] as const).map(recurrence => ({ userId: person.id, text: recurrence, remindAt, timezone: "America/Los_Angeles", recurrence, idempotencyKey: `cadence:${person.id}:${recurrence}` })),
+      ...(["cancelled", "completed"] as const).map(status => ({ userId: person.id, text: status, remindAt, timezone: "America/Los_Angeles", recurrence: "daily" as const, status, idempotencyKey: `history:${person.id}:${status}` })),
+      { userId: outsider.id, text: "Private foreign reminder", remindAt, timezone: "UTC", idempotencyKey: `foreign:${outsider.id}` },
+    ]);
+    const workspace = await readWorkspace(person.id, db);
+    expect(workspace.reminders).toHaveLength(5);
+    for (const recurrence of ["daily", "weekdays", "weekly"]) expect(workspace.reminders).toContainEqual(expect.objectContaining({ text: recurrence, recurrence, timezone: "America/Los_Angeles", status: "scheduled" }));
+    expect(workspace.reminders.slice(0, 3).every(row => row.status === "scheduled")).toBe(true);
+    expect(workspace.reminders).toContainEqual(expect.objectContaining({ status: "cancelled", recurrence: "daily" }));
+    expect(workspace.reminders).toContainEqual(expect.objectContaining({ status: "completed", recurrence: "daily" }));
+    expect(workspace.reminders.some(row => row.text === "Private foreign reminder")).toBe(false);
+  });
+
+  it("replays a provider-free seven-day reminder week with separate task time, captured delivery and terminal history", async () => {
+    // Scripted commands exercise persistence and presentation, not live model interpretation.
+    let commands: CoachingCommand[] = [];
+    const sim = await createAssistantSimulator({ parse: async input => {
+      const replies: string[] = [];
+      for (const command of commands) replies.push(await input.execute!(command));
+      return { kind: "conversation", reply: replies.join(" ") || "Fixture acknowledgement." };
+    } });
+    try {
+      const person = await sim.user(), otherPerson = await sim.user();
+      const day = (value: number) => { const now = new Date(`2026-11-${String(value).padStart(2, "0")}T15:00:00Z`); sim.setTime(now); return now; };
+      const send = async (message: string, next: CoachingCommand[]) => { commands = next; return person.send(message); };
+      day(2); // Monday: saving a task time alone creates no requested text.
+      await send("Add call studio on Friday November 6 at 3 PM", [{ type: "create_task", title: "Call studio", dueAt: "2026-11-06T15:00:00-05:00" }]);
+      const task = (await person.state()).tasks[0];
+      expect((await person.workspace()).reminders).toHaveLength(0);
+      expect((await person.workspace()).tasks[0].dueAt?.toISOString()).toBe("2026-11-06T20:00:00.000Z");
+      day(3); // Tuesday: an explicit repeat is separate, and a replay is idempotent.
+      const request = "Remind me every weekday at 11 AM to call studio";
+      const created = await send(request, [{ type: "create_reminder", text: "Call studio", recurrence: "weekdays", remindAt: "2026-11-04T11:00:00-05:00", taskId: task.id }]);
+      await person.send(request, { providerId: created.providerId });
+      const reminder = (await person.state()).reminders[0];
+      expect((await person.workspace()).reminders).toMatchObject([{ recurrence: "weekdays", timezone: "America/New_York", status: "scheduled" }]);
+      expect((await sim.database.select().from(schema.scheduledActions).where(and(eq(schema.scheduledActions.reminderId, reminder.id), eq(schema.scheduledActions.status, "scheduled"))))).toHaveLength(1);
+      const repository = new DrizzleReminderRepository(sim.database);
+      day(4); // Wednesday: capture one outbound occurrence and advance to Thursday.
+      const occurrenceAt = reminder.remindAt;
+      const context = await repository.getDeliveryContext(reminder.id, occurrenceAt);
+      expect(context).not.toBeNull();
+      expect(await repository.markSending(reminder.id, occurrenceAt, occurrenceAt)).toBe(true);
+      const sender = new SafeSmsSender(new DrizzleOutboundMessageRepository(sim.database), sim.transport);
+      const delivery = { userId: person.id, body: "Reminder: Call studio", kind: "coach" as const, relatedReminderId: reminder.id, idempotencyKey: repository.getOccurrenceIdempotencyKey(reminder.id, occurrenceAt) };
+      const before = sim.transport.sent.length;
+      const sent = await sender.send(delivery);
+      expect(sent.sent).toBe(true);
+      if (!sent.sent) throw new Error("Expected captured fixture delivery");
+      await repository.recordSuccessfulDelivery(context!, occurrenceAt, sent.provider, sent.providerMessageSid, occurrenceAt);
+      expect(await sender.send(delivery)).toMatchObject({ sent: false, reason: "duplicate" });
+      expect(sim.transport.sent.length - before).toBe(1);
+      expect((await person.workspace()).reminders[0].remindAt.toISOString()).toBe("2026-11-05T16:00:00.000Z");
+      day(5); // Thursday: task completion retains the separately requested repeat.
+      await send("Complete my call studio task", [{ type: "complete_task", taskId: task.id }]);
+      expect((await person.workspace()).tasks[0].status).toBe("completed");
+      expect((await person.workspace()).reminders[0].status).toBe("scheduled");
+      day(6); // Friday: explicitly snooze the reminder; preserve its cadence.
+      await send("Move my call studio reminder to Monday November 9 at noon", [{ type: "list_reminders" }, { type: "reschedule_reminder", reminderId: reminder.id, remindAt: "2026-11-09T12:00:00-05:00" }]);
+      expect((await person.workspace()).reminders[0]).toMatchObject({ recurrence: "weekdays", remindAt: new Date("2026-11-09T17:00:00Z"), status: "scheduled" });
+      day(7); // Saturday: DONE ends the reminder and remains readable as history.
+      await send("Mark my call studio reminder done", [{ type: "list_reminders", includePast: true }, { type: "complete_reminder", reminderId: reminder.id }]);
+      expect((await person.workspace()).reminders[0].status).toBe("completed");
+      day(8); // Sunday: explicit cancellation is durable; no pending delivery remains.
+      const cancellation = await send("Cancel my call studio reminder", [{ type: "cancel_reminder", reminderId: reminder.id }]);
+      await person.send("Cancel my call studio reminder", { providerId: cancellation.providerId });
+      expect((await person.workspace()).reminders).toMatchObject([{ id: reminder.id, status: "cancelled", recurrence: "weekdays" }]);
+      expect(await repository.getDeliveryContext(reminder.id, new Date("2026-11-09T17:00:00Z"))).toBeNull();
+      expect((await sim.database.select().from(schema.scheduledActions).where(and(eq(schema.scheduledActions.reminderId, reminder.id), eq(schema.scheduledActions.status, "scheduled"))))).toHaveLength(0);
+      expect((await otherPerson.workspace()).reminders).toHaveLength(0);
+      expect((await otherPerson.workspace()).tasks).toHaveLength(0);
+    } finally { await sim.close(); }
+  }, 30_000);
 
   it("finds bounded meal candidates when conversational date words do not match stored dates", async () => {
     const [person, outsider] = await db.insert(schema.users).values([{ phoneE164: "+12025550641" }, { phoneE164: "+12025550642" }]).returning();
@@ -89,14 +332,14 @@ describe("shared life workspace", () => {
     const data = { kind: "meal" as const, title: "Chickpea salad", date: "2026-10-01", meal: "Dinner" as const, ingredients: "chickpeas (4 servings)", servings: 4 };
     const command = { type: "life_save" as const, sourceRecipeId: recipeId, data };
     expect(await assistant.execute(owner, mealId, command)).toContain("Saved");
-    expect((await readWorkspace(owner, db)).items.find(row => row.id === mealId)?.data).toEqual({ ...data, ingredients });
+    expect((await readWorkspace(owner, db)).items.find(row => row.id === mealId)?.data).toEqual({ ...data, ingredients, ingredientServings: 2, groceriesEnabled: true });
     await assistant.execute(owner, mealId, command);
     expect((await readWorkspace(owner, db)).items.filter(row => row.id === mealId)).toHaveLength(1);
     const otherMealId = randomUUID();
     expect(await assistant.execute(other, otherMealId, command)).toContain("couldn’t find");
     expect((await readWorkspace(other, db)).items.some(row => row.id === otherMealId)).toBe(false);
     await assistant.execute(owner, randomUUID(), { type: "life_patch", id: mealId, version: 1, patch: { kind: "meal", date: "2026-10-02" } });
-    expect((await readWorkspace(owner, db)).items.find(row => row.id === mealId)?.data).toEqual({ ...data, ingredients, date: "2026-10-02" });
+    expect((await readWorkspace(owner, db)).items.find(row => row.id === mealId)?.data).toEqual({ ...data, ingredients, ingredientServings: 2, groceriesEnabled: true, date: "2026-10-02" });
     expect(lifeItemSchema.safeParse({ ...data, servings: 0 }).success).toBe(false);
     expect(lifeItemSchema.safeParse({ ...data, servings: 101 }).success).toBe(false);
     expect(lifeItemSchema.safeParse({ ...data, servings: 1.5 }).success).toBe(false);
@@ -216,6 +459,15 @@ describe("shared life workspace", () => {
     expect(after.tasks.find(t => t.id === taskId)?.status).toBe("completed");
     expect(after.items.some(item => item.id === id)).toBe(false);
     await expect(mutateWorkspace(other, { action: "task", requestId: randomUUID(), command: { type: "complete_task", taskId } }, db)).rejects.toThrow();
+    const reopen = { action: "task" as const, requestId: randomUUID(), command: { type: "reopen_task" as const, taskId } };
+    await expect(mutateWorkspace(other, reopen, db)).rejects.toThrow();
+    await mutateWorkspace(owner, reopen, db);
+    await mutateWorkspace(owner, reopen, db);
+    const reopened = (await db.select().from(schema.tasks).where(eq(schema.tasks.id, taskId)))[0];
+    expect(reopened).toMatchObject({ title: "Do the dishes", estimatedMinutes: 10, status: "not_started", startedAt: null, completedAt: null });
+    expect((await readWorkspace(owner, db)).items.some(item => item.id === id)).toBe(false);
+    expect((await db.select().from(schema.taskEvents).where(eq(schema.taskEvents.taskId, taskId))).filter(event => event.changes.status === "not_started")).toHaveLength(1);
+    await expect(mutateWorkspace(owner, { ...reopen, requestId: randomUUID() }, db)).rejects.toThrow("find that task");
   });
 
   it("finishes a routine step and its timer atomically, preserves neighboring steps, and validates ownership", async () => {
@@ -232,6 +484,51 @@ describe("shared life workspace", () => {
     if (routine?.kind !== "routine") throw new Error("Missing routine");
     expect(routine.steps[0].completedOn).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(routine.steps[1].completedOn).toBeNull();
+  });
+
+  it("stops task focus atomically, rejects stale and foreign sessions, and permits a later focus", async () => {
+    const [person, neighbor] = await db.insert(schema.users).values([{ phoneE164: "+12025550647" }, { phoneE164: "+12025550648" }]).returning();
+    const startedAt = new Date("2026-10-15T12:00:00Z"), dueAt = new Date("2027-01-01T12:00:00Z");
+    const [task] = await db.insert(schema.tasks).values({ userId: person.id, title: "Write letter", estimatedMinutes: 20, dueAt, status: "in_progress", startedAt }).returning();
+    const id = randomUUID();
+    const focus = { kind: "focus" as const, title: task.title, taskId: task.id, endsAt: null, remaining: 600 };
+    await mutateWorkspace(person.id, { action: "save", id, version: 0, data: focus }, db);
+    const stop = { action: "stop_focus" as const, requestId: randomUUID(), focus: { id, version: 1 }, task: { id: task.id, startedAt: startedAt.toISOString() } };
+    await expect(mutateWorkspace(neighbor.id, stop, db)).rejects.toThrow("changed");
+    await expect(mutateWorkspace(person.id, { ...stop, focus: { id, version: 2 } }, db)).rejects.toThrow("changed");
+    await expect(mutateWorkspace(person.id, { ...stop, task: { id: task.id, startedAt: new Date(startedAt.getTime() - 1).toISOString() } }, db)).rejects.toThrow("changed");
+    expect((await readWorkspace(person.id, db)).items.some(row => row.id === id)).toBe(true);
+    await mutateWorkspace(person.id, stop, db);
+    await mutateWorkspace(person.id, stop, db);
+    const stopped = (await db.select().from(schema.tasks).where(eq(schema.tasks.id, task.id)))[0];
+    expect(stopped).toMatchObject({ title: task.title, estimatedMinutes: 20, dueAt, status: "not_started", startedAt: null, completedAt: null, abandonedAt: null });
+    expect((await readWorkspace(person.id, db)).items.some(row => row.id === id)).toBe(false);
+    expect(await db.select().from(schema.taskEvents).where(eq(schema.taskEvents.taskId, task.id))).toHaveLength(1);
+    await mutateWorkspace(person.id, { action: "task", requestId: randomUUID(), command: { type: "start_task", taskId: task.id } }, db);
+    const [resumed] = await db.select().from(schema.tasks).where(eq(schema.tasks.id, task.id));
+    await mutateWorkspace(person.id, stop, db);
+    expect((await readWorkspace(person.id, db)).tasks.find(row => row.id === task.id)?.status).toBe("in_progress");
+    await expect(mutateWorkspace(person.id, { action: "stop_focus", requestId: randomUUID(), task: stop.task }, db)).rejects.toThrow("changed");
+    await mutateWorkspace(person.id, { action: "stop_focus", requestId: randomUUID(), task: { id: task.id, startedAt: resumed.startedAt!.toISOString() } }, db);
+    expect((await readWorkspace(person.id, db)).tasks.find(row => row.id === task.id)?.status).toBe("not_started");
+  });
+
+  it("stops routine focus without completing the step and rejects stale fallback task stops", async () => {
+    const [person] = await db.insert(schema.users).values({ phoneE164: "+12025550649" }).returning();
+    const routineId = randomUUID(), stepId = randomUUID(), focusId = randomUUID();
+    const routine = { kind: "routine" as const, title: "Evening", period: "evening" as const, time: "20:00", steps: [{ id: stepId, title: "Journal", minutes: 5, completedOn: null }] };
+    await mutateWorkspace(person.id, { action: "save", id: routineId, version: 0, data: routine }, db);
+    await mutateWorkspace(person.id, { action: "save", id: focusId, version: 0, data: { kind: "focus", title: "Journal", routineId, stepId, remaining: 200, endsAt: null } }, db);
+    const stop = { action: "stop_focus" as const, requestId: randomUUID(), focus: { id: focusId, version: 1 } };
+    await expect(mutateWorkspace(person.id, { action: "stop_focus", requestId: randomUUID(), task: { id: randomUUID(), startedAt: null } }, db)).rejects.toThrow("changed");
+    await mutateWorkspace(person.id, stop, db);
+    await mutateWorkspace(person.id, stop, db);
+    const workspace = await readWorkspace(person.id, db);
+    expect(workspace.items.find(row => row.id === routineId)).toMatchObject({ version: 1, data: routine });
+    expect(workspace.items.some(row => row.data.kind === "focus")).toBe(false);
+    await mutateWorkspace(person.id, { action: "save", id: randomUUID(), version: 0, data: { kind: "focus", title: "Journal", routineId, stepId, remaining: 300, endsAt: null } }, db);
+    await expect(mutateWorkspace(person.id, { ...stop, requestId: randomUUID() }, db)).rejects.toThrow("changed");
+    expect((await readWorkspace(person.id, db)).items.filter(row => row.data.kind === "focus")).toHaveLength(1);
   });
 
   it("enqueues web messages once and stores a shared-history reply without an SMS provider", async () => {

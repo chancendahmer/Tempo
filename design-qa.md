@@ -1,64 +1,50 @@
-# Tempo Landing Page — Design QA
+# Adaptive Home design QA
 
-**Source visual truth**
+Date: 2026-10-21. Branch: `codex/tempo-adaptive-home`, based on `74e9f09fdf1c3697f5200ec572b89344a179f65d`. This report covers the working tree committed with this report, not production.
 
-- User-provided final mockup (not committed to the repository).
-- Source pixels: 1486 × 1059.
-- Normalization: resized with Lanczos to 1440 × 1024 so it matches the desktop CSS viewport at device scale factor 1.
+**Final result: passed** for the requested isolated Home implementation. No open P0/P1/P2 design findings. This is the implementing engineer's visual/interaction QA, not an independent customer score or a full-product release certification.
 
-**Implementation evidence**
+## Comparison evidence
 
-- Desktop: `qa/tempo-desktop-1440.png` — 1440 × 1024, default signup state.
-- Side-by-side comparison: `qa/design-qa-comparison.png` — normalized source on the left and browser-rendered implementation on the right.
-- Success state: `qa/tempo-success-1440.png`.
-- Responsive evidence: 1280 × 800, 1024 × 768, 768 × 1024, 390 × 844, and 360 × 800 screenshots in `qa/`.
-- Browser: local Chromium render through headless Chrome because the Codex in-app browser connection failed before navigation. All captures use device scale factor 1.
-
-## Full-view comparison
-
-The final 1440 × 1024 comparison preserves the source hierarchy and crop: sparse header, balanced three-message conversation, centered mascot, dominant two-line headline, narrow supporting copy, teal-outlined phone control, proof row, social row, and legal footer. The lower dot field begins at the same visual transition and the form/footer rhythm remains aligned to the source.
-
-The responsive captures preserve the same order and hierarchy without horizontal overflow. At 768 px and below, the desktop navigation becomes a menu button and the conversation reflows without collisions. At 390 px and 360 px, the phone form stacks into a full-width button and the remaining content continues vertically.
-
-Focused crops were not required: the normalized 2880 × 1024 comparison contains both designs at native 1× density, and the typography, mascot edges, form border, icon buttons, and small legal text remain readable. The success state received its own full-resolution capture.
+- Approved image: the user's `codex-clipboard-08a1bd2f-be4d-4063-b163-7fa9d258e2fe.png`, plus its refined morning concept (`exec-f94369be-f176-4cda-90fa-278606c52d6c.png`).
+- [Combined source/render comparison](qa/adaptive-home/reference-comparison.png): both images inspected side by side at equal width, including typography, spacing, palette, imagery, and copy.
+- [Desktop morning](qa/adaptive-home/morning-desktop.png), [movement](qa/adaptive-home/workout-desktop.png), [dinner](qa/adaptive-home/dinner-desktop.png), [wind-down](qa/adaptive-home/evening-desktop.png).
+- [Tablet, 1024 px](qa/adaptive-home/morning-tablet.png), [phone, 390 px](qa/adaptive-home/morning-mobile.png), [narrow phone, 320 px](qa/adaptive-home/phone-320.png).
+- Environment: isolated Next development preview, `http://localhost:3103/workspace/preview`. Alex is explicitly fictional, with local temporary changes only.
 
 ## Fidelity surfaces
 
-- **Fonts and typography:** Manrope Variable closely matches the geometric sans-serif source. The final headline scale, optical weight, line spacing, and second-line width were tuned independently to match the mockup. Body and utility text retain readable optical weights.
-- **Spacing and layout rhythm:** Header margins, message placement, mascot scale, headline/form positions, radii, shadows, and lower-section spacing align closely with the normalized source. Required responsive viewports show no clipping or horizontal overflow.
-- **Colors and visual tokens:** Warm off-white paper, black text/buttons, teal accent, compact early-access counter, light gray borders, and restrained shadows match the source palette with sufficient contrast.
-- **Image quality and asset fidelity:** The mascot is a dedicated high-resolution RGBA PNG generated from the supplied reference. It preserves the white shell, gray rim, glossy face, teal eyes, antenna, grounding shadow, and teal underglow with no checkerboard or background halo.
-- **Copy and content:** All required headline, supporting, signup, proof, SMS, and legal copy is present. How It Works and Pricing now resolve to complete branded pages; login and legal destinations retain their branded coming-soon states.
-- **Icons:** Instagram, X, LinkedIn, Discord, menu, close, and success icons come from established icon/flag libraries and remain aligned at desktop and mobile sizes.
-- **States and interactions:** Empty and invalid submissions show an inline error. Country and regional area-code controls update independently. A valid local number produces the required success copy without reload and persists through refresh. Mobile navigation toggles, keyboard focus advances into its links, and all internal destinations return HTTP 200.
-- **Accessibility:** Semantic landmarks and headings, form labels, live validation/status text, meaningful mascot alt text, 44 px minimum mobile targets, visible focus rings, sufficient contrast, and reduced-motion handling are present.
+| Surface | Observed result |
+| --- | --- |
+| Fonts | Manrope, sans headings, strong task names, quiet metadata. Corrected inherited global typography. Task titles increased to 18 px on desktop; narrow-phone titles wrap without colliding with Start. |
+| Spacing/layout | Oval header controls, full-width photographic activity banner, stable task/calendar columns, capsule composer. Desktop fits approximately one screen; phones stack naturally. Restored native-dialog centering after a reset stylesheet removed its margins. |
+| Colors | White/off-white foundations with restrained teal actions. Gray paperwork, green shopping/food, blue-green activity, and warm routine icons. Next calendar event uses a light blue surface; color is accompanied by text and icon shape. |
+| Image quality | New high-resolution ceramic-sun, desk, exercise, evening, and ingredient imagery. Desktop crop preserves the main object; mobile gradients retain legible copy. Matching recipe illustrations appear only for a matching saved recipe; generic food imagery is not presented as the exact user's dish. |
+| Copy/content | Real routine titles/next steps, task-specific timer labels, today's actual events, planned servings. Clear empty/error/disconnected states. Demo time and records are labeled fictional. No invented completed activity or nutrition intake. |
+| Icons | Consistent React Icons family/weight, category colors restricted to small symbols. The icon's accessible label opens an editable category/timer dialog. Added a permanent accessible name to the mobile-only settings icon. |
 
-## Comparison history
+Intentional adaptations: the existing Journey link and demo disclosure remain above the Home content. The screenshot's sample events/tasks are replaced by existing account records. Controls and metadata are somewhat denser than the concept to fit these retained elements. A real account is not filled with fictional events to match the picture. No fake attachment or microphone controls were added.
 
-1. **Initial pass — blocked by P2 typography/layout drift.** The first desktop render placed the headline too low and made its first line too narrow relative to the source; the mascot was also slightly undersized. Fixed by reducing the conversation-to-headline gap, increasing the mascot slot, and tuning headline size, tracking, and line height. The next 1440 × 1024 capture aligned the major vertical anchors and first-line width.
-2. **Second pass — blocked by P2 second-line width.** The selected font made “pays attention.” proportionally wider than the source even though the first line matched. Fixed with a centered horizontal optical adjustment applied only to the second line. The final side-by-side comparison shows the two headline lines matching the source proportions.
-3. **Final pass — passed.** All six requested viewport captures are free of horizontal overflow and visible overlap. Empty, invalid, valid, persisted-success, mobile-menu, keyboard-focus, route, and console checks passed. No actionable P0/P1/P2 design differences remain.
-4. **Page-extension pass — passed.** Replaced the four-circle proof cluster with an animated counter, separated country/area/local phone controls, and added complete How It Works and Pricing routes. Section-level browser captures verified all scroll-reveal states, plan buttons, content sections, and mobile first folds. Evidence: `qa/tempo-how-it-works-top.png`, `qa/tempo-how-it-works-flow.png`, `qa/tempo-how-it-works-examples.png`, `qa/tempo-pricing-top.png`, `qa/tempo-pricing-plans.png`, `qa/tempo-pricing-detail.png`, `qa/tempo-how-it-works-mobile.png`, and `qa/tempo-pricing-mobile.png`.
+## Interaction and responsive observations
 
-## Findings
+- Changed a task's starting timer to 7 minutes; Start opened a 7:00 focus session. Pausing, resuming, returning Home, continuing, and completing worked. A second task could not start concurrently. Reload reset the fictional preview as advertised.
+- Automatic preview time: 08:10 morning routine; 15:05 scheduled walk; 18:00 saved dinner; 21:30 evening routine. Dinner opened the current meal-plan date; movement opened Fitness. Earlier events were absent after they ended.
+- Pin/unpin and Home settings worked. Manual banner selection stays a temporary view unless pinned. Search for lemon distinguished dates; choosing October 23 opened that date's meal plan.
+- Spaces opened the four groups; Escape dismissed it. Sidebar opened and dismissed with focus returned. Journey remained reachable. Account identity and the preview/account distinction remained visible.
+- Inspected 1487, 1024, 390, and 320 px layouts. Corrected the 320 px header wrapping and calendar heading crowding. No horizontal document overflow in final phone/tablet checks. Mobile settings remain scrollable; Escape closes them and returns focus.
+- Reduced-motion media rules avoid optional transitions. Focus indicators and native form semantics remain. Final browser console query returned no warnings or errors. A DOM label check's six apparent misses were hidden sidebar buttons with text, not visible unnamed controls.
 
-No actionable P0, P1, or P2 findings remain.
+## Repair history
 
-## Follow-up polish
+| Finding | Fix and verification |
+| --- | --- |
+| P2: global progress margin and typography distorted banner density | Scoped Home progress/typography overrides; re-rendered desktop and tablet. |
+| P2: 320 px header forced the profile onto its own row | Compact header spacing and type, remove redundant chevron at this width; final narrow-phone capture. |
+| P2: icon-only mobile Home settings lacked an accessible name | Explicit `aria-label`; opened through its accessible name. |
+| P2: dialog aligned to the top-left due to global reset | Explicit `margin:auto`; measured centered x=16/y=37 at narrow width, closed with Escape. |
+| P2: search meal results did not identify date or navigate to the selected day | Added slot/date labels and selected-date routing; opened October 23 successfully. |
+| P3: switching banner could briefly retain the previous photo | Key image by source; inspected different banner states. |
 
-- P3: The generated mascot has slightly stronger teal underglow than the reference. This is acceptable at current display sizes and helps it remain crisp on the warm background.
-- P3: The exact destination URLs for social profiles and the illustrative early-access count remain intentionally configurable placeholders.
+## Validation boundary
 
-## Verification
-
-- Lint: passed.
-- TypeScript: passed.
-- Production build: passed.
-- Browser console: no errors in the final run.
-- Route checks: `/how-it-works`, `/pricing`, `/login`, `/terms`, and `/privacy` all returned 200.
-- How It Works: 4 process steps, 3 animated message examples, CTA destination, reveal completion, and desktop/mobile overflow checks passed.
-- Pricing: Free, Pro, and Premium cards, all 3 plan CTAs, FAQ/detail sections, reveal completion, and desktop/mobile overflow checks passed.
-- Phone flow: 7 default U.S. area-code choices detected, alternate area selection passed, and 7-digit local-number validation succeeded.
-- Responsive overflow checks: passed at 1440 × 1024, 1280 × 800, 1024 × 768, 768 × 1024, 390 × 844, and 360 × 800.
-
-final result: passed
+Automated account/database tests and the live model check are documented in [the checkpoint](qa/adaptive-home/README.md). Browser QA used the fictional preview, not a signed-in production account. This report does not prove real SMS delivery, Google authorization, worker deployment, or physical-device alarm behavior. Production and the original worktrees were not changed.

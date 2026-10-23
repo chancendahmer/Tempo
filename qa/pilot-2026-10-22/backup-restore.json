@@ -1,0 +1,38 @@
+{
+  "passed": true,
+  "scope": "isolated local PostgreSQL synthetic backup/restore; no hosted restore or application worker execution",
+  "archive": {
+    "format": "custom",
+    "storage": "memory_only",
+    "bytes": 178258,
+    "sha256": "adeeeb1d202f2181f67aa1793d641dbca64e5923a5ae2bb6faa3fe9343f13c6a"
+  },
+  "dumpMs": 261,
+  "restoreMs": 863,
+  "comparedTables": 55,
+  "populatedTables": {
+    "drizzle.__drizzle_migrations": 34,
+    "pgboss.job": 2,
+    "pgboss.job_common": 2,
+    "pgboss.queue": 1,
+    "pgboss.version": 1,
+    "public.ai_budget_attempts": 2,
+    "public.ai_budget_states": 2,
+    "public.calendar_connections": 1,
+    "public.pilot_feedback": 1,
+    "public.rate_limit_buckets": 1,
+    "public.scheduled_actions": 3,
+    "public.tasks": 1,
+    "public.users": 1
+  },
+  "exactRecordsConstraintsIndexesEnumsSequences": true,
+  "matchingKeyDecryption": true,
+  "wrongKeyRejected": true,
+  "feedbackReplayPreserved": true,
+  "migratorRerunUnchanged": true,
+  "checkForeignKeyUniqueProbes": true,
+  "accountDeletionRetainsGlobalUncertainDebt": true,
+  "jobState": "scheduled/completed/failed application scheduled_actions and linked created/completed pg-boss jobs preserved; no application worker execution",
+  "runtimeMs": 3972,
+  "ownedDatabasesRemoved": 2
+}

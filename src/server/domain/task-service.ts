@@ -16,6 +16,7 @@ export type TaskMutation = {
   completedAt?: Date | null;
   abandonedAt?: Date | null;
 };
+export class TaskSourceNoteError extends Error {}
 
 export interface TaskRepository {
   findActionBySourceMessage(sourceMessageId: string): Promise<{
@@ -29,6 +30,7 @@ export interface TaskRepository {
     estimatedMinutes?: number;
     dueAt?: Date;
     goalId?: string;
+    sourceNoteId?: string;
   }): Promise<TaskRecord>;
   list(userId: string, status: "open" | "completed" | "all"): Promise<TaskRecord[]>;
   listForResolution(userId: string): Promise<TaskRecord[]>;
@@ -38,6 +40,7 @@ export interface TaskRepository {
     sourceMessageId: string;
     eventType: "updated" | "started" | "completed" | "abandoned";
     changes: TaskMutation;
+    expectedStatus?: TaskRecord["status"];
   }): Promise<TaskRecord>;
 }
 
@@ -82,15 +85,20 @@ export async function executeTaskCommand(
   }
 
   if (command.type === "create_task") {
-    const task = await repository.create({
+    let task;
+    try { task = await repository.create({
       userId: context.userId,
       sourceMessageId: context.sourceMessageId,
       title: command.title,
       estimatedMinutes: command.estimatedMinutes,
       dueAt: command.dueAt ? new Date(command.dueAt) : undefined,
       goalId: command.goalId,
-    });
-    return { kind: "executed", task, reply: `Added: ${task.title}.` };
+      sourceNoteId: command.sourceNoteId,
+    }); } catch (error) {
+      if (error instanceof TaskSourceNoteError) return { kind: "not_found", reply: error.message };
+      throw error;
+    }
+    return { kind: "executed", task, reply: command.sourceNoteId ? `Task for your thought: ${task.title}. Your original thought stays saved.` : `Added: ${task.title}.` };
   }
 
   if (command.type === "list_tasks") {
@@ -108,7 +116,7 @@ export async function executeTaskCommand(
     };
   }
 
-  const tasks = await repository.listForResolution(context.userId);
+  const tasks = command.type === "reopen_task" ? await repository.list(context.userId, "completed") : await repository.listForResolution(context.userId);
   const resolution = resolveTaskReference(tasks, command);
   if (resolution.kind === "not_found") {
     return { kind: "not_found", reply: "I couldn’t find that task. Text “list my tasks” to see the current list." };
@@ -152,6 +160,10 @@ export async function executeResolvedTaskCommand(
       eventType = "completed";
       changes = { status: "completed", completedAt: context.now };
       break;
+    case "reopen_task":
+      eventType = "updated";
+      changes = { status: "not_started", startedAt: null, completedAt: null, abandonedAt: null };
+      break;
     case "abandon_task":
       eventType = "abandoned";
       changes = { status: "abandoned", abandonedAt: context.now };
@@ -176,6 +188,7 @@ export async function executeResolvedTaskCommand(
     sourceMessageId: context.sourceMessageId,
     eventType,
     changes,
+    ...(command.type === "reopen_task" ? { expectedStatus: "completed" as const } : {}),
   });
   return { kind: "executed", task, reply: replyForTaskAction(eventType, task) };
 }

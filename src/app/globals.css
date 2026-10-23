@@ -509,11 +509,14 @@ select {
   margin: 11px auto 0;
   display: flex;
   align-items: flex-start;
+  min-height: 44px;
+  padding: 6px 0;
   gap: 9px;
   color: #4f575f;
-  font-size: 11px;
-  line-height: 1.45;
+  font-size: 14px;
+  line-height: 1.55;
   text-align: left;
+  cursor: pointer;
 }
 
 .sms-consent input {
@@ -1524,9 +1527,10 @@ select {
 }
 
 .profile-summary > a {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 8px;
+  min-height: 44px;
   font-weight: 800;
 }
 

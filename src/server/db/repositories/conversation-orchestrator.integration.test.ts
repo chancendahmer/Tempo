@@ -7,6 +7,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { TaskIntentParser } from "../../adapters/llm/task-intent-parser";
 import { TestSmsTransport } from "../../adapters/sms/sms-transport";
 import { ConversationOrchestrator } from "../../domain/conversation-orchestrator";
+import { currentAiInvocationScope } from "../../domain/ai-invocation-scope";
 import { SafeSmsSender } from "../../domain/outbound-messaging";
 import { MemoryService } from "../../domain/memory-service";
 import { TempoDatabase } from "../client";
@@ -117,13 +118,16 @@ describe("inbound conversation orchestration", () => {
 
   it("applies semantic read-only policy before a matching memory shortcut", async () => {
     const user = await consentedUser("+12025550894", "complete");
-    const authorize = vi.fn(async () => ({ mode: "read_only" as const, commands: [] }));
-    const parser: TaskIntentParser = { authorizer: { authorize }, parse: vi.fn(async () => ({ kind: "conversation" as const, reply: "A list could help with meal ideas." })) };
+    const observedScopes: unknown[] = [];
+    const authorize = vi.fn(async () => { observedScopes.push(currentAiInvocationScope()); return { mode: "read_only" as const, commands: [] }; });
+    const parser: TaskIntentParser = { authorizer: { authorize }, parse: vi.fn(async () => { observedScopes.push(currentAiInvocationScope()); return { kind: "conversation" as const, reply: "A list could help with meal ideas." }; }) };
     const [message] = await database.insert(conversationMessages).values({ userId: user.id, conversationId: user.conversationId, direction: "inbound", kind: "user", status: "received", body: "Would it help to keep a log of my favorite foods?" }).returning();
     await orchestrator(new TestSmsTransport("MEMORYADVICE"), parser).process(message.id);
     expect(await database.select().from(memoryEntries).where(eq(memoryEntries.userId, user.id))).toHaveLength(0);
     expect(authorize).toHaveBeenCalledTimes(1);
     expect(parser.parse).toHaveBeenCalledTimes(1);
+    expect(observedScopes).toEqual(Array(2).fill({ accountId: user.id, executionId: message.id, signal: undefined }));
+    expect(currentAiInvocationScope()).toBeUndefined();
   });
 
   it("enforces the same grant on callback execution and returned commands", async () => {

@@ -5,6 +5,7 @@ import { issueActionToken, InvalidActionTokenError } from "./action-token";
 
 const mocks = vi.hoisted(() => ({ redeem: vi.fn(), env: { FIELD_ENCRYPTION_KEY: "", DATABASE_URL: "test", APP_BASE_URL: "https://tempo.test", NODE_ENV: "production" } }));
 vi.mock("../config/env", () => ({ requireEnv: () => mocks.env }));
+vi.mock("../observability/logger", () => ({ logger: { error: vi.fn() } }));
 vi.mock("./web-session", () => ({
   WEB_SESSION_COOKIE: "tempo_session", WEB_SESSION_TTL_SECONDS: 2592000,
   WebSessionService: class { redeemSignIn = mocks.redeem; },
@@ -45,6 +46,30 @@ describe("phone sign-in link HTTP boundary", () => {
     mocks.redeem.mockRejectedValue(new InvalidActionTokenError());
     const result = await POST(post(token()));
     expect(result.status).toBe(400);
+    expect(result.headers.get("set-cookie")).toBeNull();
+  });
+  it("offers a private, usable recovery link for an invalid preview without echoing input", async () => {
+    const result = await GET(new NextRequest("https://tempo.test/api/auth/phone?token=%3Cscript%3Eprivate-input%3C/script%3E"));
+    expect(result.status).toBe(400);
+    const body = await result.text();
+    expect(body).toContain('href="/login"');
+    expect(body).toContain("Back to sign in");
+    expect(body).not.toMatch(/private-input|<script>/);
+    expect(result.headers.get("content-type")).toContain("text/html");
+    expect(result.headers.get("content-security-policy")).toContain("default-src 'none'");
+    expect(result.headers.get("referrer-policy")).toBe("no-referrer");
+    expect(result.headers.get("cache-control")).toBe("no-store");
+    expect(result.headers.get("set-cookie")).toBeNull();
+    expect(mocks.redeem).not.toHaveBeenCalled();
+  });
+  it("offers recovery after temporary redemption failure without clearing the current session", async () => {
+    mocks.redeem.mockRejectedValue(new Error("private-database-error"));
+    const result = await POST(post(token()));
+    expect(result.status).toBe(503);
+    const body = await result.text();
+    expect(body).toContain("temporarily unavailable");
+    expect(body).toContain('href="/login"');
+    expect(body).not.toContain("private-database-error");
     expect(result.headers.get("set-cookie")).toBeNull();
   });
 });

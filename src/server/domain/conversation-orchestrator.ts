@@ -46,6 +46,7 @@ import { buildRundown, parseRundownRequest, isRundownQuestion } from "./rundown"
 import { connectionStatusReply } from "./connection-status-reply";
 import { assessTaskDeadline } from "./task-deadline";
 import { CHECKIN_CONSENT_REPLY, hasExplicitNoWriteRequest, isReadOnlyAssistantCommand, NO_WRITE_REPLY, requestedCheckinConsent, TurnWritePolicy } from "./turn-write-policy";
+import { withAiInvocationScope } from "./ai-invocation-scope";
 import { inOwnedExecution, ownedService } from "./inbound-execution";
 
 export type InboundConversationContext = {
@@ -100,7 +101,7 @@ export interface ConversationRepository {
   claimInbound(messageId: string, now: Date): Promise<InboundConversationContext | null>;
   releaseInbound(messageId: string, processingToken: string): Promise<void>;
   markProcessed(userId: string, messageId: string, processingToken: string): Promise<void>;
-  withOwnership<T>(context: InboundConversationContext, operation: () => Promise<T>): Promise<T>;
+  withOwnership<T>(context: InboundConversationContext, operation: () => Promise<T>, options?: { accountFirst?: boolean }): Promise<T>;
   persistReply(context: InboundConversationContext, body: string): Promise<string>;
   getPendingAction(userId: string): Promise<StoredPendingAction | null>;
   savePendingAction(userId: string, action: StoredPendingAction): Promise<void>;
@@ -132,7 +133,7 @@ export class ConversationOrchestrator {
     private readonly history?: ConversationHistoryRepository,
     private readonly reminders?: ReminderRepository,
     private readonly integrations?: AssistantIntegrations,
-    private readonly life?: { execute(userId: string, sourceMessageId: string, command: Extract<AssistantCommand, { type: "food_search" | "life_list" | "life_save" | "life_patch" | "life_remove" | "grocery_add" }>): Promise<string>;
+    private readonly life?: { execute(userId: string, sourceMessageId: string, command: Extract<AssistantCommand, { type: "food_search" | "life_list" | "life_save" | "life_patch" | "life_remove" | "grocery_add" }>, now?: Date): Promise<string>;
       captureWithReminder?(userId: string, sourceMessageId: string, command: Extract<AssistantCommand, {type:"capture_with_reminder"}>, now: Date, timezone: string): Promise<string> },
     private readonly itemReviews?: ItemReviewResponder,
   ) {
@@ -158,7 +159,8 @@ export class ConversationOrchestrator {
     try {
       const reply = context.replyBody ?? await this.conversations.persistReply(context,
         await inOwnedExecution({ run: operation => this.conversations.withOwnership(context, operation) },
-          () => this.decideReply(context, now)) ?? "");
+          () => withAiInvocationScope({ accountId: context.userId, executionId: context.messageId, signal },
+            () => this.decideReply(context, now))) ?? "");
       if (reply) {
         await this.sms.send({
           userId: context.userId,
@@ -425,7 +427,7 @@ export class ConversationOrchestrator {
       const result = await this.executeCommandOwned(context, now, command);
       await this.conversations.persistReply(context, result);
       return result;
-    });
+    }, isReminderCommand(command) ? { accountFirst: true } : undefined);
   }
 
   private async executeCommandOwned(context: InboundConversationContext, now: Date, command: CoachingCommand): Promise<string> {
@@ -436,20 +438,20 @@ export class ConversationOrchestrator {
     if (command.type === "capture_with_reminder") return this.life?.captureWithReminder?.(context.userId, context.messageId, command, now, context.timezone) ?? "Saving a plan with its reminder is temporarily unavailable. Nothing was saved.";
     if (command.type === "get_rundown") return buildRundown({ tasks: this.tasks, goals: this.goals, reminders: this.reminders, integrations: this.integrations }, { ...context, now }, command);
     if (command.type === "grocery_add" || command.type === "food_search" || command.type === "life_list" || command.type === "life_save" || command.type === "life_patch" || command.type === "life_remove") {
-      return this.life?.execute(context.userId, context.messageId, command) ?? "Your life workspace is not configured in this environment.";
+      return this.life?.execute(context.userId, context.messageId, command, now) ?? "Your life workspace is not configured in this environment.";
     }
     if (command.type === "recall_memories") {
       const search = await this.memories?.searchRelevant(context.userId, now, command.query, 20)
         ?? { items: [], truncated: false, coverage: "Saved fact search is unavailable." };
       const facts = search.items.map(memory => memory.content);
       if (command.query) {
-        const rawNotes = await this.life?.execute(context.userId, context.messageId, { type: "life_list", kind: "note", query: command.query });
+        const rawNotes = await this.life?.execute(context.userId, context.messageId, { type: "life_list", kind: "note", query: command.query }, now);
         let noteSearch: unknown = { items: [], notice: "Note search is unavailable; do not claim no note exists." };
         if (rawNotes) { try { noteSearch = JSON.parse(rawNotes); } catch { /* Preserve the explicit unavailable notice. */ } }
         return JSON.stringify({ facts, memories: search.items.map(({ id, content }) => ({ id, content })), factsTruncated: search.truncated, factsCoverage: search.coverage, noteSearch });
       }
       return JSON.stringify({ facts, memories: search.items.map(({ id, content }) => ({ id, content })), factsTruncated: search.truncated, factsCoverage: search.coverage,
-        noteSearchNotice: "Thought inbox notes have not been searched; use specific query keywords before answering a personal recall question." });
+        noteSearchNotice: "Thoughts notes have not been searched; use specific query keywords before answering a personal recall question." });
     }
     if (command.type === "forget_memory") {
       if (command.memoryId && command.expectedContent) return this.memories?.forgetById(context.userId, command.memoryId, command.expectedContent, now) ?? "Memory is temporarily unavailable.";

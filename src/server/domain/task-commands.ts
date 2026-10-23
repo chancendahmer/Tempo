@@ -13,6 +13,7 @@ export const taskCommandSchema = z
       estimatedMinutes: z.number().int().min(1).max(1440).optional(),
       dueAt: z.iso.datetime({ offset: true }).optional(),
       goalId: z.uuid().optional(),
+      sourceNoteId: z.uuid().optional(),
     }),
     z.object({
       type: z.literal("list_tasks"),
@@ -24,6 +25,10 @@ export const taskCommandSchema = z
     }),
     z.object({
       type: z.literal("complete_task"),
+      ...taskReference,
+    }),
+    z.object({
+      type: z.literal("reopen_task"),
       ...taskReference,
     }),
     z.object({
@@ -102,6 +107,9 @@ export function parseTaskCommandHeuristically(text: string, _reference = new Dat
 
   const complete = trimmed.match(/^(?:i(?:'m|\s+am)?\s+)?(?:done\s+with|finished|completed)\s+(.+)$/i);
   if (complete) return taskCommandSchema.parse({ type: "complete_task", taskQuery: cleanReference(complete[1]) });
+
+  const reopen = trimmed.match(/^reopen\s+(.+)$/i);
+  if (reopen) return taskCommandSchema.parse({ type: "reopen_task", taskQuery: cleanReference(reopen[1]) });
 
   const start = trimmed.match(/^(?:start|begin|i(?:'m|\s+am)\s+starting)\s+(.+)$/i);
   if (start) return taskCommandSchema.parse({ type: "start_task", taskQuery: cleanReference(start[1]) });

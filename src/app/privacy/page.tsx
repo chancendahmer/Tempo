@@ -16,7 +16,8 @@ export default function PrivacyPage() {
       <section>
         <h2>Information we collect</h2>
         <p>We collect the phone number and consent evidence you provide, your SMS messages with Tempo, tasks and preferences you ask Tempo to remember, and service records such as message delivery and intervention outcomes.</p>
-        <p>If you connect Google Calendar, Tempo requests read-only calendar access. Tempo stores encrypted authorization credentials and a short-lived cache of busy time windows. The V1 service does not store event titles or descriptions in its calendar cache.</p>
+        <p>If you connect Google Calendar, Tempo requests access to calendar availability and events on calendars you own. Tempo reads your primary calendar to answer questions and can propose adding, moving, or deleting personal events. Each proposed change requires a separate confirmation by text before it is applied.</p>
+        <p>Tempo stores encrypted authorization credentials and a short-lived cache of busy time windows. Event details are read when needed; event titles may appear in your conversation and proposed event changes are stored encrypted while awaiting confirmation.</p>
       </section>
       <section>
         <h2>How we use information</h2>

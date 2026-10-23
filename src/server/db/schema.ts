@@ -1,7 +1,9 @@
 import { sql } from "drizzle-orm";
 import {
+  bigint,
   boolean,
   check,
+  date,
   doublePrecision,
   index,
   integer,
@@ -19,6 +21,50 @@ const timestamps = {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 };
+
+// Operational accounting survives account erasure without message or identity content.
+export const aiBudgetStates = pgTable("ai_budget_states", {
+  scopeKey: text("scope_key").primaryKey(),
+  accountId: uuid("account_id").references(() => users.id, { onDelete: "set null" }),
+  windowDay: date("window_day", { mode: "string" }).notNull(),
+  settledMicrodollars: bigint("settled_microdollars", { mode: "number" }).default(0).notNull(),
+  settledCalls: bigint("settled_calls", { mode: "number" }).default(0).notNull(),
+  outstandingMicrodollars: bigint("outstanding_microdollars", { mode: "number" }).default(0).notNull(),
+  outstandingCalls: bigint("outstanding_calls", { mode: "number" }).default(0).notNull(),
+  halted: boolean("halted").default(false).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, table => [
+  index("ai_budget_states_account_idx").on(table.accountId),
+  check("ai_budget_states_nonnegative", sql`${table.settledMicrodollars} >= 0 AND ${table.settledCalls} >= 0 AND ${table.outstandingMicrodollars} >= 0 AND ${table.outstandingCalls} >= 0`),
+]);
+
+export const aiBudgetAttempts = pgTable("ai_budget_attempts", {
+  id: uuid("id").primaryKey(),
+  accountId: uuid("account_id").references(() => users.id, { onDelete: "set null" }),
+  accountKey: text("account_key").notNull(),
+  executionId: uuid("execution_id").notNull(),
+  operation: text("operation").notNull(),
+  model: text("model").notNull(),
+  priceVersion: text("price_version").notNull(),
+  policyVersion: text("policy_version").notNull(),
+  reservationFingerprint: text("reservation_fingerprint").notNull(),
+  windowDay: date("window_day", { mode: "string" }).notNull(),
+  reservedMicrodollars: bigint("reserved_microdollars", { mode: "number" }).notNull(),
+  actualMicrodollars: bigint("actual_microdollars", { mode: "number" }),
+  state: text("state").default("reserved").notNull(),
+  usage: jsonb("usage").$type<import("../domain/ai-budget").AiBudgetUsage>(),
+  failureCategory: text("failure_category"),
+  boundViolation: boolean("bound_violation").default(false).notNull(),
+  reconciliationId: uuid("reconciliation_id"),
+  ...timestamps,
+}, table => [
+  index("ai_budget_attempts_account_idx").on(table.accountId),
+  index("ai_budget_attempts_window_idx").on(table.windowDay, table.state),
+  index("ai_budget_attempts_execution_idx").on(table.executionId),
+  check("ai_budget_attempts_nonnegative", sql`${table.reservedMicrodollars} >= 0 AND (${table.actualMicrodollars} IS NULL OR ${table.actualMicrodollars} >= 0)`),
+  check("ai_budget_attempts_state_check", sql`${table.state} IN ('reserved', 'submitting', 'uncertain', 'settled')`),
+  check("ai_budget_attempts_operation_check", sql`${table.operation} IN ('assistant', 'turn_authorization', 'intervention_review', 'intervention_composition', 'task_presentation')`),
+]);
 
 export const lifeItems = pgTable("life_items", {
   id: uuid("id").primaryKey(),
@@ -41,6 +87,18 @@ export const lifeActionReceipts = pgTable("life_action_receipts", {
   message: text("message").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
+
+// Routine snapshots retain only their latest checked date. Keep actual daily
+// completions separately so the next checkoff or deleting a plan cannot erase
+// earlier progress. Account deletion still removes all of its history.
+export const routineCompletions = pgTable("routine_completions", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  routineId: uuid("routine_id").notNull(),
+  stepId: uuid("step_id").notNull(),
+  completedOn: date("completed_on", { mode: "string" }).notNull(),
+  recordedAt: timestamp("recorded_at", { withTimezone: true }).defaultNow().notNull(),
+}, table => [uniqueIndex("routine_completions_user_step_day_idx").on(table.userId, table.routineId, table.stepId, table.completedOn)]);
 
 export const userStatus = pgEnum("user_status", ["active", "paused", "opted_out", "deleted"]);
 export const onboardingState = pgEnum("onboarding_state", [
@@ -144,6 +202,7 @@ export const users = pgTable(
     displayName: text("display_name"),
     profileInstructions: text("profile_instructions"),
     profileCompletedAt: timestamp("profile_completed_at", { withTimezone: true }),
+    workspacePreferences: jsonb("workspace_preferences").$type<Record<string, unknown>>().default(sql`'{}'::jsonb`).notNull(),
     locale: text("locale").default("en-US").notNull(),
     timezone: text("timezone").default("UTC").notNull(),
     status: userStatus("status").default("active").notNull(),
@@ -190,6 +249,25 @@ export const webSessions = pgTable(
     index("web_sessions_expiry_idx").on(table.expiresAt),
   ],
 );
+
+export const pilotFeedback = pgTable("pilot_feedback", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  requestId: uuid("request_id").notNull(),
+  type: text("type").$type<"problem" | "improvement">().notNull(),
+  section: text("section").notNull(),
+  impact: text("impact").$type<"blocked" | "slowed" | "minor" | "idea">().notNull(),
+  encryptedDetail: text("encrypted_detail"),
+  followUpConsent: boolean("follow_up_consent").default(false).notNull(),
+  payloadHmac: text("payload_hmac").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, table => [
+  uniqueIndex("pilot_feedback_user_request_unique").on(table.userId, table.requestId),
+  index("pilot_feedback_created_idx").on(table.createdAt),
+  check("pilot_feedback_type_check", sql`${table.type} in ('problem','improvement')`),
+  check("pilot_feedback_impact_check", sql`${table.impact} in ('blocked','slowed','minor','idea')`),
+  check("pilot_feedback_section_check", sql`${table.section} in ('today','tasks','calendar','goals','reminders','routines','wake','meals','recipes','groceries','nutrition','movement','inbox','memories','assistant','settings','other')`),
+]);
 
 export const consentRecords = pgTable(
   "consent_records",
@@ -508,6 +586,7 @@ export const tasks = pgTable(
     title: text("title").notNull(),
     notes: text("notes"),
     estimatedMinutes: integer("estimated_minutes"),
+    presentation: jsonb("presentation").$type<import("../domain/task-presentation").TaskPresentation>(),
     dueAt: timestamp("due_at", { withTimezone: true }),
     status: taskStatus("status").default("not_started").notNull(),
     sourceMessageId: uuid("source_message_id").references(() => conversationMessages.id, { onDelete: "set null" }),
