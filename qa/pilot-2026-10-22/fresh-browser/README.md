@@ -64,6 +64,7 @@ The follow-through rerun added an eleventh group for the exact recovered Profile
 | 28-first-completion-journey.png | One explicit task completion yields one earned completion/day |
 | 29-onboarding-revised-confirmation.png | Confirmed zone and one check-in assurance in replayed setup |
 | 32-signup-after-runtime-refresh.png | Final desktop consent renders at 14px after restarting stale dev CSS |
+| 33-checkpoint-home.png | Populated fictional QA Riley restored for next run; Google intentionally disconnected locally |
 
 Captures 25–29 are October 23 follow-through on the separate new QA Morgan account. Root created a shopping task with a 30-minute estimate (automatic 25-minute starter), corrected it to 2 minutes (starter became 2), paused/reloaded/resumed and explicitly completed it. Journey then showed one completion and one active day. The earlier zero-account durable assertions describe the earlier baseline; they must not be rerun expecting emptiness after this intentional task creation.
 

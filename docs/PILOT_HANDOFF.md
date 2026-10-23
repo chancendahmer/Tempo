@@ -5,7 +5,7 @@ Updated October 23, 2026. This is a live engineering checkpoint, not release app
 Current tested continuation: the commit containing this brief, based on **`49c3088`**,
 on `codex/tempo-adaptive-home`. It follows `188d0f8` (C1/W2), `fed7d5b`
 (A2/R2) and `4400de5` (A1/W1/R1). No production merge/deploy occurred. Verify the current
-remote tip before continuing; the old PR26 is a different branch.
+remote tip before continuing; the old PR26 is a different branch. The adaptive candidate now has **draft PR27**: https://github.com/chancendahmer/Tempo/pull/27 . Product checkpoint `177ece3` is pushed; the subsequent checkpoint-only documentation commit records this PR. Start with `qa/pilot-2026-10-22/CHECKPOINT-2026-10-23.md` for the short next-run sequence.
 
 ## Prompt for the next lead (Astra medium or Sol)
 

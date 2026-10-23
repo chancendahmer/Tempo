@@ -2,6 +2,8 @@
 
 The founder asked to wrap up in roughly fifteen minutes. This checkpoint saves the tested candidate, not a production release. Worktree: `tempo-adaptive-home`; branch: `codex/tempo-adaptive-home`; base before this package: `49c3088`. The commit containing this record is the current package. Preserve the unrelated original OneDrive checkout.
 
+Product checkpoint **177ece3** was pushed and its remote SHA verified. **Draft PR27**: https://github.com/chancendahmer/Tempo/pull/27 . The following documentation-only checkpoint records the PR and final local screenshot. The PR is explicitly gated; no merge or deployment happened.
+
 ## Completed and verified
 
 - Session-bound logout/reset, owner-bound Calendar reads, sanitized OAuth failures and usable expired/unavailable phone-link recovery.
