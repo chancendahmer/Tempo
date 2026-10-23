@@ -1,4 +1,4 @@
-import { and, asc, eq, isNull } from "drizzle-orm";
+import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { withAiInvocationScope } from "../../domain/ai-invocation-scope";
 import { getDatabase, type TempoDatabase } from "../client";
@@ -17,7 +17,7 @@ export async function enrichTaskPresentations(suggest: (input: PresentationInput
   for (const task of pending) {
     const suggestion = suggestions?.tasks.find(item => item.id === task.id);
     const presentation = suggestion ? { category: suggestion.category, focusMinutes: Math.min(suggestion.focusMinutes, task.estimatedMinutes ?? 60), title: task.title, source: "ai" as const } : fallbackTaskPresentation(task.title, task.estimatedMinutes);
-    const changed = await database.update(tasks).set({ presentation }).where(and(eq(tasks.id, task.id), eq(tasks.userId, first.userId), eq(tasks.title, task.title), eq(tasks.status, "not_started"), isNull(tasks.presentation))).returning({ id: tasks.id });
+    const changed = await database.update(tasks).set({ presentation }).where(and(eq(tasks.id, task.id), eq(tasks.userId, first.userId), eq(tasks.title, task.title), sql`${tasks.estimatedMinutes} is not distinct from ${task.estimatedMinutes}`, eq(tasks.status, "not_started"), isNull(tasks.presentation))).returning({ id: tasks.id });
     saved += changed.length;
   }
   return { saved, source: suggestions ? "ai" as const : "fallback" as const };

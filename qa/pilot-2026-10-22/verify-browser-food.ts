@@ -8,14 +8,21 @@ async function main() {
   const fixture = JSON.parse(await readFile("qa/adaptive-followthrough/local-sign-in.json", "utf8")) as { base: string; userId: string; displayName: string };
   assert.equal(fixture.base, "http://localhost:3103");
   assert.equal(fixture.displayName, "QA Riley");
-  const pool = new Pool({ connectionString: "postgresql://postgres@127.0.0.1:55437/tempo_ui_release", max: 1 });
+  for (const name of Object.keys(process.env)) if (/^PG/i.test(name)) delete process.env[name];
+  process.env.PGPASSFILE = "NUL";
+  const pool = new Pool({ connectionString: "postgresql://postgres@127.0.0.1:55437/tempo_ui_release", max: 1, connectionTimeoutMillis: 3000, query_timeout: 10000, options: "-c default_transaction_read_only=on" });
   try {
     const database = await pool.query("select current_database() name");
     assert.equal(database.rows[0].name, "tempo_ui_release");
-    const identity = await pool.query("select display_name, profile_instructions, proactive_opt_in from users where id = $1", [fixture.userId]);
+    const identity = await pool.query("select display_name, profile_instructions, proactive_opt_in, coaching_tone, timezone, workspace_preferences from users where id = $1", [fixture.userId]);
     assert.equal(identity.rows[0]?.display_name, "QA Riley");
     assert.match(identity.rows[0]?.profile_instructions ?? "", /^Synthetic isolated QA account/);
     assert.equal(identity.rows[0]?.proactive_opt_in, false);
+    assert.equal(identity.rows[0]?.profile_instructions, "Synthetic isolated QA account; keep suggestions short, offer one next step, and no carrier or model calls.");
+    assert.equal(identity.rows[0]?.coaching_tone, "gentle");
+    assert.equal(identity.rows[0]?.timezone, "America/New_York");
+    assert.equal(identity.rows[0]?.workspace_preferences?.showStreak, false);
+    assert.ok(identity.rows[0]?.workspace_preferences?.timezoneConfirmedAt);
     const rows = await pool.query("select id, data from life_items where user_id = $1", [fixture.userId]);
     const find = (kind: string, title: string, date?: string) => rows.rows.filter(row => row.data.kind === kind && row.data.title === title && (!date || row.data.date === date));
     const meal = find("meal", "Lemon chicken grain bowl", "2026-10-22");
@@ -73,8 +80,9 @@ async function main() {
     const result = { checkedAt: new Date().toISOString(), environment: "isolated localhost PostgreSQL", evidence: "read-only records after root's browser actions; no provider calls", checks: ["Synthetic identity and no proactive consent", "Saved recipe and two-portion meal", "Manual grocery preserved", "One source-linked rice grocery less explicit measured stock", "Two durable diary dates with exact half-portion arithmetic and unknown fiber", "No scheduled provider jobs"] };
     result.checks.push("One encrypted feedback record matching the post-outage browser receipt, with follow-up consent off");
     result.checks.push("Routine order and both local-day completions retained; finished focus removed", "Explicit achieved goal and completed linked task", "Customized 15-minute workout plan, actual 12-minute log, separate future open task at the intended local time");
+    result.checks.push("Saved profile draft after outage, confirmed New York timezone, gentle tone and optional progress numbers hidden without proactive consent");
     await writeFile("qa/pilot-2026-10-22/fresh-browser/records.json", JSON.stringify(result, null, 2) + "\n");
     console.log(`PASS ${result.checks.length} browser food record groups.`);
   } finally { await pool.end(); }
 }
-void main().catch(error => { console.error(error); process.exitCode = 1; });
+void main().catch(() => { console.error("Synthetic browser record assertions failed; inspect only the isolated fixture records."); process.exitCode = 1; });

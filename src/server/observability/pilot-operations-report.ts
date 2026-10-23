@@ -62,6 +62,7 @@ export async function readPilotOperationsReport(client: Pick<PoolClient, "query"
     const aiBudget = await readAiBudgetReport(client, since, now, aiConfiguration);
     const problems = [...worker.problems, ...worker.queueProblems, ...aiBudget.problems,
       ...(!queueExists.rows[0]?.present ? ["queue_table_unavailable"] : []),
+      ...(messages.rows[0].deliveryFailures > 0 ? ["delivery_failures_require_review"] : []),
       ...(held.rows[0].uncertainOutbound > 0 ? ["outbound_reconciliation_required"] : []),
       ...((held.rows[0].oldestPendingSeconds ?? 0) > 660 ? ["inbound_backlog_stale"] : []),
       ...(jobs.some(row => row.state === "failed") ? ["failed_jobs_require_review"] : []),
@@ -74,6 +75,7 @@ export async function readPilotOperationsReport(client: Pick<PoolClient, "query"
       nextActions: [
         ...aiBudget.nextActions,
         ...(!worker.ok || !worker.policyKnown ? ["Verify all worker deployments, build stamps and unretired instance records; web liveness cannot prove worker configuration or termination."] : []),
+        ...(messages.rows[0].deliveryFailures > 0 ? ["Review failed/undelivered outbound messages from the selected creation-time window using secure account-scoped provider receipts; never bulk replay or reset uncertain submissions."] : []),
         ...(held.rows[0].uncertainOutbound > 0 ? ["Compare provider receipts before reconciling uncertain sends; never blindly resend or reset the ledger."] : []),
         ...(jobs.some(row => row.state === "failed") ? ["Inspect failed jobs securely; use recover-inbound dry run for one verified account/job after confirming provider state."] : []),
         ...(worker.policy.cleanupPermission || worker.policy.proactivePermission ? ["Confirm coaching release is intentional; see the runbook to stop workers and disable cleanup/canary/global permissions."] : []),

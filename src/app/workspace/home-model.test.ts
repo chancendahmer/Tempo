@@ -62,6 +62,27 @@ describe("Home uses local time and saved plans", () => {
     expect(homeModel(data, new Date("2026-11-01T11:45:00Z")).mode).toBe("morning");
     expect(homeModel(data, new Date("2026-11-01T14:00:00Z")).mode).toBe("focus");
   });
+  it("uses a saved early dinner time instead of the default lunch slot", () => {
+    const data = fixture();
+    data.homePreferences = { ...readHomePreferences({}), dinnerTime: "14:00" };
+    data.items = [{ id: "dinner", version: 1, data: { kind: "meal", title: "Early dinner", date: "2026-10-21", meal: "Dinner", ingredients: "Rice", servings: 2 } }];
+    const model = homeModel(data, new Date("2026-10-21T18:00:00Z"));
+    expect(model.hero).toMatchObject({ mode: "meal", label: "Dinner plan", title: "Early dinner", meal: { id: "dinner" } });
+    expect(homeModel(data, new Date("2026-10-21T16:00:00Z")).choices.meal.label).toBe("Lunch plan");
+  });
+  it("uses the current account-local meal date when a custom dinner window crosses midnight", () => {
+    const data = fixture();
+    data.homePreferences = { ...readHomePreferences({}), dinnerTime: "00:30" };
+    data.items = [{ id: "dinner", version: 1, data: { kind: "meal", title: "After-midnight dinner", date: "2026-10-22", meal: "Dinner", ingredients: "Rice", servings: 2 } }];
+    const before = homeModel(data, new Date("2026-10-22T03:55:00Z"));
+    expect(before.day).toBe("2026-10-21");
+    expect(before.hero.mode).toBe("focus");
+    expect(before.choices.meal.meal).toBeUndefined();
+    const after = homeModel(data, new Date("2026-10-22T04:20:00Z"));
+    expect(after.day).toBe("2026-10-22");
+    expect(after.hero).toMatchObject({ mode: "meal", label: "Dinner plan", title: "After-midnight dinner", meal: { id: "dinner" } });
+    expect(homeModel(data, new Date("2026-10-23T04:20:00Z")).choices.meal.meal).toBeUndefined();
+  });
   it("keeps defaults honest, context-aware, and manual overrides stable", () => {
     expect(fallbackTaskPresentation("Write a report about grocery shopping").category).toBe("work");
     expect(fallbackTaskPresentation("Pick up oats").category).toBe("shopping");

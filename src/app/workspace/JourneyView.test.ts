@@ -20,6 +20,11 @@ describe("journey's honest display boundaries", () => {
     expect(html).toContain("YOUR STARTING POINT");
     expect(html).not.toContain("· REACHED");
     expect(html).toMatch(/disabled=""[^>]*>.*?Celebrate your progress/);
+    expect(html).toContain("Your first small step can start here.");
+    expect(html).not.toContain("Your earlier steps still count.");
+
+    data.activityStreak = { ...calculateActivityStreak([{ key: "earlier-task", date: "2026-10-16" }], "UTC", now), historyNote: "Based on recorded activity" };
+    expect(render(data)).toContain("A fresh start. Your earlier steps still count.");
   });
   it("honors hidden progress without leaking the day counts through map labels", () => {
     const data = previewWorkspace(now);

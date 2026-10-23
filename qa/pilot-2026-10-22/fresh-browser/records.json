@@ -1,5 +1,5 @@
 {
-  "checkedAt": "2026-10-23T00:39:47.078Z",
+  "checkedAt": "2026-10-23T01:22:29.800Z",
   "environment": "isolated localhost PostgreSQL",
   "evidence": "read-only records after root's browser actions; no provider calls",
   "checks": [
@@ -12,6 +12,7 @@
     "One encrypted feedback record matching the post-outage browser receipt, with follow-up consent off",
     "Routine order and both local-day completions retained; finished focus removed",
     "Explicit achieved goal and completed linked task",
-    "Customized 15-minute workout plan, actual 12-minute log, separate future open task at the intended local time"
+    "Customized 15-minute workout plan, actual 12-minute log, separate future open task at the intended local time",
+    "Saved profile draft after outage, confirmed New York timezone, gentle tone and optional progress numbers hidden without proactive consent"
   ]
 }

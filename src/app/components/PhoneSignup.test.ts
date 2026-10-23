@@ -39,8 +39,8 @@ describe("phone signup recovery", () => {
     const dispatchEvent = vi.fn();
     vi.stubGlobal("fetch", request);
     vi.stubGlobal("window", { localStorage: { removeItem }, dispatchEvent });
-    const resetting = resetPhoneSignup();
-    expect(request).toHaveBeenCalledWith("/api/auth/logout", { method: "POST" });
+    const resetting = resetPhoneSignup("observed-session");
+    expect(request).toHaveBeenCalledWith("/api/auth/logout", { method: "POST", headers: { "x-tempo-session": "observed-session" } });
     expect(removeItem).not.toHaveBeenCalled();
     finish(new Response(null, { status: 200 }));
     await resetting;
@@ -52,7 +52,18 @@ describe("phone signup recovery", () => {
     const removeItem = vi.fn();
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status })));
     vi.stubGlobal("window", { localStorage: { removeItem }, dispatchEvent: vi.fn() });
-    await expect(resetPhoneSignup()).rejects.toThrow("Please try again");
+    await expect(resetPhoneSignup("observed-session")).rejects.toThrow("Please try again");
     expect(removeItem).not.toHaveBeenCalled();
   });
+});
+
+
+it("never forgets a pending claim or retries automatically after the browser session changes", async () => {
+  const removeItem = vi.fn(), dispatchEvent = vi.fn();
+  const fetcher = vi.fn().mockResolvedValue(new Response("not JSON", { status: 409 }));
+  vi.stubGlobal("fetch", fetcher); vi.stubGlobal("window", { localStorage: { removeItem }, dispatchEvent });
+  await expect(resetPhoneSignup("old-session")).rejects.toThrow("Reload this page");
+  expect(removeItem).not.toHaveBeenCalled(); expect(fetcher).toHaveBeenCalledOnce();
+  expect(dispatchEvent.mock.calls.map(([event]) => event.type)).toEqual(["tempo-account-change"]);
+  vi.unstubAllGlobals();
 });

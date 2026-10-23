@@ -26,5 +26,9 @@ export function fallbackTaskPresentation(title: string, estimatedMinutes?: numbe
 
 export function taskPresentation(task: { title: string; estimatedMinutes?: number | null; presentation?: unknown }): TaskPresentation {
   const stored = taskPresentationSchema.safeParse(task.presentation);
-  return stored.success && (stored.data.title === task.title || stored.data.source === "manual") ? stored.data : fallbackTaskPresentation(task.title, task.estimatedMinutes);
+  if (stored.success) {
+    if (stored.data.source === "manual") return stored.data;
+    if (stored.data.title === task.title && (task.estimatedMinutes == null || stored.data.focusMinutes <= task.estimatedMinutes)) return stored.data;
+  }
+  return fallbackTaskPresentation(task.title, task.estimatedMinutes);
 }

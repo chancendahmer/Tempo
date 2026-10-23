@@ -34,10 +34,13 @@ async function signup() {
   assert.equal(actions.length, 0, "Shared pending signup must not create dispatchable actions");
   return { cookie, session, phone };
 }
+const observedSessions = new Map<string, string>();
 async function account(cookie: string) {
   const response = await fetch(`${base}/api/account/me`, { headers: { Cookie: cookie } });
   assert.equal(response.status, 200);
-  return (await response.json()).account;
+  const body = await response.json();
+  if (body.sessionKey) observedSessions.set(cookie, body.sessionKey);
+  return body.account;
 }
 async function main() {
   const original = await signup();
@@ -49,7 +52,7 @@ async function main() {
   assert.equal(current.revokedAt, null);
   assert.equal((await account(original.cookie)).phoneVerified, false);
   console.log("PASS rejected logout retains the pending session for recovery retry (real foreign-origin HTTP 403)");
-  const logout = await fetch(`${base}/api/auth/logout`, { method: "POST", headers: { Cookie: original.cookie, Origin: base } });
+  const logout = await fetch(`${base}/api/auth/logout`, { method: "POST", headers: { Cookie: original.cookie, Origin: base, "x-tempo-session": observedSessions.get(original.cookie)! } });
   assert.equal(logout.status, 200); assert.match(logout.headers.get("set-cookie")!, /Max-Age=0/i);
   [current] = await database.select().from(schema.webSessions).where(eq(schema.webSessions.id, original.session.id));
   assert.ok(current.revokedAt); assert.equal(await account(original.cookie), null);

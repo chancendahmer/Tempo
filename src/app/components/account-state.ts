@@ -18,6 +18,7 @@ export type PublicAccount = {
 export function useAccountStatus(pollMs = 0, enabled = true) {
   const [account, setAccount] = useState<PublicAccount | null | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
+  const [sessionKey, setSessionKey] = useState<string | null>(null);
   const request = useRef<AbortController | null>(null);
   const suspended = useRef(!enabled);
   const suspend = useCallback(() => {
@@ -25,6 +26,7 @@ export function useAccountStatus(pollMs = 0, enabled = true) {
     request.current?.abort();
     setAccount(null);
     setError(null);
+    setSessionKey(null);
   }, []);
   const refresh = useCallback(async () => {
     if (suspended.current) return;
@@ -37,12 +39,14 @@ export function useAccountStatus(pollMs = 0, enabled = true) {
       if (response.status === 401 || response.status === 403) {
         setAccount(null);
         setError(null);
+        setSessionKey(null);
         return;
       }
       if (!response.ok) throw new Error("Account service unavailable");
-      const payload = (await response.json()) as { account?: PublicAccount | null };
+      const payload = (await response.json()) as { account?: PublicAccount | null; sessionKey?: string | null };
       if (controller.signal.aborted) return;
       setAccount(payload.account ?? null);
+      setSessionKey(payload.account && typeof payload.sessionKey === "string" ? payload.sessionKey : null);
       setError(null);
     } catch {
       if (controller.signal.aborted) return;
@@ -58,6 +62,7 @@ export function useAccountStatus(pollMs = 0, enabled = true) {
     const accountChanged = () => {
       request.current?.abort();
       setAccount(undefined);
+      setSessionKey(null);
       setError(null);
       void refresh();
     };
@@ -72,5 +77,5 @@ export function useAccountStatus(pollMs = 0, enabled = true) {
     };
   }, [enabled, pollMs, refresh]);
 
-  return { account, refresh, error, suspend };
+  return { account, sessionKey, refresh, error, suspend };
 }

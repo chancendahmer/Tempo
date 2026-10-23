@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { logger } from "@/server/observability/logger";
 import { getServerEnv } from "@/server/config/env";
-import { isTrustedMutationOrigin, publicAccount, accountCacheKey, WEB_SESSION_COOKIE, WebSessionService } from "@/server/security/web-session";
+import { isTrustedMutationOrigin, publicAccount, accountCacheKey, sessionBindingKey, WEB_SESSION_COOKIE, WebSessionService } from "@/server/security/web-session";
 
 export const dynamic = "force-dynamic";
 const headers = { "Cache-Control": "private, no-store" };
@@ -15,9 +15,10 @@ const profileSchema = z.object({
 
 export async function GET(request: NextRequest) {
   try {
-    const account = await new WebSessionService().findAccount(request.cookies.get(WEB_SESSION_COOKIE)?.value);
+    const token = request.cookies.get(WEB_SESSION_COOKIE)?.value;
+    const account = await new WebSessionService().findAccount(token);
     return NextResponse.json(
-      account ? { account: publicAccount(account) } : { account: null },
+      account && token ? { account: publicAccount(account), sessionKey: sessionBindingKey(token) } : { account: null, sessionKey: null },
       { headers },
     );
   } catch {

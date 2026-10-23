@@ -51,7 +51,7 @@ async function run() {
   owned.splice(owned.indexOf(mealId), 1);
   rows = await shopping(); assert.equal(rows.length, 1); assert.equal(rows[0].id, manualId);
   evidence.push("Deleting the meal removes its derived shopping and leaves the manual grocery intact.");
-  const calendar = await fetch(`${base}/api/account/calendar/events?start=2026-10-14T00%3A00%3A00Z&end=2026-10-17T00%3A00%3A00Z`, { headers: { cookie } });
+  const calendar = await fetch(`${base}/api/account/calendar/events?start=2026-10-14T00%3A00%3A00Z&end=2026-10-17T00%3A00%3A00Z`, { headers: { cookie, "x-tempo-account": cacheKey } });
   assert.notEqual(calendar.status, 200);
   evidence.push(`Disconnected Google Calendar returns HTTP ${calendar.status}; no fake authenticated calendar success was observed.`);
 }

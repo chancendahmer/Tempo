@@ -35,6 +35,20 @@ describe("adaptive Home saved account state", () => {
     expect(user.proactiveOptIn).toBe(false);
     await expect(mutateWorkspace(owner, { action: "home_preferences", expected: initial, preferences: initial }, db)).rejects.toThrow("another tab");
   });
+  it("rejects an opened preferences draft after another tab saves and preserves the newer saved settings", async () => {
+    const [account] = await db.insert(schema.users).values({ phoneE164: "+12025550703" }).returning();
+    const opened = (await readWorkspace(account.id, db)).homePreferences;
+    const otherTab = { ...opened, dinnerTime: "20:00", workoutLeadMinutes: 60 };
+    const draft = { ...opened, dinnerTime: "14:00", workoutLeadMinutes: 30 };
+    await mutateWorkspace(account.id, { action: "home_preferences", expected: opened, preferences: otherTab }, db);
+    // A same-owner poll may expose otherTab, but the already-open form retains opened as its expected state.
+    expect((await readWorkspace(account.id, db)).homePreferences).toEqual(otherTab);
+    await expect(mutateWorkspace(account.id, { action: "home_preferences", expected: opened, preferences: draft }, db)).rejects.toThrow("another tab");
+    expect((await readWorkspace(account.id, db)).homePreferences).toEqual(otherTab);
+    const [persisted] = await db.select().from(schema.users).where(eq(schema.users.id, account.id));
+    expect(persisted.workspacePreferences.home).toEqual(otherTab);
+    expect((await readWorkspace(other, db)).homePreferences).toEqual(readHomePreferences({}));
+  });
   it("stores an override only on the owned current task; starts its chosen duration atomically and idempotently", async () => {
     const task = await create(owner, "Buy groceries for dinner");
     const action = { action: "task_presentation" as const, taskId: task.id, expectedTitle: task.title, category: "shopping" as const, focusMinutes: 7 };

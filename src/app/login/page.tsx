@@ -9,7 +9,7 @@ export default function LoginPage() {
         <span aria-hidden="true"><FiMessageCircle /></span>
         <p className="eyebrow">WELCOME TO TEMPO</p>
         <h1>Your day, in one place.</h1>
-        <p>Continue with your texting number. We’ll send you a secure sign-in link so your messages and workspace stay together.</p>
+        <p>Use your texting number to securely open the same account for your messages and workspace. We’ll guide you through the next step.</p>
         <Link className="black-button" href="/#early-access">Continue with phone <FiArrowRight /></Link>
       </section>
     </AccountShell>

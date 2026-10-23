@@ -14,6 +14,7 @@ vi.mock("./web-session", () => ({
   WebSessionService: class { findAccount = mocks.account; updateProfile = mocks.profile; redeemSignIn = mocks.redeem; revoke = mocks.revoke; },
   isTrustedMutationOrigin: (origin: string | null) => origin === "https://tempo.test",
   publicAccount: (account: unknown) => account,
+  sessionBindingKey: (token: string) => `session:${token}`,
   accountCacheKey: (userId: string) => `cache:${userId}`,
 }));
 vi.mock("../db/repositories/workspace-repository", () => ({
@@ -48,7 +49,7 @@ const privateError = () => Object.assign(new Error("Failed query: select private
   cause: Object.assign(new Error("private-database-address connection refused"), { code: "ECONNREFUSED", detail: "private-user-note" }),
 });
 const request = (path: string, method = "GET", body?: unknown, origin = "https://tempo.test") => new NextRequest(`https://tempo.test${path}`, {
-  method, headers: { "x-tempo-account": "cache:route-owner", origin, cookie: "tempo_session=private-cookie", "content-type": "application/json" },
+  method, headers: { "x-tempo-session": "session:private-cookie", "x-tempo-account": "cache:route-owner", origin, cookie: "tempo_session=private-cookie", "content-type": "application/json" },
   ...(body === undefined ? {} : { body: JSON.stringify(body) }),
 });
 const form = () => new NextRequest("https://tempo.test/api/auth/phone", { method: "POST", headers: { origin: "https://tempo.test" }, body: new URLSearchParams({ token: "private-action-token" }) });
@@ -150,6 +151,6 @@ describe("authenticated route outage privacy", () => {
     mocks.account.mockResolvedValue(null);
     expect((await extensions.GET(request("/api/account/extensions"))).status).toBe(401);
     const anonymous = await me.GET(request("/api/account/me"));
-    expect(anonymous.status).toBe(200); expect(await anonymous.json()).toEqual({ account: null });
+    expect(anonymous.status).toBe(200); expect(await anonymous.json()).toEqual({ account: null, sessionKey: null });
   });
 });

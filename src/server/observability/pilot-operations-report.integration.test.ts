@@ -53,6 +53,25 @@ it("runs real report SQL in a read-only snapshot, folds private queue names, and
     // Historical accounting activity alone cannot establish current runtime policy.
     expect(report.aiBudget.runtimeConfiguration.observedEnforcedConfiguration).toBe(false);
     for (const value of ["+12025550199", "private-queue-name", "private-instance", "private-token", "private-account-key", "private-fingerprint"]) expect(JSON.stringify(report)).not.toContain(value);
+    const conversation = await client.query<{ id: string }>("insert into conversations(owner_user_id) select id from users where phone_e164=$1 returning id", ["+12025550199"]);
+    for (const [direction, status, offsetMinutes] of [
+      ["outbound", "failed", -30], ["outbound", "undelivered", -30],
+      ["inbound", "failed", -30], ["outbound", "delivered", -30],
+      ["outbound", "failed", -1500], ["outbound", "failed", 1],
+    ] as const) await client.query(`insert into conversation_messages(user_id,conversation_id,direction,kind,status,body,provider_error_message,created_at)
+      select owner_user_id,id,$2::message_direction,'coach',$3::message_status,$4,$5,$6 from conversations where id=$1`,
+    [conversation.rows[0].id, direction, status, "private-delivery-body", "private-provider-detail", new Date(now.getTime() + offsetMinutes * 60_000)]);
+    const failedDeliveries = await readPilotOperationsReport({ query } as unknown as Pick<PoolClient, "query">, { hours: 24, webBuild: build, now });
+    expect(failedDeliveries.recentMessages).toEqual({ inbound: 1, outbound: 3, deliveryFailures: 2, delivered: 1 });
+    expect(failedDeliveries.problems).toContain("delivery_failures_require_review");
+    expect(failedDeliveries.nextActions.some(action => action.includes("provider receipts") && action.includes("never bulk replay"))).toBe(true);
+    for (const value of ["private-delivery-body", "private-provider-detail", conversation.rows[0].id]) expect(JSON.stringify(failedDeliveries)).not.toContain(value);
+    const shortWindow = await readPilotOperationsReport({ query } as unknown as Pick<PoolClient, "query">, { hours: 1, webBuild: build, now: new Date(now.getTime() + 60 * 60_000) });
+    expect(shortWindow.recentMessages.deliveryFailures).toBe(1); // Only the deliberately future row is now in this later window.
+    await client.query("update conversation_messages set status='delivered' where direction='outbound'");
+    const cleared = await readPilotOperationsReport({ query } as unknown as Pick<PoolClient, "query">, { hours: 24, webBuild: build, now });
+    expect(cleared.problems).not.toContain("delivery_failures_require_review");
+    expect(cleared.recentMessages.deliveryFailures).toBe(0);
     const accidentalWrite = async (text: string, values?: unknown[]) => {
       if (text.includes("from service_heartbeats")) await client.query("insert into users (phone_e164) values ($1)", ["+12025550198"]);
       return client.query(text, values);

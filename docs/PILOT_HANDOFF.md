@@ -1,8 +1,8 @@
 # Executable continuation brief: Tempo private pilot
 
-Updated October 22, 2026. This is a live engineering checkpoint, not release approval.
+Updated October 23, 2026. This is a live engineering checkpoint, not release approval.
 
-Current tested continuation: the commit containing this brief, based on **`3892b74`**,
+Current tested continuation: the commit containing this brief, based on **`49c3088`**,
 on `codex/tempo-adaptive-home`. It follows `188d0f8` (C1/W2), `fed7d5b`
 (A2/R2) and `4400de5` (A1/W1/R1). No production merge/deploy occurred. Verify the current
 remote tip before continuing; the old PR26 is a different branch.
@@ -37,6 +37,17 @@ research. Resolve the highest-risk unfinished package, validate, then checkpoint
 Continue independent work when a live provider/access dependency is blocked.
 
 ## Current work and evidence
+
+### Recovery and adaptive Home follow-through — October 23
+
+- Final `npm run check` passed including the first-use copy/readability changes: **1,232 passing / 3 skipped tests**, 166 passing / 2 skipped files, lint, typecheck, Next production and operations builds. Exit 0 and generated-path restoration are recorded in `integrated-continuation.md`.
+- Remaining authenticated route audit is repaired: Calendar reads bind the initiating account before provider work and reject a foreign response; logout/reset binds the observed opaque session proof so a stale tab cannot revoke a replacement login. OAuth logs contain no raw provider/database exceptions and configuration failures stay within the recovery boundary. Nineteen real local HTTP/PostgreSQL owner/session checks passed with independent review.
+- Actual browser wrong-number recovery clears fields/consent, revokes the abandoned pending claim, and rejects its old activation link. Static expired/unavailable pages now offer working recovery. A second fictional account completed optional onboarding, stayed empty after reload and showed zero earned activity. This used local contact-registration stubs and fixture-issued normal links, **not SMS delivery**. Stub stopped after exactly two contact registrations, zero sends/jobs.
+- Profile outage preserves the same owner's draft and disables writes; recovery/save/reload and sign-out/return passed. Saved notices survive refresh; destination links have distinct phone/desktop rows. Saved preferences hide Journey numbers and leave proactive consent off. Eleven read-only durable-state assertion groups pass for the separate populated QA Riley account.
+- Fresh audits fixed custom dinner-time selection, stale Home preference dialogs overwriting newer settings, and obsolete automatic starter timers after task duration corrections. Local PGlite tests cover exact S0→S1 conflict, estimate/null/in-flight enrichment races and preservation of manual choices. Different authors independently reviewed each fix.
+- Operations reporting now flags failed/undelivered messages in its existing selected creation-time window and advises receipt-first investigation without blind replay. This is local detection, not hosted alert delivery.
+- Read-only production observation on October 23: `/api/health` returns 200, while `/api/ready` returns **503 with queue degraded**, database ready and worker ready. A bounded read-only aggregate found 35 ambiguous outbound entries, all over seven days old, with zero stored provider receipt references; no replay or ledger mutation occurred. The selected worker console reports main `86ae010`, not this candidate. See `release-access-preflight.md` for exact evidence and remaining deployment-inventory limits.
+- Paid API calls remain **$0** this continuation. No production code/data mutation, migration, merge or release. Remaining exact validation and screenshot-review limits are in the current QA reports.
 
 ### Latest integrated continuation — supersedes pending claims in older checkpoints
 
@@ -74,9 +85,9 @@ Continue independent work when a live provider/access dependency is blocked.
   overwriteable artifacts prevent proving aggregate allowance. Do not spend the
   conditional $4.262227 remainder without reconciliation.
 
-Next independent work: real HTTP/PG cross-account stale-owner cases; remaining
-mutation-route audit; browser recovery and onboarding gaps. Root owns checkpoint
-commits. No candidate PR exists as of this checkpoint; PR26 is still unrelated.
+The next follow-through above completes the local HTTP owner cases, remaining
+route audit, and core browser recovery/onboarding checks. Root owns checkpoint
+commits. PR26 is still the unrelated older UI branch; verify candidate PR status.
 
 ### Latest C1/W2 checkpoint — supersedes the older pending work below
 

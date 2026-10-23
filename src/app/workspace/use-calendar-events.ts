@@ -3,27 +3,33 @@ import { useEffect, useState } from "react";
 import { z } from "zod";
 import type { Workspace } from "./workspace-data";
 import { calendarEventSchema, type CalendarEvent } from "./calendar-event-model";
+import { ACCOUNT_EVENT } from "../components/account-state";
 export type { CalendarEvent } from "./calendar-event-model";
 
-type CalendarState = { events?: CalendarEvent[]; error: string; loading: boolean; requiresReconnect: boolean; fetched: string; truncated: boolean };
+type CalendarState = { events?: CalendarEvent[]; error: string; loading: boolean; requiresReconnect: boolean; fetched: string; truncated: boolean; accountChanged?: boolean };
 const emptyState: CalendarState = { error: "", loading: true, requiresReconnect: false, fetched: "", truncated: false };
 const disconnectedState: CalendarState = { events: [], error: "", loading: false, requiresReconnect: false, fetched: "", truncated: false };
-const agendaSchema = z.object({ events: z.array(calendarEventSchema), fetchedAt: z.iso.datetime({ offset: true }), truncated: z.boolean().optional() });
+const agendaSchema = z.object({ cacheKey: z.string(), events: z.array(calendarEventSchema), fetchedAt: z.iso.datetime({ offset: true }), truncated: z.boolean().optional() });
+const accountChangedState: CalendarState = { error: "Your account changed. Reopen your calendar before refreshing.", accountChanged: true, loading: false, requiresReconnect: false, fetched: "", truncated: false };
 
 /** Fetch only through the signed-in account endpoint; reject malformed provider data. */
-export async function fetchCalendarEvents(day: string, signal: AbortSignal, fetcher: typeof fetch = fetch): Promise<CalendarState> {
+export async function fetchCalendarEvents(day: string, signal: AbortSignal, owner: string, fetcher: typeof fetch = fetch): Promise<CalendarState> {
+  if (!owner) return accountChangedState;
   const center = new Date(`${day}T12:00:00Z`).getTime();
-  const response = await fetcher(`/api/account/calendar/events?start=${encodeURIComponent(new Date(center - 36 * 3600000).toISOString())}&end=${encodeURIComponent(new Date(center + 36 * 3600000).toISOString())}`, { cache: "no-store", signal });
+  const response = await fetcher(`/api/account/calendar/events?start=${encodeURIComponent(new Date(center - 36 * 3600000).toISOString())}&end=${encodeURIComponent(new Date(center + 36 * 3600000).toISOString())}`, { cache: "no-store", signal, headers: { "x-tempo-account": owner } });
+  if (response.status === 401) return accountChangedState;
   const payload = await response.json();
+  if (payload?.code === "account_changed") return accountChangedState;
   if (!response.ok) return { error: typeof payload.error === "string" ? payload.error : "Calendar unavailable. Try refreshing or check your connection.", loading: false, requiresReconnect: payload.code === "calendar_reauth_required", fetched: "", truncated: false };
   const agenda = agendaSchema.parse(payload);
+  if (agenda.cacheKey !== owner) return accountChangedState;
   return { events: agenda.events, error: "", loading: false, requiresReconnect: false, fetched: agenda.fetchedAt, truncated: !!agenda.truncated };
 }
 
 /** Keep requests inside this mounted account view; never use a shared calendar cache. */
 export function useCalendarEvents(data: Workspace, day: string, preview: boolean, revision = 0) {
   const disconnected = !preview && (!data.calendar || data.calendar.status === "disconnected");
-  const key = JSON.stringify([day, data.timezone, data.profile.phoneLast4, data.calendar?.status, preview, revision]);
+  const key = JSON.stringify([data.cacheKey, day, data.timezone, data.profile.phoneLast4, data.calendar?.status, preview, revision]);
   const [result, setResult] = useState<{ key: string; state: CalendarState }>({ key: "", state: emptyState });
   useEffect(() => {
     if (disconnected) return;
@@ -42,8 +48,11 @@ export function useCalendarEvents(data: Workspace, day: string, preview: boolean
         return;
       }
       try {
-        const state = await fetchCalendarEvents(day, controller.signal);
-        if (!controller.signal.aborted) setResult({ key, state });
+        const state = await fetchCalendarEvents(day, controller.signal, data.cacheKey ?? "");
+        if (!controller.signal.aborted) {
+          setResult({ key, state });
+          if (state.accountChanged) window.dispatchEvent(new Event(ACCOUNT_EVENT));
+        }
       } catch {
         if (!controller.signal.aborted) setResult({ key, state: { error: "Calendar couldn’t refresh. Check your connection and try again.", loading: false, requiresReconnect: false, fetched: "", truncated: false } });
       } finally { running = false; }
@@ -51,7 +60,7 @@ export function useCalendarEvents(data: Workspace, day: string, preview: boolean
     void load();
     const interval = setInterval(() => void load(), 60000);
     return () => { controller.abort(); clearInterval(interval); };
-  }, [key, day, data.demoCalendarEvents, preview, disconnected]);
+  }, [key, day, data.cacheKey, data.demoCalendarEvents, preview, disconnected]);
   // Hide results from an earlier day/connection immediately, before its effect is cleaned up.
   return { ...(disconnected ? disconnectedState : result.key === key ? result.state : emptyState), disconnected };
 }

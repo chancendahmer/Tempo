@@ -1,6 +1,6 @@
 # Tempo private-pilot delivery plan
 
-Owner: principal engineer/product lead. Updated October 22, 2026.
+Owner: principal engineer/product lead. Updated October 23, 2026.
 Status: implementation and validation in progress; **not a launch approval**.
 
 ## The decision
@@ -71,6 +71,8 @@ Keep packages small enough to commit independently. Do not create a second job
 system, replace PostgreSQL, or rewrite the assistant to solve a localized defect.
 
 ## Current baseline and newly found gaps
+
+October 23 follow-through: full integrated check now passes 1,232 tests (3 skipped), lint/typecheck and both builds. Owner-bound Calendar reads and session-bound logout/reset, static phone-link recovery, actual empty-account onboarding and populated-account outage/return checks are complete locally. Independent reviews cover Home dinner-time/CAS fixes, corrected automatic task-timer freshness, and safe delivery-failure reporting. Remaining live gates include a newly observed production readiness503 (`queue=degraded`, database/worker ready), hosted build/configuration inventory, provider calls and billing, backups/alerts, and complete independent interaction/accessibility. No release approval follows from the local results. See the latest handoff and `qa/pilot-2026-10-22/release-access-preflight.md`.
 
 The adaptive branch began this sprint at `d7e1a0e` (documentation) over `864fecb`
 (code). The previous pass recorded 878 passing tests, 3 skipped, lint/typecheck and

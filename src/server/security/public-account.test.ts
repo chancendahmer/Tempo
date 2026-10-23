@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { accountCacheKey, publicAccount, type WebAccount } from "./web-session";
+import { accountCacheKey, publicAccount, sessionBindingKey, type WebAccount } from "./web-session";
+import { createHash } from "node:crypto";
 
 describe("public account cache ownership", () => {
   const account: WebAccount = { userId: "00000000-0000-4000-8000-000000000001", displayName: "A", phoneLast4: "1234", phoneVerified: true, onboardingState: "complete", profileInstructions: "Short steps", profileComplete: true, calendarStatus: "active" };
@@ -15,5 +16,14 @@ describe("public account cache ownership", () => {
     const pending = publicAccount({ ...account, phoneVerified: false });
     expect(pending).toEqual({ displayName: null, phoneLast4: "1234", phoneVerified: false, onboardingState: "pending_verification", profileInstructions: null, profileComplete: false, calendarStatus: null });
     expect(pending).not.toHaveProperty("cacheKey");
+  });
+  it("domain-separates session proofs from credentials, database token hashes and account identities", () => {
+    const token = "synthetic-random-session-a";
+    const proof = sessionBindingKey(token);
+    expect(proof).toMatch(/^[a-f0-9]{64}$/); expect(proof).toBe(sessionBindingKey(token));
+    expect(proof).not.toContain(token);
+    expect(proof).not.toBe(createHash("sha256").update(token).digest("hex"));
+    expect(proof).not.toBe(accountCacheKey(token));
+    expect(proof).not.toBe(sessionBindingKey("synthetic-random-session-b"));
   });
 });

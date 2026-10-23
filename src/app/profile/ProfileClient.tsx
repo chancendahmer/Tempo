@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { ACCOUNT_EVENT, PublicAccount, useAccountStatus } from "../components/account-state";
 
 export function ProfileClient() {
-  const { account, error, refresh } = useAccountStatus(6_000);
+  const { account, sessionKey, error, refresh } = useAccountStatus(6_000);
   const [recovery, setRecovery] = useState<"owner" | "auth" | null>(null);
 
   if (recovery === "auth") return <section className="account-gate" role="alert"><h1>Log in to your profile.</h1><p>Your session ended. Your changes were not saved. Log in again before editing your profile.</p><Link className="black-button" href="/login">Log in</Link></section>;
@@ -29,10 +29,10 @@ export function ProfileClient() {
     );
   }
 
-  return <ProfileEditor key={account.cacheKey} account={account} unavailable={!!error} retry={() => void refresh()} invalidateOwner={reason => { setRecovery(reason); window.dispatchEvent(new Event(ACCOUNT_EVENT)); }} />;
+  return <ProfileEditor key={account.cacheKey} account={account} sessionKey={sessionKey} unavailable={!!error} retry={() => void refresh()} onSaved={() => void refresh()} invalidateOwner={reason => { setRecovery(reason); window.dispatchEvent(new Event(ACCOUNT_EVENT)); }} />;
 }
 
-function ProfileEditor({ account, unavailable, retry, invalidateOwner }: { account: PublicAccount; unavailable: boolean; retry: () => void; invalidateOwner: (reason: "owner" | "auth") => void }) {
+function ProfileEditor({ account, sessionKey, unavailable, retry, onSaved, invalidateOwner }: { account: PublicAccount; sessionKey: string | null; unavailable: boolean; retry: () => void; onSaved: () => void; invalidateOwner: (reason: "owner" | "auth") => void }) {
   const [displayName, setDisplayName] = useState(account.displayName ?? "");
   const [instructions, setInstructions] = useState(account.profileInstructions ?? "");
   const [saving, setSaving] = useState(false);
@@ -54,7 +54,8 @@ function ProfileEditor({ account, unavailable, retry, invalidateOwner }: { accou
       if (response.status === 409) { invalidateOwner("owner"); return; }
       const payload = (await response.json()) as { error?: string };
       setMessage(response.ok ? "Saved. Tempo will use these instructions in future coaching." : payload.error ?? "Could not save your profile.");
-      if (response.ok) window.dispatchEvent(new Event(ACCOUNT_EVENT));
+      // Keep same-owner draft and success feedback mounted; a different owner still changes the editor key.
+      if (response.ok) onSaved();
     } catch { setMessage("Could not confirm your save. Check your connection and try again."); }
     finally { setSaving(false); }
   }
@@ -62,7 +63,8 @@ function ProfileEditor({ account, unavailable, retry, invalidateOwner }: { accou
   async function logout() {
     setSaving(true);
     try {
-      const response = await fetch("/api/auth/logout", { method: "POST" });
+      const response = await fetch("/api/auth/logout", { method: "POST", headers: { "x-tempo-session": sessionKey ?? "" } });
+      if (response.status === 401 || response.status === 409) { invalidateOwner(response.status === 401 ? "auth" : "owner"); return; }
       if (!response.ok) throw new Error("Sign-out failed");
       window.localStorage.removeItem("tempo-early-access-submitted");
       window.dispatchEvent(new Event(ACCOUNT_EVENT));
@@ -92,13 +94,13 @@ function ProfileEditor({ account, unavailable, retry, invalidateOwner }: { accou
         </div>
         <label>
           <span>What should Tempo call you?</span>
-          <input value={displayName} onChange={(event) => setDisplayName(event.target.value)} maxLength={80} required placeholder="Your name" />
+          <input value={displayName} onChange={(event) => { setDisplayName(event.target.value); setMessage(""); }} maxLength={80} required placeholder="Your name" />
         </label>
         <label>
           <span>Custom coaching instructions</span>
           <textarea
             value={instructions}
-            onChange={(event) => setInstructions(event.target.value)}
+            onChange={(event) => { setInstructions(event.target.value); setMessage(""); }}
             maxLength={2_000}
             rows={8}
             placeholder="Example: Be direct, keep messages short, and offer me two choices when I’m stuck. Don’t text before 8am."

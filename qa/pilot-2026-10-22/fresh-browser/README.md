@@ -2,6 +2,8 @@
 
 Root reviewer, October 22, 2026, adaptive worktree over `3892b74` plus the current uncommitted continuation. This is a local synthetic account at `http://localhost:3103/workspace`, not Alex preview or a customer account. Screenshots are captured by root using the in-app browser. Independent agents did not interact with this browser unless separately documented. A final commit/build reference will be added after integration.
 
+Captures 01–12 were included in `49c3088`. The follow-through below was exercised on that commit plus the next recovery/Home package. New-account captures use a separate fictional QA Morgan account and never inherit QA Riley's records.
+
 ## Observed flows
 
 - Normal local phone-link activation opened QA Riley's empty account. The local HTTP fixture separately passed ten acceptance groups. Its consumed sign-in token/cookies are not published.
@@ -15,9 +17,20 @@ Root reviewer, October 22, 2026, adaptive worktree over `3892b74` plus the curre
 - Seeded one clearly synthetic preference through the local fixture helper, then removed it through the UI and reloaded. The memory stayed deleted and prior conversation rows remained unchanged. This tests deletion, not live AI extraction/correction.
 - Customized Walk & unwind as QA campus walk: 15-minute Walk & mobility with a shorter seven-minute middle movement. Saved and scheduled it for October 23 at 5 PM New York time. Separately logged a completed 12-minute session on October 22 with a synthetic note. Reload retained the saved plan/log; the future scheduled task stayed not_started with its original 15-minute duration. Logging did not silently complete it.
 
+## Recovery and first-run follow-through
+
+- Confirmed QA Riley's New York time zone, chose gentle coaching and hid progress numbers through the optional setup. Proactive texting stayed off. After signing out and returning through a fixture-issued normal sign-in link, saved records remained and Journey showed “Your pace, without the numbers.” Pause animations changed to Enable animations; its temporary/device-reduced-motion scope is stated.
+- Kept a 106-character synthetic Profile draft open during a 40-second outage of only the loopback PostgreSQL cluster. The last-known account warning appeared; Save and Logout were disabled while unavailable. Recovery restored the same draft. Saved and reloaded successfully. Testing exposed a disappearing Saved notice; the repaired same-owner refresh now retains it. Profile destinations have separate 44px rows after the independent visual review identified touching links; desktop and 390px phone captures verify the correction.
+- Both Profile logout and Home's account-menu sign-out reached Login. Return used an ordinary single-use account:signin fixture link, then the normal confirmation button. This proves the local session/UI path, not SMS delivery. A brief Extensions tab during outage was closed before final recovery observation and is not counted as an Extensions outage pass.
+- Signed up reserved fictional number 0100 through the real form and a strictly loopback contact-registration stub. “Use a different number” returned a blank form, focused the area code, and unchecked consent. Signed up replacement 0101 with new consent. Confirming the abandoned 0100 link was rejected; both accounts remained unactivated, the abandoned claim revoked, replacement pending, with zero scheduled actions. A dead-end plain-text error was repaired with static styled recovery and a working Back to sign in link; a second actual old-link POST verified it. Stub counters: two registrations, zero rejected calls, no outbound transport implementation or worker.
+- Activated only replacement 0101 via a separately fixture-issued normal link, explicitly not an observed SMS. Its first-run questionnaire accepted QA Morgan, New York and direct coaching; progress numbers remained enabled. Setup completed and stayed completed after reload. Home showed zero tasks and disconnected Calendar; Journey showed zero completions, zero streak and a disabled celebration button. Read-only assertions confirm empty tasks/goals/life items, proactive off, confirmed time zone, completed setup, the exact redeemed claim plus one distinct browser session, abandoned 0100 still revoked, and zero scheduled actions. These assertions were saved before any later customer review may add its own fictional records.
+- Public signup and Login copy now describe the shared account without promising an automatic first text, which would contradict the current user-first START flow.
+
 ## Records and captures
 
 `../verify-browser-food.ts` performs read-only checks scoped to the exact synthetic account in the ignored local fixture. Ten record groups passed: synthetic identity, recipe/meal portions, manual grocery, source-linked grocery/pantry math, two diary dates and unknown nutrient, no scheduled provider jobs, one encrypted feedback record matching the displayed recovery receipt, routine order/completion and removed finished focus, achieved goal/linked task, and distinct fitness plan/log/future task. It uses the launcher's known synthetic encryption key, never a populated environment file. `browser-memory-fixture.ts verify` separately checked deletion and unchanged prior history. Its local baseline is not published.
+
+The follow-through rerun added an eleventh group for the exact recovered Profile text, New York confirmation, gentle tone, hidden progress and unchanged proactive opt-out. It forces read-only transactions, strips ambient PostgreSQL settings and disables password-file fallback. `../signup-rehearsal/` records the separate pending-reset and new-account assertions without publishing bearer links.
 
 | Capture | Meaning |
 | --- | --- |
@@ -33,6 +46,28 @@ Root reviewer, October 22, 2026, adaptive worktree over `3892b74` plus the curre
 | 10-goal-achieved.png | Explicit achieved goal after linked step completion |
 | 11-memory-removed-reloaded.png | Removed synthetic preference remains absent |
 | 12-fitness-saved-and-logged.png | Custom plan and independently logged actual duration |
+| 13-profile-outage-draft.png | Same-account draft retained with disabled writes during outage |
+| 14-profile-recovered-links.png | Saved notice and distinct desktop destination rows |
+| 15-profile-phone-links.png | Distinct phone-width destination rows |
+| 16-returning-account-home.png | Same populated account after sign-out and normal return |
+| 17-journey-numbers-hidden.png | Saved preference to omit streak/level numbers |
+| 18-pending-signup-recovery.png | Pending-number controls before the static copy correction |
+| 19-signup-number-reset.png | Blank fields and renewed consent after reset |
+| 20-replacement-number-pending.png | Replacement phone pending; no automatic texting promise |
+| 21-expired-signin-recovery.png | Rejected abandoned claim with a usable sign-in link |
+| 22-new-account-onboarding.png | First-run optional choices and explicit time-zone confirmation |
+| 23-new-account-empty-home.png | Persisted setup with no inherited fictional records |
+| 24-new-account-zero-journey.png | Honest zero progress and disabled celebration |
+| 25-task-estimate-corrected.png | Automatic starter follows corrected 2-minute task estimate |
+| 26-first-use-journey-revised.png | Correct first-use encouragement with zero completions |
+| 27-task-timer-paused-reloaded.png | Paused task timer persists at 1:48 after reload |
+| 28-first-completion-journey.png | One explicit task completion yields one earned completion/day |
+| 29-onboarding-revised-confirmation.png | Confirmed zone and one check-in assurance in replayed setup |
+| 32-signup-after-runtime-refresh.png | Final desktop consent renders at 14px after restarting stale dev CSS |
+
+Captures 25–29 are October 23 follow-through on the separate new QA Morgan account. Root created a shopping task with a 30-minute estimate (automatic 25-minute starter), corrected it to 2 minutes (starter became 2), paused/reloaded/resumed and explicitly completed it. Journey then showed one completion and one active day. The earlier zero-account durable assertions describe the earlier baseline; they must not be rerun expecting emptiness after this intentional task creation.
+
+Captures 30/31 were stale development CSS (11px) despite the updated source. They remain ignored locally and are not final evidence. A restart of only the known local launcher/descendants loaded current styles; capture32 and a read-only DOM check show 14px text and 6px vertical label padding. No additional signup submission occurred. The populated QA Riley account was reopened through a fixture-issued normal one-use activation link, not carrier delivery.
 
 The earlier image named 07 was rejected because it still showed an error, then replaced with the actual successful final receipt. Names alone are not evidence.
 

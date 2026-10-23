@@ -38,7 +38,8 @@ export function homeModel(data: Workspace, now: Date, calendarEvents: CalendarEv
   const workoutTitle = workoutEvent?.title ?? workoutTask?.title;
   const workoutAt = workoutEvent?.start.dateTime ?? workoutTask?.dueAt;
   const workout: HomeHero = { mode: "workout", label: workoutTitle ? "Up next · Movement" : "Movement", title: workoutTitle ?? "Move in a way that fits today.", detail: workoutAt ? `${formatTime(workoutAt)} · ${workoutEvent ? "On your calendar" : "Scheduled task"}` : "Choose a plan or explore a short session.", action: workoutEvent ? "View activity" : workoutTask ? `Start ${taskPresentation(workoutTask).focusMinutes} min` : "Explore workouts", destination: workoutEvent ? "calendar" : workoutTask ? "tasks" : "movement", task: workoutEvent ? undefined : workoutTask, image: "/images/home/workout.png", imageAlt: "" };
-  const mealSlot = minute < 11 * 60 ? "Breakfast" : minute < 15 * 60 ? "Lunch" : "Dinner";
+  const dinnerWindow = since(minute + 45, minutesOf(preferences.dinnerTime)) < 150;
+  const mealSlot = dinnerWindow ? "Dinner" : minute < 11 * 60 ? "Breakfast" : minute < 15 * 60 ? "Lunch" : "Dinner";
   const meal = data.items.find(item => item.data.kind === "meal" && item.data.date === day && item.data.meal === mealSlot);
   const photo = meal && recipePhotoFor(meal.data);
   const mealHero: HomeHero = { mode: "meal", label: `${mealSlot} plan`, title: meal?.data.title ?? "What sounds good today?", detail: meal?.data.kind === "meal" ? `${mealSlot} · Planned${meal.data.servings ? ` · ${meal.data.servings} ${meal.data.servings === 1 ? "serving" : "servings"}` : ""}` : "Pick a meal and keep the ingredients together.", action: meal ? "Open meal plan" : "Plan a meal", destination: "meals", image: photo?.image ?? "/images/home/meal.png", imageAlt: photo?.alt ?? "Meal planning ingredients; illustrative photo", meal };
@@ -49,10 +50,9 @@ export function homeModel(data: Workspace, now: Date, calendarEvents: CalendarEv
   const eveningAt = minutesOf(preferences.eveningTime ?? (evening?.data.kind === "routine" ? evening.data.time : "21:00"));
   const eveningWindow = since(minute, eveningAt) < 180;
   const morningWindow = since(minute, morningAt) < 120;
-  const dinnerDistance = since(minute + 45, minutesOf(preferences.dinnerTime));
   const lunchWindow = minute >= 11 * 60 + 45 && minute < 14 * 60;
   const breakfastWindow = minute >= 7 * 60 && minute < 10 * 60;
-  const automatic: HeroMode = today.focus || activeTask ? "focus" : ongoing ? (workoutEvent?.id === ongoing.id ? "workout" : "focus") : workoutEvent || workoutTask ? "workout" : eveningWindow && evening ? "evening" : morningWindow && morning ? "morning" : meal && (dinnerDistance < 150 || lunchWindow || breakfastWindow) ? "meal" : "focus";
+  const automatic: HeroMode = today.focus || activeTask ? "focus" : ongoing ? (workoutEvent?.id === ongoing.id ? "workout" : "focus") : workoutEvent || workoutTask ? "workout" : eveningWindow && evening ? "evening" : morningWindow && morning ? "morning" : meal && (dinnerWindow || lunchWindow || breakfastWindow) ? "meal" : "focus";
   const requested = manualMode ?? preferences.pinned;
   const mode = requested === "auto" ? automatic : requested;
   const tasks = [...today.tasks].sort((a, b) => Number(b.status === "in_progress") - Number(a.status === "in_progress") || Number(!!a.dueAt && localDay(new Date(a.dueAt), data.timezone) > day) - Number(!!b.dueAt && localDay(new Date(b.dueAt), data.timezone) > day) || (a.dueAt ? Date.parse(a.dueAt) : Infinity) - (b.dueAt ? Date.parse(b.dueAt) : Infinity));

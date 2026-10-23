@@ -5,12 +5,12 @@ import { createWorkerAttestation } from "./worker-attestation";
 const now = new Date("2026-10-22T12:00:00Z"), build = "abcdef1234567";
 const env = { TEMPO_BUILD_SHA: build, RAILWAY_GIT_COMMIT_SHA: undefined, INTERVENTION_SHADOW_MODE: true, AUTONOMOUS_SENDING_ENABLED: false, CLEANUP_CHECKINS_ENABLED: false, PROACTIVE_CANARY_USER_IDS: [] };
 const queue = { blockedAccounts: 0, ambiguousOutbound: 0, pendingInbound: 0, oldestPendingSeconds: null };
-function fixture(queuePresent = true, stale = false) {
+function fixture(queuePresent = true, stale = false, deliveryFailures = 1) {
   const query = vi.fn(async (text: string) => {
     if (text.includes("from service_heartbeats")) return { rows: [{ serviceKey: "tempo-worker:private-id", lastSeenAt: now, metadata: { ...createWorkerAttestation(env, queue), phone: "+12025550199", token: "private-token" } },
       ...(stale ? [{ serviceKey: "tempo-worker:old-instance", lastSeenAt: new Date(now.getTime() - 121_000), metadata: createWorkerAttestation(env, queue) }] : [])] };
     if (text.includes("from users")) return { rows: [{ total: 10, verified: 8, onboardingComplete: 6, optedOut: 1, paused: 1, proactiveOptIn: 2 }] };
-    if (text.includes("created_at >=")) return { rows: [{ inbound: 20, outbound: 18, deliveryFailures: 1, delivered: 17 }] };
+    if (text.includes("created_at >=")) return { rows: [{ inbound: 20, outbound: 18, deliveryFailures, delivered: 18 - deliveryFailures }] };
     if (text.includes("from conversation_messages")) return { rows: [{ pendingInbound: 1, oldestPendingSeconds: 700, uncertainOutbound: 1 }] };
     if (text.includes("jsonb_array_length")) return { rows: [{ audits: 2 }] };
     if (text.includes("from scheduled_actions")) return { rows: [{ kind: "process_inbound_message", state: "failed", count: 1, oldestDueSeconds: 700 }] };
@@ -53,6 +53,18 @@ it("requests inventory/retirement review even if fresh runtime readiness remains
   expect(report.worker).toMatchObject({ ok: true, policyKnown: false, allCoachingDisabled: false });
   expect(report.problems).toContain("stale_worker_policy_unknown");
   expect(report.nextActions.some(action => action.includes("unretired instance records"))).toBe(true);
+});
+it("raises an explicit delivery-failure signal and receipt-first recovery action without changing independent rollout gates", async () => {
+  const before = await readPilotOperationsReport(fixture(true, false, 0).client, { hours: 24, webBuild: build, now });
+  const failed = await readPilotOperationsReport(fixture(true, false, 2).client, { hours: 24, webBuild: build, now });
+  expect(before.problems).not.toContain("delivery_failures_require_review");
+  expect(failed.problems.filter(problem => !before.problems.includes(problem))).toEqual(["delivery_failures_require_review"]);
+  expect(failed.problems).toEqual(expect.arrayContaining(before.problems));
+  expect(failed.nextActions.filter(action => !before.nextActions.includes(action))).toEqual([
+    "Review failed/undelivered outbound messages from the selected creation-time window using secure account-scoped provider receipts; never bulk replay or reset uncertain submissions.",
+  ]);
+  expect(failed.recentMessages.deliveryFailures).toBe(2);
+  expect(failed.aiBudget.enforcementVerified).toBe(false);
 });
 it("rolls back on a failed/timeout read and never emits a partial success", async () => {
   const { query, client } = fixture();

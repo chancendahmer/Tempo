@@ -141,6 +141,11 @@ export function accountCacheKey(userId: string) {
   return createHash("sha256").update(`tempo-account-cache:v1:${userId}`).digest("hex");
 }
 
+/** Session-only optimistic mutation precondition; never a credential or user identity. */
+export function sessionBindingKey(token: string) {
+  return createHash("sha256").update(`tempo-session-binding:v1:${token}`).digest("hex");
+}
+
 export function publicAccount(account: WebAccount) {
   if (!account.phoneVerified) {
     return {

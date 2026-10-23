@@ -69,7 +69,20 @@ describe("account polling cancellation", () => {
     changed();
     expect(hooks.setters[0].mock.calls[0]).toEqual([undefined]);
     expect(hooks.setters[1].mock.calls[0]).toEqual([null]);
+    expect(hooks.setters[2].mock.calls[0]).toEqual([null]);
     finish(Response.json({ account: { cacheKey: "new-owner", phoneVerified: true } }));
     await Promise.resolve(); await Promise.resolve();
+  });
+  it("observes a pending session proof separately from account identity and retains it only through a temporary lookup failure", async () => {
+    const json = vi.fn().mockRejectedValue(new SyntaxError("Not JSON"));
+    vi.stubGlobal("fetch", vi.fn()
+      .mockResolvedValueOnce(Response.json({ account: { phoneVerified: false }, sessionKey: "opaque-pending-session" }))
+      .mockResolvedValueOnce(Response.json({ error: "Unavailable" }, { status: 503 }))
+      .mockResolvedValueOnce({ status: 401, ok: false, json }));
+    const status = useAccountStatus(); hooks.effects[0]();
+    await status.refresh(); expect(hooks.setters[2]).toHaveBeenCalledExactlyOnceWith("opaque-pending-session");
+    await status.refresh(); expect(hooks.setters[2]).toHaveBeenCalledTimes(1);
+    await status.refresh(); expect(hooks.setters[2].mock.calls.at(-1)).toEqual([null]); expect(json).not.toHaveBeenCalled();
+    status.suspend(); expect(hooks.setters[2].mock.calls.at(-1)).toEqual([null]);
   });
 });

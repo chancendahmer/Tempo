@@ -8,10 +8,15 @@ import { ACCOUNT_EVENT, useAccountStatus } from "./account-state";
 
 const STORAGE_KEY = "tempo-early-access-submitted";
 const STORAGE_EVENT = "tempo-signup-change";
+class SignInChangedError extends Error {}
 
-export async function resetPhoneSignup() {
+export async function resetPhoneSignup(sessionKey: string | null) {
   // Revoke the pending browser claim before forgetting it or accepting another number.
-  const response = await fetch("/api/auth/logout", { method: "POST" });
+  const response = await fetch("/api/auth/logout", { method: "POST", headers: { "x-tempo-session": sessionKey ?? "" } });
+  if (response.status === 409 || response.status === 401) {
+    window.dispatchEvent(new Event(ACCOUNT_EVENT));
+    throw new SignInChangedError("Your sign-in changed. Reload this page and check the current account before resetting.");
+  }
   if (!response.ok) throw new Error("We couldn’t reset this sign-in attempt. Please try again.");
   window.localStorage.removeItem(STORAGE_KEY);
   window.dispatchEvent(new Event(STORAGE_EVENT));
@@ -95,11 +100,12 @@ export function PhoneSignup() {
   const [resetting, setResetting] = useState(false);
   const [abandoned, setAbandoned] = useState(false);
   const abandoning = useRef(false);
+  const resetSession = useRef<string | null | undefined>(undefined);
   const areaInput = useRef<HTMLInputElement>(null);
   const [error, setError] = useState("");
   const submittedState = useSyncExternalStore(subscribeToSubmittedState, getSubmittedState, () => null);
   const submitted = submittedState !== null;
-  const { account, suspend } = useAccountStatus(submitted ? 4_000 : 0, !abandoned);
+  const { account, sessionKey, error: accountError, suspend } = useAccountStatus(submitted ? 4_000 : 0, !abandoned);
   const onboarding = parseStoredAssignment(submittedState);
   useEffect(() => {
     if (submitted && !abandoning.current && account?.phoneVerified) router.replace("/workspace");
@@ -114,19 +120,24 @@ export function PhoneSignup() {
 
   async function restart(destination: "phone" | "login") {
     if (resetting) return;
+    if (resetSession.current === undefined && (account === undefined || accountError || (account && !sessionKey))) { setError("Wait for your current sign-in to load, then try again."); return; }
     abandoning.current = true;
     setAbandoned(true);
     setResetting(true);
     setError("");
+    // Retain the observed proof through a failed reset; never obtain a new
+    // session proof automatically while retrying the abandoned sign-in intent.
+    if (resetSession.current === undefined) resetSession.current = sessionKey;
     suspend();
     try {
-      await resetPhoneSignup();
+      await resetPhoneSignup(resetSession.current);
+      resetSession.current = undefined;
       setAreaCode("");
       setPhone("");
       setConsented(false);
       if (destination === "login") router.push("/login");
-    } catch {
-      setError("We couldn’t reset this sign-in attempt. Please try again.");
+    } catch (cause) {
+      setError(cause instanceof SignInChangedError ? cause.message : "We couldn’t reset this sign-in attempt. Please try again.");
     } finally {
       setResetting(false);
     }
@@ -169,6 +180,7 @@ export function PhoneSignup() {
       if (!response.ok) throw new Error(payload.error ?? "Could not complete signup.");
 
       window.localStorage.setItem(STORAGE_KEY, payload.onboarding ? JSON.stringify(payload.onboarding) : "true");
+      resetSession.current = undefined;
       abandoning.current = false;
       setAbandoned(false);
       window.dispatchEvent(new Event(STORAGE_EVENT));
@@ -210,7 +222,7 @@ export function PhoneSignup() {
                 ? "Welcome back. Text START to finish signing in."
                 : onboarding
                   ? "One last step: start the conversation."
-                  : "You’re in. Tempo will text you to start setup."}
+                  : "Finish phone setup to open your dashboard."}
           </span>
         </div>
         <div className="signup-success-actions">

@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
     if (error instanceof InvalidActionTokenError) {
       return NextResponse.json({ error: error.message }, { status: 401 });
     }
-    logger.error({ err: error }, "calendar OAuth start failed");
+    logger.error({ operation: "start_calendar_oauth" }, "calendar OAuth start failed");
     return NextResponse.json({ error: "Calendar connection is temporarily unavailable." }, { status: 503 });
   }
 }
