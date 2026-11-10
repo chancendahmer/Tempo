@@ -10,7 +10,7 @@ import { AI_PRICE_VERSION } from "../adapters/llm/ai-pricing";
 
 it("runs real report SQL in a read-only snapshot, folds private queue names, and rejects accidental writes", async () => {
   const client = new PGlite();
-  const now = new Date("2026-10-22T12:00:00Z"), build = "abcdef1234567";
+  const now = new Date("2026-11-10T12:00:00Z"), build = "abcdef1234567";
   try {
     for (const file of (await readdir(resolve("drizzle"))).filter(name => /^\d+.*\.sql$/.test(name)).sort()) {
       await client.exec((await readFile(resolve("drizzle", file), "utf8")).replaceAll("--> statement-breakpoint", ""));

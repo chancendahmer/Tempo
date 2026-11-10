@@ -42,6 +42,7 @@ export interface ReminderRepository {
     truncated: boolean;
   }>;
   listForManagement?(userId: string): Promise<ReminderRecord[]>;
+  listForHistory?(userId: string): Promise<{ items: ReminderRecord[]; truncated: boolean }>;
   listForRundown(userId: string, start: Date, end: Date): Promise<ReminderRecord[]>;
   cancel(input: { userId: string; reminderId?: string; reminderQuery?: string; now: Date }): Promise<
     | { kind: "cancelled"; reminder: ReminderRecord }
@@ -203,12 +204,20 @@ export async function executeReminderCommand(
   }
 
   if (command.type === "list_reminders") {
-    const reminders = command.includePast && repository.listForManagement ? await repository.listForManagement(context.userId) : await repository.listUpcoming(context.userId, context.now);
-    if (context.forModel) return JSON.stringify({ items: reminders, limit: 50, truncated: reminders.length >= 50 });
-    if (reminders.length === 0) return "You don’t have any upcoming reminders.";
-    return reminders.slice(0, 8).map((reminder, index) =>
-      `${index + 1}. ${reminder.recurrence ? `${recurrenceLabel(reminder.recurrence)}, next ` : ""}${formatReminderTime(reminder.remindAt, reminder.timezone)} — ${reminder.text}`,
-    ).join("\n");
+    const history = command.includePast ? await repository.listForHistory?.(context.userId) : undefined;
+    const reminders = history?.items ?? (command.includePast && repository.listForManagement
+      ? await repository.listForManagement(context.userId) : await repository.listUpcoming(context.userId, context.now));
+    const notice = command.includePast && !history ? "Full reminder history is unavailable; cancelled reminders may be omitted." : undefined;
+    const truncated = history?.truncated ?? reminders.length >= 50;
+    if (context.forModel) return JSON.stringify({ items: reminders, limit: 50, truncated, ...(notice ? { notice } : {}) });
+    if (!reminders.length) return notice ?? (command.includePast ? "You don’t have any saved reminders." : "You don’t have any upcoming reminders.");
+    const lines = reminders.slice(0, 8).map((reminder, index) => {
+      const recurrence = reminder.recurrence ? `${recurrenceLabel(reminder.recurrence)}${command.includePast ? ", " : ", next "}` : "";
+      return `${index + 1}. ${recurrence}${formatReminderTime(reminder.remindAt, reminder.timezone)} — ${reminder.text}${command.includePast ? ` · ${reminder.status}` : ""}`;
+    });
+    if (notice) lines.push(notice);
+    if (command.includePast && (truncated || reminders.length > 8)) lines.push("More reminder records exist; this list is incomplete.");
+    return lines.join("\n");
   }
 
   if (command.type === "reschedule_reminder" || command.type === "complete_reminder") {

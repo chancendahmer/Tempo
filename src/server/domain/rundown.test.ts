@@ -49,7 +49,8 @@ describe("account rundown", () => {
 
   it("keeps available sections when calendar fails and reports incomplete data", async () => {
     const reply = await buildRundown({ tasks: { list: async () => [] }, goals: { list: async () => [] }, integrations: { agenda: async () => { throw new Error("private provider details"); } } }, context, request);
-    expect(reply).toContain("Calendar unavailable or not connected");
+    expect(reply).toContain("Calendar unavailable; connection status and events were not verified");
+    expect(reply).not.toContain("not connected");
     expect(reply).toContain("Reminders unavailable");
     expect(reply).toContain("Tasks due\nNone.");
     expect(reply).not.toContain("private provider details");
@@ -74,6 +75,34 @@ describe("account rundown", () => {
     const future = await buildRundown(repositories, context, { startDate: "2027-03-15", days: 1 });
     expect(future).toContain("past/future completion not inferred");
     expect(future).not.toContain("steps done today");
+  });
+
+  it("labels requested detail coverage, known zeros, missing nutrients and independent unavailable sections", async () => {
+    const listForRundown = vi.fn(async () => ({
+      items: [], truncated: false, details: {
+        food: { items: [{ title: "Lunch", date: request.startDate, meal: "Lunch" as const, calories: 0, protein: null, carbs: null, fat: null, fiber: null }], truncated: true },
+        groceries: { items: [{ title: "Rice", quantity: 100, unit: "g" as const, checked: true, mealDerived: true }], truncated: false },
+        pantry: null,
+        workoutPlans: { items: [{ title: "Strength plan", sessions: [{ name: "Session one", minutes: 15 }], moreSessions: true }], truncated: false },
+        thoughts: { items: [
+          { title: "Studio idea", preview: "First draft", previewTruncated: false },
+          { title: "Long note", preview: "Recognizable prefix", previewTruncated: true },
+          { title: "Wi-Fi password", preview: "invented-credential-123", previewTruncated: false },
+          { title: "Account details", preview: "My password is not for this tool", previewTruncated: false },
+        ], truncated: false },
+      },
+    }));
+    const include = ["food", "shopping", "workoutPlans", "thoughts"] as const;
+    const reply = await buildRundown({ tasks: { list: async () => [] }, goals: { list: async () => [] }, workspace: { listForRundown } }, context, { ...request, include: [...include] });
+    expect(listForRundown).toHaveBeenCalledWith("owner", "2027-03-14", "2027-03-15", { include: [...include], currentDate: "2027-03-14" });
+    for (const phrase of ["Food logs · consumed, not planned", "Known totals for included logs only", "calories: 0 kcal", "protein: unknown (1 log missing)",
+      "checked purchased · meal-derived", "Pantry · explicitly recorded stock unavailable", "Session one (15 min planned)", "more sessions in this plan", "Studio idea — First draft", "Long note — Recognizable prefix…", "Private thought", "Account details"]) {
+      expect(reply).toContain(phrase);
+    }
+    expect(reply).not.toContain("password");
+    expect(reply).not.toContain("invented-credential-123");
+    expect(reply).not.toContain("No pantry stock recorded");
+    expect(() => rundownRange({ ...request, include: ["food", "food"] }, context.timezone)).toThrow();
   });
 
   it("does not infer inactivity from missing logs or an unavailable workspace", async () => {

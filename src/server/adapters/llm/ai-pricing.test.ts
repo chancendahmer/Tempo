@@ -1,12 +1,13 @@
 import type { MessageCreateParamsNonStreaming } from "@anthropic-ai/sdk/resources/messages";
 import { describe, expect, it } from "vitest";
-import { AI_PRICE_VERSION, buildAdmissionEnvelope, priceUsage } from "./ai-pricing";
+import { AI_PRICE_VERSION, SONNET_46_MODEL, buildAdmissionEnvelope, priceUsage } from "./ai-pricing";
 
-const now = new Date("2026-10-22T12:00:00Z");
+const now = new Date("2026-11-10T12:00:00Z");
 const config = { AI_BUDGET_PRICE_VERSION: AI_PRICE_VERSION, AI_BUDGET_GLOBAL_DAILY_MICRODOLLARS: "10000000", AI_BUDGET_ACCOUNT_DAILY_MICRODOLLARS: "5000000", AI_BUDGET_GLOBAL_DAILY_CALLS: "500", AI_BUDGET_ACCOUNT_DAILY_CALLS: "30" };
 const request = (extra: Record<string, unknown> = {}) => ({ model: "claude-haiku-4-5-20251001", messages: [{ role: "user", content: "Synthetic fixture" }], max_tokens: 1400, ...extra }) as MessageCreateParamsNonStreaming;
 const baseUsage = { input_tokens: 100, output_tokens: 10, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, cache_creation: null, server_tool_use: null, service_tier: "standard", inference_geo: null, output_tokens_details: null };
 const search = [{ type: "web_search_20250305", name: "web_search", max_uses: 2 }];
+const sonnet46 = { model: SONNET_46_MODEL, inference_geo: "global" };
 
 describe("verified AI price contract with synthetic usage", () => {
   it("reserves a whole supported context at the worst cache rate, not a text heuristic", () => {
@@ -19,6 +20,29 @@ describe("verified AI price contract with synthetic usage", () => {
     const envelope = buildAdmissionEnvelope(request({ tools: search }), now, config);
     expect(envelope).toMatchObject({ inputBound: 2000000, outputBound: 14000, searchBound: 2, reservedMicrodollars: 4090000 });
     expect(priceUsage(envelope, { ...baseUsage, server_tool_use: { web_search_requests: 2, web_fetch_requests: 0 } }, envelope.model)).toMatchObject({ actualMicrodollars: 20150, haltAdmission: false });
+  });
+  it("reserves the full Sonnet 4.6 window and supports its documented output ceiling", () => {
+    expect(buildAdmissionEnvelope(request(sonnet46), now, config)).toMatchObject({
+      inputBound: 1000000, outputBound: 1400, searchBound: 0, reservedMicrodollars: 6021000,
+    });
+    expect(buildAdmissionEnvelope(request({ ...sonnet46, tools: search }), now, config)).toMatchObject({
+      inputBound: 10000000, outputBound: 14000, searchBound: 2, reservedMicrodollars: 60230000,
+    });
+    expect(buildAdmissionEnvelope(request({ ...sonnet46, max_tokens: 128000 }), now, config).outputBound).toBe(128000);
+    expect(() => buildAdmissionEnvelope(request({ ...sonnet46, max_tokens: 128001 }), now, config)).toThrow();
+  });
+  it("denies nonstandard Sonnet 4.6 routing or speed before admission and when settling usage", () => {
+    const envelope = buildAdmissionEnvelope(request(sonnet46), now, config);
+    for (const inference_geo of [undefined, null, "not_available", "us", "unknown"]) {
+      expect(() => buildAdmissionEnvelope(request({ ...sonnet46, inference_geo }), now, config)).toThrow();
+      expect(() => priceUsage(envelope, { ...baseUsage, inference_geo }, envelope.model)).toThrow();
+    }
+    for (const speed of ["fast", "unknown"]) {
+      expect(() => buildAdmissionEnvelope(request({ ...sonnet46, speed }), now, config)).toThrow();
+      expect(() => priceUsage(envelope, { ...baseUsage, inference_geo: "global", speed }, envelope.model)).toThrow();
+    }
+    expect(() => priceUsage(envelope, { ...baseUsage, inference_geo: "global", output_tokens_details: { future_bucket: 1 } }, envelope.model)).toThrow();
+    expect(() => priceUsage(envelope, { ...baseUsage, inference_geo: "global", output_tokens_details: { thinking_tokens: 11 } }, envelope.model)).toThrow();
   });
   it("prices every distinct cache bucket once with a single upward microdollar rounding", () => {
     const envelope = buildAdmissionEnvelope(request(), now, config);
@@ -41,8 +65,10 @@ describe("verified AI price contract with synthetic usage", () => {
   });
   it("rejects unreviewed/expired policy, malformed caps and unsafe integers", () => {
     for (const invalid of [undefined, "", "-1", "1.1", "Infinity", "1e4", "9007199254740992"]) expect(() => buildAdmissionEnvelope(request(), now, { ...config, AI_BUDGET_GLOBAL_DAILY_MICRODOLLARS: invalid })).toThrow();
-    for (const date of [new Date("invalid"), new Date("2026-10-21"), new Date("2026-11-22")]) expect(() => buildAdmissionEnvelope(request(), date, config)).toThrow();
-    expect(() => buildAdmissionEnvelope(request(), now, { ...config, AI_BUDGET_PRICE_VERSION: "unknown" })).toThrow();
+    for (const date of [new Date("invalid"), new Date("2026-11-09"), new Date("2026-11-22")]) expect(() => buildAdmissionEnvelope(request(), date, config)).toThrow();
+    for (const priceVersion of ["unknown", "anthropic-standard-2026-10-22-v1"]) {
+      expect(() => buildAdmissionEnvelope(request(), now, { ...config, AI_BUDGET_PRICE_VERSION: priceVersion })).toThrow();
+    }
     expect(buildAdmissionEnvelope(request(), now, { ...config, AI_BUDGET_GLOBAL_DAILY_MICRODOLLARS: "0" }).policy.globalDailyMicrodollars).toBe(0);
   });
   it("rejects unknown/missing/negative/noninteger/mismatched usage without guessing a refund", () => {

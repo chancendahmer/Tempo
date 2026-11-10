@@ -4,9 +4,9 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { requireEnv } from "../../config/env";
 import { DrizzleAiBudgetRepository } from "../../db/repositories/ai-budget-repository";
-import { buildAdmissionEnvelope, priceUsage } from "./ai-pricing";
+import { SONNET_46_MODEL, buildAdmissionEnvelope, priceUsage } from "./ai-pricing";
 import { AssistantProviderFailure } from "../../domain/assistant-provider-failure";
-import { currentAiInvocationScope } from "../../domain/ai-invocation-scope";
+import { currentAiInvocationScope, withAiInvocationScope } from "../../domain/ai-invocation-scope";
 import type { AiBudgetOperation, AiBudgetPolicy, AiBudgetRepository, AiBudgetUsage } from "../../domain/ai-budget";
 
 export class AiBudgetDeniedError extends AssistantProviderFailure {
@@ -24,22 +24,25 @@ export type PaidInvocationDependencies<E extends PaidAdmissionEnvelope = PaidAdm
   price(envelope: E, usage: unknown, model: string): { actualMicrodollars: number; usage: AiBudgetUsage; haltAdmission?: boolean };
 };
 
-export async function invokePaidMessage(client: Anthropic, request: MessageCreateParamsNonStreaming, operation: AiBudgetOperation): Promise<Message> {
+export async function invokePaidMessage(client: Anthropic, request: MessageCreateParamsNonStreaming, operation: AiBudgetOperation, signal?: AbortSignal): Promise<Message> {
   let mode: string;
   try {
     mode = requireEnv([]).AI_BUDGET_MODE;
   } catch { throw new AiBudgetDeniedError(); }
-  if (mode === "off") return client.messages.create(request);
-  if (mode !== "enforce" || !currentAiInvocationScope()) throw new AiBudgetDeniedError();
+  const scope = currentAiInvocationScope();
+  const boundedSignal = signal && scope?.signal ? AbortSignal.any([signal, scope.signal]) : signal;
+  if (mode === "off") return boundedSignal ? client.messages.create(request, { signal: boundedSignal, maxRetries: 0 }) : client.messages.create(request);
+  if (mode !== "enforce" || !scope) throw new AiBudgetDeniedError();
   // SDK environment overrides can change the provider; this price snapshot is
   // only for Anthropic's direct API, not an unpriced proxy or cloud deployment.
   if (client.baseURL !== "https://api.anthropic.com") throw new AiBudgetDeniedError();
   let repository: AiBudgetRepository;
   try { repository = new DrizzleAiBudgetRepository(); }
   catch { throw new AiBudgetDeniedError(); }
-  return meteredMessage(client, request, operation, {
+  const invoke = () => meteredMessage(client, request, operation, {
     enabled: true, repository, admit: buildAdmissionEnvelope, price: priceUsage,
   });
+  return boundedSignal ? withAiInvocationScope({ ...scope, signal: boundedSignal }, invoke) : invoke();
 }
 
 /** Each invocation owns a fresh physical attempt, even for parser continuations or worker retries. */
@@ -61,6 +64,9 @@ export async function meteredMessage<E extends PaidAdmissionEnvelope>(
     request = structuredClone(request);
     if (request.service_tier !== undefined && request.service_tier !== "standard_only") throw new AiBudgetDeniedError();
     request.service_tier = "standard_only";
+    // A workspace default can carry a US-only surcharge. Pin the priced
+    // geography for 4.6, which supports this parameter.
+    if (request.model === SONNET_46_MODEL && request.inference_geo === undefined) request.inference_geo = "global";
     envelope = dependencies.admit(request, new Date());
     attemptId = randomUUID();
     const reservation = await dependencies.repository.reserve({

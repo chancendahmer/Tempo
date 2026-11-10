@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { and, eq, sql } from "drizzle-orm";
 import type { TempoDatabase } from "../client";
 import { lifeItems, users } from "../schema";
-import { groceriesForMeals, ingredientKey } from "../../domain/meal-groceries";
+import { groceriesForMeals, ingredientKey, shouldKeepMealGroceryChecked } from "../../domain/meal-groceries";
 import { lifeItemSchema, localDay } from "../../domain/life-items";
 
 /** Runs inside mutateWorkspace's account lock and transaction. */
@@ -16,9 +16,7 @@ export async function reconcileMealGroceries(database: TempoDatabase, userId: st
     const key = ingredientKey(item.data), next = desired.get(key);
     if (!next) await database.delete(lifeItems).where(and(eq(lifeItems.userId, userId), eq(lifeItems.id, item.id)));
     else {
-      // Purchasing is not stocking. Preserve the user's checkbox even when
-      // portions change; only an explicit pantry record affects quantities.
-      const data = lifeItemSchema.parse({ ...next, checked: item.data.checked });
+      const data = lifeItemSchema.parse({ ...next, checked: shouldKeepMealGroceryChecked(item.data, next) });
       if (!isDeepStrictEqual(item.data, data)) await database.update(lifeItems).set({ data, version: sql`${lifeItems.version} + 1`, updatedAt: new Date() }).where(and(eq(lifeItems.userId, userId), eq(lifeItems.id, item.id)));
       desired.delete(key);
     }

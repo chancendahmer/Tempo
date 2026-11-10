@@ -5,7 +5,7 @@ import { AssistantProviderFailure } from "../../domain/assistant-provider-failur
 import { AiBudgetDeniedError } from "./paid-invocation";
 import { HEALTH_CAPABILITY_LIMIT } from "../../domain/connection-status-reply";
 import { RUNDOWN_HISTORY_LIMIT } from "../../domain/rundown";
-import { WRITE_COMMANDS } from "../../domain/turn-write-policy";
+import { WRITE_COMMANDS, isReadOnlyAssistantCommand } from "../../domain/turn-write-policy";
 import { navigationGroups, sections } from "../../../app/workspace/WorkspaceNavigation";
 
 const { create, authorize, settings } = vi.hoisted(() => ({ create: vi.fn(), authorize: vi.fn(), settings: { webSearch: false } }));
@@ -463,6 +463,136 @@ describe("current-message routing", () => {
     expect(create).toHaveBeenCalledTimes(2);
   });
 
+  it("passes one explicitly expanded read-only rundown to the current tool", async () => {
+    const message = "Please summarize today's food, shopping, workout plans and Thoughts without changing anything.";
+    const include = ["food", "shopping", "workoutPlans", "thoughts"];
+    create.mockResolvedValueOnce({ content: [{ type: "tool_use", id: "expanded", name: "get_rundown",
+      input: { sourceQuote: message, startDate: "2026-09-07", days: 1, include } }] })
+      .mockResolvedValueOnce({ content: [{ type: "text", text: "Here is your current roundup." }] });
+    const execute = vi.fn(async () => "Verified current workspace.");
+    const result = await new AnthropicTaskIntentParser().parse({ ...input, message, execute });
+    expect(execute).toHaveBeenCalledExactlyOnceWith({ type: "get_rundown", startDate: "2026-09-07", days: 1, include });
+    expect(result).toEqual({ kind: "conversation", reply: "Here is your current roundup." });
+  });
+
+  it("supplies only the trusted full current message as each read quote while writes retain exact-span schemas", async () => {
+    const message = "Read my current day, goals, tasks, and cancelled reminders. Do not change anything.";
+    create.mockResolvedValueOnce({ content: [{ type: "text", text: "Ready." }] });
+    await new AnthropicTaskIntentParser().parse({ ...input, message, history: [
+      { id: "history", role: "user", content: "Old request: delete my goal.", createdAt: input.now },
+    ] });
+    const tools = create.mock.calls[0][0].tools as Array<{ name: string; input_schema: { properties: Record<string, unknown> } }>;
+    for (const tool of tools) {
+      const schema = tool.input_schema.properties.sourceQuote;
+      expect(schema).toMatchObject({ type: "string" });
+      if (isReadOnlyAssistantCommand(tool.name)) expect(schema).toMatchObject({ enum: [message] });
+      else expect(schema).not.toHaveProperty("enum");
+    }
+    expect(authorize).not.toHaveBeenCalled();
+  });
+
+  it("uses the supplied read quote for four independent lookups and synthesis without a repair", async () => {
+    const message = "Read my current day, goals, tasks, and cancelled reminders. Do not change anything.";
+    for (const [name, args] of [
+      ["get_rundown", { startDate: "2026-09-07", days: 1 }], ["list_goals", { status: "all" }],
+      ["list_tasks", { status: "all" }], ["list_reminders", { includePast: true }],
+    ] as const) {
+      create.mockImplementationOnce(async request => {
+        const tool = request.tools.find((tool: { name: string }) => tool.name === name);
+        const [sourceQuote] = tool.input_schema.properties.sourceQuote.enum;
+        return { content: [{ type: "tool_use", id: name, name, input: { ...args, sourceQuote } }] };
+      });
+    }
+    create.mockResolvedValueOnce({ content: [{ type: "text", text: "The goal is completed and the reminder is cancelled." }] });
+    const execute = vi.fn(async () => "Verified owned record."), onToolRejection = vi.fn();
+    const result = await new AnthropicTaskIntentParser().parse({ ...input, message, execute, onToolRejection });
+    expect(create).toHaveBeenCalledTimes(5);
+    expect(execute).toHaveBeenCalledTimes(4);
+    expect(onToolRejection).not.toHaveBeenCalled();
+    expect(authorize).not.toHaveBeenCalled();
+    expect(result).toEqual({ kind: "conversation", reply: "The goal is completed and the reminder is cancelled." });
+  });
+
+  it("reports a rejected quote only through the explicit private observer and keeps the read blocked", async () => {
+    const message = "Read today's reminders.";
+    const quote = "Earlier fictional fixture request";
+    create.mockResolvedValue({ content: [{ type: "tool_use", id: "bad", name: "list_reminders", input: { sourceQuote: quote } }] });
+    const execute = vi.fn(), onRejectedToolQuote = vi.fn();
+    await new AnthropicTaskIntentParser().parse({ ...input, message, execute, onRejectedToolQuote });
+    expect(execute).not.toHaveBeenCalled();
+    expect(create).toHaveBeenCalledTimes(2);
+    expect(onRejectedToolQuote).toHaveBeenNthCalledWith(1, { tool: "list_reminders", sourceQuote: quote, iteration: 1 });
+    expect(onRejectedToolQuote).toHaveBeenNthCalledWith(2, { tool: "list_reminders", sourceQuote: quote, iteration: 2 });
+  });
+
+  it.each([
+    ["source_quote_missing", undefined],
+    ["source_quote_mismatch", "stale fixture wording"],
+  ] as const)("repairs the fourth offered read once and synthesizes within six requests: %s", async (reason, badQuote) => {
+    const message = "Read my current day, goals, tasks, and cancelled reminders. Do not change anything.";
+    const tool = (name: string, args: Record<string, unknown>, id = name) =>
+      ({ content: [{ type: "tool_use", name, id, input: args }] });
+    create.mockResolvedValueOnce(tool("get_rundown", { sourceQuote: message, startDate: "2026-09-07", days: 1 }))
+      .mockResolvedValueOnce(tool("list_goals", { sourceQuote: message, status: "all" }))
+      .mockResolvedValueOnce(tool("list_tasks", { sourceQuote: message, status: "all" }))
+      .mockResolvedValueOnce(tool("list_reminders", { sourceQuote: badQuote, includePast: true }, "bad-read"))
+      .mockResolvedValueOnce(tool("list_reminders", { sourceQuote: "cancelled reminders", includePast: true }, "fixed-read"))
+      .mockResolvedValueOnce({ content: [{ type: "text", text: "The reminder is cancelled." }] });
+    const execute = vi.fn(async () => RUNDOWN_HISTORY_LIMIT);
+    const onToolRejection = vi.fn();
+    const result = await new AnthropicTaskIntentParser().parse({ ...input, message, execute, onToolRejection });
+    expect(create).toHaveBeenCalledTimes(6);
+    expect(create.mock.calls[4][0].messages).toContainEqual({ role: "user", content: [
+      expect.objectContaining({ type: "tool_result", tool_use_id: "bad-read", is_error: true,
+        content: expect.stringContaining("original request’s currentMessage field") }),
+    ] });
+    expect(execute).toHaveBeenCalledTimes(4);
+    expect(execute).toHaveBeenNthCalledWith(4, { type: "list_reminders", includePast: true });
+    expect(onToolRejection).toHaveBeenCalledExactlyOnceWith({ reason, iteration: 4, repairRequested: true });
+    expect(authorize).not.toHaveBeenCalled();
+    expect(result).toEqual({ kind: "conversation", reply: `The reminder is cancelled.\n\n${RUNDOWN_HISTORY_LIMIT}` });
+  });
+
+  it.each([
+    { name: "create_task", args: { title: "Buy rice", sourceQuote: "previous prompt" }, reason: "source_quote_mismatch" },
+    { name: "unoffered_lookup", args: { sourceQuote: "Show reminders" }, reason: "tool_not_offered" },
+  ])("does not repair invalid writes or unoffered tools: $name", async ({ name, args, reason }) => {
+    const message = "Show reminders and add a task to buy rice.";
+    create.mockResolvedValueOnce({ content: [{ type: "tool_use", id: "rejected", name, input: args }] });
+    const execute = vi.fn(), onToolRejection = vi.fn();
+    expect(await new AnthropicTaskIntentParser().parse({ ...input, message, execute, onToolRejection })).toMatchObject({ kind: "conversation" });
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(execute).not.toHaveBeenCalled();
+    expect(authorize).not.toHaveBeenCalled();
+    expect(onToolRejection).toHaveBeenCalledExactlyOnceWith({ reason, iteration: 1, repairRequested: false });
+  });
+
+  it("does not let a read quote repair switch to a write with an otherwise valid current quote", async () => {
+    const message = "Show reminders and add a task to buy rice.";
+    create.mockResolvedValueOnce({ content: [{ type: "tool_use", id: "read", name: "list_reminders", input: { includePast: true } }] })
+      .mockResolvedValueOnce({ content: [{ type: "tool_use", id: "write", name: "create_task", input: { title: "Buy rice", sourceQuote: message } }] });
+    const execute = vi.fn(), onToolRejection = vi.fn();
+    await new AnthropicTaskIntentParser().parse({ ...input, message, execute, onToolRejection });
+    expect(create).toHaveBeenCalledTimes(2);
+    expect(execute).not.toHaveBeenCalled();
+    expect(authorize).not.toHaveBeenCalled();
+    expect(onToolRejection.mock.calls).toEqual([
+      [{ reason: "source_quote_missing", iteration: 1, repairRequested: true }],
+      [{ reason: "read_repair_tool_mismatch", iteration: 2, repairRequested: false }],
+    ]);
+  });
+
+  it("does not retry a read quote after the shared schema-repair allowance is used", async () => {
+    const message = "Show my current tasks.";
+    create.mockResolvedValueOnce({ content: [{ type: "tool_use", id: "schema", name: "list_tasks", input: { status: "invalid", sourceQuote: message } }] })
+      .mockResolvedValueOnce({ content: [{ type: "tool_use", id: "quote", name: "list_tasks", input: { status: "all", sourceQuote: "old prompt" } }] });
+    const execute = vi.fn(), onToolRejection = vi.fn();
+    await new AnthropicTaskIntentParser().parse({ ...input, message, execute, onToolRejection });
+    expect(create).toHaveBeenCalledTimes(2);
+    expect(execute).not.toHaveBeenCalled();
+    expect(onToolRejection).toHaveBeenCalledExactlyOnceWith({ reason: "source_quote_mismatch", iteration: 2, repairRequested: false });
+  });
+
   it("keeps the rundown history limit while completing a compound write", async () => {
     const message = "Show my week and add a task to buy groceries";
     create.mockResolvedValueOnce({ content: [{ type: "tool_use", id: "r", name: "get_rundown", input: { sourceQuote: message, startDate: "2026-08-31", days: 7 } }] })
@@ -751,17 +881,14 @@ describe("current-message routing", () => {
     expect(execute).not.toHaveBeenCalled();
   });
 
-  it("stops incomplete hosted search before omitting an exhausted pending tool", async () => {
+  it("keeps the main model's search capability as a client tool", async () => {
     settings.webSearch = true;
-    const budgets: Array<number | undefined> = [];
-    create.mockImplementation(async (request: { tools: Array<{ name: string; max_uses?: number }> }) => {
-      budgets.push(request.tools.find((tool) => tool.name === "web_search")?.max_uses);
-      if (budgets.length <= 2) return { stop_reason: "pause_turn", content: [{ type: "server_tool_use", id: `search-${budgets.length}`, name: "web_search" }] };
-      return { content: [{ type: "text", text: "Here is the current information.", citations: [{ type: "web_search_result_location", url: "https://example.test/source" }] }] };
-    });
-    const result = await new AnthropicTaskIntentParser().parse({ ...input, message: "Search for current information" });
-    expect(budgets).toEqual([1, 1]);
-    expect(result).toMatchObject({ kind: "conversation", reply: expect.stringContaining("couldn’t finish the live search") });
+    create.mockResolvedValue({ content: [{ type: "text", text: "What would you like to find?" }] });
+    await new AnthropicTaskIntentParser().parse({ ...input, message: "Search for current information" });
+    const tool = create.mock.calls[0][0].tools.find((tool: { name: string }) => tool.name === "web_search");
+    expect(tool).toHaveProperty("input_schema");
+    expect(tool).not.toHaveProperty("max_uses");
+    expect(tool.type).not.toBe("web_search_20250305");
   });
 
   it("feeds a completed memory action back to the model for the rest of the request", async () => {
@@ -866,6 +993,56 @@ describe("Anthropic task tool boundary", () => {
     expect(parseTaskIntentResponse([{ type: "text", text: "That sounds heavy. Want to choose one tiny next step?" }])).toEqual({
       kind: "conversation",
       reply: "That sounds heavy. Want to choose one tiny next step?",
+    });
+  });
+
+  it("keeps complete lines and full deduplicated citations when shortening a reply", () => {
+    const kept = "A completed line stays intact.\n".repeat(48).trimEnd();
+    const text = `${kept}\n\n---\n\n**CALENDAR**\nOne note: ${"this very long detail keeps going ".repeat(20)}`;
+    const first = "https://example.org/source?field=first";
+    const second = "https://example.org/another-source";
+    const citations = [first, first, second, "https://example.org/extra"].map(url => ({ type: "web_search_result_location", url }));
+    expect(parseTaskIntentResponse([{ type: "text", text, citations }])).toEqual({
+      kind: "conversation",
+      reply: `${kept}\n\nReply shortened.\nSources: ${first}\n${second}`,
+    });
+  });
+
+  it.each([
+    `https://example.org/${"a".repeat(300)}`,
+    `[a longer reference label with spaces](https://example.org/${"a".repeat(300)})`,
+  ])("keeps whole words and drops an over-limit inline link", link => {
+    const kept = "A useful detail ".repeat(90).trimEnd();
+    const fittingLink = "[full link](https://example.org/a?test=1)";
+    const result = parseTaskIntentResponse([{ type: "text", text: `${kept} ${fittingLink} ${link}` }]);
+    expect(result).toEqual({ kind: "conversation", reply: `${kept} ${fittingLink}\n\nReply shortened.` });
+  });
+
+  it("falls back to a whole word when no sentence boundary fits", () => {
+    const kept = "paper ".repeat(263).trimEnd();
+    const text = `${kept} flamingo ${"sleeps in the water ".repeat(20)}`;
+    expect(parseTaskIntentResponse([{ type: "text", text }])).toEqual({
+      kind: "conversation",
+      reply: `${kept}\n\nReply shortened.`,
+    });
+  });
+
+  it("shortens on Unicode word or symbol boundaries within the prose limit", () => {
+    const emoji = "👩‍💻";
+    const result = parseTaskIntentResponse([{ type: "text", text: emoji.repeat(400) }]);
+    expect(result.kind).toBe("conversation");
+    if (result.kind !== "conversation") throw new Error("Expected a conversational response.");
+    const [visible, notice] = result.reply.split("\n\n");
+    expect(visible.length).toBeGreaterThan(1000);
+    expect(visible.replaceAll(emoji, "")).toBe("");
+    expect(notice).toBe("Reply shortened.");
+    expect(result.reply.length).toBeLessThanOrEqual(1600);
+  });
+
+  it("keeps the existing fallback for empty model text", () => {
+    expect(parseTaskIntentResponse([{ type: "text", text: " \n " }])).toEqual({
+      kind: "conversation",
+      reply: "I couldn’t finish that response. Please try asking again.",
     });
   });
 });

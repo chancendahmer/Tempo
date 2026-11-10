@@ -1,7 +1,16 @@
-import { and, desc, eq, gt, ilike, inArray, isNull, or } from "drizzle-orm";
+import { and, desc, eq, gt, ilike, inArray, isNull, or, sql } from "drizzle-orm";
 import { MemoryRepository } from "../../domain/memory-service";
 import { getDatabase, TempoDatabase } from "../client";
 import { memoryEntries } from "../schema";
+
+export function savedMemorySearchPredicate(query: string | undefined) {
+  const terms = [...new Set(query?.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [])];
+  if (query && (!terms.length || terms.length > 12)) return sql`false`;
+  return and(...terms.map(term => or(
+    ilike(memoryEntries.content, `%${term}%`),
+    sql`${term} = any(string_to_array(${memoryEntries.category}::text, '_'))`,
+  )));
+}
 
 export class DrizzleMemoryRepository implements MemoryRepository {
   constructor(private readonly database: TempoDatabase = getDatabase()) {}
@@ -14,13 +23,11 @@ export class DrizzleMemoryRepository implements MemoryRepository {
   }
 
   async searchRelevant(userId: string, now: Date, query: string | undefined, limit: number) {
-    const terms = [...new Set(query?.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [])];
-    if (query && (!terms.length || terms.length > 12)) return [];
     return this.database.select({ id: memoryEntries.id, content: memoryEntries.content,
       category: memoryEntries.category, confidence: memoryEntries.confidence }).from(memoryEntries).where(and(
       eq(memoryEntries.userId, userId), eq(memoryEntries.sensitivity, "normal"), isNull(memoryEntries.deletedAt),
       or(isNull(memoryEntries.expiresAt), gt(memoryEntries.expiresAt, now)),
-      ...terms.map(term => ilike(memoryEntries.content, `%${term}%`)),
+      savedMemorySearchPredicate(query),
     )).orderBy(desc(memoryEntries.confidence), desc(memoryEntries.lastConfirmedAt), desc(memoryEntries.createdAt), desc(memoryEntries.id))
       .limit(Math.max(1, Math.min(limit, 21)));
   }

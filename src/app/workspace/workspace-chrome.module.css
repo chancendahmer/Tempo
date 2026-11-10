@@ -17,7 +17,8 @@
 .main { min-height:100dvh; }
 .topbar { position:sticky; top:0; z-index:25; display:flex; justify-content:space-between; align-items:center; gap:16px; min-height:66px; padding:9px 40px; border-bottom:1px solid #e6e3dd; background:#fffefaef; backdrop-filter:blur(12px); }
 .topbarStart,.topbarActions { display:flex; align-items:center; gap:12px; min-width:0; }
-.breadcrumb { display:flex; align-items:center; gap:10px; color:#77716b; font-size:12px; }
+.topbarActions { flex:none; }
+.breadcrumb { display:flex; align-items:center; gap:10px; min-width:0; color:#77716b; font-size:12px; }
 .breadcrumb strong { color:#403c37; font-weight:600; }
 .breadcrumb svg { width:12px; height:12px; color:#b2aaa1; }
 .captureButton { display:inline-flex; align-items:center; gap:7px; min-height:36px; padding:7px 11px; border:1px solid #e0dcd5; border-radius:8px; background:#fffdfa; color:#4b4540; font-size:12px; box-shadow:0 1px 2px #27211c04; }
@@ -66,6 +67,7 @@
   .topbarStart,.topbarActions { gap:5px; }
   .breadcrumb>span,.breadcrumb>svg { display:none; }
   .breadcrumb { font-size:12px; }
+  .breadcrumb strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .captureButton { min-height:44px; padding:8px; font-size:12px; gap:4px; }
   .captureDetail { display:none; }
   .content { padding:18px 18px 24px; }

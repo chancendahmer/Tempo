@@ -3,6 +3,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { expect, it, vi } from "vitest";
 import { withAiInvocationScope } from "../../domain/ai-invocation-scope";
+import { AI_PRICE_VERSION, SONNET_46_MODEL, buildAdmissionEnvelope, priceUsage } from "./ai-pricing";
 import { AiBudgetDeniedError, invokePaidMessage, meteredMessage, type PaidInvocationDependencies } from "./paid-invocation";
 
 const settings = vi.hoisted(() => ({ mode: "off" }));
@@ -47,6 +48,35 @@ it("reserves and claims each physical call with isolated metadata and disables S
   expect(JSON.stringify(f.repository.reserve.mock.calls)).not.toContain("private synthetic text");
   expect(f.create).toHaveBeenCalledWith({ ...request, service_tier: "standard_only" }, { maxRetries: 0, signal: undefined });
   expect(f.repository.settle).toHaveBeenCalledTimes(2);
+});
+
+it("pins global Sonnet 4.6 routing and settles a standard Messages response", async () => {
+  const f = fixture();
+  const sonnetRequest = { ...request, model: SONNET_46_MODEL, max_tokens: 1400 };
+  const providerResponse = { model: SONNET_46_MODEL, content: [], usage: {
+    input_tokens: 200, output_tokens: 40, speed: "standard", service_tier: "standard", inference_geo: "global",
+    cache_creation_input_tokens: 2, cache_read_input_tokens: 1,
+    cache_creation: { ephemeral_5m_input_tokens: 1, ephemeral_1h_input_tokens: 1 },
+    output_tokens_details: { text_tokens: 35, thinking_tokens: 5 },
+    server_tool_use: null,
+  } };
+  f.create.mockResolvedValue(providerResponse);
+  const config = { AI_BUDGET_PRICE_VERSION: AI_PRICE_VERSION, AI_BUDGET_GLOBAL_DAILY_MICRODOLLARS: "10000000",
+    AI_BUDGET_ACCOUNT_DAILY_MICRODOLLARS: "10000000", AI_BUDGET_GLOBAL_DAILY_CALLS: "10", AI_BUDGET_ACCOUNT_DAILY_CALLS: "10" };
+  const run = (requested = sonnetRequest) => withAiInvocationScope({ accountId: randomUUID(), executionId: randomUUID() }, () =>
+    meteredMessage(f.client, requested, "assistant", {
+      enabled: true, repository: f.repository,
+      admit: value => buildAdmissionEnvelope(value, new Date("2026-11-10T12:00:00Z"), config),
+      price: priceUsage,
+    }));
+  await expect(run()).resolves.toEqual(providerResponse);
+  expect(f.create).toHaveBeenCalledExactlyOnceWith({ ...sonnetRequest, service_tier: "standard_only", inference_geo: "global" }, { maxRetries: 0, signal: undefined });
+  expect(f.repository.reserve).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ model: SONNET_46_MODEL, reservedMicrodollars: 6021000, priceVersion: AI_PRICE_VERSION }));
+  expect(f.repository.settle).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ actualMicrodollars: 1211, haltAdmission: false }));
+  expect(f.repository.markUncertain).not.toHaveBeenCalled();
+  const usRequest = { ...sonnetRequest, inference_geo: "us" };
+  await expect(run(usRequest)).rejects.toBeInstanceOf(AiBudgetDeniedError);
+  expect(f.create).toHaveBeenCalledTimes(1);
 });
 it("rejects an unpriced SDK provider override before accounting or network", async () => {
   const f = fixture(); settings.mode = "enforce";
@@ -97,7 +127,7 @@ it("forwards a priced envelope violation to atomic settlement for halting admiss
   expect(f.repository.settle).toHaveBeenCalledWith(expect.objectContaining({ actualMicrodollars: 2, haltAdmission: true }));
 });
 
-it("keeps all five production SDK entry points behind this boundary", () => {
+it("keeps production model and hosted-search calls behind this boundary", () => {
   const directory = new URL("../../", import.meta.url);
   const direct = readdirSync(directory, { recursive: true }).map(String)
     // Twilio's messages.create is SMS delivery, outside the AI ledger.
@@ -116,4 +146,11 @@ it("keeps all five production SDK entry points behind this boundary", () => {
       return /api\.anthropic\.com/.test(source);
     });
   expect(direct).toEqual([]);
+});
+
+it("passes a bounded search signal and disables retries even in off mode", async () => {
+  settings.mode = "off";
+  const f = fixture(), controller = new AbortController();
+  await invokePaidMessage(f.client, request, "assistant", controller.signal);
+  expect(f.create).toHaveBeenCalledExactlyOnceWith(request, { signal: controller.signal, maxRetries: 0 });
 });

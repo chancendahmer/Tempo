@@ -43,7 +43,7 @@ export function FoodViews({ tab, items, date, today, setDate, saving, edit, plan
   </div>;
   if (tab === "groceries") return <div className={`${f.foodPage} ${f.shoppingLayout}`}><article className={s.card}>
     <div className={s.sectionHeading}><h2><FiShoppingBag /> Shopping list</h2><button className={s.secondary} onClick={() => edit("grocery")}><FiPlus /> Add grocery</button></div>
-    <div className={f.shoppingProgress}><span><strong>{groceries.length - purchased}</strong> to buy</span><span><FiCheck /><strong>{purchased}</strong> purchased</span></div><p className={s.muted}>Check off what you bought. Add it to pantry separately when it’s stocked.</p>
+    <div className={f.shoppingProgress}><span><strong>{groceries.length - purchased}</strong> to buy</span><span><FiCheck /><strong>{purchased}</strong> purchased</span></div><p className={s.muted}>Check off what you bought. Add it to pantry separately when it’s stocked. If the plan needs more, Tempo unchecks the ingredient and shows the full amount after pantry stock. Review what you already bought before checking it again.</p>
     {groceries.sort((a, b) => Number(a.data.kind === "grocery" && a.data.checked) - Number(b.data.kind === "grocery" && b.data.checked)).map(item => {
       const grocery = item.data;
       if (grocery.kind !== "grocery") return null;

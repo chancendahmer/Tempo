@@ -30,6 +30,20 @@ describe("goal service", () => {
     });
   });
 
+  it("includes the saved status for each returned goal", async () => {
+    const store = repository([
+      goal("active", "Plan another workshop"),
+      { ...goal("completed", "Finish the moodboard"), status: "completed" },
+      { ...goal("abandoned", "An old plan"), status: "abandoned" },
+    ]);
+    expect(await executeGoalCommand(store, { type: "list_goals", status: "all" }, context)).toEqual({
+      kind: "executed", reply: "1. Plan another workshop — active\n2. Finish the moodboard — completed\n3. An old plan — abandoned",
+    });
+    expect(store.list).toHaveBeenCalledExactlyOnceWith(context.userId, "all");
+    expect(store.listForResolution).not.toHaveBeenCalled();
+    expect(store.mutate).not.toHaveBeenCalled();
+  });
+
   it("requires confirmation before mutating an ambiguous goal", async () => {
     const store = repository([goal("1", "Run a half marathon"), goal("2", "Run a marathon")]);
     const result = await executeGoalCommand(store, { type: "complete_goal", goalQuery: "run" }, context);

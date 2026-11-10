@@ -225,6 +225,13 @@ export class DrizzleReminderRepository implements ReminderRepository {
     return (await this.database.select().from(reminders).where(and(eq(reminders.userId, userId), inArray(reminders.status, ["scheduled", "sent", "failed", "completed"]))).orderBy(asc(reminders.remindAt)).limit(50)).map(asRecord);
   }
 
+  async listForHistory(userId: string) {
+    const limit = 50;
+    const rows = await this.database.select().from(reminders).where(eq(reminders.userId, userId))
+      .orderBy(desc(reminders.updatedAt), desc(reminders.id)).limit(limit + 1);
+    return { items: rows.slice(0, limit).map(asRecord), truncated: rows.length > limit };
+  }
+
   async findForRecall(userId: string, terms: string[], sourceMessageIds: string[]) {
     const limit = 8;
     if (!terms.length || terms.length > 12 || terms.some(term => !/^[\p{L}\p{N}]+$/u.test(term))) return { items: [], truncated: false };

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { lifeItemSchema } from "./life-items";
 import { lifePatchSchema } from "./life-patch";
+import { rundownRequestSchema } from "./rundown";
 
 const instant = z.iso.datetime({ offset: true });
 export const calendarChangeSchema = z.discriminatedUnion("operation", [
@@ -11,7 +12,7 @@ export const calendarChangeSchema = z.discriminatedUnion("operation", [
 export type CalendarChange = z.infer<typeof calendarChangeSchema>;
 export const assistantCommandSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("capture_with_reminder"), destination: z.enum(["task", "goal", "note"]), title: z.string().trim().min(1).max(200), details: z.string().max(4000).optional(), remindAt: instant }).strict(),
-  z.object({ type: z.literal("get_rundown"), startDate: z.iso.date(), days: z.number().int().min(1).max(7) }),
+  z.object({ type: z.literal("get_rundown"), ...rundownRequestSchema.shape }),
   z.object({ type: z.literal("food_search"), term: z.string().trim().min(2).max(100).optional(), barcode: z.string().regex(/^\d{8,14}$/).optional() }),
   z.object({ type: z.literal("life_list"), kind: z.enum(["routine", "food", "meal", "recipe", "workout", "note", "grocery", "pantry", "workout_plan", "nutrition_target"]), id: z.uuid().optional(), query: z.string().trim().min(1).max(200).optional(), date: z.iso.date().optional() }).strict()
     .refine(command => !command.date || ["food", "meal", "workout"].includes(command.kind), "An exact date applies to food logs, meal plans and workout logs."),

@@ -23,6 +23,9 @@ export type MemoryRecord = {
   confidence: number | null;
 };
 
+export const savedMemoryTopicCoverage = "All active non-sensitive saved facts matching every search word in the saved content or category; notes are searched separately.";
+export const savedMemoryAllCoverage = "Active non-sensitive saved facts; notes are searched separately.";
+
 export interface MemoryRepository {
   forgetById?(userId: string, id: string, expectedContent: string, now: Date): Promise<boolean>;
   retrieveRelevant(userId: string, now: Date, limit: number): Promise<MemoryRecord[]>;
@@ -116,8 +119,7 @@ export class MemoryService {
     const rows = await this.repository.searchRelevant(userId, now, query, size + 1);
     return { items: rows.slice(0, size), truncated: rows.length > size,
       coverage: rows.length > size ? "More matching saved facts exist; narrow the topic."
-        : query ? "All active non-sensitive saved facts matching every search word; notes are searched separately."
-        : "Active non-sensitive saved facts; notes are searched separately." };
+        : query ? savedMemoryTopicCoverage : savedMemoryAllCoverage };
   }
 
   async executeCommand(input: { userId: string; messageId: string; command: MemoryCommand; now: Date }) {

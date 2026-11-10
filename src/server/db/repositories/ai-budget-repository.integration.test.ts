@@ -9,6 +9,7 @@ import type { AiBudgetReservationInput } from "../../domain/ai-budget";
 import type { TempoDatabase } from "../client";
 import * as schema from "../schema";
 import { DrizzleAiBudgetRepository } from "./ai-budget-repository";
+import { AI_PRICE_VERSION, HOSTED_SEARCH_MODEL, SONNET_46_MODEL, buildAdmissionEnvelope, priceUsage } from "../../adapters/llm/ai-pricing";
 
 const now = new Date("2026-10-22T23:59:00Z");
 const tomorrow = new Date("2026-10-23T01:00:00Z");
@@ -46,6 +47,34 @@ describe("durable AI budget accounting", () => {
     expect(await repository.reserve(reservation())).toMatchObject({ allowed: true });
     expect(await repository.reserve(reservation())).toEqual({ allowed: false, reason: "budget_exhausted" });
     for (const row of await states()) expect(row).toMatchObject({ outstanding: "20", settled: "0" });
+  });
+  it("admits isolated Sonnet and Haiku search sequentially under existing caps after settlement", async () => {
+    const admissionTime = new Date("2026-11-10T12:00:00Z");
+    const config = { AI_BUDGET_PRICE_VERSION: AI_PRICE_VERSION, AI_BUDGET_GLOBAL_DAILY_MICRODOLLARS: "20000000",
+      AI_BUDGET_ACCOUNT_DAILY_MICRODOLLARS: "10000000", AI_BUDGET_GLOBAL_DAILY_CALLS: "10", AI_BUDGET_ACCOUNT_DAILY_CALLS: "10" };
+    const searchTool = { type: "web_search_20250305" as const, name: "web_search" as const, max_uses: 1 };
+    const main = buildAdmissionEnvelope({ model: SONNET_46_MODEL, inference_geo: "global", max_tokens: 1400, messages: [] }, admissionTime, config);
+    const search = buildAdmissionEnvelope({ model: HOSTED_SEARCH_MODEL, max_tokens: 1400, messages: [], tools: [searchTool] }, admissionTime, config);
+    const costlySearch = buildAdmissionEnvelope({ model: SONNET_46_MODEL, inference_geo: "global", max_tokens: 1400, messages: [], tools: [searchTool] }, admissionTime, config);
+    const inputFor = (envelope: typeof main) => reservation({
+      model: envelope.model, priceVersion: envelope.priceVersion, policyVersion: envelope.policyVersion,
+      reservedMicrodollars: envelope.reservedMicrodollars, policy: envelope.policy, now: admissionTime,
+    });
+    expect(await repository.reserve(inputFor(costlySearch))).toEqual({ allowed: false, reason: "budget_exhausted" });
+    let settled = 0;
+    for (const envelope of [main, search, main]) {
+      const input = inputFor(envelope);
+      expect(await repository.reserve(input)).toMatchObject({ allowed: true });
+      expect(await repository.claim(input.attemptId, admissionTime)).toBe(true);
+      const priced = priceUsage(envelope, { input_tokens: 100, output_tokens: 20,
+        cache_creation_input_tokens: 0, cache_read_input_tokens: 0, speed: "standard", service_tier: "standard",
+        inference_geo: envelope.model === SONNET_46_MODEL ? "global" : "not_available",
+        server_tool_use: envelope.searchBound ? { web_search_requests: 1, web_fetch_requests: 0 } : null,
+      }, envelope.model);
+      expect(await repository.settle({ attemptId: input.attemptId, ...priced, now: admissionTime })).toBe("settled");
+      settled += priced.actualMicrodollars;
+    }
+    for (const row of await states()) expect(row).toMatchObject({ outstanding: "0", settled: String(settled), calls: "3", halted: false });
   });
   it("rejects reuse of an attempt for another envelope without mutating either scope", async () => {
     const input = reservation();

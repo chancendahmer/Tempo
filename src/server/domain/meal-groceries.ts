@@ -57,6 +57,14 @@ export function ingredientLabel(item: Ingredient) {
   return `${item.quantity === undefined ? "" : `${shoppingQuantityLabel(item.quantity, item.unit)}${item.unit && item.unit !== "piece" ? ` ${item.unit}${plural ? "s" : ""}` : ""} `}${item.title}`;
 }
 
+/** A purchase check covers the previous plan need. It records no stock or purchased amount. */
+export function shouldKeepMealGroceryChecked(previous: Grocery | undefined, next: Grocery): boolean {
+  if (!previous?.checked) return false;
+  if (next.quantity !== undefined && (previous.quantity === undefined || next.quantity > previous.quantity)) return false;
+  const previousUnknownSources = new Set(previous.mealSources?.filter(source => source.quantity === null).map(source => source.mealId));
+  return !next.mealSources?.some(source => source.quantity === null && !previousUnknownSources.has(source.mealId));
+}
+
 /** Manual groceries and purchase checkboxes are never treated as pantry stock. */
 export function groceriesForMeals(items: SavedLifeItem[], fromDate?: string): Map<string, Grocery> {
   const result = new Map<string, Grocery>();

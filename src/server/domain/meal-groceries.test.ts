@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canonicalIngredient, groceriesForMeals, ingredientLabel, parseIngredient } from "./meal-groceries";
+import { canonicalIngredient, groceriesForMeals, ingredientLabel, parseIngredient, shouldKeepMealGroceryChecked } from "./meal-groceries";
 import type { SavedLifeItem } from "./life-items";
 
 describe("conservative ingredient quantities", () => {
@@ -32,6 +32,17 @@ describe("conservative ingredient quantities", () => {
     expect(ingredientLabel({ title: "rice", quantity: 0.2, unit: "cup" })).toBe("0.2 cups rice");
     expect(ingredientLabel({ title: "Salt to taste" })).toBe("Salt to taste");
     expect(ingredient).toEqual(original);
+  });
+  it("retains purchase checks for equal or smaller needs and previously unknown sources", () => {
+    const unknown = { mealId: "00000000-0000-4000-8000-000000000093", quantity: null };
+    const known = { mealId: "00000000-0000-4000-8000-000000000094", quantity: 2 };
+    const original = { kind: "grocery" as const, title: "lemons", quantity: 2, checked: true, mealSources: [known, unknown] };
+    expect(shouldKeepMealGroceryChecked(original, { ...original, mealSources: [unknown, known] })).toBe(true);
+    expect(shouldKeepMealGroceryChecked(original, { ...original, quantity: 1 })).toBe(true);
+    expect(shouldKeepMealGroceryChecked(original, { ...original, quantity: 3 })).toBe(false);
+    expect(shouldKeepMealGroceryChecked(original, { ...original, mealSources: [unknown, { ...known, quantity: null }] })).toBe(false);
+    expect(shouldKeepMealGroceryChecked({ ...original, quantity: undefined }, original)).toBe(false);
+    expect(shouldKeepMealGroceryChecked({ ...original, checked: false }, original)).toBe(false);
   });
   it("combines only matching names and compatible dimensions; explicit stock never guesses unknown amounts", () => {
     const meal: SavedLifeItem = { id: "00000000-0000-4000-8000-000000000091", version: 1, data: { kind: "meal", title: "Rice", date: "2027-01-14", meal: "Dinner", ingredients: "0.5 kg rice\n250 g RICE\n1 cup rice\nRice\nSalt to taste", servings: 4, ingredientServings: 2, groceriesEnabled: true } };

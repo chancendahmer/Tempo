@@ -6,14 +6,18 @@ import { aiBudgetPolicySchema, aiBudgetUsageSchema } from "../../domain/ai-budge
 import type { PaidAdmissionEnvelope } from "./paid-invocation";
 
 /** Reviewed official list prices and request bounds, not a currency conversion or invoice guarantee. */
-export const AI_PRICE_VERSION = "anthropic-standard-2026-10-22-v1";
+export const AI_PRICE_VERSION = "anthropic-standard-2026-11-10-v2";
 export const AI_PRICE_VALID_UNTIL = "2026-11-22T00:00:00Z";
+export const SONNET_46_MODEL = "claude-sonnet-4-6";
+export const HOSTED_SEARCH_MODEL = "claude-haiku-4-5-20251001";
 // Hundredths of a USD microdollar per token. All rates and balances are integers.
 const prices = {
-  "claude-haiku-4-5-20251001": { input: 100, output: 500, write5m: 125, write1h: 200, read: 10 },
-  "claude-sonnet-4-5-20250929": { input: 300, output: 1500, write5m: 375, write1h: 600, read: 30 },
+  "claude-haiku-4-5-20251001": { context: 200000, maxOutput: 64000, input: 100, output: 500, write5m: 125, write1h: 200, read: 10 },
+  "claude-sonnet-4-5-20250929": { context: 200000, maxOutput: 64000, input: 300, output: 1500, write5m: 375, write1h: 600, read: 30 },
+  [SONNET_46_MODEL]: { context: 1000000, maxOutput: 128000, input: 300, output: 1500, write5m: 375, write1h: 600, read: 30 },
 } as const;
 type Model = keyof typeof prices;
+export const aiPriceModelSchema = z.enum(Object.keys(prices) as Model[]);
 type BudgetConfig = {
   AI_BUDGET_PRICE_VERSION?: string;
   AI_BUDGET_GLOBAL_DAILY_MICRODOLLARS?: string;
@@ -70,11 +74,14 @@ function validateBlocks(value: unknown) {
 }
 
 export function buildAdmissionEnvelope(request: MessageCreateParamsNonStreaming, now: Date, config: BudgetConfig = requireEnv([])): AdmissionEnvelope {
-  if (!Number.isFinite(now.getTime()) || now < new Date("2026-10-22T00:00:00Z") || now >= new Date(AI_PRICE_VALID_UNTIL) || config.AI_BUDGET_PRICE_VERSION !== AI_PRICE_VERSION) throw new Error("AI price review required");
+  if (!Number.isFinite(now.getTime()) || now < new Date("2026-11-10T00:00:00Z") || now >= new Date(AI_PRICE_VALID_UNTIL) || config.AI_BUDGET_PRICE_VERSION !== AI_PRICE_VERSION) throw new Error("AI price review required");
   const raw = object(request);
-  knownKeys(raw, ["model", "messages", "max_tokens", "system", "tools", "tool_choice", "temperature", "top_p", "top_k", "stop_sequences", "stream", "service_tier"]);
-  if (!Object.hasOwn(prices, request.model) || (raw.stream !== undefined && raw.stream !== false) || (raw.service_tier !== undefined && raw.service_tier !== "standard_only")) throw new Error("Unpriced AI model or service tier");
-  const maxOutput = z.number().int().min(1).max(64000).parse(request.max_tokens);
+  knownKeys(raw, ["model", "messages", "max_tokens", "system", "tools", "tool_choice", "temperature", "top_p", "top_k", "stop_sequences", "stream", "service_tier", "inference_geo"]);
+  const model = aiPriceModelSchema.parse(request.model);
+  if ((raw.stream !== undefined && raw.stream !== false) || (raw.service_tier !== undefined && raw.service_tier !== "standard_only")) throw new Error("Unpriced AI service tier or stream");
+  if (raw.inference_geo !== (model === SONNET_46_MODEL ? "global" : undefined)) throw new Error("Unpriced request inference region");
+  const rate = prices[model];
+  const maxOutput = z.number().int().min(1).max(rate.maxOutput).parse(request.max_tokens);
   if (request.system !== undefined) validateBlocks(request.system);
   for (const message of request.messages) {
     knownKeys(object(message), ["role", "content"]);
@@ -94,21 +101,18 @@ export function buildAdmissionEnvelope(request: MessageCreateParamsNonStreaming,
     }
     cacheControl(tool.cache_control);
   }
-  const model = request.model as Model;
   const policy = aiBudgetPolicySchema.parse({
     globalDailyMicrodollars: configuredInteger(config.AI_BUDGET_GLOBAL_DAILY_MICRODOLLARS),
     accountDailyMicrodollars: configuredInteger(config.AI_BUDGET_ACCOUNT_DAILY_MICRODOLLARS),
     globalDailyCalls: configuredInteger(config.AI_BUDGET_GLOBAL_DAILY_CALLS),
     accountDailyCalls: configuredInteger(config.AI_BUDGET_ACCOUNT_DAILY_CALLS),
   });
-  // Full 200K model context per server sampling iteration. max_uses limits
+  // Full model context per server sampling iteration. max_uses limits
   // searches, NOT sampling iterations. Provider pause_turn ceiling is ten.
-  // No long-context beta, compaction, dynamic filtering, media or thinking mode.
   const iterations = searchBound ? 10 : 1;
-  const inputBound = 200000 * iterations;
+  const inputBound = rate.context * iterations;
   const outputBound = maxOutput * iterations;
   // Reserve worst cache write price for every input token; settle actual buckets.
-  const rate = prices[model];
   const reservedMicrodollars = inputBound * rate.write1h / 100 + outputBound * rate.output / 100 + searchBound * 10000;
   return {
     model, priceVersion: AI_PRICE_VERSION, policyVersion: `v1-${createHash("sha256").update(JSON.stringify(policy)).digest("hex")}`,
@@ -120,14 +124,17 @@ export function priceUsage(envelope: AdmissionEnvelope, rawUsage: unknown, respo
   if (responseModel !== envelope.model || envelope.priceVersion !== AI_PRICE_VERSION) throw new Error("Unpriced response model");
   const raw = object(rawUsage);
   if (!("cache_creation_input_tokens" in raw) || !("cache_read_input_tokens" in raw)) throw new Error("Missing cache usage");
-  knownKeys(raw, ["input_tokens", "output_tokens", "cache_creation_input_tokens", "cache_read_input_tokens", "cache_creation", "server_tool_use", "service_tier", "inference_geo", "output_tokens_details"]);
+  knownKeys(raw, ["input_tokens", "output_tokens", "cache_creation_input_tokens", "cache_read_input_tokens", "cache_creation", "server_tool_use", "service_tier", "inference_geo", "output_tokens_details", "speed"]);
   if (raw.service_tier != null && raw.service_tier !== "standard") throw new Error("Unpriced response tier");
-  if (raw.inference_geo != null && raw.inference_geo !== "global" && raw.inference_geo !== "not_available") throw new Error("Unpriced inference region");
+  if (raw.speed != null && raw.speed !== "standard") throw new Error("Unpriced response speed");
+  if (raw.inference_geo !== "global" && (envelope.model === SONNET_46_MODEL
+    || (raw.inference_geo != null && raw.inference_geo !== "not_available"))) throw new Error("Unpriced response inference region");
   // Inclusive output total is authoritative; subcategories are not added again.
+  const outputTokens = integer.parse(raw.output_tokens);
   if (raw.output_tokens_details != null) {
     const details = object(raw.output_tokens_details);
     knownKeys(details, ["text_tokens", "thinking_tokens"]);
-    for (const value of Object.values(details)) integer.parse(value);
+    for (const value of Object.values(details)) if (value != null && integer.parse(value) > outputTokens) throw new Error("Invalid output breakdown");
   }
   const cacheTotal = integer.parse(raw.cache_creation_input_tokens ?? 0);
   const read = integer.parse(raw.cache_read_input_tokens ?? 0);
@@ -144,7 +151,7 @@ export function priceUsage(envelope: AdmissionEnvelope, rawUsage: unknown, respo
     searches = integer.parse(server.web_search_requests);
     if (integer.parse(server.web_fetch_requests ?? 0) !== 0) throw new Error("Unpriced fetch usage");
   } else if (envelope.searchBound) throw new Error("Missing search usage");
-  const usage = aiBudgetUsageSchema.parse({ inputTokens: integer.parse(raw.input_tokens), outputTokens: integer.parse(raw.output_tokens), cacheCreationInputTokens: cacheTotal, cacheReadInputTokens: read, cacheCreation5mInputTokens: five, cacheCreation1hInputTokens: hour, webSearchRequests: searches });
+  const usage = aiBudgetUsageSchema.parse({ inputTokens: integer.parse(raw.input_tokens), outputTokens, cacheCreationInputTokens: cacheTotal, cacheReadInputTokens: read, cacheCreation5mInputTokens: five, cacheCreation1hInputTokens: hour, webSearchRequests: searches });
   // Rates scaled by 100 are integer microcents. Round UP once to a microdollar.
   const rate = prices[envelope.model];
   const hundredths = BigInt(usage.inputTokens) * BigInt(rate.input) + BigInt(usage.outputTokens) * BigInt(rate.output)

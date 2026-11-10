@@ -1,14 +1,14 @@
 import { z } from "zod";
-import { AI_PRICE_VALID_UNTIL, AI_PRICE_VERSION, buildAdmissionEnvelope } from "../adapters/llm/ai-pricing";
+import { AI_PRICE_VALID_UNTIL, AI_PRICE_VERSION, SONNET_46_MODEL, HOSTED_SEARCH_MODEL, aiPriceModelSchema, buildAdmissionEnvelope } from "../adapters/llm/ai-pricing";
 import { WORKER_FRESH_MS, WORKER_INSTANCE_PREFIX, MAX_ATTESTED_WORKERS, resolveBuildIdentity, type WorkerHeartbeat } from "./worker-attestation";
 
 export const WEB_INSTANCE_PREFIX = "tempo-web:";
 export const MAX_AI_ATTESTATION_ROWS = MAX_ATTESTED_WORKERS * 2 + 3;
-const model = z.enum(["claude-haiku-4-5-20251001", "claude-sonnet-4-5-20250929"]);
+const model = aiPriceModelSchema;
 const integerString = z.string().refine(value => value.length <= 16 && /^(0|[1-9][0-9]*)$/.test(value) && BigInt(value) <= BigInt(Number.MAX_SAFE_INTEGER));
 const capsSchema = z.object({ globalDailyMicrodollars: integerString, accountDailyMicrodollars: integerString, globalDailyCalls: integerString, accountDailyCalls: integerString }).strict();
 const operationModelsSchema = z.object({ assistant: model, turn_authorization: model, intervention_review: model, intervention_composition: model, task_presentation: model }).strict();
-const configurationSchema = z.object({ priceVersion: z.literal(AI_PRICE_VERSION), policyVersion: z.string().regex(/^v1-[a-f0-9]{64}$/), caps: capsSchema, operationModels: operationModelsSchema }).strict();
+const configurationSchema = z.object({ priceVersion: z.literal(AI_PRICE_VERSION), policyVersion: z.string().regex(/^v1-[a-f0-9]{64}$/), caps: capsSchema, operationModels: operationModelsSchema, hostedSearchModel: z.literal(HOSTED_SEARCH_MODEL) }).strict();
 const snapshotSchema = z.object({
   schemaVersion: z.literal(1), mode: z.enum(["enforce", "off", "invalid"]),
   status: z.enum(["valid", "disabled", "invalid"]),
@@ -31,11 +31,15 @@ export function createAiBudgetAttestation(source: Source, providerBaseUrl: strin
   if (!direct) return { ...base, status: "invalid", reason: "unsupported_provider" };
   if (now >= new Date(AI_PRICE_VALID_UNTIL)) return { ...base, status: "invalid", reason: "price_expired" };
   try {
-    const envelope = buildAdmissionEnvelope({ model: source.ANTHROPIC_MODEL ?? "", max_tokens: 1, messages: [] }, now, source);
-    const pinnedModel = model.parse(envelope.model);
+    const requestedModel = source.ANTHROPIC_MODEL ?? "";
+    const envelope = buildAdmissionEnvelope({
+      model: requestedModel, max_tokens: 1, messages: [],
+      ...(requestedModel === SONNET_46_MODEL ? { inference_geo: "global" } : {}),
+    }, now, source);
+    const pinnedModel = envelope.model;
     const operationModels = { assistant: pinnedModel, turn_authorization: pinnedModel, intervention_review: pinnedModel, intervention_composition: pinnedModel, task_presentation: pinnedModel };
     return snapshotSchema.parse({ ...base, status: "valid", reason: null, configuration: {
-      priceVersion: envelope.priceVersion, policyVersion: envelope.policyVersion, operationModels,
+      priceVersion: envelope.priceVersion, policyVersion: envelope.policyVersion, operationModels, hostedSearchModel: HOSTED_SEARCH_MODEL,
       caps: Object.fromEntries(Object.entries(envelope.policy).map(([key, value]) => [key, String(value)])),
     } });
   } catch { return { ...base, status: "invalid", reason: "invalid_configuration" }; }

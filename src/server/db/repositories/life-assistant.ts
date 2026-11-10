@@ -1,5 +1,6 @@
 import { and, desc, eq, or, sql } from "drizzle-orm";
 import type { AssistantCommand } from "../../domain/assistant-commands";
+import type { WorkspaceRundownOptions } from "../../domain/rundown";
 import { getDatabase, TempoDatabase } from "../client";
 import { lifeItems } from "../schema";
 import { mutateWorkspace, WorkspaceConflict } from "./workspace-repository";
@@ -14,8 +15,8 @@ import { readWorkspaceRundown } from "./workspace-rundown";
 
 export class LifeAssistant {
   constructor(private readonly database: TempoDatabase = getDatabase()) {}
-  listForRundown(userId: string, startDate: string, endDateExclusive: string) {
-    return readWorkspaceRundown(this.database, userId, startDate, endDateExclusive);
+  listForRundown(userId: string, startDate: string, endDateExclusive: string, options?: WorkspaceRundownOptions) {
+    return readWorkspaceRundown(this.database, userId, startDate, endDateExclusive, options);
   }
   captureWithReminder(userId: string, sourceMessageId: string, command: Extract<AssistantCommand, {type: "capture_with_reminder"}>, now: Date, timezone: string) {
     return captureWithReminder(this.database, userId, sourceMessageId, command, now, timezone);

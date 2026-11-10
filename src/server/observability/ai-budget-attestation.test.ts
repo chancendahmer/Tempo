@@ -1,11 +1,11 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { AI_PRICE_VALID_UNTIL, AI_PRICE_VERSION } from "../adapters/llm/ai-pricing";
+import { AI_PRICE_VALID_UNTIL, AI_PRICE_VERSION, SONNET_46_MODEL, HOSTED_SEARCH_MODEL } from "../adapters/llm/ai-pricing";
 import { createAiBudgetAttestation, summarizeAiBudgetAttestations } from "./ai-budget-attestation";
 import { createWorkerAttestation, summarizeWorkerAttestations, type WorkerHeartbeat } from "./worker-attestation";
 
-const now = new Date("2026-10-22T12:00:00Z"), build = "abcdef1234567";
+const now = new Date("2026-11-10T12:00:00Z"), build = "abcdef1234567";
 // Synthetic test caps only; no operating allowance is established.
 const source = { AI_BUDGET_MODE: "enforce", AI_BUDGET_PRICE_VERSION: AI_PRICE_VERSION, ANTHROPIC_MODEL: "claude-haiku-4-5-20251001", AI_BUDGET_GLOBAL_DAILY_MICRODOLLARS: "1000", AI_BUDGET_ACCOUNT_DAILY_MICRODOLLARS: "100", AI_BUDGET_GLOBAL_DAILY_CALLS: "10", AI_BUDGET_ACCOUNT_DAILY_CALLS: "1" };
 function row(role = "web", overrides: Partial<WorkerHeartbeat> = {}): WorkerHeartbeat {
@@ -21,8 +21,17 @@ describe("observed AI configuration attestation", () => {
     expect(result).toMatchObject({ observedEnforcedConfiguration: true, freshWebInstances: 1, freshWorkerInstances: 1, enforcementVerified: false, inventoryComplete: false, problems: [] });
     expect(JSON.stringify(result)).not.toContain("private-instance");
   });
+  it("attests the reviewed Sonnet 4.6 model on both web and worker", () => {
+    const snapshot = createAiBudgetAttestation({ ...source, ANTHROPIC_MODEL: SONNET_46_MODEL }, undefined, now);
+    expect(snapshot.status).toBe("valid");
+    expect(Object.values(snapshot.configuration!.operationModels)).toEqual(Array(5).fill(SONNET_46_MODEL));
+    expect(snapshot.configuration!.hostedSearchModel).toBe(HOSTED_SEARCH_MODEL);
+    const rows = both().map(value => ({ ...value, metadata: { ...value.metadata, aiBudget: snapshot } }));
+    expect(summarizeAiBudgetAttestations(rows, build, now)).toMatchObject({ observedEnforcedConfiguration: true, configuration: snapshot.configuration });
+  });
   it.each([
     { AI_BUDGET_MODE: "off" }, { AI_BUDGET_MODE: "unknown" }, { AI_BUDGET_PRICE_VERSION: undefined },
+    { AI_BUDGET_PRICE_VERSION: "anthropic-standard-2026-10-22-v1" },
     { AI_BUDGET_GLOBAL_DAILY_MICRODOLLARS: undefined }, { AI_BUDGET_ACCOUNT_DAILY_MICRODOLLARS: "-1" },
     { AI_BUDGET_GLOBAL_DAILY_CALLS: "1.2" }, { AI_BUDGET_ACCOUNT_DAILY_CALLS: "9007199254740992" },
     { ANTHROPIC_MODEL: "private-unpriced-model" },
@@ -82,11 +91,15 @@ describe("observed AI configuration attestation", () => {
     expect(publicResult.ok).toBe(true);
     expect(JSON.stringify(publicResult)).not.toMatch(/globalDailyMicrodollars|operationModels|priceVersion|policyVersion/);
   });
-  it("tracks the current five adapter model sources in the versioned runtime footprint", async () => {
+  it("tracks the primary adapters and isolated hosted-search model in the runtime footprint", async () => {
     for (const name of ["task-intent-parser", "turn-authorizer", "intervention-decision-reviewer", "intervention-composer", "task-presentation"]) {
       const source = await readFile(resolve(`src/server/adapters/llm/${name}.ts`), "utf8");
       expect(source).toMatch(/model:\s*env\.ANTHROPIC_MODEL!/);
       expect(source).not.toMatch(/model:\s*["'`]claude-/);
     }
+    const searchSource = await readFile(resolve("src/server/adapters/llm/anthropic-web-search.ts"), "utf8");
+    expect(searchSource).toMatch(/model:\s*HOSTED_SEARCH_MODEL/);
+    expect(searchSource).toMatch(/invokePaidMessage\(/);
+    expect(searchSource).not.toMatch(/model:\s*env\.ANTHROPIC_MODEL/);
   });
 });

@@ -3,3 +3,8 @@
 @media(max-width:760px){.header{padding:12px 18px;gap:10px;flex-wrap:wrap;min-height:76px}.brand{font-size:27px!important;margin-right:auto}.homeButton{display:none}.pill{font-size:12px!important;padding:9px 12px}.accountButton{gap:4px}.accountButton>span{width:39px;height:39px}.accountButton>svg{display:none}.search{order:5;flex-basis:100%;margin-top:3px;height:42px}.spacesPanel{position:fixed;top:74px;left:12px;right:12px;width:auto;max-height:70vh;overflow:auto;padding:20px;gap:15px}.results{min-width:0}.profilePanel{right:0}.spacesPanel button{padding:11px 3px;font-size:12px}}
 @media(prefers-reduced-motion:no-preference){.spacesPanel,.profilePanel,.results{animation:appear .15s ease-out}@keyframes appear{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:translateY(0)}}}
 @media(max-width:380px){.header{padding:12px 14px;gap:7px}.brand{font-size:24px!important;letter-spacing:-1px}.menu{min-width:28px;padding:3px}.pill{gap:6px;padding:9px 10px;font-size:11px!important}.pill>svg:last-child{display:none}.accountButton>span{width:34px;height:34px}.search>input{font-size:12px}}
+.account{flex:none}
+.accountButton{min-width:44px;min-height:44px;justify-content:center;cursor:pointer}
+.account button:focus-visible,.account a:focus-visible{outline:3px solid #52857c;outline-offset:4px}
+.profilePanel{max-width:calc(100vw - 28px);overflow-wrap:anywhere}
+.profilePanel button,.profilePanel a{min-height:44px;cursor:pointer}

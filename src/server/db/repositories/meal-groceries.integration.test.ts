@@ -96,6 +96,32 @@ describe("transactional meal shopping", () => {
     expect((await readWorkspace(other, db)).items).toHaveLength(0);
   });
 
+  it("reopens a purchased ingredient when a serving increase needs more, without changing pantry or manual rows", async () => {
+    const [person] = await db.insert(schema.users).values({ phoneE164: "+12025550690" }).returning();
+    const mealId = randomUUID(), pantryId = randomUUID(), manualId = randomUUID();
+    const pantry = { kind: "pantry" as const, title: "Rice", quantity: 100, unit: "g" as const };
+    const manual = { kind: "grocery" as const, title: "Rice", quantity: 50, unit: "g" as const, checked: true };
+    await mutateWorkspace(person.id, { action: "save", id: pantryId, version: 0, data: pantry }, db);
+    await mutateWorkspace(person.id, { action: "save", id: manualId, version: 0, data: manual }, db);
+    await mutateWorkspace(person.id, { action: "save", id: mealId, version: 0, data: { ...meal, ingredients: "200 g rice", servings: 2 } }, db);
+    const generated = (await readWorkspace(person.id, db)).items.find(item => item.data.kind === "grocery" && item.data.mealSources)!;
+    expect(generated.data).toMatchObject({ quantity: 100, checked: false });
+    await mutateWorkspace(person.id, { action: "patch", id: generated.id, version: generated.version, patch: { kind: "grocery", checked: true } }, db);
+
+    const assistant = new LifeAssistant(db), source = randomUUID();
+    const increase = { type: "life_patch" as const, id: mealId, version: 1, patch: { kind: "meal" as const, servings: 4 } };
+    expect(await assistant.execute(person.id, source, increase)).toContain("Updated");
+    expect(await assistant.execute(person.id, source, increase)).toContain("Updated");
+    const after = (await readWorkspace(person.id, db)).items;
+    expect(after.filter(item => item.data.kind === "grocery" && item.data.mealSources)).toEqual([
+      expect.objectContaining({ id: generated.id, version: generated.version + 2, data: expect.objectContaining({
+        quantity: 300, checked: false, mealSources: [{ mealId, quantity: 400 }],
+      }) }),
+    ]);
+    expect(after.find(item => item.id === pantryId)).toMatchObject({ version: 1, data: pantry });
+    expect(after.find(item => item.id === manualId)).toMatchObject({ version: 1, data: manual });
+  });
+
   it("subtracts only explicit compatible pantry stock and refuses source forgery", async () => {
     const mealId = randomUUID(), pantryId = randomUUID();
     await mutateWorkspace(owner, { action: "save", id: mealId, version: 0, data: { ...meal, ingredients: "500 g oats\n1 cup oats\nOil to taste", servings: 2 } }, db);
@@ -110,7 +136,7 @@ describe("transactional meal shopping", () => {
     await expect(mutateWorkspace(owner, { action: "patch", id: oats.id, version: currentOats.version, patch: { kind: "grocery", quantity: 1000 } }, db)).rejects.toThrow("source meal");
     await expect(mutateWorkspace(owner, { action: "delete", id: oats.id, version: currentOats.version }, db)).rejects.toThrow("source meal");
     await mutateWorkspace(owner, { action: "delete", id: pantryId, version: 1 }, db);
-    expect((await groceries()).find(item => item.id === oats.id)?.data).toMatchObject({ quantity: 500, checked: true });
+    expect((await groceries()).find(item => item.id === oats.id)?.data).toMatchObject({ quantity: 500, checked: false });
     await expect(mutateWorkspace(other, { action: "save", id: randomUUID(), version: 0, sourceRecipeId: mealId, data: meal }, db)).rejects.toThrow("couldn’t find");
     await mutateWorkspace(owner, { action: "patch", id: mealId, version: 1, patch: { kind: "meal", groceriesEnabled: false } }, db);
     expect((await groceries()).some(item => item.data.kind === "grocery" && item.data.mealSources)).toBe(false);

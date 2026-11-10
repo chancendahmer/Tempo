@@ -26,6 +26,7 @@ describe("meal and shopping views", () => {
     const manual = saved("manual", { kind: "grocery", title: "Lemons", checked: false });
     const html = renderToStaticMarkup(createElement(FoodViews, { ...props, tab: "groceries", items: [meal, grocery, pantry, manual] }));
     expect(html).toContain("Purchased · not added to pantry");
+    expect(html).toContain("If the plan needs more, Tempo unchecks the ingredient and shows the full amount after pantry stock.");
     expect(html).toContain("300 g rice");
     expect(html).toContain("100 g rice covered by pantry stock");
     expect(html).toContain("<strong>100 g rice</strong><small>In stock</small>");
