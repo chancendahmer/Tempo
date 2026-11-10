@@ -1,0 +1,45 @@
+{
+  "candidate": "c732093556f941fb9a4daae7c8ce137ba5851dc5",
+  "environment": "existing Railway production services, dedicated fictional demo account",
+  "observedBy": "lead browser operator, with independent review of retained private captures",
+  "date": "2026-11-10",
+  "tests": {
+    "smsCompoundTaskAndReminder": "pass: undated task and separate 17:48 America/New_York reminder saved from one real SMS",
+    "workspaceAutoRefresh": "pass: same open To-do view displayed the SMS-created task without reload",
+    "reloadPersistence": "pass: task remained under No date yet after reload",
+    "scheduledPhoneDelivery": "pass: exact test reminder received in dedicated TextFree inbox at 17:48",
+    "calendarCreate": "pass: SMS proposal, explicit YES, matching Nov 11 11:00-11:30 New York event in Tempo and Google",
+    "calendarDeleteAfterInterruption": "pass: separate deletion proposal, intervening outbound reminder, YES, removal acknowledged and absent from both refreshed calendars",
+    "hostedWebSearch": "pass: official NIST source returned by SMS; one settled Haiku hosted-search attempt with one authoritative search request",
+    "signOutAndSignIn": "pass: private workspace cleared, normal phone link and confirmation restored same demo account",
+    "cleanup": "test task removed from active list; test Calendar event removed; test reminder cancelled with delivered history retained"
+  },
+  "platform": {
+    "webDeployment": "d22d7ef9-21cb-4b26-bf58-6309a9315f53",
+    "workerDeployment": "056e7f6f-7935-4672-964d-911e15e879c5",
+    "replicas": "one active per service; previous deployments visibly Removed",
+    "migrationLedger": "36 exact entries through 0035",
+    "historicalDisposition": "35 approved outcomes acknowledged without replay or delivery-state changes; zero pending",
+    "readiness": "HTTP 200 with matching build and fresh worker"
+  },
+  "accounting": {
+    "newHostedAttemptWindowStart": "2026-11-10T22:30:00.000Z",
+    "newHostedSettledAttemptsAtSearchSnapshot": 13,
+    "newHostedSettledMicrodollarsAtSearchSnapshot": 449789,
+    "hostedSearchMicrodollars": 22950,
+    "outstandingAtSearchSnapshot": 0,
+    "centralRunCapDollars": 20,
+    "centralCommittedIncludingHeldAmountsDollars": 16.902717,
+    "hostedTestHoldDollars": 9,
+    "unresolvedPriorAttemptHoldDollars": 3.021,
+    "carrierHoldDollars": 1,
+    "ongoingBudgetApprovedDollarsPerUtcDay": 10
+  },
+  "limitations": [
+    "Actual phone arrival is distinct from provider Delivered/Read receipts; the scoped carrier snapshot recorded accepted/Sent bindings only.",
+    "The operations report exits 2 with built-in enforcement/headroom advisories; exact runtime policy and Railway inventory were independently corroborated.",
+    "Exact replay, foreign-account attempts and concurrency were tested in isolated infrastructure, not by disrupting production.",
+    "Automatic external operator alerts, scheduled backup retention, provider invoices and physical hardware were not verified.",
+    "This records the candidate canary; final main deployment verification is recorded separately in the run log."
+  ]
+}

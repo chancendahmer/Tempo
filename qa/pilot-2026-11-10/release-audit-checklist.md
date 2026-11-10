@@ -10,8 +10,8 @@ The observed worker used default open admission with zero configured invitees, s
 
 ## Before rollout
 
-November 10 updates: the founder approved the exact historical disposition below.
-It has not yet been applied. An encrypted production snapshot was successfully
+The founder approved the exact historical disposition below. An encrypted
+production snapshot was successfully
 restored to an isolated PostgreSQL 18.6 clone; original aggregates and the exact
 0028 ledger matched. The pinned candidate migrated the clone through 0035 and a
 second migration run was unchanged. The clone was stopped and transient plaintext
@@ -21,8 +21,8 @@ unavailable on the observed plan. See `logical-backup-restore.md`.
 The running worker's allowlisted model probe returned `claude-sonnet-4-6`. The
 candidate uses this model for the primary parser and Haiku 4.5 for separately
 metered hosted search. The same v2 pricing policy must be effective on both web
-and worker. The exact approved historical disposition remains pending in the
-observed hosted state.
+and worker. The hosted observations below record the applied disposition and
+readiness recovery.
 
 - Verify the intended Railway service roles, source/config paths, replica inventory, public HTTPS, common PostgreSQL service and existing encryption key. Verify the carrier webhook and Google callback at the canonical origin. Record public build stamps and deployment times. Verify sensitive values privately.
 - Verify the complete ordered migration prefix and SQL digests before rollout. Baseline `86ae010` ships through `0028`. The normal pinned candidate pre-deploy runs through `0035`. The shared migration lock serializes the two services. Inspect accounting, receipt inbox and disposition schema at the resulting prefix.
@@ -49,14 +49,23 @@ November 22 at 00:00 UTC. Reserve the one-time **$9 hosted hold** in the
 existing amended QA journal before enabling this hosted allowance. The lead uses
 `node --import tsx qa/pilot-2026-11-10/live-budget-hosted-hold.ts --reserve-9-usd`
 after the local paid checks. It appends the hold under the journal lock and
-requires no network request. The live Sonnet metering proof left $7.422493
-committed before the hosted hold. At that point $9 would leave $3.577507 in the
-$20 authorization for other independent QA commitment. Read the actual balance
-at the hold, since later tests can change it. The $1 carrier hold is already in
+requires no network request. The lead recorded the hold at $7.902717 previously
+committed, for **$16.902717 committed** of the $20 authorization. The remaining
+independent QA headroom at that point was **$3.097283**. Read the actual journal
+balance before further tests. The $1 carrier hold is already in
 the balance. Count each request once and track hosted attempts within the held
 $9. The limits apply per UTC day, and outstanding debt remains reserved. Pause
 the hosted test allowance at the end of verification or before midnight UTC,
 whichever comes first, unless the approved ongoing policy takes effect.
+
+The founder separately approved ongoing **$10 aggregate per UTC day** across
+all accounts after testing. For the final main rollout, set both
+`AI_BUDGET_GLOBAL_DAILY_MICRODOLLARS` and
+`AI_BUDGET_ACCOUNT_DAILY_MICRODOLLARS` to `10000000` on web and worker. Keep
+`AI_BUDGET_MODE=enforce`, v2 pricing and the 100 global and 60 account daily
+call caps. Verify matching settings on the final builds. The production ledger
+carries existing same-day settled usage into the new caps. The central $9 hold
+continues to account for the bounded hosted test allocation.
 
 The production ledger shares one global reservation lock across candidate
 instances. A normal Sonnet request reserves up to $6.021 at 1,400 output tokens,
@@ -71,10 +80,76 @@ verify the same private manifest, and apply the approved
 that readiness continues to count any new ambiguity or reactivated linked work.
 [Historical review](outbound-history-review.md)
 
+## Observed candidate cutover
+
+The lead's worker-console preflight identified `c732093556f941fb9a4daae7c8ce137ba5851dc5`
+and matched the exact 36-entry ledger through `0035`. The accounting, receipt
+inbox and disposition tables were present. It observed one fresh worker and one
+fresh web heartbeat at the matching build. Worker configuration showed valid v2
+metering, all five primary operation models on Sonnet 4.6, hosted search on
+Haiku 4.5, $9 global and account money caps, 100 global calls and 60 account
+calls per UTC day. Invite-only admission had an empty roster. Shadow mode was
+on, autonomous and cleanup sending were off, and the proactive canary list was
+empty.
+
+The exact manifest passed post-migration preview and default dry run. The
+approved append-only disposition applied once. The read-only audit of the same
+manifest confirmed it was recorded and the delivery states were unchanged.
+Hosted `/api/ready` then returned HTTP 200 with 35 unresolved outcomes, 35
+acknowledged historical cases and zero pending. It reported one fresh matching
+worker, zero stale and zero unknown. The lead retained the private console and
+readiness evidence. [Historical audit](outbound-history-review.md)
+
+The lead separately checked the Railway web and worker Deployments views. Each
+showed one active candidate replica, with its previous deployment marked
+Removed. The direct web-console preflight matched `c732093`, exact `0035`, and
+the same v2 policy, model choices, caps and safety settings as the worker. Its
+heartbeat snapshot contained three rows and one fresh web row, with zero fresh
+worker rows at that instant. The worker writes its instance row and one shared
+compatibility row. The web process writes its own instance row. The preflight
+compares heartbeat times against the transaction's two-minute window, which
+excludes both old rows and rows newer than its upper timestamp. That capture
+contains no signed ages to identify which bound excluded the worker rows. The
+22:46 UTC readiness check then showed HTTP 200, a matching worker heartbeat
+aged three seconds, and zero stale or unknown instances.
+
+The post-reminder 22:48:30 UTC compact operations snapshot observed one fresh
+matching web and worker, zero stale or unknown workers, and matching registered
+policy. Eleven hosted calls settled for 305,388 microdollars, with zero
+outstanding or violated reservations. Pending inbound and outbound, failed
+jobs and actions, receipt inbox count and quota drops were all zero. Its two
+warnings reflect the report's built-in distinction between observed instances
+and independently verified platform inventory and approved caps. The operator
+verified those facts separately in the Railway views and console preflights.
+
+The authorized demo SMS saved a task and a scheduled reminder. The open
+workspace picked up the task automatically and preserved it on reload. A
+separate Calendar request proposed the edit, received explicit YES, and showed
+the created event in the Tempo Google Calendar agenda. At 5:48 PM EST the
+actual reminder appeared in TextFree and the workspace showed Sent. The phone
+receipt proves arrival for that demo occurrence. The owner-scoped ledger since
+22:30 UTC showed seven Sendblue messages with accepted submissions, Sent status
+and exact provider bindings, including one linked to the owned reminder. It
+showed zero ambiguous submissions, matched pending receipts or recorded
+Delivered/Read receipts in that snapshot. The authenticated webhook maps SENT
+and DELIVERED/READ as distinct statuses. The lead then confirmed
+removal of the disposable Calendar event by replying YES after the intervening
+reminder. Tempo confirmed removal at 5:49 PM EST. Reloading Google Calendar's
+November 11 agenda showed the disposable event absent.
+
+The 5:50 PM EST live SMS search for the NIST Internet Time Service returned
+NIST and time.gov links. The read-only hosted ledger slice from 22:30 UTC
+recorded one settled Haiku 4.5 assistant attempt with one authoritative search
+request for **$0.022950**. The twelve settled Sonnet attempts comprised seven
+assistant, two task-presentation and three authorization calls. All 13 settled
+attempts in that creation-time slice cost **$0.449789**, with zero outstanding.
+The console verified the direct provider route. These costs are covered by the
+$9 hosted hold.
+
 ## Rollout verification
 
 - Freeze the candidate after the integrated checks. Deploy it to the existing Railway web and worker services using their normal pre-deploy migrations. Require the exact 36-entry ledger through `0035`, matching pinned build and effective configuration, fresh web and worker attestations, and retired old replicas. The old `86ae010` build lacks both invite admission and AI metering. Retire its AI-producing processes before starting the paid demo.
-- Verify `/api/health` and `/api/ready`. Recheck operations evidence for new outbound uncertainty, receipt overflow, failed or stalled jobs, accounting errors and intended alert delivery. Confirm carrier and billing evidence from the operator views. Recheck the same build and readiness after publishing the approved main revision.
+- Verify `/api/health` and `/api/ready`. Recheck the operations report for new outbound uncertainty, receipt overflow, failed or stalled jobs and accounting errors. Use existing Railway deployment status and logs alongside readiness for attended operator review. Compare an observed degraded readiness response with recovery after the authorized disposition when both are available. This is an attended check. The repository does not provide automatic operator notification. Verify carrier status, and reconcile authoritative provider usage against the ledger and the held test allowance. Invoice-console access is unverified. Recheck the same build and readiness after publishing the approved main revision.
 - From the authorized demo account, send one uniquely named task request with a reminder at an explicit near-future local time in the permitted window. Require one owned task and scheduled reminder in the workspace after reload, then observe actual phone delivery and its carrier status. Verify the task and reminder remain separate.
 - Request one uniquely named Google Calendar event at an explicit date, time and time zone. Verify the proposal precedes the write, confirm through the normal flow, and see the exact event in Google Calendar and the workspace after reload. Remove that disposable event through the normal confirmed flow and verify its absence.
 

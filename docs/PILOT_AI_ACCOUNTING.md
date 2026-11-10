@@ -70,7 +70,12 @@ STOP, HELP, pause, carrier suppression and authenticated deterministic cancellat
 The aggregate synthetic QA authorization was amended from **$10 to $20** in the
 existing append-only journal. The original $3.021 unresolved provider reservation
 and $1 carrier hold were retained. The cap applies to the aggregate verification
-run. Ongoing hosted daily spending is a separate decision and remains pending.
+run. The founder separately approved an ongoing **$10 aggregate per UTC day**
+for all accounts after this verification run. The $9 hosted test hold remains
+in the test journal. On the final main rollout, set both hosted daily money
+caps to 10,000,000 microdollars and retain 100 global and 60 account daily
+calls. Keep v2 enforced mode on both services. Same-day settled usage remains
+in the shared production ledger when those caps change.
 
 One authorized live Sonnet 4.6 request passed the production metering code path
 on an isolated local PostgreSQL database. The harness observed the **$6.000240**
@@ -82,15 +87,42 @@ and counts once against the authorization. At that point the central journal
 recorded $3.401493 settled, $3.021 unresolved and the $1 carrier hold, or
 **$7.422493 committed**. The private proof is
 `qa/pilot-2026-11-10/private/live-transcripts/meter-a1631efc-d0e3-4c32-9999-16e36caaebad.json`.
-The live proof ran locally. Hosted enforcement, carrier and Calendar acceptance,
-and live hosted-search evidence remain to be recorded.
+The live proof ran locally. A subsequent one-request Haiku hosted-search probe
+also passed the isolated adapter and production metering path on disposable
+local PostgreSQL. It claimed a **$4.080000** reservation before transport, used
+10,153 input tokens and 282 output tokens with zero cache usage and one search,
+and settled **21,563 microdollars** ($0.021563) in both ledgers. The result cited
+the NIST Internet Time Service page. The other synthetic account had no attempt,
+and the probe database was removed. The retained aggregate proof is
+`qa/pilot-2026-11-10/private/live-transcripts/meter-2b7ea762-a7c8-4f1a-8ae7-f2fcb1d5ef57.json`.
+This exercises the adapter and ledger. Full primary-parser synthesis, a live
+provider continuation, and provider invoice reconciliation are outside the scope of this artifact.
+[NIST source returned by the adapter](https://www.nist.gov/pml/time-and-frequency-division/time-distribution/internet-time-service-its)
 
-The candidate has not been released. The existing Railway services use the
+After the search the central journal recorded $3.881717 settled, the retained
+$3.021 unresolved reservation and $1 carrier hold, or $7.902717 committed. The
+lead subsequently recorded the **$9 hosted hold**, bringing commitment to
+**$16.902717** of the $20 aggregate authorization. The held amount already
+covers the bounded hosted test allocation. Invoice-console access is unverified.
+Use authoritative usage, retained uncertainty and the hold for conservative test
+accounting. Hosted deployment and carrier and Calendar acceptance remain separate.
+
+The candidate is in controlled verification before release. The existing Railway services use the
 normal shared migration runner for additive accounting migration `0033` and
 subsequent migrations through `0035`. A restored PostgreSQL 18 clone passed the
-exact migration and unchanged rerun. The hosted rollout still needs matching
-web and worker build stamps and effective v2 policy, retirement of old replicas,
-fresh attestations, readiness, and the approved carrier and Calendar checks.
+exact migration and unchanged rerun. During controlled verification the existing
+Railway services ran matching `c732093` builds with valid v2 policy and the
+approved temporary $9 daily caps. Each service showed one active candidate
+replica and the prior deployment Removed. Readiness returned HTTP 200 after
+the approved historical disposition. After the real demo reminder arrived,
+the 22:48:30 UTC operations snapshot recorded **$0.305388 settled across
+eleven calls**, with zero outstanding cost and zero recorded violations.
+Those calls fall within the previously held $9. A later actual hosted SMS
+search returned NIST and time.gov links. The hosted ledger since 22:30 UTC
+recorded one settled Haiku 4.5 search at **$0.022950**, with one authoritative
+search request and zero outstanding cost. The slice also contained 12 settled
+Sonnet calls. All 13 settled calls cost **$0.449789** within the held allowance.
+The dedicated demo SMS and Calendar flows are recorded in the release audit.
 [Hosted release audit](../qa/pilot-2026-11-10/release-audit-checklist.md)
 
 Per-instance web and worker heartbeats report the five primary operation models,
