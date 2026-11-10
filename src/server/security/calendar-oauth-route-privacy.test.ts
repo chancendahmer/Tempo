@@ -59,7 +59,7 @@ it("preserves cancellation and state-owner callback success rather than using a 
   expect(cancelled.headers.get("location")).toBe("https://tempo.test/extensions?calendar=cancelled");
   expect(mocks.complete).not.toHaveBeenCalled();
   const success = await callback(new NextRequest("https://tempo.test/api/auth/google/callback?state=synthetic-state&code=synthetic-code", { headers: { cookie: "tempo_session=account-b" } }));
-  expect(success.headers.get("location")).toBe("https://tempo.test/extensions?calendar=connected");
+  expect(success.headers.get("location")).toBe("https://tempo.test/extensions?calendar=connected&tempo-session-changed=1");
   expect(mocks.create).toHaveBeenCalledWith("token-owner-a", expect.any(Date), true);
   expect(success.headers.get("set-cookie")).toContain("HttpOnly"); expect(mocks.warn).not.toHaveBeenCalled();
 });

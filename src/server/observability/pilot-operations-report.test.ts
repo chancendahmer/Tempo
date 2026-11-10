@@ -17,6 +17,7 @@ function fixture(queuePresent = true, stale = false, deliveryFailures = 1, recei
     if (text.includes("from rate_limit_buckets")) return { rows: [{ count: receiptDrops, capped: false }] };
     if (text.includes("jsonb_array_length")) return { rows: [{ audits: 2 }] };
     if (text.includes("from scheduled_actions")) return { rows: [{ kind: "process_inbound_message", state: "failed", count: 1, oldestDueSeconds: 700 }] };
+    if (text.includes("to_regclass('public.outbound_disposition_events')")) return { rows: [{ events: false, queue: queuePresent }] };
     if (text.includes("to_regclass")) return { rows: [{ present: queuePresent }] };
     if (text.includes("from pgboss.job")) return { rows: [{ queue: "tempo.process-inbound", state: "failed", count: 1, oldestSeconds: 700 }] };
     return { rows: [] };

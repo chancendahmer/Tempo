@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-export const ACCOUNT_EVENT = "tempo-account-change";
+import { ACCOUNT_CHANGE_PARAM, ACCOUNT_EVENT, publishAccountChange } from "./account-change";
+
+export { ACCOUNT_EVENT } from "./account-change";
 
 export type PublicAccount = {
   cacheKey?: string;
@@ -58,7 +60,6 @@ export function useAccountStatus(pollMs = 0, enabled = true) {
   useEffect(() => {
     if (!enabled) return;
     suspended.current = false;
-    const initial = window.setTimeout(refresh, 0);
     const accountChanged = () => {
       request.current?.abort();
       setAccount(undefined);
@@ -66,13 +67,28 @@ export function useAccountStatus(pollMs = 0, enabled = true) {
       setError(null);
       void refresh();
     };
+    const accountStorageChanged = (event: StorageEvent) => {
+      if (event.key === ACCOUNT_EVENT && event.newValue !== null) accountChanged();
+    };
     window.addEventListener(ACCOUNT_EVENT, accountChanged);
+    window.addEventListener("storage", accountStorageChanged);
+
+    const url = new URL(window.location.href);
+    let initial: number | undefined;
+    if (url.searchParams.get(ACCOUNT_CHANGE_PARAM) === "1") {
+      url.searchParams.delete(ACCOUNT_CHANGE_PARAM);
+      window.history.replaceState(window.history.state, "", url);
+      publishAccountChange();
+    } else {
+      initial = window.setTimeout(refresh, 0);
+    }
     const interval = pollMs > 0 ? window.setInterval(refresh, pollMs) : undefined;
     return () => {
       suspended.current = true;
       request.current?.abort();
       window.clearTimeout(initial);
       window.removeEventListener(ACCOUNT_EVENT, accountChanged);
+      window.removeEventListener("storage", accountStorageChanged);
       if (interval) window.clearInterval(interval);
     };
   }, [enabled, pollMs, refresh]);

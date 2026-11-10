@@ -7,7 +7,9 @@ export const MAX_ATTESTED_WORKERS = 20;
 export const WORKER_INSTANCE_PREFIX = "tempo-worker:";
 const buildPattern = /^[a-f0-9]{7,40}$/i;
 const count = z.number().int().min(0).max(Number.MAX_SAFE_INTEGER);
-export const queueHealthSchema = z.object({ blockedAccounts: count, ambiguousOutbound: count, pendingInbound: count, oldestPendingSeconds: count.nullable() });
+export const queueHealthSchema = z.object({ blockedAccounts: count, ambiguousOutbound: count,
+  acknowledgedHistoricalOutbound: count.optional(), pendingInbound: count, oldestPendingSeconds: count.nullable() })
+  .refine(value => (value.acknowledgedHistoricalOutbound ?? 0) <= value.ambiguousOutbound);
 const attestationSchema = z.object({
   schemaVersion: z.literal(1), build: z.string().regex(buildPattern).nullable(),
   policy: z.object({ shadowMode: z.boolean(), autonomousSendingEnabled: z.boolean(), cleanupCheckinsEnabled: z.boolean(), canaryCount: count.max(20) }),
@@ -49,6 +51,13 @@ export function summarizeWorkerAttestations(rows: WorkerHeartbeat[], webBuild: s
   const proactivePermission = valid.some(value => (!value.policy.shadowMode && value.policy.autonomousSendingEnabled) || value.policy.canaryCount > 0);
   const cleanupPermission = proactivePermission || valid.some(value => value.policy.cleanupCheckinsEnabled);
   const queueProblems = [...new Set(valid.flatMap(value => queueHealthProblems(value.queueHealth)))];
+  // Workers observe the same ledger. Use the largest per-instance values
+  // during a heartbeat transition instead of double-counting shared records.
+  const uncertainty = valid.length ? {
+    totalUnresolved: Math.max(...valid.map(value => value.queueHealth.ambiguousOutbound)),
+    pending: Math.max(...valid.map(value => value.queueHealth.ambiguousOutbound - (value.queueHealth.acknowledgedHistoricalOutbound ?? 0))),
+    acknowledgedHistorical: Math.max(...valid.map(value => value.queueHealth.acknowledgedHistoricalOutbound ?? 0)),
+  } : null;
   const activeProblems = [
     ...(!fresh.length ? [legacyFresh ? "worker_attestation_missing" : "worker_heartbeat_stale_or_missing"] : []),
     ...(parsed.some(value => !value.success) ? ["worker_attestation_invalid"] : []),
@@ -78,6 +87,7 @@ export function summarizeWorkerAttestations(rows: WorkerHeartbeat[], webBuild: s
       canaryCount: policyKnown ? valid.reduce((total, value) => total + value.policy.canaryCount, 0) : null,
       proactivePermission: policyKnown ? proactivePermission : null, cleanupPermission: policyKnown ? cleanupPermission : null,
     },
-    queueProblems: activeKnown ? queueProblems : [...new Set([...queueProblems, "queue_health_unknown"])], problems,
+    queueProblems: activeKnown ? queueProblems : [...new Set([...queueProblems, "queue_health_unknown"])],
+    outboundUncertainty: activeKnown ? uncertainty : null, problems,
   };
 }

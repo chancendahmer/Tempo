@@ -15,9 +15,9 @@ it("runs real report SQL in a read-only snapshot, folds private queue names, and
     for (const file of (await readdir(resolve("drizzle"))).filter(name => /^\d+.*\.sql$/.test(name)).sort()) {
       await client.exec((await readFile(resolve("drizzle", file), "utf8")).replaceAll("--> statement-breakpoint", ""));
     }
-    await client.exec("create schema pgboss; create table pgboss.job (name text, state text, created_on timestamptz)");
+    await client.exec("create schema pgboss; create table pgboss.job (name text, state text, created_on timestamptz, id uuid, singleton_key text, data jsonb)");
     await client.query("insert into users (phone_e164) values ($1)", ["+12025550199"]);
-    await client.query("insert into pgboss.job values ($1,'failed',$2)", ["private-queue-name", now]);
+    await client.query("insert into pgboss.job(name,state,created_on) values ($1,'failed',$2)", ["private-queue-name", now]);
     const metadata = createWorkerAttestation({ TEMPO_BUILD_SHA: build, RAILWAY_GIT_COMMIT_SHA: undefined, INTERVENTION_SHADOW_MODE: true, AUTONOMOUS_SENDING_ENABLED: false, CLEANUP_CHECKINS_ENABLED: false, PROACTIVE_CANARY_USER_IDS: [] }, { blockedAccounts: 0, ambiguousOutbound: 0, pendingInbound: 0, oldestPendingSeconds: null });
     await client.query("insert into service_heartbeats (service_key,last_seen_at,metadata) values ($1,$2,$3)", ["tempo-worker:private-instance", now, JSON.stringify({ ...metadata, secret: "private-token" })]);
     await client.query(`insert into ai_budget_states (scope_key,window_day,settled_microdollars,outstanding_microdollars,outstanding_calls,halted,updated_at) values

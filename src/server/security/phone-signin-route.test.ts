@@ -36,7 +36,7 @@ describe("phone sign-in link HTTP boundary", () => {
     const result = await POST(post(value));
     expect(mocks.redeem).toHaveBeenCalledWith(value, mocks.env.FIELD_ENCRYPTION_KEY);
     expect(result.status).toBe(303);
-    expect(result.headers.get("location")).toBe("https://tempo.test/workspace");
+    expect(result.headers.get("location")).toBe("https://tempo.test/workspace?tempo-session-changed=1");
     expect(result.headers.get("set-cookie")).toContain("HttpOnly");
     expect(result.headers.get("set-cookie")).toContain("Secure");
   });

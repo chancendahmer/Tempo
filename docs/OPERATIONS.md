@@ -70,3 +70,41 @@ npx tsx scripts/recover-inbound.ts --user ACCOUNT_UUID --job JOB_UUID --operator
 ```
 
 Default is dry run. Add --apply only after reviewing the selected account/job and provider evidence. The command checks job/action/message ownership, lease expiry and outbound state, and records the operator/reason. It refuses uncertain provider submissions. Do not automatically retry every failed job. Configure an external monitor for /api/ready before an unattended pilot; logging alone does not notify an operator.
+
+### Acknowledged historical uncertainty
+
+Migration 0035 adds a separate operator audit for the reviewed legacy outbound cohort. The original delivery state, provider references and replay restrictions remain intact. Readiness and the operations report expose pending uncertainty and acknowledged historical uncertainty separately. A changed message, new linked work or an explicit reopen puts the row back in the pending count.
+
+Prepare a private JSON manifest with version 1, the decision, an opaque approval reference, and the exact account and message pairs from the approved review. Every row includes its UTC update timestamp with six fractional digits and the expected latest disposition event ID as a string, or null for the first decision. Preserve this manifest outside the repository with owner-only permissions. Preview it using the same secure database environment.
+
+For the November 10 historical investigation, the preparation command validates all 35 rows and two accounts together in one read-only snapshot. It can preview a first close before migration 0035 when the event table is absent and the queue is available. On the Linux worker, an optional `--private-output` path creates an owner-only manifest file after successful validation. The default output contains aggregate counts. It includes the digest only when eligible, and exits 2 when the review is blocked.
+
+```text
+npx tsx qa/pilot-2026-11-10/prepare-outbound-disposition.ts REVIEW_REFERENCE
+```
+
+```json
+{
+  "version": 1,
+  "decision": "close_unresolved_without_replay",
+  "approvalRef": "EXAMPLE_REVIEW_REFERENCE",
+  "rows": [
+    {
+      "accountId": "a21fb6b6-5af6-4865-b16b-6e90f330ae04",
+      "messageId": "d1106309-3120-4c05-889c-804994db64ad",
+      "messageUpdatedAt": "2026-09-03T12:00:00.002123Z",
+      "expectedLatestEventId": null
+    }
+  ]
+}
+```
+
+```text
+npx tsx scripts/outbound-disposition.ts --manifest PRIVATE_MANIFEST.json
+```
+
+Obtain the founder’s explicit acknowledgment of the reviewed manifest digest and the decision before applying any production disposition. Applying requires migration 0035, the exact digest, decision and operator reference. The two decisions are `close_unresolved_without_replay` and `reopen`. Reopening appends a new event and uses a freshly reviewed manifest with the current latest event ID.
+
+```text
+npx tsx scripts/outbound-disposition.ts --manifest PRIVATE_MANIFEST.json --apply --expected-sha256 REVIEWED_DIGEST --acknowledge close_unresolved_without_replay --operator OPERATOR_REF
+```

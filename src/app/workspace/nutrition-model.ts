@@ -1,9 +1,11 @@
 import { lifeItemSchema, type LifeItem, type SavedLifeItem } from "../../server/domain/life-items";
 import { scaleFood, type FoodProduct } from "../../server/domain/food";
+import { nutrientKeys } from "../../server/domain/nutrition-totals";
+
+export { nutrientKeys, nutritionTotals } from "../../server/domain/nutrition-totals";
 
 export type FoodEntry = Extract<LifeItem, { kind: "food" }>;
 export type SavedFood = SavedLifeItem & { data: FoodEntry };
-export const nutrientKeys = ["calories", "protein", "carbs", "fat", "fiber"] as const;
 export const meals = ["Breakfast", "Lunch", "Dinner", "Snack"] as const;
 export const isFood = (item: SavedLifeItem): item is SavedFood => item.data.kind === "food";
 export const nutrientLabel = (value: number | null | undefined) => value == null ? "—" : new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }).format(value);
@@ -17,14 +19,6 @@ export function catalogFoodEntry(product: FoodProduct, portion: { amount: number
       : "Check the food name, date, and portion, or add the label values manually.");
   }
   return result.data as FoodEntry;
-}
-
-/** Report a missing total as unknown; partial totals keep their missing count. */
-export function nutritionTotals(foods: SavedFood[]) {
-  return Object.fromEntries(nutrientKeys.map(key => {
-    const known = foods.filter(item => item.data[key] !== null);
-    return [key, { value: known.length ? known.reduce((sum, item) => sum + item.data[key]!, 0) : null, missing: foods.length - known.length }];
-  })) as Record<typeof nutrientKeys[number], { value: number | null; missing: number }>;
 }
 
 export function repeatFood(food: FoodEntry, date: string, meal: FoodEntry["meal"], multiplier = 1): FoodEntry {

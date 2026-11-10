@@ -86,11 +86,13 @@ describe("nutrition UI truthfulness and conflict handling", () => {
     expect(render([saved(food)], "2026-10-15")).not.toContain("Includes data from");
   });
 
-  it("renders missing calories as unknown and marks partial nutrients", () => {
+  it("renders all-missing nutrients as unknown without inventing a partial total", () => {
     const unknown = saved({ ...food, calories: null, protein: null });
     const html = renderToStaticMarkup(createElement(NutritionView, { items: [unknown], date: food.date, today: food.date, setDate: () => {}, saving: false, preview: false, save: async () => true, remove: () => {} }));
     expect(html).toContain("1 entry has unknown calories");
-    expect(html).toContain("—");
+    expect(html).toContain("<strong>Unknown</strong>");
+    expect(html).toContain("Protein unknown");
+    expect(html).not.toContain("unknown calories · partial total");
     expect(html).not.toContain("0</strong><span>kcal logged");
     expect(html).toContain("Daily targets");
   });

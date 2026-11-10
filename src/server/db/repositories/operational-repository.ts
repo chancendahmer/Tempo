@@ -2,15 +2,22 @@ import { desc, eq, like, lt, lte, or, sql } from "drizzle-orm";
 import { getDatabase, TempoDatabase } from "../client";
 import { consentRecords, oauthStates, pendingDeliveryReceipts, rateLimitBuckets, serviceHeartbeats, users } from "../schema";
 import { MAX_ATTESTED_WORKERS, WORKER_INSTANCE_PREFIX } from "../../observability/worker-attestation";
+import { outboundAcknowledgedSql } from "./outbound-dispositions";
 
 export class OperationalRepository {
   constructor(private readonly database: TempoDatabase = getDatabase()) {}
 
   async messageHealth(now = new Date()) {
-    const result = await this.database.execute<{ ambiguousOutbound: number; pendingInbound: number; oldestPendingSeconds: number | null }>(sql`
+    const schema = await this.database.execute<{ present: boolean }>(sql`
+      select to_regclass('public.outbound_disposition_events') is not null
+        and to_regclass('pgboss.job') is not null as present
+    `);
+    const acknowledged = schema.rows[0]?.present ? sql`(${sql.raw(outboundAcknowledgedSql)})` : sql`0`;
+    const result = await this.database.execute<{ ambiguousOutbound: number; acknowledgedHistoricalOutbound: number; pendingInbound: number; oldestPendingSeconds: number | null }>(sql`
       select
         count(*) filter (where direction = 'outbound' and (outbound_state = 'ambiguous'
           or (outbound_state = 'submitting' and submission_started_at < ${new Date(now.getTime() - 120_000)})))::int as "ambiguousOutbound",
+        ${acknowledged} as "acknowledgedHistoricalOutbound",
         count(*) filter (where direction = 'inbound' and status in ('received','processing'))::int as "pendingInbound",
         extract(epoch from (${now}::timestamptz - min(created_at) filter (where direction = 'inbound' and status in ('received','processing'))))::int as "oldestPendingSeconds"
       from conversation_messages

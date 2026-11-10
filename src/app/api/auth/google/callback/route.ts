@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { ACCOUNT_CHANGE_PARAM } from "../../../../components/account-change";
 import { GoogleCalendarProvider } from "@/server/adapters/calendar/google-calendar-provider";
 import { requireEnv } from "@/server/config/env";
 import { DrizzleCalendarOAuthRepository } from "@/server/db/repositories/calendar-oauth-repository";
@@ -32,7 +33,9 @@ export async function GET(request: NextRequest) {
       encryptionKey: env.FIELD_ENCRYPTION_KEY!,
     });
     const session = await new WebSessionService().create(completed.userId, new Date(), true);
-    const response = NextResponse.redirect(extensionUrl(env.APP_BASE_URL, "connected"), 303);
+    const destination = extensionUrl(env.APP_BASE_URL, "connected");
+    destination.searchParams.set(ACCOUNT_CHANGE_PARAM, "1");
+    const response = NextResponse.redirect(destination, 303);
     response.cookies.set(WEB_SESSION_COOKIE, session.token, {
       httpOnly: true,
       secure: env.NODE_ENV === "production",

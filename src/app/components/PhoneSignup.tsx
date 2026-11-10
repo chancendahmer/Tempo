@@ -5,6 +5,7 @@ import { FormEvent, useEffect, useMemo, useRef, useState, useSyncExternalStore }
 import { useRouter } from "next/navigation";
 import { FiArrowRight, FiCheck, FiMessageCircle, FiUserPlus } from "react-icons/fi";
 import { ACCOUNT_EVENT, useAccountStatus } from "./account-state";
+import { publishAccountChange } from "./account-change";
 
 const STORAGE_KEY = "tempo-early-access-submitted";
 const STORAGE_EVENT = "tempo-signup-change";
@@ -18,9 +19,12 @@ export async function resetPhoneSignup(sessionKey: string | null) {
     throw new SignInChangedError("Your sign-in changed. Reload this page and check the current account before resetting.");
   }
   if (!response.ok) throw new Error("We couldn’t reset this sign-in attempt. Please try again.");
-  window.localStorage.removeItem(STORAGE_KEY);
-  window.dispatchEvent(new Event(STORAGE_EVENT));
-  window.dispatchEvent(new Event(ACCOUNT_EVENT));
+  try {
+    window.localStorage.removeItem(STORAGE_KEY);
+    window.dispatchEvent(new Event(STORAGE_EVENT));
+  } finally {
+    publishAccountChange();
+  }
 }
 
 function subscribeToSubmittedState(callback: () => void) {
@@ -179,12 +183,12 @@ export function PhoneSignup() {
       const payload = (await response.json()) as { error?: string; onboarding?: OnboardingAssignment };
       if (!response.ok) throw new Error(payload.error ?? "Could not complete signup.");
 
+      publishAccountChange();
       window.localStorage.setItem(STORAGE_KEY, payload.onboarding ? JSON.stringify(payload.onboarding) : "true");
       resetSession.current = undefined;
       abandoning.current = false;
       setAbandoned(false);
       window.dispatchEvent(new Event(STORAGE_EVENT));
-      window.dispatchEvent(new Event(ACCOUNT_EVENT));
     } catch (submissionError) {
       setError(submissionError instanceof Error ? submissionError.message : "Could not complete signup.");
     } finally {

@@ -1,0 +1,34 @@
+{
+  "passed": true,
+  "exactBaseCommit": "86ae01023abcf24bcc8da9ed9d367192e14a29ae",
+  "localPostgresOnly": true,
+  "sharedMigrationLock": true,
+  "disposableDatabaseRemoved": true,
+  "baseSqlFilesIdenticalAfterEolNormalization": 29,
+  "migrationsAtExactBase": 29,
+  "exactHistoricalPreviewAtBase": {
+    "rows": 35,
+    "accounts": 2,
+    "previewOnly": true
+  },
+  "accounts": 2,
+  "baseTablesCompared": 38,
+  "basePopulatedTables": {
+    "consent_records": 2,
+    "conversation_messages": 35,
+    "conversations": 2,
+    "life_items": 2,
+    "scheduled_actions": 2,
+    "tasks": 2,
+    "users": 2
+  },
+  "baseColumnsUnchangedWithAdditiveDefaults": true,
+  "pastRoutineCheckoffsBackfilled": 2,
+  "nullAndFutureRoutineCheckoffsExcluded": true,
+  "migrationsAt0033": 34,
+  "historicalPreviewDigestStableAcrossUpgrade": true,
+  "migrationsAt0035": 36,
+  "tablesUnchangedFrom0033": 42,
+  "migrationsAfterRerun": 36,
+  "originalMigrationLedgerPreserved": true
+}

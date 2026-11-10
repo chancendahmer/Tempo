@@ -1,5 +1,6 @@
 "use client";
 import { ACCOUNT_EVENT, useAccountStatus } from "../components/account-state";
+import { publishAccountChange } from "../components/account-change";
 import { loopDialogTab } from "./dialog-keyboard";
 
 import Link from "next/link";
@@ -27,7 +28,7 @@ import { ChatMessage } from "./ChatMessage";
 import { SavedContextViews } from "./SavedContextViews";
 import { ThoughtsView } from "./ThoughtsView";
 import { WakeExperience } from "./WakeExperience";
-import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import { FormEvent, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { FiArrowLeft, FiArrowRight, FiBookOpen, FiCalendar, FiCheck, FiCheckCircle, FiClock, FiEdit2, FiInbox, FiLogOut, FiMaximize, FiMenu, FiMessageCircle, FiMoon, FiPause, FiPlay, FiPlus, FiSend, FiChevronDown, FiChevronRight, FiSun, FiTrash2, FiX } from "react-icons/fi";
 import { groceriesForMeals, ingredientKey } from "@/server/domain/meal-groceries";
 import { lifeItemSchema, localDay, type LifeItem, type SavedLifeItem } from "@/server/domain/life-items";
@@ -67,6 +68,7 @@ function WorkspaceView({ preview = false, owner, sessionKey, unavailable = false
   const [saving, setSaving] = useState(false);
   const [editor, setEditor] = useState<Editor | null>(null);
   const [routineEditor, setRoutineEditor] = useState<{ item?: SavedLifeItem } | null>(null);
+  const routineEditorOpener = useRef<HTMLElement | null>(null);
   const [navigationOpen, setNavigationOpen] = useState(false);
   const [navigationGroup, setNavigationGroup] = useState<string>();
   const navigationOpener = useRef<HTMLElement | null>(null);
@@ -79,7 +81,7 @@ function WorkspaceView({ preview = false, owner, sessionKey, unavailable = false
   const [hidden, setHidden] = useState(false);
   const busyRef = useRef(false);
   const mounted = useRef(true);
-  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  useLayoutEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   const mutationAttempts = useRef(new WorkspaceMutationAttempts());
   const requestSequence = useRef(0);
   const previewInitialized = useRef(false);
@@ -167,12 +169,19 @@ function WorkspaceView({ preview = false, owner, sessionKey, unavailable = false
     return () => { window.removeEventListener("hashchange", onHash); window.removeEventListener("popstate", onHash); };
   }, []);
   useEffect(() => { if (editor) dialog.current?.showModal(); else dialog.current?.close(); }, [editor]);
+  useEffect(() => {
+    if (routineEditor || saving || !routineEditorOpener.current) return;
+    const opener = routineEditorOpener.current;
+    routineEditorOpener.current = null;
+    (opener.isConnected ? opener : document.getElementById("workspace-content"))?.focus({ preventScroll: true });
+  }, [routineEditor, saving]);
   useEffect(() => { if (section === "assistant") chatEnd.current?.scrollIntoView({ block: "nearest" }); }, [section, data?.messages.length]);
 
   const homeNow = now ? new Date(now) : null;
   if (preview && homeNow && previewTime !== "live") { const [hour, minute] = previewTime.split(":").map(Number); homeNow.setHours(hour, minute, 0, 0); }
   const today = now ? localDay(now, data?.timezone ?? "UTC") : "";
   const date = selectedDate || today;
+  const nutritionIncomplete = data?.diaryCoverage?.date === date && data.diaryCoverage.food.truncated;
   const items = data?.items ?? [];
   const open = data?.tasks.filter(task => task.status !== "completed") ?? [];
   const routines = items.filter(item => item.data.kind === "routine");
@@ -237,6 +246,7 @@ function WorkspaceView({ preview = false, owner, sessionKey, unavailable = false
     busyRef.current = true; setSaving(true); requestSequence.current++;
     try {
       const response = await fetch("/api/auth/logout", { method: "POST", headers: { "x-tempo-session": sessionKey ?? "" } });
+      if (response.ok) publishAccountChange();
       if (!mounted.current) return;
       if (response.status === 409 || response.status === 401) { accountChanged(); throw new Error("Sign-in changed"); }
       if (!response.ok) throw new Error("Sign-out failed");
@@ -401,7 +411,11 @@ function WorkspaceView({ preview = false, owner, sessionKey, unavailable = false
   }
   function itemEditor(kind: LifeItem["kind"], item?: SavedLifeItem, meal = "Breakfast") {
     setNotice("");
-    if (kind === "routine") { setRoutineEditor({ item }); return; }
+    if (kind === "routine") {
+      routineEditorOpener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      setRoutineEditor({ item });
+      return;
+    }
     const value = item?.data;
     const fields: Field[] = [{ name: "title", label: kind === "note" ? "What’s on your mind?" : "Name", value: value?.title, required: true }];
     if (["food", "meal", "workout"].includes(kind)) fields.push({ name: "date", label: "Date", type: "date", value: value && "date" in value ? value.date : date, required: true });
@@ -533,8 +547,8 @@ function WorkspaceView({ preview = false, owner, sessionKey, unavailable = false
           {(["meals", "recipes", "groceries"] as Section[]).includes(section) && <FoodViews tab={mealTab} items={items} date={date} today={today} setDate={setSelectedDate} saving={saving} edit={itemEditor} plan={planRecipe} actions={itemActions} save={saveItem} ask={ask} />}
           {(["nutrition", "movement"] as Section[]).includes(section) && !preview && selectedDate && data.diaryCoverage?.date !== selectedDate && <p role="status">Loading this day’s saved entries…</p>}
           {(["nutrition", "movement"] as Section[]).includes(section) && data.itemsTruncated && <p role="status">Your full history is saved. This view includes recent entries and the selected day. Select a date to see older entries.</p>}
-          {section === "nutrition" && data.diaryCoverage?.food.truncated && <p role="alert">This day has more entries than the display limit. Totals below are incomplete.</p>}
-          {section === "nutrition" && (preview || !selectedDate || data.diaryCoverage?.date === selectedDate) && <NutritionView items={items} date={date} today={today} setDate={setSelectedDate} saving={saving} preview={preview} save={saveItem} remove={remove} />}
+          {section === "nutrition" && nutritionIncomplete && <p role="alert">This day has more entries than the display limit. Totals below are incomplete.</p>}
+          {section === "nutrition" && (preview || !selectedDate || data.diaryCoverage?.date === selectedDate) && <NutritionView items={items} date={date} today={today} setDate={setSelectedDate} saving={saving} preview={preview} incomplete={nutritionIncomplete} save={saveItem} remove={remove} />}
           {section === "movement" && (preview || !selectedDate || data.diaryCoverage?.date === selectedDate) && <FitnessView save={saveItem} remove={remove} data={data} today={today} date={date} setDate={setSelectedDate} saving={saving} plan={draft => taskEditor(undefined, undefined, draft)} log={() => itemEditor("workout")} actions={itemActions} showTasks={() => go("tasks")} />}
           {section === "inbox" && <ThoughtsView items={items} truncated={data.itemCoverage?.note?.truncated} saving={saving} edit={item => itemEditor("note", item)} remove={remove} toTask={item => taskEditor(undefined, undefined, { title: item.data.title, estimatedMinutes: 15, sourceNoteId: item.id })} openTask={openThoughtTask} toGoal={item => { if (item.data.kind === "note") goalEditor(undefined, item.data); }} />}
           {section === "assistant" && <div className={rb.assistant}>

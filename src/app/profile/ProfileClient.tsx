@@ -1,17 +1,24 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useState } from "react";
+import { FormEvent, useLayoutEffect, useRef, useState } from "react";
 import { FiArrowRight, FiCheck, FiLogOut, FiMessageSquare, FiUser } from "react-icons/fi";
 import { useRouter } from "next/navigation";
 import { ACCOUNT_EVENT, PublicAccount, useAccountStatus } from "../components/account-state";
+import { publishAccountChange } from "../components/account-change";
+
+type ProfileRecovery = { reason: "owner" | "auth"; owner: string | undefined; sessionKey: string | null };
 
 export function ProfileClient() {
   const { account, sessionKey, error, refresh } = useAccountStatus(6_000);
-  const [recovery, setRecovery] = useState<"owner" | "auth" | null>(null);
+  const [recovery, setRecovery] = useState<ProfileRecovery | null>(null);
+  const owner = account?.phoneVerified ? account.cacheKey : undefined;
+  const replacedSession = recovery && owner !== undefined && (recovery.owner !== owner || recovery.sessionKey !== sessionKey);
+  if (replacedSession) setRecovery(null);
+  const recoveryReason = replacedSession ? null : recovery?.reason;
 
-  if (recovery === "auth") return <section className="account-gate" role="alert"><h1>Log in to your profile.</h1><p>Your session ended. Your changes were not saved. Log in again before editing your profile.</p><Link className="black-button" href="/login">Log in</Link></section>;
-  if (recovery === "owner") return <section className="account-gate" role="alert"><h1>Check your signed-in account.</h1><p>Your changes were not saved. Reload your profile and review the account before entering your changes again.</p><button className="black-button" type="button" onClick={() => { setRecovery(null); void refresh(); }}>Reload profile</button></section>;
+  if (recoveryReason === "auth") return <section className="account-gate" role="alert"><h1>Log in to your profile.</h1><p>Your session ended. Your changes were not saved. Log in again before editing your profile.</p><Link className="black-button" href="/login">Log in</Link></section>;
+  if (recoveryReason === "owner") return <section className="account-gate" role="alert"><h1>Check your signed-in account.</h1><p>Your changes were not saved. Reload your profile and review the account before entering your changes again.</p><button className="black-button" type="button" onClick={() => { setRecovery(null); void refresh(); }}>Reload profile</button></section>;
   if (error && !account?.phoneVerified || account?.phoneVerified && !account.cacheKey) return <section className="account-gate" role="alert">
     <h1>Your profile is temporarily unavailable.</h1><p>We couldn’t confirm your account. Please try again.</p>
     <button className="black-button" type="button" onClick={() => void refresh()}>Try again</button>
@@ -29,7 +36,7 @@ export function ProfileClient() {
     );
   }
 
-  return <ProfileEditor key={account.cacheKey} account={account} sessionKey={sessionKey} unavailable={!!error} retry={() => void refresh()} onSaved={() => void refresh()} invalidateOwner={reason => { setRecovery(reason); window.dispatchEvent(new Event(ACCOUNT_EVENT)); }} />;
+  return <ProfileEditor key={account.cacheKey} account={account} sessionKey={sessionKey} unavailable={!!error} retry={() => void refresh()} onSaved={() => void refresh()} invalidateOwner={reason => { setRecovery({ reason, owner, sessionKey }); window.dispatchEvent(new Event(ACCOUNT_EVENT)); }} />;
 }
 
 function ProfileEditor({ account, sessionKey, unavailable, retry, onSaved, invalidateOwner }: { account: PublicAccount; sessionKey: string | null; unavailable: boolean; retry: () => void; onSaved: () => void; invalidateOwner: (reason: "owner" | "auth") => void }) {
@@ -38,6 +45,8 @@ function ProfileEditor({ account, sessionKey, unavailable, retry, onSaved, inval
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const router = useRouter();
+  const mounted = useRef(true);
+  useLayoutEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -50,27 +59,30 @@ function ProfileEditor({ account, sessionKey, unavailable, retry, onSaved, inval
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ displayName, profileInstructions: instructions, expectedCacheKey: account.cacheKey }),
       });
+      if (!mounted.current) return;
       if (response.status === 401) { invalidateOwner("auth"); return; }
       if (response.status === 409) { invalidateOwner("owner"); return; }
       const payload = (await response.json()) as { error?: string };
+      if (!mounted.current) return;
       setMessage(response.ok ? "Saved. Tempo will use these instructions in future coaching." : payload.error ?? "Could not save your profile.");
       // Keep same-owner draft and success feedback mounted; a different owner still changes the editor key.
       if (response.ok) onSaved();
-    } catch { setMessage("Could not confirm your save. Check your connection and try again."); }
-    finally { setSaving(false); }
+    } catch { if (mounted.current) setMessage("Could not confirm your save. Check your connection and try again."); }
+    finally { if (mounted.current) setSaving(false); }
   }
 
   async function logout() {
     setSaving(true);
     try {
       const response = await fetch("/api/auth/logout", { method: "POST", headers: { "x-tempo-session": sessionKey ?? "" } });
+      if (response.ok) publishAccountChange();
+      if (!mounted.current) return;
       if (response.status === 401 || response.status === 409) { invalidateOwner(response.status === 401 ? "auth" : "owner"); return; }
       if (!response.ok) throw new Error("Sign-out failed");
       window.localStorage.removeItem("tempo-early-access-submitted");
-      window.dispatchEvent(new Event(ACCOUNT_EVENT));
       router.push("/login");
       router.refresh();
-    } catch { setMessage("Could not sign out. Please try again."); setSaving(false); }
+    } catch { if (mounted.current) { setMessage("Could not sign out. Please try again."); setSaving(false); } }
   }
 
   return (

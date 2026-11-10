@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { ACCOUNT_CHANGE_PARAM } from "../../../components/account-change";
 import { requireEnv } from "../../../../server/config/env";
 import { InvalidActionTokenError, verifyActionToken } from "../../../../server/security/action-token";
 import { WEB_SESSION_COOKIE, WEB_SESSION_TTL_SECONDS, WebSessionService } from "../../../../server/security/web-session";
@@ -49,7 +50,9 @@ export async function POST(request: NextRequest) {
     if (origin && origin !== new URL(env.APP_BASE_URL).origin) return failure();
     const form = await request.formData();
     const session = await new WebSessionService().redeemSignIn(String(form.get("token") ?? ""), env.FIELD_ENCRYPTION_KEY!);
-    const response = NextResponse.redirect(new URL("/workspace", env.APP_BASE_URL), 303);
+    const destination = new URL("/workspace", env.APP_BASE_URL);
+    destination.searchParams.set(ACCOUNT_CHANGE_PARAM, "1");
+    const response = NextResponse.redirect(destination, 303);
     for (const [name, value] of Object.entries(headers)) response.headers.set(name, value);
     response.cookies.set(WEB_SESSION_COOKIE, session.token, {
       httpOnly: true, secure: env.NODE_ENV === "production", sameSite: "lax", path: "/",

@@ -115,7 +115,7 @@ export function RoutineEditor({ item, latestItem, saveError, timezone, saving, o
     if (submitting.current || saving || conflict) return;
     setError("");
     let value: Routine;
-    try { value = buildRoutineDraft(draft, item, stepIds.current); }
+    try { value = buildRoutineDraft({ ...draft, time: String(new FormData(event.currentTarget).get("time") ?? "") }, item, stepIds.current); }
     catch (cause) { setError(cause instanceof Error ? cause.message : "Check the routine name and each step, then try again."); return; }
     submitting.current = true;
     setPending(true);
@@ -146,7 +146,7 @@ export function RoutineEditor({ item, latestItem, saveError, timezone, saving, o
               <label data-selected={draft.period === "morning"}><input type="radio" name={`${id}-period`} checked={draft.period === "morning"} onChange={() => setDraft(current => ({ ...current, period: "morning" }))} /><FiSun aria-hidden="true" /> Morning</label>
               <label data-selected={draft.period === "evening"}><input type="radio" name={`${id}-period`} checked={draft.period === "evening"} onChange={() => setDraft(current => ({ ...current, period: "evening" }))} /><FiMoon aria-hidden="true" /> Evening</label>
             </fieldset>
-            <label className={s.field} htmlFor={`${id}-time`}>Start time<input id={`${id}-time`} type="time" value={draft.time} onChange={event => { setDraft(current => ({ ...current, time: event.target.value })); setError(""); }} required /><small>{timezone.replaceAll("_", " ")}</small></label>
+            <label className={s.field} htmlFor={`${id}-time`}>Start time<input id={`${id}-time`} name="time" type="time" defaultValue={draft.time} onChange={() => setError("")} required /><small>{timezone.replaceAll("_", " ")}</small></label>
           </div>
           <div className={s.stepsHeading}><div><h3>Your steps</h3><p>Small enough to begin. In the order that works for you.</p></div><span><FiClock aria-hidden="true" />{total} min total</span></div>
           <ol className={s.steps}>

@@ -17,6 +17,17 @@ it("attests every fresh instance and never serializes raw metadata, IDs or canar
   expect(result).toMatchObject({ ok: true, freshInstances: 2, allCoachingDisabled: true, builds: [build] });
   for (const value of ["+12025550199", "private-token", "private-worker", "private-account", "instance-a"]) expect(JSON.stringify(result)).not.toContain(value);
 });
+it("surfaces acknowledged history separately while new uncertainty still degrades queue health", () => {
+  const acknowledged = createWorkerAttestation(env, { ...queue, ambiguousOutbound: 35, acknowledgedHistoricalOutbound: 35 });
+  const next = createWorkerAttestation(env, { ...queue, ambiguousOutbound: 36, acknowledgedHistoricalOutbound: 35 });
+  expect(summarizeWorkerAttestations([row(acknowledged)], build, now)).toMatchObject({
+    queueProblems: [], outboundUncertainty: { totalUnresolved: 35, pending: 0, acknowledgedHistorical: 35 },
+  });
+  expect(summarizeWorkerAttestations([row(acknowledged), row(next, "tempo-worker:instance-b")], build, now)).toMatchObject({
+    queueProblems: ["outbound_reconciliation_required"], outboundUncertainty: { totalUnresolved: 36, pending: 1, acknowledgedHistorical: 35 },
+  });
+  expect(() => createWorkerAttestation(env, { ...queue, acknowledgedHistoricalOutbound: 1 })).toThrow();
+});
 it.each([
   { CLEANUP_CHECKINS_ENABLED: true },
   { PROACTIVE_CANARY_USER_IDS: ["private-account"] },

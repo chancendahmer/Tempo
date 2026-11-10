@@ -246,6 +246,13 @@
       "when": 1794335732312,
       "tag": "0034_pending_delivery_receipts",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1794339109468,
+      "tag": "0035_outbound_disposition_events",
+      "breakpoints": true
     }
   ]
 }

@@ -7,13 +7,24 @@ vi.mock("react", () => ({
   useCallback: (callback: unknown) => callback,
   useEffect: (effect: () => (() => void) | undefined) => hooks.effects.push(effect),
 }));
+import { ACCOUNT_CHANGE_PARAM, ACCOUNT_EVENT, publishAccountChange } from "./account-change";
 import { useAccountStatus } from "./account-state";
 
 describe("account polling cancellation", () => {
   beforeEach(() => {
     hooks.setters = [];
     hooks.effects = [];
-    vi.stubGlobal("window", { setTimeout: vi.fn(), clearTimeout: vi.fn(), setInterval: vi.fn(), clearInterval: vi.fn(), addEventListener: vi.fn(), removeEventListener: vi.fn() });
+    const listeners = new EventTarget();
+    const location = new URL("https://tempo.test/workspace");
+    vi.stubGlobal("window", {
+      location,
+      history: { state: { preserved: true }, replaceState: vi.fn((_state, _title, url: URL) => { location.href = url.href; }) },
+      localStorage: { setItem: vi.fn() },
+      setTimeout: vi.fn(), clearTimeout: vi.fn(), setInterval: vi.fn(), clearInterval: vi.fn(),
+      addEventListener: vi.fn(listeners.addEventListener.bind(listeners)),
+      removeEventListener: vi.fn(listeners.removeEventListener.bind(listeners)),
+      dispatchEvent: vi.fn(listeners.dispatchEvent.bind(listeners)),
+    });
   });
   afterEach(() => vi.unstubAllGlobals());
 
@@ -73,6 +84,64 @@ describe("account polling cancellation", () => {
     finish(Response.json({ account: { cacheKey: "new-owner", phoneVerified: true } }));
     await Promise.resolve(); await Promise.resolve();
   });
+  it("rejects late old ownership after a storage signal and accepts only the new server session", async () => {
+    let finishOld!: (response: Response) => void;
+    let finishNew!: (response: Response) => void;
+    const fetcher = vi.fn()
+      .mockImplementationOnce(() => new Promise<Response>(resolve => { finishOld = resolve; }))
+      .mockImplementationOnce(() => new Promise<Response>(resolve => { finishNew = resolve; }));
+    vi.stubGlobal("fetch", fetcher);
+    const status = useAccountStatus(4000);
+    const cleanup = hooks.effects[0]();
+    const old = status.refresh();
+    const signal = fetcher.mock.calls[0][1].signal as AbortSignal;
+    window.dispatchEvent(Object.assign(new Event("storage"), { key: "unrelated", newValue: "1" }));
+    window.dispatchEvent(Object.assign(new Event("storage"), { key: ACCOUNT_EVENT, newValue: null }));
+    expect(fetcher).toHaveBeenCalledOnce();
+    window.dispatchEvent(Object.assign(new Event("storage"), { key: ACCOUNT_EVENT, newValue: '{"account":{"cacheKey":"untrusted"}}' }));
+    expect(signal.aborted).toBe(true);
+    expect(hooks.setters[0].mock.calls).toEqual([[undefined]]);
+    expect(hooks.setters[2].mock.calls).toEqual([[null]]);
+    expect(window.localStorage.setItem).not.toHaveBeenCalled();
+
+    finishOld(Response.json({ account: { cacheKey: "old", phoneVerified: true }, sessionKey: "old-session" }));
+    await old;
+    expect(hooks.setters[0].mock.calls).toEqual([[undefined]]);
+    const newOwner = { cacheKey: "new", phoneVerified: true };
+    finishNew(Response.json({ account: newOwner, sessionKey: "new-session" }));
+    await vi.waitFor(() => expect(hooks.setters[0].mock.calls).toEqual([[undefined], [newOwner]]));
+    expect(hooks.setters[2].mock.calls).toEqual([[null], ["new-session"]]);
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    cleanup!();
+    window.dispatchEvent(Object.assign(new Event("storage"), { key: ACCOUNT_EVENT, newValue: "later" }));
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
+  it("consumes a successful auth redirect once without losing calendar or navigation parameters", () => {
+    window.location.href = `https://tempo.test/extensions?calendar=connected&${ACCOUNT_CHANGE_PARAM}=1#connections`;
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({ account: null })));
+    useAccountStatus();
+    useAccountStatus();
+    hooks.effects.forEach(effect => effect());
+    expect(window.history.replaceState).toHaveBeenCalledExactlyOnceWith({ preserved: true }, "", new URL("https://tempo.test/extensions?calendar=connected#connections"));
+    expect(window.localStorage.setItem).toHaveBeenCalledExactlyOnceWith(ACCOUNT_EVENT, expect.stringMatching(/^\d+-/));
+    expect(window.dispatchEvent).toHaveBeenCalledOnce();
+  });
+
+  it("leaves other tabs alone on an ordinary new mount and revalidates locally when storage is unavailable", () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json({ account: null })));
+    useAccountStatus(4000);
+    hooks.effects[0]();
+    expect(window.localStorage.setItem).not.toHaveBeenCalled();
+    expect(window.dispatchEvent).not.toHaveBeenCalled();
+    expect(window.setTimeout).toHaveBeenCalledOnce();
+    expect(window.setInterval).toHaveBeenCalledOnce();
+    vi.mocked(window.localStorage.setItem).mockImplementation(() => { throw new Error("Unavailable"); });
+    expect(publishAccountChange).not.toThrow();
+    expect(hooks.setters[0]).toHaveBeenCalledExactlyOnceWith(undefined);
+    expect(fetch).toHaveBeenCalledOnce();
+  });
+
   it("observes a pending session proof separately from account identity and retains it only through a temporary lookup failure", async () => {
     const json = vi.fn().mockRejectedValue(new SyntaxError("Not JSON"));
     vi.stubGlobal("fetch", vi.fn()

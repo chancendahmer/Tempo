@@ -27,11 +27,20 @@ describe("meal and shopping views", () => {
     const html = renderToStaticMarkup(createElement(FoodViews, { ...props, tab: "groceries", items: [meal, grocery, pantry, manual] }));
     expect(html).toContain("Purchased · not added to pantry");
     expect(html).toContain("300 g rice");
-    expect(html).toContain("100 g rice");
-    expect(html).toContain("Rice bowl · 2026-10-15");
+    expect(html).toContain("100 g rice covered by pantry stock");
+    expect(html).toContain("<strong>100 g rice</strong><small>In stock</small>");
+    const sourceDate = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeZone: "UTC" }).format(new Date("2026-10-15T12:00:00Z"));
+    expect(html).toContain(`Rice bowl · <time dateTime="2026-10-15">${sourceDate}</time>`);
     expect(html).not.toContain("Edit derived");
     expect(html).toContain("Edit pantry");
     expect(html).toContain("Edit manual");
     expect(html.indexOf("Lemons")).toBeLessThan(html.indexOf("300 g rice"));
+  });
+
+  it("labels a derived amount to buy without inventing a deduction from unknown source quantities", () => {
+    const grocery = saved("derived", { kind: "grocery", title: "rice", quantity: 100, unit: "g", checked: false, mealSources: [{ mealId: meal.id, quantity: null }] });
+    const html = renderToStaticMarkup(createElement(FoodViews, { ...props, tab: "groceries", items: [meal, grocery] }));
+    expect(html).toContain("<strong>100 g rice</strong><small>To buy · from your meal plans</small>");
+    expect(html).not.toContain("covered by pantry stock");
   });
 });

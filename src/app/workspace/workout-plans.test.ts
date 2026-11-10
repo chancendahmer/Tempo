@@ -3,6 +3,8 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { buildWorkoutPlan, WorkoutPlanEditor, type WorkoutPlanDraft } from "./WorkoutPlanEditor";
 import { buildWorkoutLog } from "./WorkoutLogEditor";
+import { FitnessView } from "./FitnessView";
+import { previewWorkspace } from "./workspace-data";
 import { exerciseAlternative, workoutPrograms, workoutTaskDraft } from "./workout-programs";
 import { lifeItemSchema } from "../../server/domain/life-items";
 const draft = (): WorkoutPlanDraft => ({ title: "My two days", templateId: "full-body", sessions: workoutPrograms[0].sessions.map(session => ({ ...session, minutes: String(session.minutes), exercises: session.exercises.map(exercise => ({ ...exercise })) })) });
@@ -56,5 +58,21 @@ describe("completed movement", () => {
   it("does not record a future workout as completed", () => {
     expect(() => buildWorkoutLog(values, "2026-10-14")).toThrow("earlier date");
     expect(() => buildWorkoutLog({ ...values, minutes: "0" }, "2026-10-15")).toThrow("whole minutes");
+  });
+
+  it("labels selected-day minutes as incomplete only when that date's logs are truncated", () => {
+    const date = "2026-10-15";
+    const logs = [{ id: "log", version: 1, data: buildWorkoutLog(values, date) }];
+    const render = (coverageDate: string) => renderToStaticMarkup(createElement(FitnessView, {
+      data: { ...previewWorkspace(new Date(`${date}T12:00:00Z`)), items: logs, diaryCoverage: {
+        date: coverageDate, food: { included: 0, total: 0, limit: 2, truncated: false },
+        workout: { included: 1, total: 2, limit: 1, truncated: true },
+      } },
+      today: date, date, setDate: () => {}, saving: false, plan: () => {}, showTasks: () => {}, save: async () => true, remove: () => {},
+    }));
+    expect(render(date)).toContain("1 of 2 sessions shown for this day");
+    expect(render(date)).toContain("minutes in loaded entries");
+    expect(render("2026-10-14")).toContain("1 session for the selected day");
+    expect(render("2026-10-14")).not.toContain("minutes in loaded entries");
   });
 });

@@ -492,6 +492,28 @@ export const pendingDeliveryReceipts = pgTable("pending_delivery_receipts", {
   check("pending_delivery_receipts_error_code_check", sql`${table.errorCode} is null or ${table.errorCode} ~ '^[A-Za-z0-9_-]{1,64}$'`),
 ]);
 
+// A disposition acknowledges unresolved history without changing its delivery
+// ledger. The latest explicit event is reversible by appending another event.
+export const outboundDispositionEvents = pgTable("outbound_disposition_events", {
+  id: bigint("id", { mode: "bigint" }).primaryKey().generatedAlwaysAsIdentity(),
+  messageId: uuid("message_id").notNull().references(() => conversationMessages.id, { onDelete: "cascade" }),
+  decision: text("decision").notNull().$type<"close_unresolved_without_replay" | "reopen">(),
+  manifestVersion: integer("manifest_version").notNull(),
+  manifestSha256: text("manifest_sha256").notNull(),
+  approvalRef: text("approval_ref").notNull(),
+  operatorRef: text("operator_ref").notNull(),
+  messageUpdatedAt: timestamp("message_updated_at", { withTimezone: true }).notNull(),
+  recordedAt: timestamp("recorded_at", { withTimezone: true }).defaultNow().notNull(),
+}, table => [
+  index("outbound_disposition_events_latest_idx").on(table.messageId, table.id.desc()),
+  uniqueIndex("outbound_disposition_events_manifest_once_idx").on(table.messageId, table.manifestSha256),
+  check("outbound_disposition_events_decision_check", sql`${table.decision} in ('close_unresolved_without_replay', 'reopen')`),
+  check("outbound_disposition_events_version_check", sql`${table.manifestVersion} = 1`),
+  check("outbound_disposition_events_digest_check", sql`${table.manifestSha256} ~ '^[a-f0-9]{64}$'`),
+  check("outbound_disposition_events_approval_check", sql`${table.approvalRef} ~ '^[a-zA-Z0-9_-]{1,80}$'`),
+  check("outbound_disposition_events_operator_check", sql`${table.operatorRef} ~ '^[a-zA-Z0-9_-]{1,80}$'`),
+]);
+
 export const messageRelations = pgTable(
   "message_relations",
   {

@@ -13,6 +13,16 @@ type Props = { tab: string; items: SavedLifeItem[]; date: string; today: string;
   plan: (item: SavedLifeItem) => void; actions: (item: SavedLifeItem) => ReactNode;
   save: (data: LifeItem, item?: SavedLifeItem, sourceRecipeId?: string) => Promise<boolean>; ask: (text: string) => void;
 };
+const mealSourceDate = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeZone: "UTC" });
+
+function pantryCoverage(grocery: Extract<LifeItem, { kind: "grocery" }>) {
+  const { mealSources, quantity } = grocery;
+  if (!mealSources?.length || quantity === undefined || mealSources.some(source => source.quantity === null)) return;
+  const planned = mealSources.reduce((total, source) => total + (source.quantity ?? 0), 0);
+  const covered = Math.round((planned - quantity) * 1_000_000) / 1_000_000;
+  if (covered > 0) return `${ingredientLabel({ ...grocery, quantity: covered })} covered by pantry stock`;
+}
+
 export function FoodViews({ tab, items, date, today, setDate, saving, edit, plan, actions, save, ask }: Props) {
   const [recipeQuery, setRecipeQuery] = useState("");
   const recipes = items.filter(item => item.data.kind === "recipe");
@@ -34,10 +44,31 @@ export function FoodViews({ tab, items, date, today, setDate, saving, edit, plan
   if (tab === "groceries") return <div className={`${f.foodPage} ${f.shoppingLayout}`}><article className={s.card}>
     <div className={s.sectionHeading}><h2><FiShoppingBag /> Shopping list</h2><button className={s.secondary} onClick={() => edit("grocery")}><FiPlus /> Add grocery</button></div>
     <div className={f.shoppingProgress}><span><strong>{groceries.length - purchased}</strong> to buy</span><span><FiCheck /><strong>{purchased}</strong> purchased</span></div><p className={s.muted}>Check off what you bought. Add it to pantry separately when it’s stocked.</p>
-    {items.filter(item => item.data.kind === "grocery").sort((a, b) => Number(a.data.kind === "grocery" && a.data.checked) - Number(b.data.kind === "grocery" && b.data.checked)).map(item => item.data.kind === "grocery" && <div className={s.taskRow} key={item.id}><button className={`${s.check} ${item.data.checked ? s.checked : ""}`} disabled={saving} aria-label={`${item.data.checked ? "Uncheck purchase" : "Mark purchased"}: ${item.data.title}`} aria-pressed={item.data.checked} onClick={() => { if (item.data.kind === "grocery") void save({ ...item.data, checked: !item.data.checked }, item); }}>{item.data.checked && <FiCheck />}</button><span className={s.grow}><strong>{ingredientLabel(item.data)}</strong><small>{item.data.checked ? "Purchased · not added to pantry" : item.data.mealSources?.length ? "From your meal plans" : "Added by you"}</small>{item.data.mealSources?.map(source => { const meal = items.find(row => row.id === source.mealId); return meal?.data.kind === "meal" ? <button className={s.textButton} key={source.mealId} onClick={() => edit("meal", meal)}>{meal.data.title} · {meal.data.date}</button> : null; })}</span>{!item.data.mealSources?.length && actions(item)}</div>)}
+    {groceries.sort((a, b) => Number(a.data.kind === "grocery" && a.data.checked) - Number(b.data.kind === "grocery" && b.data.checked)).map(item => {
+      const grocery = item.data;
+      if (grocery.kind !== "grocery") return null;
+      const derived = Boolean(grocery.mealSources?.length);
+      const covered = pantryCoverage(grocery);
+      return <div className={s.taskRow} key={item.id}>
+        <button className={`${s.check} ${grocery.checked ? s.checked : ""}`} disabled={saving} aria-label={`${grocery.checked ? "Uncheck purchase" : "Mark purchased"}: ${grocery.title}`} aria-pressed={grocery.checked} onClick={() => void save({ ...grocery, checked: !grocery.checked }, item)}>{grocery.checked && <FiCheck />}</button>
+        <span className={s.grow}>
+          <strong>{ingredientLabel(grocery)}</strong>
+          <small>{grocery.checked ? "Purchased · not added to pantry" : derived ? "To buy · from your meal plans" : "Added by you"}</small>
+          {covered && <small>{covered}</small>}
+          {grocery.mealSources?.map(source => {
+            const meal = items.find(row => row.id === source.mealId);
+            if (meal?.data.kind !== "meal") return null;
+            const day = new Date(`${meal.data.date}T12:00:00Z`);
+            const label = Number.isNaN(day.getTime()) ? meal.data.date : mealSourceDate.format(day);
+            return <button className={s.textButton} key={source.mealId} onClick={() => edit("meal", meal)}>{meal.data.title} · <time dateTime={meal.data.date}>{label}</time></button>;
+          })}
+        </span>
+        {!derived && actions(item)}
+      </div>;
+    })}
     {!items.some(item => item.data.kind === "grocery") && <p className={s.muted}>Your list is clear. Add what you need for your next shop.</p>}
     <details><summary>How shopping stays up to date</summary><p>Meal ingredients are combined only when names and units match. Changing servings adjusts quantities; removing a plan removes its share. Your manual entries stay separate. Past meals leave the shopping calculation after their local date. Only recorded pantry amounts are deducted.</p><p>To change a meal ingredient, open its source meal above. You can also switch off shopping for that meal.</p></details>
-  </article><article className={s.card}><div className={s.sectionHeading}><div><h2>In your pantry</h2><p className={s.muted}>What you’ve actually stocked, not what you’ve eaten.</p></div><button className={s.secondary} onClick={() => edit("pantry")}><FiPlus /> Add stock</button></div>{items.filter(item => item.data.kind === "pantry").map(item => item.data.kind === "pantry" && <div className={s.taskRow} key={item.id}><span className={s.grow}><strong>{ingredientLabel(item.data)}</strong>{item.data.quantity === undefined && <small>Amount unknown · not deducted from shopping</small>}</span>{actions(item)}</div>)}{!items.some(item => item.data.kind === "pantry") && <p>No stock recorded. Add an amount when you know what’s on hand.</p>}</article></div>;
+  </article><article className={s.card}><div className={s.sectionHeading}><div><h2>In your pantry</h2><p className={s.muted}>What you’ve actually stocked, not what you’ve eaten.</p></div><button className={s.secondary} onClick={() => edit("pantry")}><FiPlus /> Add stock</button></div>{items.filter(item => item.data.kind === "pantry").map(item => item.data.kind === "pantry" && <div className={s.taskRow} key={item.id}><span className={s.grow}><strong>{ingredientLabel(item.data)}</strong><small>{item.data.quantity === undefined ? "In stock · amount unknown, not deducted from shopping" : "In stock"}</small></span>{actions(item)}</div>)}{!items.some(item => item.data.kind === "pantry") && <p>No stock recorded. Add an amount when you know what’s on hand.</p>}</article></div>;
   const days = Array.from({ length: 7 }, (_, offset) => { const day = new Date(`${today}T12:00:00Z`); day.setUTCDate(day.getUTCDate() + offset); return { date: day.toISOString().slice(0, 10), label: offset === 0 ? "Today" : day.toLocaleDateString(undefined, { weekday: "short", timeZone: "UTC" }), number: day.getUTCDate() }; });
   return <div className={`${f.foodPage} ${f.mealsPage}`}>
     <div className={s.sectionHeading}><div className={s.row}><h2>On the menu</h2><input className={s.dateInput} aria-label="Meal plan date" type="date" value={date} onChange={e => { if (e.target.value) setDate(e.target.value); }} /></div><button className={s.primary} onClick={() => edit("meal")}><FiPlus /> Plan a meal</button></div>

@@ -64,4 +64,33 @@ describe("completed workout persistence", () => {
     expect(workspace.tasks[0].status).toBe("not_started");
     expect(workspace.items.find(item => item.id === planId)?.data).toMatchObject({ sessions: [session] });
   });
+
+  it("checks new session links across channels and preserves historical links after a rename", async () => {
+    const [person] = await db.insert(schema.users).values({ phoneE164: "+12025550697" }).returning();
+    const planId = randomUUID(), logId = randomUUID(), genericId = randomUUID();
+    const session = { name: "Riverside walk", minutes: 18, exercises: [{ name: "Walk", dose: "18 minutes" }] };
+    const plan = { kind: "workout_plan" as const, title: "Riverside sessions", templateId: "walking-mobility", sessions: [session] };
+    const genericLog = { ...workout, programId: planId, minutes: 12 };
+    const log = { ...genericLog, title: "Walked with a friend", sessionName: session.name };
+    const assistant = new LifeAssistant(db);
+    await mutateWorkspace(person.id, { action: "save", id: planId, version: 0, data: plan }, db);
+    await mutateWorkspace(person.id, { action: "save", id: genericId, version: 0, data: genericLog }, db);
+    await mutateWorkspace(person.id, { action: "save", id: logId, version: 0, data: log }, db);
+    await mutateWorkspace(person.id, { action: "save", id: planId, version: 1, data: { ...plan, sessions: [{ ...session, name: "Bridge walk" }] } }, db);
+
+    const staleSource = randomUUID();
+    await expect(mutateWorkspace(person.id, { action: "save", id: randomUUID(), version: 0, data: log }, db)).rejects.toThrow("session is unavailable");
+    expect(await assistant.execute(person.id, staleSource, { type: "life_save", data: log })).toContain("session is unavailable");
+    expect(await assistant.execute(person.id, randomUUID(), { type: "life_patch", id: genericId, version: 1, patch: { kind: "workout", sessionName: "Invented session" } })).toContain("session is unavailable");
+
+    const currentLogs = (await readWorkspace(person.id, db)).items.filter(item => item.data.kind === "workout");
+    expect(currentLogs).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: genericId, version: 1, data: genericLog }),
+      expect.objectContaining({ id: logId, version: 1, data: log }),
+    ]));
+    expect(currentLogs).toHaveLength(2);
+
+    expect(await assistant.execute(person.id, randomUUID(), { type: "life_patch", id: logId, version: 1, patch: { kind: "workout", notes: "Historical log" } })).toContain("Updated");
+    expect((await readWorkspace(person.id, db)).items.find(item => item.id === logId)).toMatchObject({ version: 2, data: { ...log, notes: "Historical log" } });
+  });
 });

@@ -93,9 +93,14 @@ export async function mutateWorkspace(userId: string, input: WorkspaceAction, da
       }
     };
     const validateWorkoutProgram = async (data: LifeItem, previous?: LifeItem) => {
-      if (data.kind !== "workout" || !data.programId || (previous?.kind === "workout" && previous.programId === data.programId)) return;
-      const [plan] = await transaction.select({ id: lifeItems.id }).from(lifeItems).where(and(eq(lifeItems.userId, userId), eq(lifeItems.id, data.programId), sql`${lifeItems.data}->>'kind' = 'workout_plan'`)).limit(1);
-      if (!plan) throw new WorkspaceConflict("That saved workout plan is unavailable. Choose a plan from your account or log movement without a plan.");
+      if (data.kind !== "workout" || !data.programId) return;
+      // Keep a historical association when editing an unrelated log field.
+      if (previous?.kind === "workout" && previous.programId === data.programId && previous.sessionName === data.sessionName) return;
+      const [plan] = await transaction.select({ data: lifeItems.data }).from(lifeItems).where(and(eq(lifeItems.userId, userId), eq(lifeItems.id, data.programId), sql`${lifeItems.data}->>'kind' = 'workout_plan'`)).limit(1);
+      if (plan?.data.kind !== "workout_plan") throw new WorkspaceConflict("That saved workout plan is unavailable. Choose a plan from your account or log movement without a plan.");
+      if (data.sessionName && !plan.data.sessions.some(session => session.name === data.sessionName)) {
+        throw new WorkspaceConflict("That session is unavailable in the saved workout plan. Reopen the current plan before logging this session.");
+      }
     };
     const receiptKey = receiptId ? `life:${userId}:${receiptId}` : input.action === "save" || input.action === "patch" || input.action === "delete" ? `workspace:${userId}:${input.action}:${input.id}:${input.version}` : input.action === "stop_focus" ? `workspace:${userId}:stop_focus:${input.requestId}` : null;
     const fingerprint = createHash("sha256").update(JSON.stringify(input)).digest("hex");

@@ -1,0 +1,26 @@
+{
+  "passed": true,
+  "migrationsBefore": 34,
+  "migrationsAfter": 35,
+  "migrationsAfterRerun": 35,
+  "populatedAccounts": 2,
+  "existingTablesCompared": 42,
+  "populatedTables": {
+    "consent_records": 2,
+    "conversation_messages": 2,
+    "conversations": 2,
+    "life_items": 2,
+    "provider_message_bindings": 2,
+    "scheduled_actions": 2,
+    "tasks": 2,
+    "users": 2
+  },
+  "newTableInitiallyEmpty": true,
+  "expiryIndex": true,
+  "constraintProbes": 4,
+  "existingRowsUnchanged": true,
+  "pendingReceiptPreservedOnRerun": true,
+  "localPostgresOnly": true,
+  "sharedMigrationLock": true,
+  "disposableDatabaseRemoved": true
+}
