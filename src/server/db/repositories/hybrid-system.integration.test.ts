@@ -143,6 +143,15 @@ describe("hybrid reminder and accountability infrastructure", () => {
     });
     expect(await repository.reconcileDelivery(reminder.id, reminder.remindAt)).toBe("pending");
     expect((await repository.findBySourceMessage(source.id))?.status).toBe("scheduled");
+
+    // Acceptance and carrier failure are separate ledger facts. A worker retry
+    // finalizes the accepted occurrence without asking the provider to send again.
+    await database.update(conversationMessages).set({ outboundState: "accepted" })
+      .where(eq(conversationMessages.providerMessageSid, "failed-reminder-test"));
+    expect(await repository.reconcileDelivery(reminder.id, reminder.remindAt)).toBe("sent");
+    expect((await repository.findBySourceMessage(source.id))?.status).toBe("sent");
+    const [receipt] = await database.select().from(conversationMessages).where(eq(conversationMessages.providerMessageSid, "failed-reminder-test"));
+    expect(receipt).toMatchObject({ status: "failed", outboundState: "accepted" });
   });
 
   it("does not let a late failing job overwrite a successfully sent reminder", async () => {

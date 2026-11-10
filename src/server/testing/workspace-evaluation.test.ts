@@ -26,3 +26,18 @@ it("rejects superficially successful AI edits that also corrupt unrelated dashbo
     expect(evaluateWorkspaceChange(workspaceJourney.at(-1)!, before, after)).toContain("Unexpected life-item changes.");
   } finally { await simulation.close(); }
 }, 30000);
+
+it("accepts expected meal grocery side effects while detecting missing or unrelated shopping changes", async () => {
+  const simulation = await createAssistantSimulator(scriptedWorkspaceParser);
+  try {
+    const person = await simulation.user();
+    const before = await person.workspace();
+    await person.send(workspaceJourney[2].message);
+    const after = await person.workspace();
+    expect(evaluateWorkspaceChange(workspaceJourney[2], before, after)).toEqual([]);
+    const missing = { ...after, items: after.items.filter(item => item.data.kind !== "grocery") };
+    expect(evaluateWorkspaceChange(workspaceJourney[2], before, missing)).toContain("Meal groceries did not match the saved ingredients and explicit pantry stock.");
+    const extra = { ...after, items: [...after.items, { id: "manual-extra", version: 1, data: { kind: "grocery" as const, title: "Unrequested", checked: false } }] };
+    expect(evaluateWorkspaceChange(workspaceJourney[2], before, extra)).toContain("Create changed extra or incorrect life items.");
+  } finally { await simulation.close(); }
+}, 30000);

@@ -2,9 +2,12 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useAccountStatus } from "../components/account-state";
+import { useAccountResource } from "../components/account-resource";
 import styles from "./board.module.css";
 
 type Board = {
+  cacheKey: string;
   timezone: string; generatedAt: string;
   tasks: { id: string; title: string; status: string; dueAt: string | null; estimatedMinutes: number | null }[];
   reminders: { id: string; text: string; remindAt: string; status: string }[];
@@ -13,39 +16,32 @@ type Board = {
 };
 
 export function BoardClient() {
-  const [board, setBoard] = useState<Board | null>(null);
-  const [message, setMessage] = useState("Loading your day…");
+  const { account, error, refresh } = useAccountStatus(6_000);
+  if (error && !account?.phoneVerified || account?.phoneVerified && !account.cacheKey) return <main className={styles.board}><h1>Your board is temporarily unavailable.</h1><p role="alert">We couldn’t confirm your account. Please try again.</p><button onClick={() => void refresh()}>Try again</button></main>;
+  if (account === undefined) return <main className={styles.board}><p role="status">Loading your day…</p></main>;
+  if (!account?.phoneVerified) return <main className={styles.board}><h1>Log in to open your board.</h1><Link href="/login">Log in</Link></main>;
+  return <BoardView key={account.cacheKey} owner={account.cacheKey!} accountUnavailable={!!error} refreshAccount={() => void refresh()} />;
+}
+
+function BoardView({ owner, accountUnavailable, refreshAccount }: { owner: string; accountUnavailable: boolean; refreshAccount: () => void }) {
+  const { data: board, loading, unavailable, unauthorized, refresh } = useAccountResource<Board>("/api/account/board", owner, 30_000);
+  const stale = unavailable || accountUnavailable;
+  const message = unauthorized ? "Log in to open your board." : stale
+    ? board ? "Showing your last known board. It may be out of date." : "Your board is temporarily unavailable. Please try again."
+    : loading && !board ? "Loading your day…" : "";
   const [now, setNow] = useState<Date | null>(null);
   const [hidden, setHidden] = useState(false);
   const [simple, setSimple] = useState(false);
   const [speechMessage, setSpeechMessage] = useState("");
 
   useEffect(() => {
-    let stopped = false;
-    let timer: ReturnType<typeof setTimeout>;
-    const controller = new AbortController();
-    async function refresh() {
-      try {
-        const response = await fetch("/api/account/board", { cache: "no-store", signal: controller.signal });
-        if (!response.ok) throw new Error(response.status === 401 ? "Log in to open your board." : "Connection unavailable. Retrying shortly.");
-        const payload = await response.json() as Board;
-        if (!stopped) { setBoard(payload); setMessage(""); }
-      } catch (error) {
-        // Clear private/stale data on logout, expiry, or network failure.
-        if (!stopped) {
-          window.speechSynthesis?.cancel();
-          setBoard(null);
-          setMessage(error instanceof Error ? error.message : "Could not refresh your board.");
-        }
-      } finally { if (!stopped) timer = setTimeout(refresh, 30_000); }
-    }
-    void refresh();
     const clock = setInterval(() => setNow(new Date()), 1_000);
-    return () => { stopped = true; controller.abort(); clearTimeout(timer); clearInterval(clock); window.speechSynthesis?.cancel(); };
+    return () => { clearInterval(clock); window.speechSynthesis?.cancel(); };
   }, []);
+  useEffect(() => { if (stale || unauthorized) window.speechSynthesis?.cancel(); }, [stale, unauthorized]);
 
   function speak() {
-    if (!board || !now) return;
+    if (!board || !now || stale) return;
     if (!("speechSynthesis" in window)) { setSpeechMessage("Spoken briefings are unavailable in this browser."); return; }
     window.speechSynthesis.cancel();
     const next = board.tasks[0];
@@ -72,11 +68,11 @@ export function BoardClient() {
     {hidden ? <h1>Your board is hidden.</h1> : <>
       <p className={styles.clock}>{now && board ? new Intl.DateTimeFormat(undefined, { timeZone: board.timezone, hour: "numeric", minute: "2-digit" }).format(now) : ""}</p>
       <h1>One thing at a time.</h1>
-      {message && <p className={styles.notice} role="status">{message} <Link href="/login">Log in</Link></p>}
+      {message && <div className={styles.notice} role="status"><p>{message}</p>{unauthorized ? <Link href="/login">Log in</Link> : stale && <button disabled={loading} onClick={() => { refreshAccount(); void refresh(); }}>Try again</button>}</div>}
       {board && <>
         <p>Shared with your Tempo text assistant · {board.timezone}</p>
         <div className={styles.controls}>
-          <button onClick={speak}>Read my briefing aloud</button>
+          <button onClick={speak} disabled={stale}>Read my briefing aloud</button>
           <button onClick={() => { window.speechSynthesis?.cancel(); setSpeechMessage("Audio stopped."); }}>Stop audio</button>
           <button aria-pressed={simple} onClick={() => setSimple(!simple)}>{simple ? "Show the day" : "Focus on one thing"}</button>
         </div>

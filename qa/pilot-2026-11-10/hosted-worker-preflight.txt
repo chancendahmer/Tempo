@@ -1,0 +1,16 @@
+- generic: QB7d4zPVcqRTOaK/OvOFH0OLSkoVUnZVU2ccGsEcUpQHyfUEaJp6QgVABbiokoK1s4iGAhMantglq+eV/AVmDlJgnRAAA'
+- generic: "{\"ok\":true,\"readOnly\":true,\"hosting\":{\"role\":\"worker\",\"environment\":\"production\",\"railwayDeploymentReferenceP"
+- generic: resent":true,"railwayReplicaReferencePresent":true,"nodeVersion":"24.21.0","appPackageVersion":"1.0.0","build
+- generic: "\":\"86ae01023abcf24bcc8da9ed9d367192e14a29ae\",\"railwayBuild\":\"86ae01023abcf24bcc8da9ed9d367192e14a29ae\",\"build"
+- generic: "MatchesRailway\":true,\"observedBaselineBuild\":true},\"config\":{\"candidateSchemaValid\":true,\"productionRuntime\":"
+- generic: true,"databaseUrlPresent":true,"publicHttps":true,"encryptionKeyValid":true,"googleCredentialsPresent":true,"
+- generic: googleCallbackSameOrigin":true,"messagingProvider":"sendblue","sendblueKeyPairPresent":true,"sendblueWebhookS
+- generic: ecretPresent":true,"sendblueLinePresent":true,"sendblueOfficialEndpoint":true,"admissionMode":"open","admissi
+- generic: onModeExplicit":false,"inviteListValid":true,"inviteCount":0,"shadowMode":true,"autonomousSending":false,"cle
+- generic: anupCheckins":true,"proactiveCanaryCount":1,"webSearchEnabled":true,"anthropicKeyPresent":true,"budgetMode":"
+- generic: "off\",\"budgetConfiguration\":\"disabled\",\"budgetReason\":\"mode_off\",\"allBudgetCapsPositive\":null},\"migrationLedge"
+- generic: "r\":{\"present\":true,\"observedRows\":29,\"countCapped\":false,\"exactPrefixThrough\":\"0028\"},\"databaseObjects\":{\"que"
+- generic: "ue\":true,\"budget\":false,\"receipts\":false,\"dispositions\":false},\"heartbeats\":{\"observed\":1,\"freshLegacyWorker\""
+- generic: :1,"freshWorkerInstances":0,"freshWebInstances":0,"freshWorkerBuildMatchesConsole":0,"freshWebBuildMatchesCon
+- generic: "sole\":0,\"countCapped\":false}}"
+- generic: root@f828926573ed:/app#

@@ -4,7 +4,7 @@ import { phonePartsToE164 } from "./phone";
 
 export const SMS_DISCLOSURE_VERSION = "2026-08-18.v1";
 export const TERMS_VERSION = "2026-08-18.v1";
-export const PRIVACY_VERSION = "2026-08-18.v1";
+export const PRIVACY_VERSION = "2026-11-10.v2";
 
 const SUPPORTED_CALLING_CODES: Record<string, string> = { US: "+1", CA: "+1", GB: "+44", AU: "+61" };
 

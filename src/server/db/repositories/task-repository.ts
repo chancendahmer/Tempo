@@ -1,7 +1,7 @@
 import { and, asc, eq, inArray, ne, sql } from "drizzle-orm";
-import { TaskMutation, TaskRecord, TaskRepository } from "../../domain/task-service";
+import { TaskMutation, TaskRecord, TaskRepository, TaskSourceNoteError } from "../../domain/task-service";
 import { getDatabase, TempoDatabase } from "../client";
-import { goals, lifeItems, taskEvents, tasks } from "../schema";
+import { goals, lifeItems, taskEvents, tasks, users } from "../schema";
 
 function asTaskRecord(row: typeof tasks.$inferSelect): TaskRecord {
   return {
@@ -37,6 +37,19 @@ export class DrizzleTaskRepository implements TaskRepository {
 
   async create(input: Parameters<TaskRepository["create"]>[0]) {
     return this.database.transaction(async (transaction) => {
+      // The same account lock is used by workspace edits and assistant writes.
+      // A note's server-owned backlink is the durable conversion identity.
+      let sourceNote: typeof lifeItems.$inferSelect | undefined;
+      if (input.sourceNoteId) {
+        await transaction.select({ id: users.id }).from(users).where(eq(users.id, input.userId)).for("update");
+        [sourceNote] = await transaction.select().from(lifeItems).where(and(eq(lifeItems.id, input.sourceNoteId), eq(lifeItems.userId, input.userId))).for("update");
+        if (sourceNote?.data.kind !== "note") throw new TaskSourceNoteError("That saved thought is unavailable. Read your thoughts before converting one.");
+        if (sourceNote.data.taskId) {
+          const [linked] = await transaction.select().from(tasks).where(and(eq(tasks.id, sourceNote.data.taskId), eq(tasks.userId, input.userId)));
+          if (!linked || linked.status === "abandoned") throw new TaskSourceNoteError("The task made from this thought was removed. Your thought is still saved. Add a separate new task if you want another step.");
+          return asTaskRecord(linked);
+        }
+      }
       if (input.goalId) {
         const [ownedGoal] = await transaction.select({ id: goals.id }).from(goals).where(and(
           eq(goals.id, input.goalId),
@@ -68,6 +81,7 @@ export class DrizzleTaskRepository implements TaskRepository {
           goalId: created.goalId,
         },
       });
+      if (sourceNote?.data.kind === "note") await transaction.update(lifeItems).set({ data: { ...sourceNote.data, taskId: created.id }, version: sql`${lifeItems.version} + 1`, updatedAt: new Date() }).where(and(eq(lifeItems.id, sourceNote.id), eq(lifeItems.userId, input.userId)));
       return asTaskRecord(created);
     });
   }
@@ -103,12 +117,17 @@ export class DrizzleTaskRepository implements TaskRepository {
         await transaction.delete(lifeItems).where(and(eq(lifeItems.userId, input.userId), sql`${lifeItems.data}->>'kind' = 'focus'`, sql`coalesce(${lifeItems.data}->>'taskId', '') <> ${input.taskId}`));
       }
       if (input.changes.status === "completed" || input.changes.status === "abandoned") {
-        await transaction.delete(lifeItems).where(and(eq(lifeItems.userId, input.userId), sql`${lifeItems.data}->>'taskId' = ${input.taskId}`));
+        await transaction.delete(lifeItems).where(and(eq(lifeItems.userId, input.userId), sql`${lifeItems.data}->>'kind' = 'focus'`, sql`${lifeItems.data}->>'taskId' = ${input.taskId}`));
       }
+      const presentationInputsChanged = input.changes.title !== undefined || input.changes.estimatedMinutes !== undefined;
+      const samePresentationInputs = and(
+        input.changes.title === undefined ? undefined : eq(tasks.title, input.changes.title),
+        input.changes.estimatedMinutes === undefined ? undefined : sql`${tasks.estimatedMinutes} is not distinct from ${input.changes.estimatedMinutes}`,
+      );
       const [updated] = await transaction
         .update(tasks)
-        .set({ ...input.changes, updatedAt: new Date() })
-        .where(and(eq(tasks.id, input.taskId), eq(tasks.userId, input.userId)))
+        .set({ ...input.changes, ...(presentationInputsChanged ? { presentation: sql`case when ${tasks.presentation}->>'source' = 'manual' or (${samePresentationInputs}) then ${tasks.presentation} else null end` } : {}), updatedAt: new Date() })
+        .where(and(eq(tasks.id, input.taskId), eq(tasks.userId, input.userId), input.expectedStatus ? eq(tasks.status, input.expectedStatus) : undefined))
         .returning();
       if (!updated) throw new Error("Task not found or not owned by user");
 

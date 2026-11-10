@@ -7,7 +7,7 @@ export class DrizzleConversationHistoryRepository implements ConversationHistory
   constructor(private readonly database: TempoDatabase = getDatabase()) {}
 
   async getRecent(input: Parameters<ConversationHistoryRepository["getRecent"]>[0]) {
-    const [boundary] = await this.database.select({ createdAt: conversationMessages.createdAt })
+    const [boundary] = await this.database.select({ userId: conversationMessages.userId })
       .from(conversationMessages)
       .where(and(
         eq(conversationMessages.id, input.beforeMessageId),
@@ -28,10 +28,12 @@ export class DrizzleConversationHistoryRepository implements ConversationHistory
       userId: conversationMessages.userId,
     }).from(conversationMessages).where(and(
       eq(conversationMessages.conversationId, input.conversationId),
+      eq(conversationMessages.userId, boundary.userId),
       or(sql`${conversationMessages.createdAt} <= ${cutoff}`, sql`exists (
         select 1 from message_relations relation join conversation_messages parent on parent.id = relation.target_message_id
         where relation.source_message_id = ${conversationMessages.id} and relation.type = 'reply'
-          and parent.conversation_id = ${input.conversationId} and parent.direction = 'inbound'
+          and relation.conversation_id = ${input.conversationId}
+          and parent.conversation_id = ${input.conversationId} and parent.user_id = ${boundary.userId} and parent.direction = 'inbound'
           and parent.created_at <= ${cutoff} and parent.id <> ${input.beforeMessageId}
       )`),
       ne(conversationMessages.id, input.beforeMessageId),
@@ -52,8 +54,13 @@ export class DrizzleConversationHistoryRepository implements ConversationHistory
     const relations = await this.database.select({
       sourceMessageId: messageRelations.sourceMessageId,
       targetMessageId: messageRelations.targetMessageId,
-    }).from(messageRelations).where(and(
+    }).from(messageRelations)
+      .innerJoin(conversationMessages, eq(conversationMessages.id, messageRelations.targetMessageId))
+      .where(and(
       eq(messageRelations.type, "reply"),
+      eq(messageRelations.conversationId, input.conversationId),
+      eq(conversationMessages.conversationId, input.conversationId),
+      eq(conversationMessages.userId, boundary.userId),
       inArray(messageRelations.sourceMessageId, descending.map((message) => message.id)),
     ));
     const reminderIds = descending.flatMap(message => message.relatedReminderId ? [message.relatedReminderId] : []);

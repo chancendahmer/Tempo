@@ -1,5 +1,7 @@
 import { isDeepStrictEqual } from "node:util";
 import type { Step, Workspace } from "./workspace-journey";
+import { groceriesForMeals, ingredientKey } from "../../src/server/domain/meal-groceries";
+import { localDay, type SavedLifeItem } from "../../src/server/domain/life-items";
 
 type RecordWithId = { id: string };
 function delta<T extends RecordWithId>(before: T[], after: T[]) {
@@ -20,7 +22,18 @@ export function workspaceProductState(workspace: Workspace) {
 export function evaluateWorkspaceChange(step: Step, before: Workspace, after: Workspace): string[] {
   const issues: string[] = [];
   if (!step.verify(after)) issues.push("Requested state was not found.");
-  const items = delta(before.items, after.items);
+  const isDerivedGrocery = (item: SavedLifeItem) => item.data.kind === "grocery" && Boolean(item.data.mealSources);
+  const mealChange = step.create?.kind === "meal" || step.edit?.kind === "meal";
+  const items = delta(before.items.filter(item => !mealChange || !isDerivedGrocery(item)), after.items.filter(item => !mealChange || !isDerivedGrocery(item)));
+  if (mealChange) {
+    const expected = groceriesForMeals(after.items, localDay(new Date(after.generatedAt), after.timezone));
+    const derived = after.items.filter(isDerivedGrocery);
+    if (derived.length !== expected.size || derived.some(item => {
+      const key = ingredientKey(item.data), data = expected.get(key);
+      const previous = before.items.find(old => isDerivedGrocery(old) && ingredientKey(old.data) === key);
+      return !data || (previous && previous.id !== item.id) || !isDeepStrictEqual(item.data, { ...data, checked: previous?.data.kind === "grocery" ? previous.data.checked : false });
+    })) issues.push("Meal groceries did not match the saved ingredients and explicit pantry stock.");
+  }
   if (step.create) {
     if (items.added.length !== 1 || items.added[0]?.data.kind !== step.create.kind || items.removed.length || items.edited.length) issues.push("Create changed extra or incorrect life items.");
   } else if (step.edit) {

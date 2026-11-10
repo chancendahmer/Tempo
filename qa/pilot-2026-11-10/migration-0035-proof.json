@@ -1,0 +1,80 @@
+{
+  "passed": true,
+  "localPostgresOnly": true,
+  "sharedMigrationLock": true,
+  "disposableDatabaseRemoved": true,
+  "migrationsBefore": 35,
+  "populatedAccounts": 2,
+  "existingTablesCompared": 43,
+  "populatedTables": {
+    "consent_records": 2,
+    "conversation_messages": 2,
+    "conversations": 2,
+    "life_items": 2,
+    "pending_delivery_receipts": 1,
+    "provider_message_bindings": 1,
+    "scheduled_actions": 1,
+    "service_heartbeats": 1,
+    "tasks": 2,
+    "users": 2
+  },
+  "migrationsAfter": 36,
+  "existingRowsUnchanged": true,
+  "newTableInitiallyEmpty": true,
+  "eventIndexes": 3,
+  "constraintProbes": 8,
+  "originalDeliveryAndWorkUnchanged": true,
+  "migrationsAfterRerun": 36,
+  "dispositionAndReceiptPreservedOnRerun": true,
+  "appendOnlyReopen": true,
+  "workerAndOperationsParity": [
+    {
+      "label": "before_upgrade",
+      "raw": 1,
+      "acknowledged": 0,
+      "pending": 1
+    },
+    {
+      "label": "after_upgrade_before_disposition",
+      "raw": 1,
+      "acknowledged": 0,
+      "pending": 1
+    },
+    {
+      "label": "only_acknowledged_history",
+      "raw": 1,
+      "acknowledged": 1,
+      "pending": 0
+    },
+    {
+      "label": "live_ambiguity_and_expired_submission",
+      "raw": 3,
+      "acknowledged": 1,
+      "pending": 2
+    },
+    {
+      "label": "linked_queue_work_restores_pending",
+      "raw": 3,
+      "acknowledged": 0,
+      "pending": 3
+    },
+    {
+      "label": "terminal_queue_work_restores_exemption",
+      "raw": 3,
+      "acknowledged": 1,
+      "pending": 2
+    },
+    {
+      "label": "after_rerun",
+      "raw": 3,
+      "acknowledged": 1,
+      "pending": 2
+    },
+    {
+      "label": "reopened_history",
+      "raw": 3,
+      "acknowledged": 0,
+      "pending": 3
+    }
+  ]
+}

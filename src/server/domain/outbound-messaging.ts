@@ -17,6 +17,11 @@ export type OutboundReservation = {
   state: "reserved" | "submitting" | "accepted" | "ambiguous" | "suppressed";
 };
 
+export type OutboundSubmission =
+  | { status: "started"; phoneE164: string }
+  | { status: "blocked"; reason: Exclude<OutboundBlockReason, "duplicate" | "suppressed"> }
+  | { status: "not_reserved" };
+
 export class OutboundDeliveryPendingError extends Error {
   constructor() { super("Outbound provider acceptance needs reconciliation; automatic resend is blocked"); }
 }
@@ -33,8 +38,7 @@ export interface OutboundMessageRepository {
     replyToMessageId?: string;
     sourceMessageId?: string;
   }): Promise<OutboundReservation>;
-  beginSubmission(messageId: string): Promise<boolean>;
-  cancel(messageId: string, reason: OutboundBlockReason): Promise<void>;
+  beginSubmission(messageId: string, now: Date): Promise<OutboundSubmission>;
   markSubmitted(
     messageId: string,
     provider: MessagingProvider,
@@ -70,7 +74,7 @@ export type SendSafeSmsResult =
 export function evaluateMessagingPermission(
   permission: MessagingPermission | null,
   now: Date,
-): { allowed: true } | { allowed: false; reason: Exclude<OutboundBlockReason, "duplicate"> } {
+): { allowed: true } | { allowed: false; reason: Exclude<OutboundBlockReason, "duplicate" | "suppressed"> } {
   if (!permission || permission.latestConsent !== "granted") return { allowed: false, reason: "missing_consent" };
   if (permission.userStatus === "opted_out") return { allowed: false, reason: "opted_out" };
   if (permission.userStatus === "deleted") return { allowed: false, reason: "deleted" };
@@ -98,24 +102,19 @@ export class SafeSmsSender {
     if (reservation.state === "suppressed") return { sent: false, reason: "suppressed", messageId: reservation.messageId };
     if (reservation.state !== "reserved") throw new OutboundDeliveryPendingError();
 
-    const latestPermission = await this.repository.getPermission(input.userId);
-    const dispatchPermission = evaluateMessagingPermission(latestPermission, this.now());
-    if (!dispatchPermission.allowed) {
-      await this.repository.cancel(reservation.messageId, dispatchPermission.reason);
-      return { sent: false, reason: dispatchPermission.reason, messageId: reservation.messageId };
-    }
-
     // This committed transition distinguishes a reservation from an attempt that
     // may have reached the provider. A crashed submitting attempt is never resent.
     input.signal?.throwIfAborted();
     await input.assertOwnership?.();
-    if (!await owned(() => this.repository.beginSubmission(reservation.messageId))) throw new OutboundDeliveryPendingError();
+    const submission = await owned(() => this.repository.beginSubmission(reservation.messageId, this.now()));
+    if (submission.status === "blocked") return { sent: false, reason: submission.reason, messageId: reservation.messageId };
+    if (submission.status !== "started") throw new OutboundDeliveryPendingError();
     let providerInvoked = false;
     try {
       input.signal?.throwIfAborted();
       providerInvoked = true;
       const result = await this.transport.send({
-        to: latestPermission!.phoneE164,
+        to: submission.phoneE164,
         body: input.body,
         idempotencyKey: input.idempotencyKey,
         statusCallbackUrl: input.statusCallbackUrl,

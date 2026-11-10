@@ -1,0 +1,82 @@
+{
+  "passed": true,
+  "run": "58be8cd6-f133-4abe-bb64-066eeffb4064",
+  "scope": "real local HTTP and PostgreSQL; synthetic accounts; no browser/provider calls",
+  "base": "http://localhost:3103",
+  "database": "127.0.0.1:55437/tempo_ui_release",
+  "checks": [
+    {
+      "check": "A: pending denied, link preview read-only, normal activation and single-use replay verified"
+    },
+    {
+      "check": "B: pending denied, link preview read-only, normal activation and single-use replay verified"
+    },
+    {
+      "check": "workspace: stale A owner with B cookie rejected",
+      "status": 409
+    },
+    {
+      "check": "setup: stale A owner with B cookie rejected",
+      "status": 409
+    },
+    {
+      "check": "feedback: stale A owner with B cookie rejected",
+      "status": 409
+    },
+    {
+      "check": "me: stale A owner with B cookie rejected",
+      "status": 409
+    },
+    {
+      "check": "workspace: missing owner rejected",
+      "status": 409
+    },
+    {
+      "check": "setup: missing owner rejected",
+      "status": 409
+    },
+    {
+      "check": "feedback: missing owner rejected",
+      "status": 409
+    },
+    {
+      "check": "me: missing owner rejected",
+      "status": 409
+    },
+    {
+      "check": "All eight owner rejections leave A/B records, receipts and write-limiter buckets unchanged"
+    },
+    {
+      "check": "Current B owner workspace save and duplicate retry retain exactly one item and receipt",
+      "status": 200
+    },
+    {
+      "check": "Valid B header cannot edit A's saved record",
+      "status": 409
+    },
+    {
+      "check": "Current B setup and same-content repeat persist intended values",
+      "status": 200
+    },
+    {
+      "check": "Current B profile and repeat persist only B's name/instructions",
+      "status": 200
+    },
+    {
+      "check": "B feedback duplicate retry returns the same receipt, one encrypted record and one limiter consumption",
+      "status": 201
+    },
+    {
+      "check": "Current B retrieval includes B data, excludes A marker; A durable records remain unchanged"
+    },
+    {
+      "check": "Missing or stale A logout proof with B cookie never revokes B or clears its cookie",
+      "status": 409
+    },
+    {
+      "check": "Revoked B cookie cannot write any of the four routes",
+      "status": 401
+    }
+  ],
+  "cleanedOwnedAccounts": 2
+}

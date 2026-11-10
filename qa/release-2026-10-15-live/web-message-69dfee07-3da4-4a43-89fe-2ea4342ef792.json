@@ -1,0 +1,43 @@
+{
+  "passed": true,
+  "mode": "real-postgres-pg-boss-live-model-web-only",
+  "messageId": "69dfee07-3da4-4a43-89fe-2ea4342ef792",
+  "userId": "6610b19d-628d-4b57-8a9e-82518ab1a3d7",
+  "actionId": "fcdf9929-faa3-44ba-9126-363e2aafb52e",
+  "queueSchema": "pgboss_web_qa",
+  "queue": "qa-web-69dfee07-3da4-4a43-89fe-2ea4342ef792",
+  "parserCalls": 1,
+  "tools": [
+    "life_list",
+    "life_save"
+  ],
+  "authorization": [
+    {
+      "mode": "write",
+      "commands": [
+        "life_save"
+      ]
+    }
+  ],
+  "note": {
+    "id": "69dfee07-3da4-4a43-89fe-2ea4342ef792",
+    "version": 1,
+    "data": {
+      "body": "Breakfast logged on October 18, 2026:\n- QA Oct18 oatmeal: 240 calories, 8g protein, 40g carbs, 5g fat",
+      "kind": "note",
+      "title": "QA Oct18 breakfast recap"
+    }
+  },
+  "reply": {
+    "id": "1bef91c9-95ff-49c0-9695-2c11aab33788",
+    "body": "Saved: QA Oct18 breakfast recap.\nNote saved with your one breakfast entry: QA Oct18 oatmeal — 240 cal, 8g protein, 40g carbs, 5g fat."
+  },
+  "sourceStatus": "processed",
+  "actionStatus": "completed",
+  "budget": {
+    "spent": 5.54733,
+    "committed": 5.730615,
+    "stopped": false,
+    "cap": 7
+  }
+}

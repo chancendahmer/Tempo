@@ -16,7 +16,7 @@ import type { TaskIntentParser } from "../adapters/llm/task-intent-parser";
 import { isConversationOnlyMessage, isLifeWorkspaceRequest, needsConversationalRouting } from "./conversation-routing";
 import { assistantProviderFailureReply } from "./assistant-provider-failure";
 import { OutcomeTracker } from "./outcome-tracker";
-import { MemoryCommand, MemoryService } from "./memory-service";
+import { MemoryCommand, MemoryService, memoryCorrectionWriteType } from "./memory-service";
 import { SecureActionLinks } from "../security/action-links";
 import { GoalCommand, parseGoalCommandHeuristically } from "./goal-commands";
 import {
@@ -38,14 +38,15 @@ import {
   proposeResolvedTaskReschedule,
   proposeTaskReschedule,
 } from "./reschedule-service";
-import { ConversationHistoryRepository } from "./conversation-history";
+import { ConversationHistoryRepository, type ConversationHistoryMessage } from "./conversation-history";
 import { isExplicitReminderRequest, ReminderCommand } from "./reminder-commands";
 import { ReminderRepository, executeReminderCommand, requestedReminderTime } from "./reminder-service";
-import { AssistantCommand, AssistantIntegrations } from "./assistant-commands";
-import { buildRundown, parseRundownRequest, isRundownQuestion } from "./rundown";
+import { AssistantCommand, AssistantIntegrations, type CalendarChange } from "./assistant-commands";
+import { buildRundown, parseRundownRequest, isRundownQuestion, type RundownRequest, type WorkspaceRundownSource } from "./rundown";
 import { connectionStatusReply } from "./connection-status-reply";
 import { assessTaskDeadline } from "./task-deadline";
 import { CHECKIN_CONSENT_REPLY, hasExplicitNoWriteRequest, isReadOnlyAssistantCommand, NO_WRITE_REPLY, requestedCheckinConsent, TurnWritePolicy } from "./turn-write-policy";
+import { withAiInvocationScope } from "./ai-invocation-scope";
 import { inOwnedExecution, ownedService } from "./inbound-execution";
 
 export type InboundConversationContext = {
@@ -80,6 +81,12 @@ export type StoredPendingAction = (
   expiresAt: Date;
 };
 
+type CalendarConfirmation = Extract<StoredPendingAction, { entity: "calendar_confirmation" }>;
+
+function isSameCalendarConfirmation(current: StoredPendingAction | null, expected: CalendarConfirmation): boolean {
+  return current?.entity === "calendar_confirmation" && current.createdByMessageId === expected.createdByMessageId && current.token === expected.token;
+}
+
 function isGoalCommand(command: CoachingCommand): command is GoalCommand {
   return command.type.endsWith("_goal") || command.type === "list_goals";
 }
@@ -100,7 +107,7 @@ export interface ConversationRepository {
   claimInbound(messageId: string, now: Date): Promise<InboundConversationContext | null>;
   releaseInbound(messageId: string, processingToken: string): Promise<void>;
   markProcessed(userId: string, messageId: string, processingToken: string): Promise<void>;
-  withOwnership<T>(context: InboundConversationContext, operation: () => Promise<T>): Promise<T>;
+  withOwnership<T>(context: InboundConversationContext, operation: () => Promise<T>, options?: { accountFirst?: boolean }): Promise<T>;
   persistReply(context: InboundConversationContext, body: string): Promise<string>;
   getPendingAction(userId: string): Promise<StoredPendingAction | null>;
   savePendingAction(userId: string, action: StoredPendingAction): Promise<void>;
@@ -132,7 +139,7 @@ export class ConversationOrchestrator {
     private readonly history?: ConversationHistoryRepository,
     private readonly reminders?: ReminderRepository,
     private readonly integrations?: AssistantIntegrations,
-    private readonly life?: { execute(userId: string, sourceMessageId: string, command: Extract<AssistantCommand, { type: "food_search" | "life_list" | "life_save" | "life_patch" | "life_remove" | "grocery_add" }>): Promise<string>;
+    private readonly life?: Partial<WorkspaceRundownSource> & { execute(userId: string, sourceMessageId: string, command: Extract<AssistantCommand, { type: "food_search" | "life_list" | "life_save" | "life_patch" | "life_remove" | "grocery_add" }>, now?: Date): Promise<string>;
       captureWithReminder?(userId: string, sourceMessageId: string, command: Extract<AssistantCommand, {type:"capture_with_reminder"}>, now: Date, timezone: string): Promise<string> },
     private readonly itemReviews?: ItemReviewResponder,
   ) {
@@ -158,7 +165,8 @@ export class ConversationOrchestrator {
     try {
       const reply = context.replyBody ?? await this.conversations.persistReply(context,
         await inOwnedExecution({ run: operation => this.conversations.withOwnership(context, operation) },
-          () => this.decideReply(context, now)) ?? "");
+          () => withAiInvocationScope({ accountId: context.userId, executionId: context.messageId, signal },
+            () => this.decideReply(context, now))) ?? "");
       if (reply) {
         await this.sms.send({
           userId: context.userId,
@@ -168,7 +176,7 @@ export class ConversationOrchestrator {
           replyToMessageId: context.messageId,
           sourceMessageId: context.messageId,
           assertOwnership: () => this.conversations.withOwnership(context, async () => undefined),
-          runOwned: operation => this.conversations.withOwnership(context, operation),
+          runOwned: operation => this.conversations.withOwnership(context, operation, { accountFirst: true }),
           signal,
         });
       }
@@ -181,7 +189,7 @@ export class ConversationOrchestrator {
     }
   }
 
-  private async decideInitialReply(context: InboundConversationContext, now: Date): Promise<string | undefined> {
+  private async decideInitialReply(context: InboundConversationContext, now: Date): Promise<string | CalendarConfirmation | undefined> {
     if (context.onboardingState === "calendar" || context.onboardingState === "complete") {
       const priorAction = await this.tasks.findActionBySourceMessage(context.messageId);
       if (priorAction) {
@@ -225,16 +233,7 @@ export class ConversationOrchestrator {
       await this.conversations.clearPendingAction(context.userId);
     } else if (pending && pending.createdByMessageId !== context.messageId) {
       if (pending.entity === "calendar_confirmation") {
-        if (/^yes[.!\s]*$/i.test(context.body.trim()) && this.integrations) {
-          try {
-            const result = await this.integrations.confirmCalendarChange(context.userId, pending.token, now);
-            await this.conversations.clearPendingAction(context.userId);
-            return result;
-          } catch {
-            await this.conversations.clearPendingAction(context.userId);
-            return "I couldn’t verify that calendar change. Please check Google Calendar before requesting it again.";
-          }
-        }
+        if (/^yes[.!\s]*$/i.test(context.body.trim()) && this.integrations) return pending;
         return "That calendar change is waiting for confirmation. Reply YES to apply it or NO to cancel.";
       }
       if (pending.entity === "reschedule_confirmation") {
@@ -346,36 +345,79 @@ export class ConversationOrchestrator {
       return `This permanently deletes your Tempo data. Confirm only if that’s what you want: ${this.secureLinks.accountDelete(context.userId)}`;
     }
 
-    const rundown = parseRundownRequest(context.body, now, context.timezone);
-    if (rundown) return buildRundown({ tasks: this.tasks, goals: this.goals, reminders: this.reminders, integrations: this.integrations }, { ...context, now }, rundown);
     return undefined;
   }
 
-  private async recordResult(context: InboundConversationContext, operation: () => Promise<string | null | undefined>) {
+  private async confirmCalendar(context: InboundConversationContext, pending: CalendarConfirmation) {
+    const integrations = this.integrations!;
+    let reply: string;
+    try {
+      reply = await this.conversations.withOwnership(context, async () => {
+        const current = await this.conversations.getPendingAction(context.userId);
+        const verifiedAt = this.now();
+        if (!isSameCalendarConfirmation(current, pending) || pending.expiresAt <= verifiedAt) return "That calendar confirmation is no longer current. Please request the change again.";
+        return integrations.confirmCalendarChange(context.userId, pending.token, verifiedAt);
+      });
+    } catch {
+      reply = "I couldn’t verify that calendar change. Please check Google Calendar before requesting it again.";
+    }
+    return this.recordResult(context, async () => {
+      const current = await this.conversations.getPendingAction(context.userId);
+      if (isSameCalendarConfirmation(current, pending)) await this.conversations.clearPendingAction(context.userId);
+      return reply;
+    });
+  }
+
+  private async proposeCalendar(context: InboundConversationContext, now: Date, change: CalendarChange) {
+    if (!this.integrations) return "Calendar tools are not configured yet. You can still plan a schedule with me.";
+    let proposal;
+    try { proposal = await this.integrations.proposeCalendarChange(context.userId, context.messageId, change, context.timezone, now); }
+    catch (error) { return this.recordResult(context, async () => calendarRequestFailureReply(error)); }
+    return this.recordResult(context, async () => {
+      await this.conversations.savePendingAction(context.userId, { entity: "calendar_confirmation", ...proposal, createdByMessageId: context.messageId, expiresAt: new Date(now.getTime() + 15 * 60_000) });
+      return proposal.summary;
+    });
+  }
+
+  private currentRundown(context: InboundConversationContext, now: Date, request: RundownRequest) {
+    const listForRundown = this.life?.listForRundown;
+    return buildRundown({ tasks: this.tasks, goals: this.goals, reminders: this.reminders, integrations: this.integrations,
+      workspace: listForRundown ? { listForRundown } : undefined }, { ...context, now }, request);
+  }
+
+  private async recordResult<T>(context: InboundConversationContext, operation: () => Promise<T>) {
+    // Save the verified reply and the local mutation in one ownership transaction.
     return this.conversations.withOwnership(context, async () => {
       const result = await operation();
-      if (result !== undefined && result !== null) await this.conversations.persistReply(context, result);
+      if (typeof result === "string") await this.conversations.persistReply(context, result);
       return result;
-    });
+    }, { accountFirst: true });
   }
 
   private async decideReply(context: InboundConversationContext, now: Date): Promise<string | undefined> {
     const initial = await this.recordResult(context, () => this.decideInitialReply(context, now));
-    if (initial !== undefined && initial !== null) return initial;
+    if (typeof initial === "string") return initial;
+    if (initial) return this.confirmCalendar(context, initial);
+    const rundown = parseRundownRequest(context.body, now, context.timezone);
+    if (rundown) return this.currentRundown(context, now, rundown);
     const history = await this.history?.getRecent({ conversationId: context.conversationId, beforeMessageId: context.messageId, limit: 12 }) ?? [];
     const writePolicy = new TurnWritePolicy({ message: context.body, history }, this.intentParser.authorizer
       ?? { authorize: async () => ({ mode: "uncertain", commands: [] }) });
     const executeAuthorized = async (command: CoachingCommand) =>
-      await writePolicy.denial(command) ?? this.executeCommand(context, now, command);
+      await writePolicy.denial(command) ?? this.executeCommand(context, now, command, history);
     const lifeRequest = isLifeWorkspaceRequest(context.body);
     const noWrites = hasExplicitNoWriteRequest(context.body);
-    const memoryReply = lifeRequest || noWrites ? null : await this.recordResult(context, async () => this.memories?.tryHandleCorrection({
-      userId: context.userId,
-      messageId: context.messageId,
-      body: context.body,
-      now,
-    }, type => writePolicy.authorizesOnly({ type })));
-    if (memoryReply) return memoryReply;
+    if (!lifeRequest && !noWrites && this.memories) {
+      const memoryType = memoryCorrectionWriteType(context.body);
+      const authorized = memoryType ? await writePolicy.authorizesOnly({ type: memoryType }) : false;
+      const memoryReply = await this.recordResult(context, async () => this.memories?.tryHandleCorrection({
+        userId: context.userId,
+        messageId: context.messageId,
+        body: context.body,
+        now,
+      }, async type => authorized && type === memoryType));
+      if (memoryReply) return memoryReply;
+    }
 
     // Broad task heuristics ("move", "cancel", "completed") must not consume
     // requests for a different entity before the assistant can resolve them.
@@ -416,40 +458,56 @@ export class ConversationOrchestrator {
     return executeAuthorized(intent.command);
   }
 
-  private async executeCommand(context: InboundConversationContext, now: Date, command: CoachingCommand): Promise<string> {
-    if (isReadOnlyAssistantCommand(command.type)) return this.executeCommandOwned(context, now, command);
-    // Commit a verified action result with the mutation. If the process dies
-    // during the model's follow-up, replay this receipt instead of asking the
-    // model to regenerate a potentially different write.
-    return this.conversations.withOwnership(context, async () => {
-      const result = await this.executeCommandOwned(context, now, command);
-      await this.conversations.persistReply(context, result);
-      return result;
-    });
+  private async executeCommand(context: InboundConversationContext, now: Date, command: CoachingCommand, history: ConversationHistoryMessage[]): Promise<string> {
+    if (command.type === "calendar_change") return this.proposeCalendar(context, now, command.change);
+    if (command.type === "recall_memories") return this.recallSavedContext(context, now, command.query, history);
+    if (isReadOnlyAssistantCommand(command.type)) {
+      const read = () => this.executeCommandOwned(context, now, command);
+      // The grocery list refreshes derived items under the account lock.
+      return command.type === "life_list" && command.kind === "grocery"
+        ? this.conversations.withOwnership(context, read, { accountFirst: true })
+        : read();
+    }
+    return this.recordResult(context, () => this.executeCommandOwned(context, now, command));
   }
 
-  private async executeCommandOwned(context: InboundConversationContext, now: Date, command: CoachingCommand): Promise<string> {
+  private async recallSavedContext(context: InboundConversationContext, now: Date, query: string | undefined, history: ConversationHistoryMessage[]) {
+    const facts = await this.memories?.searchRelevant(context.userId, now, query, 20)
+      ?? { items: [], truncated: false, coverage: "Saved fact search is unavailable." };
+    const result = { facts: facts.items.map(memory => memory.content), memories: facts.items.map(({ id, content }) => ({ id, content })),
+      factsTruncated: facts.truncated, factsCoverage: facts.coverage,
+      savedRecordsNotice: "This lookup searches current saved records. Earlier conversation messages remain separate. A missing match describes the current search only." };
+    if (!query) return JSON.stringify({ ...result, noteSearchNotice: "Use specific topic keywords to search Thoughts and related reminders." });
+
+    const terms = [...new Set(query.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [])];
+    const searchable = terms.length > 0 && terms.length <= 12;
+    // Link only owned recent inbound sources whose text matches the requested topic.
+    // Source text is used for matching and is never included in the tool result.
+    const sourceIds = searchable ? history.filter(message => message.role === "user"
+      && terms.every(term => message.content.toLowerCase().includes(term))).slice(-6).map(message => message.id) : [];
+    const [rawNotes, reminders] = await Promise.all([
+      this.life?.execute(context.userId, context.messageId, { type: "life_list", kind: "note", query }, now),
+      searchable ? this.reminders?.findForRecall?.(context.userId, terms, sourceIds) : undefined,
+    ]);
+    let noteSearch: unknown = { items: [], notice: "Note search is unavailable." };
+    if (rawNotes) { try { noteSearch = JSON.parse(rawNotes); } catch { /* Keep the unavailable notice. */ } }
+    const reminderSearch = reminders ? {
+      ...reminders, searched: true,
+      coverage: "Current reminders matched by topic words in the saved subject or by a matching recent conversation source. Includes cancelled, completed and failed reminders.",
+      ...(reminders.truncated ? { notice: "More matching reminders exist. Narrow the topic before claiming completeness." } : {}),
+    } : { items: [], searched: false, notice: searchable ? "Related reminder search is unavailable." : "Use 1–12 distinctive words to search related reminders." };
+    return JSON.stringify({ ...result, noteSearch, reminderSearch });
+  }
+
+  private async executeCommandOwned(context: InboundConversationContext, now: Date, command: Exclude<CoachingCommand, { type: "calendar_change" | "recall_memories" }>): Promise<string> {
     if (!isReadOnlyAssistantCommand(command.type) && hasExplicitNoWriteRequest(context.body)) return NO_WRITE_REPLY;
     if (command.type === "set_checkins" && requestedCheckinConsent(context.body) !== command.enabled) {
       return CHECKIN_CONSENT_REPLY;
     }
     if (command.type === "capture_with_reminder") return this.life?.captureWithReminder?.(context.userId, context.messageId, command, now, context.timezone) ?? "Saving a plan with its reminder is temporarily unavailable. Nothing was saved.";
-    if (command.type === "get_rundown") return buildRundown({ tasks: this.tasks, goals: this.goals, reminders: this.reminders, integrations: this.integrations }, { ...context, now }, command);
+    if (command.type === "get_rundown") return this.currentRundown(context, now, command);
     if (command.type === "grocery_add" || command.type === "food_search" || command.type === "life_list" || command.type === "life_save" || command.type === "life_patch" || command.type === "life_remove") {
-      return this.life?.execute(context.userId, context.messageId, command) ?? "Your life workspace is not configured in this environment.";
-    }
-    if (command.type === "recall_memories") {
-      const search = await this.memories?.searchRelevant(context.userId, now, command.query, 20)
-        ?? { items: [], truncated: false, coverage: "Saved fact search is unavailable." };
-      const facts = search.items.map(memory => memory.content);
-      if (command.query) {
-        const rawNotes = await this.life?.execute(context.userId, context.messageId, { type: "life_list", kind: "note", query: command.query });
-        let noteSearch: unknown = { items: [], notice: "Note search is unavailable; do not claim no note exists." };
-        if (rawNotes) { try { noteSearch = JSON.parse(rawNotes); } catch { /* Preserve the explicit unavailable notice. */ } }
-        return JSON.stringify({ facts, memories: search.items.map(({ id, content }) => ({ id, content })), factsTruncated: search.truncated, factsCoverage: search.coverage, noteSearch });
-      }
-      return JSON.stringify({ facts, memories: search.items.map(({ id, content }) => ({ id, content })), factsTruncated: search.truncated, factsCoverage: search.coverage,
-        noteSearchNotice: "Thought inbox notes have not been searched; use specific query keywords before answering a personal recall question." });
+      return this.life?.execute(context.userId, context.messageId, command, now) ?? "Your life workspace is not configured in this environment.";
     }
     if (command.type === "forget_memory") {
       if (command.memoryId && command.expectedContent) return this.memories?.forgetById(context.userId, command.memoryId, command.expectedContent, now) ?? "Memory is temporarily unavailable.";
@@ -457,13 +515,10 @@ export class ConversationOrchestrator {
     }
     if (command.type === "connection_status") return connectionStatusReply(await this.integrations?.status(context.userId) ?? "Account connections are not configured. Tasks, reminders, and memory are available.");
     if (command.type === "set_checkins") return this.integrations?.setCheckins(context.userId, command.enabled, command.dailyCap) ?? "Check-in settings are temporarily unavailable.";
-    if (command.type === "calendar_agenda" || command.type === "calendar_change") {
+    if (command.type === "calendar_agenda") {
       if (!this.integrations) return "Calendar tools are not configured yet. You can still plan a schedule with me.";
       try {
-        if (command.type === "calendar_agenda") return await this.integrations.agenda(context.userId, command.start, command.end);
-        const proposal = await this.integrations.proposeCalendarChange(context.userId, context.messageId, command.change, context.timezone, now);
-        await this.conversations.savePendingAction(context.userId, { entity: "calendar_confirmation", ...proposal, createdByMessageId: context.messageId, expiresAt: new Date(now.getTime() + 15 * 60_000) });
-        return proposal.summary;
+        return await this.integrations.agenda(context.userId, command.start, command.end);
       } catch (error) {
         return calendarRequestFailureReply(error);
       }

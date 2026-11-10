@@ -1,4 +1,5 @@
 import { beforeEach, expect, it, vi } from "vitest";
+import { DatabaseError } from "pg";
 import type { PgBoss } from "pg-boss";
 import { registerDeliverReminderHandler } from "./deliver-reminder";
 
@@ -6,7 +7,12 @@ const mocks = vi.hoisted(() => ({
   reconcileDelivery: vi.fn(), getDeliveryContext: vi.fn(), markSending: vi.fn(),
   recordSuccessfulDelivery: vi.fn(), reminderFailed: vi.fn(), send: vi.fn(),
   reservedBody: vi.fn(), markRunning: vi.fn(), markCompleted: vi.fn(), markCancelled: vi.fn(), actionFailed: vi.fn(),
+  budgetAccess: vi.fn(), accountingOutage: false,
 }));
+vi.mock("../../db/repositories/ai-budget-repository", () => ({ DrizzleAiBudgetRepository: class {
+  constructor() { mocks.budgetAccess(); if (mocks.accountingOutage) throw new Error("Synthetic accounting outage"); }
+  async reserve() { return { allowed: false, reason: "budget_exhausted" }; }
+} }));
 vi.mock("../../db/repositories/reminder-repository", () => ({ DrizzleReminderRepository: class {
   reconcileDelivery = mocks.reconcileDelivery; getDeliveryContext = mocks.getDeliveryContext;
   markSending = mocks.markSending; recordSuccessfulDelivery = mocks.recordSuccessfulDelivery;
@@ -21,6 +27,7 @@ vi.mock("../../adapters/sms/messaging-provider", () => ({ createMessagingTranspo
 vi.mock("../../domain/outbound-messaging", async original => ({ ...await original<typeof import("../../domain/outbound-messaging")>(), SafeSmsSender: class { send = mocks.send; } }));
 vi.mock("../../db/repositories/task-repository", () => ({ DrizzleTaskRepository: class {} }));
 vi.mock("../../db/repositories/goal-repository", () => ({ DrizzleGoalRepository: class {} }));
+vi.mock("../../db/repositories/life-assistant", () => ({ LifeAssistant: class {} }));
 vi.mock("../../adapters/calendar/calendar-assistant", () => ({ CalendarAssistantIntegrations: class {} }));
 
 beforeEach(() => {
@@ -28,6 +35,21 @@ beforeEach(() => {
   mocks.markRunning.mockResolvedValue(true);
   mocks.markSending.mockResolvedValue(true);
   mocks.getDeliveryContext.mockResolvedValue({ id: "r", userId: "u", text: "Stretch" });
+});
+
+it.each([false, true])("delivers an existing reminder with enforced zero AI caps (accounting outage=%s)", async outage => {
+  vi.stubEnv("AI_BUDGET_MODE", "enforce");
+  vi.stubEnv("AI_BUDGET_GLOBAL_DAILY_MICRODOLLARS", "0");
+  vi.stubEnv("AI_BUDGET_ACCOUNT_DAILY_MICRODOLLARS", "0");
+  mocks.accountingOutage = outage;
+  try {
+    const work = vi.fn(); await registerDeliverReminderHandler({ work } as unknown as PgBoss);
+    mocks.send.mockResolvedValue({ sent: true, provider: "test", providerMessageSid: "synthetic-accepted" });
+    await work.mock.calls[0][2]([{ data: { reminderId: "r", scheduledActionId: "a", occurrenceAt: "2026-10-22T15:00:00Z" } }]);
+    expect(mocks.send).toHaveBeenCalledWith(expect.objectContaining({ body: "Reminder: Stretch", userId: "u" }));
+    expect(mocks.recordSuccessfulDelivery).toHaveBeenCalledOnce();
+    expect(mocks.budgetAccess).not.toHaveBeenCalled();
+  } finally { vi.unstubAllEnvs(); }
 });
 
 it("retries an in-flight duplicate, then reconciles without another provider submission", async () => {
@@ -53,4 +75,17 @@ it("reuses a persisted briefing body on a retry instead of sending a changed pla
   mocks.send.mockResolvedValue({sent:true,provider:"test",providerMessageSid:"accepted"});
   await work.mock.calls[0][2]([{data:{reminderId:"r",scheduledActionId:"a",occurrenceAt:"2026-10-05T15:00:00Z"}}]);
   expect(mocks.send).toHaveBeenCalledWith(expect.objectContaining({body:"Your daily briefing\nCanonical saved plan",idempotencyKey:"same-occurrence",userId:"u"}));
+});
+
+it("records safe diagnostics in both reminder and scheduled action failure state", async () => {
+  const work = vi.fn();
+  await registerDeliverReminderHandler({ work } as unknown as PgBoss);
+  const driver = new DatabaseError("SYNTHETIC_PRIVATE_REMINDER", 0, "error");
+  driver.code = "23514";
+  mocks.send.mockRejectedValue(new Error("Failed query with SYNTHETIC_PRIVATE_REMINDER", { cause: driver }));
+  const error: unknown = await work.mock.calls[0][2]([{ id: "job", data: { reminderId: "r", scheduledActionId: "a", occurrenceAt: "2026-10-05T15:00:00Z" } }]).catch((failure: unknown) => failure);
+  expect(error).toHaveProperty("message", "Reminder delivery failed (database SQLSTATE 23514)");
+  expect(error).not.toHaveProperty("cause");
+  expect(mocks.reminderFailed).toHaveBeenCalledExactlyOnceWith("r", error);
+  expect(mocks.actionFailed).toHaveBeenCalledExactlyOnceWith("a", error);
 });

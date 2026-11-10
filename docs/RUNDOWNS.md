@@ -12,8 +12,8 @@ Examples that work without a model call:
 
 The model can also call `get_rundown` for conversational requests such as
 “Can I get my reminders, goals, tasks and calendar for next week?” The tool accepts
-only a local start date and 1 or 7 days; account ID and timezone come from the
-authenticated conversation. Natural-language model routing requires a working AI
+a local start date and a span of one to seven days. Account ID and timezone come
+from the authenticated conversation. Natural-language model routing requires a working AI
 provider. This week means Monday–Sunday; an explicit weekly date starts seven
 days on that date. Local midnight boundaries account for daylight saving time.
 
@@ -24,6 +24,17 @@ explicitly separate from scheduled commitments. Each section shows up to 12
 items and discloses omitted items. Calendar pagination and the 100-series
 reminder limit are disclosed. Failed sources are labeled unavailable; they are
 never described as an empty schedule, and other sections remain usable.
+
+The tool also accepts an optional `include` list for explicitly requested sections.
+`food` reads consumed logs within the selected local dates and reports known totals
+with missing nutrient counts. `shopping` distinguishes saved grocery checkmarks
+from explicit pantry stock and derives current meal needs without saving changes.
+`workoutPlans` reads planned sessions separately from logged movement.
+`thoughts` shows short previews of saved notes that pass sensitive-content checks
+without searching memories. These lookups have independent limits and disclose truncation or an
+unavailable source. The default rundown does not fetch the optional sections.
+Completed goals, cancelled reminders, and future tasks outside the selected date
+range use their separate status-aware lookups.
 
 This is an on-demand, read-only view of the current plan, not a historical report
 of delivered reminders, completed work or calendar edits. It does not enable

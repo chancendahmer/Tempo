@@ -1,4 +1,4 @@
-export type AssistantProviderFailureCategory = "billing" | "configuration" | "transient";
+export type AssistantProviderFailureCategory = "billing" | "configuration" | "transient" | "budget";
 
 /** Safe provider-failure signal that carries no provider message or credentials. */
 export class AssistantProviderFailure extends Error {
@@ -10,6 +10,9 @@ export class AssistantProviderFailure extends Error {
 }
 
 export function assistantProviderFailureReply(error: unknown): string {
+  if (error instanceof AssistantProviderFailure && error.category === "budget") {
+    return "Tempo’s AI allowance is temporarily unavailable. Your saved items and manual controls are still available.";
+  }
   if (error instanceof AssistantProviderFailure && (error.category === "billing" || error.category === "configuration")) {
     return "I can’t help with that just now because Tempo’s AI connection needs to be restored. Please try again once it’s available.";
   }

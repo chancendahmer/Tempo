@@ -115,9 +115,15 @@ export class DrizzleConversationRepository implements ConversationRepository {
     });
   }
 
-  async withOwnership<T>(context: InboundConversationContext, operation: () => Promise<T>): Promise<T> {
+  async withOwnership<T>(context: InboundConversationContext, operation: () => Promise<T>, options?: { accountFirst?: boolean }): Promise<T> {
     context.signal?.throwIfAborted();
     return this.database.transaction(async transaction => {
+      if (options?.accountFirst) {
+        // Local writes share the account-first order used by the workspace and
+        // account deletion. Keep provider work outside this lock.
+        const [account] = await transaction.select({ id: users.id }).from(users).where(eq(users.id, context.userId)).for("update");
+        if (!account) throw new InboundOwnershipLostError();
+      }
       const [owned] = await transaction.select({ id: conversationMessages.id }).from(conversationMessages)
         .where(and(eq(conversationMessages.id, context.messageId), eq(conversationMessages.userId, context.userId),
           eq(conversationMessages.status, "processing"), eq(conversationMessages.processingToken, context.processingToken)))
@@ -149,6 +155,8 @@ export class DrizzleConversationRepository implements ConversationRepository {
   async markProcessed(userId: string, messageId: string, processingToken: string) {
     const now = new Date();
     await this.database.transaction(async (transaction) => {
+      const [account] = await transaction.select({ id: users.id }).from(users).where(eq(users.id, userId)).for("update");
+      if (!account) throw new InboundOwnershipLostError();
       const changed = await transaction
         .update(conversationMessages)
         .set({ status: "processed", processingStartedAt: null, processingToken: null, updatedAt: now })

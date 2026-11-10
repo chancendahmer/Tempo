@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { LegalPage } from "../components/LegalPage";
+import { PRIVACY_VERSION } from "../../server/domain/consent";
 
 export const metadata: Metadata = {
   title: "Privacy Policy | Tempo",
@@ -12,11 +13,14 @@ export default function PrivacyPage() {
       eyebrow="Privacy policy"
       title="Your context should work for you—not become a profile sold about you."
       summary="This policy explains the information Tempo uses to provide its SMS coaching service and the controls available to you."
+      effectiveDate="November 10, 2026"
+      version={PRIVACY_VERSION}
     >
       <section>
         <h2>Information we collect</h2>
         <p>We collect the phone number and consent evidence you provide, your SMS messages with Tempo, tasks and preferences you ask Tempo to remember, and service records such as message delivery and intervention outcomes.</p>
-        <p>If you connect Google Calendar, Tempo requests read-only calendar access. Tempo stores encrypted authorization credentials and a short-lived cache of busy time windows. The V1 service does not store event titles or descriptions in its calendar cache.</p>
+        <p>If you connect Google Calendar, Tempo requests access to calendar availability and events on calendars you own. Tempo reads your primary calendar to answer questions and can propose adding, moving, or deleting personal events. Each proposed change requires a separate confirmation by text before it is applied.</p>
+        <p>Tempo stores encrypted authorization credentials and a short-lived cache of busy time windows. Event details are read when needed; event titles may appear in your conversation and proposed event changes are stored encrypted while awaiting confirmation.</p>
       </section>
       <section>
         <h2>How we use information</h2>
@@ -30,6 +34,7 @@ export default function PrivacyPage() {
       <section>
         <h2>Retention and security</h2>
         <p>We retain account information while the account is active and as needed for the pilot, security, legal compliance, and reliable operation. Expired authorization state and temporary rate-limit records are automatically removed. Calendar disconnect deletes cached busy windows and stored Google credentials. Account deletion removes the account and associated tasks, messages, calendar data, interventions, outcomes, and memory from the active database.</p>
+        <p>We retain separate AI usage and spending records to reconcile provider charges and enforce spending limits, including after account deletion. These records contain opaque account references, model and operation names, timestamps, token counts, and cost information, rather than message text, saved memories, phone numbers, or API keys. Unresolved charges remain recorded until reconciled.</p>
         <p>We use access controls, encrypted connections, encrypted calendar tokens, signed action links, and limited operational logs. No system can guarantee absolute security.</p>
       </section>
       <section>

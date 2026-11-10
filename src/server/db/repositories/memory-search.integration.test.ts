@@ -6,7 +6,8 @@ import { afterAll, beforeAll, expect, it } from "vitest";
 import type { TempoDatabase } from "../client";
 import * as schema from "../schema";
 import { DrizzleMemoryRepository } from "./memory-repository";
-import { MemoryService } from "../../domain/memory-service";
+import { MemoryService, savedMemoryTopicCoverage } from "../../domain/memory-service";
+import { mutateWorkspace } from "./workspace-repository";
 
 let client: PGlite;
 let database: TempoDatabase;
@@ -38,4 +39,28 @@ it("searches before limiting and excludes other accounts, deleted, expired and s
   expect(broad.truncated).toBe(true);
   expect(broad.coverage).toContain("More matching");
   expect((await service.searchRelevant(owner.id, new Date(), "%_")).items).toEqual([]);
+});
+
+it("matches saved category terms and stops returning the same preference after dashboard removal", async () => {
+  const [owner, outsider] = await database.insert(schema.users).values([{ phoneE164: "+12025550703" }, { phoneE164: "+12025550704" }]).returning();
+  const content = "Prefers studying at the library after lunch.";
+  const [saved, foreign, intervention] = await database.insert(schema.memoryEntries).values([
+    { userId: owner.id, category: "preference", content },
+    { userId: outsider.id, category: "preference", content },
+    { userId: owner.id, category: "intervention_learning", content: "A quieter reminder window helped." },
+    { userId: owner.id, category: "fact", content },
+    { userId: owner.id, category: "preference", content: "Prefers walking after lunch." },
+    { userId: owner.id, category: "preference", content, sensitivity: "sensitive" },
+    { userId: owner.id, category: "preference", content, expiresAt: new Date("2020-01-01") },
+  ]).returning();
+  const service = new MemoryService(new DrizzleMemoryRepository(database));
+  const search = (userId: string, query = "library study preference") => service.searchRelevant(userId, new Date(), query);
+  const before = await search(owner.id);
+  expect(before).toMatchObject({ items: [{ id: saved.id, content, category: "preference" }], truncated: false, coverage: savedMemoryTopicCoverage });
+  expect((await search(owner.id, "library music preference")).items).toEqual([]);
+  expect((await search(owner.id, "intervention learning")).items).toEqual([expect.objectContaining({ id: intervention.id })]);
+  expect((await search(owner.id, "intervention learn")).items).toEqual([]);
+  await mutateWorkspace(owner.id, { action: "forget_memory", id: saved.id, expectedContent: content }, database);
+  expect(await search(owner.id)).toEqual({ items: [], truncated: false, coverage: savedMemoryTopicCoverage });
+  expect((await search(outsider.id)).items).toEqual([expect.objectContaining({ id: foreign.id })]);
 });

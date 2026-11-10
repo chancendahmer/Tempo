@@ -1,0 +1,32 @@
+import assert from 'node:assert/strict';
+import { randomInt, randomUUID } from 'node:crypto';
+import { drizzle } from 'drizzle-orm/node-postgres';
+import { Pool } from 'pg';
+import * as schema from '../../src/server/db/schema.ts';
+import { scopedDatabase } from '../../src/server/db/database-scope.ts';
+import { WebSessionService } from '../../src/server/security/web-session.ts';
+import { issueActionToken } from '../../src/server/security/action-token.ts';
+import { localDay } from '../../src/server/domain/life-items.ts';
+const pool = new Pool({ connectionString:'postgresql://postgres@127.0.0.1:55437/tempo_ui_release', max:2 });
+const db = scopedDatabase(drizzle(pool,{schema}));
+const base = 'http://localhost:3101';
+async function main(){
+ const now = new Date();
+ const utcDay=localDay(now,'UTC');
+ const timezone=['Pacific/Kiritimati','Pacific/Honolulu'].find(zone=>localDay(now,zone)!==utcDay);
+ assert.ok(timezone);const today=localDay(now,timezone);
+ const [user]=await db.insert(schema.users).values({phoneE164:`+1999${randomInt(1000000,9999999)}`,displayName:'Isolated default diary QA',timezone,onboardingState:'complete',phoneVerifiedAt:now,profileCompletedAt:now,proactiveOptIn:false,profileInstructions:'Disposable QA. No provider calls.'}).returning();
+ const session=await new WebSessionService(db).create(user.id);
+ const token=issueActionToken({userId:user.id,scope:'account:signin',sessionId:session.id},Buffer.alloc(32,7).toString('base64'));
+ const redeem=await fetch(`${base}/api/auth/phone`,{method:'POST',redirect:'manual',headers:{Origin:base,'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({token})});
+ assert.equal(redeem.status,303);const cookie=redeem.headers.get('set-cookie').split(';')[0];
+ const read=async()=>{const r=await fetch(`${base}/api/account/workspace`,{headers:{Cookie:cookie}});assert.equal(r.status,200);return r.json();};
+ const empty=await read();assert.equal(empty.diaryCoverage.date,today);assert.equal(empty.diaryCoverage.food.total,0);
+ const make=(index,date,stamp)=>({id:randomUUID(),userId:user.id,createdAt:new Date(stamp+index*1000),data:{kind:'food',title:`QA default food ${index}`,date,meal:'Lunch',calories:1,protein:null,carbs:null,fat:null,fiber:null}});
+ await db.insert(schema.lifeItems).values([...Array.from({length:600},(_,i)=>make(i,today,Date.UTC(2020,0,1))),...Array.from({length:1001},(_,i)=>make(i,'2025-01-01',Date.UTC(2025,0,1)))]);
+ const complete=await read();assert.equal(complete.diaryCoverage.date,today);assert.equal(complete.diaryCoverage.food.included,600);assert.equal(complete.diaryCoverage.food.total,600);assert.equal(complete.diaryCoverage.food.truncated,false);assert.equal(complete.items.filter(x=>x.data.kind==='food'&&x.data.date===today).length,600);
+ await db.insert(schema.lifeItems).values(Array.from({length:401},(_,i)=>make(i,today,Date.UTC(2021,0,1))));
+ const partial=await read();assert.equal(partial.diaryCoverage.food.included,1000);assert.equal(partial.diaryCoverage.food.total,1001);assert.equal(partial.diaryCoverage.food.truncated,true);
+ console.log(JSON.stringify({passed:true,mode:'actual-authenticated-http-no-date-query',timezone,utcDay,accountDay:today,empty:empty.diaryCoverage.food,complete:complete.diaryCoverage.food,partial:partial.diaryCoverage.food,syntheticOnly:true,providerCalls:0},null,2));
+}
+main().catch(e=>{console.error(e);process.exitCode=1;}).finally(()=>pool.end());

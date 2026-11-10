@@ -5,6 +5,27 @@ Use it when the responsible subsystem is unclear or a change crosses boundaries.
 Start with one row, inspect the named symbol and nearest test, and expand only
 when the evidence requires it.
 
+## Current direction and pilot work
+
+The founder's October 15 strategy remains: build Tempo's own assistant **and**
+future compatibility with external agents. Tempo owns the shared visual workspace,
+account-specific state, executive-function support and notification path. All
+surfaces must use the same authorized services, fresh reads and verified writes.
+External connectors, wearable access and hardware capabilities are roadmap items
+unless independently implemented and verified; no Meta or OpenAI partnership or
+consumer-agent API access is assumed. This direction was recorded in the original
+checkout from the founder-shared strategy and the “Complete Launch program
+onboarding” chat; it was reconciled here on October 22 without modifying that
+checkout.
+
+For the current **10 → 25 → 100-person private pilot**, start with
+`docs/PILOT_PLAN.md` and the executable continuation brief in
+`docs/PILOT_HANDOFF.md`. Preserve the approved adaptive Home. Reliability,
+account isolation, activation, useful daily workflows, feedback and measurable
+operating costs take priority over another visual redesign or more integrations.
+Pilot-readiness evidence lives in `qa/pilot-2026-10-22/`; historical results are
+not automatically evidence for a newer candidate.
+
 ## Task routing
 
 | Task | Start with | Optional reference |

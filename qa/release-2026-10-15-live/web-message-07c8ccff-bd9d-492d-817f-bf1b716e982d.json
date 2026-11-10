@@ -1,0 +1,155 @@
+{
+  "passed": true,
+  "mode": "real-postgres-pg-boss-live-model-web-only",
+  "messageId": "07c8ccff-bd9d-492d-817f-bf1b716e982d",
+  "userId": "85ffcfc2-4e73-4ddd-8772-888ce8cb1caf",
+  "actionId": "b576e1f3-7d83-4647-92bc-44f76649b0e8",
+  "queueSchema": "pgboss_web_qa",
+  "queue": "qa-web-07c8ccff-bd9d-492d-817f-bf1b716e982d",
+  "parserCalls": 1,
+  "tools": [
+    "list_reminders",
+    "reschedule_reminders"
+  ],
+  "reminderProof": {
+    "text": "QA stretch break",
+    "count": 2,
+    "timezone": "America/New_York",
+    "expectedHours": [
+      15,
+      18
+    ],
+    "expectedDate": "2026-10-16",
+    "identityPreserved": true,
+    "beforeReminders": [
+      {
+        "id": "0a6d1855-57ba-44ef-9748-f1fe31593b04",
+        "text": "QA stretch break",
+        "remindAt": "2026-10-16T21:00:00.000Z",
+        "timezone": "America/New_York",
+        "status": "scheduled",
+        "sourceMessageId": "5006f07d-b140-4fde-8331-9e80a29f4521",
+        "recurrence": null,
+        "provider": null,
+        "providerMessageSid": null,
+        "sentAt": null
+      },
+      {
+        "id": "f7266edd-cc3a-488c-b877-e24af4677660",
+        "text": "QA stretch break",
+        "remindAt": "2026-10-16T18:00:00.000Z",
+        "timezone": "America/New_York",
+        "status": "scheduled",
+        "sourceMessageId": "5006f07d-b140-4fde-8331-9e80a29f4521",
+        "recurrence": null,
+        "provider": null,
+        "providerMessageSid": null,
+        "sentAt": null
+      }
+    ],
+    "reminders": [
+      {
+        "id": "0a6d1855-57ba-44ef-9748-f1fe31593b04",
+        "text": "QA stretch break",
+        "remindAt": "2026-10-16T22:00:00.000Z",
+        "timezone": "America/New_York",
+        "status": "scheduled",
+        "sourceMessageId": "5006f07d-b140-4fde-8331-9e80a29f4521",
+        "recurrence": null,
+        "provider": null,
+        "providerMessageSid": null,
+        "sentAt": null
+      },
+      {
+        "id": "f7266edd-cc3a-488c-b877-e24af4677660",
+        "text": "QA stretch break",
+        "remindAt": "2026-10-16T19:00:00.000Z",
+        "timezone": "America/New_York",
+        "status": "scheduled",
+        "sourceMessageId": "5006f07d-b140-4fde-8331-9e80a29f4521",
+        "recurrence": null,
+        "provider": null,
+        "providerMessageSid": null,
+        "sentAt": null
+      }
+    ],
+    "localTimes": [
+      {
+        "id": "f7266edd-cc3a-488c-b877-e24af4677660",
+        "date": "2026-10-16",
+        "hour": 15,
+        "minute": 0,
+        "second": 0
+      },
+      {
+        "id": "0a6d1855-57ba-44ef-9748-f1fe31593b04",
+        "date": "2026-10-16",
+        "hour": 18,
+        "minute": 0,
+        "second": 0
+      }
+    ],
+    "actions": [
+      {
+        "id": "a81f4fee-0521-4742-9aaf-feafc6d4709e",
+        "reminderId": "f7266edd-cc3a-488c-b877-e24af4677660",
+        "status": "cancelled",
+        "runAt": "2026-10-16T18:00:00.000Z",
+        "payload": {
+          "reminderId": "f7266edd-cc3a-488c-b877-e24af4677660",
+          "occurrenceAt": "2026-10-16T18:00:00.000Z"
+        },
+        "queueJobId": null,
+        "attempts": 0
+      },
+      {
+        "id": "4b2fbf59-2f81-4e8d-a372-5e06df39451a",
+        "reminderId": "f7266edd-cc3a-488c-b877-e24af4677660",
+        "status": "scheduled",
+        "runAt": "2026-10-16T19:00:00.000Z",
+        "payload": {
+          "reminderId": "f7266edd-cc3a-488c-b877-e24af4677660",
+          "occurrenceAt": "2026-10-16T19:00:00.000Z"
+        },
+        "queueJobId": null,
+        "attempts": 0
+      },
+      {
+        "id": "f892b8bc-e815-4f72-9cde-b3b4d12cadd5",
+        "reminderId": "0a6d1855-57ba-44ef-9748-f1fe31593b04",
+        "status": "cancelled",
+        "runAt": "2026-10-16T21:00:00.000Z",
+        "payload": {
+          "reminderId": "0a6d1855-57ba-44ef-9748-f1fe31593b04",
+          "occurrenceAt": "2026-10-16T21:00:00.000Z"
+        },
+        "queueJobId": null,
+        "attempts": 0
+      },
+      {
+        "id": "85ab3c57-f437-420f-9b24-81041fcd9edd",
+        "reminderId": "0a6d1855-57ba-44ef-9748-f1fe31593b04",
+        "status": "scheduled",
+        "runAt": "2026-10-16T22:00:00.000Z",
+        "payload": {
+          "reminderId": "0a6d1855-57ba-44ef-9748-f1fe31593b04",
+          "occurrenceAt": "2026-10-16T22:00:00.000Z"
+        },
+        "queueJobId": null,
+        "attempts": 0
+      }
+    ]
+  },
+  "reply": {
+    "id": "739819f6-9afc-4ba6-9a51-44084b6b93e6",
+    "body": "Reminders moved:\nFri, Oct 16, 3:00 PM EDT — QA stretch break\nFri, Oct 16, 6:00 PM EDT — QA stretch break"
+  },
+  "sourceStatus": "processed",
+  "actionStatus": "completed",
+  "budget": {
+    "spent": 5.112299999999999,
+    "committed": 5.295584999999999,
+    "stopped": false,
+    "cap": 7
+  }
+}

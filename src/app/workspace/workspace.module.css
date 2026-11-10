@@ -1,6 +1,6 @@
-.app { --bg: #f7f8f4; --surface: #fff; --text: #293d35; --soft: #59655e; --line: #e5e9e1; --green: #416853; --pale: #edf2e9; min-height: 100dvh; background: var(--bg); color: var(--text); font-size: 16px; line-height: 1.6; }
+.app { --bg: #fffcf8; --surface: #fff; --text: #201a30; --soft: #626376; --line: #e2dedb; --green: #bd472c; --accent: #bd472c; --pale: #fce9df; min-height: 100dvh; background: var(--bg); color: var(--text); font-size: 16px; line-height: 1.6; }
 .app * { box-sizing: border-box; }
-.app button, .app input, .app textarea, .app select { font: inherit; }
+.app :where(button,input,textarea,select) { font:inherit; }
 .app button { cursor: pointer; }
 .app button:disabled { cursor: default; opacity: .5; }
 .app button, .app a { -webkit-tap-highlight-color: transparent; }
@@ -247,6 +247,13 @@
   .focusActions button { min-height: 44px; }
 }
 @media (prefers-reduced-motion: reduce) { .app *, .app *::before, .app *::after { scroll-behavior: auto !important; animation: none !important; transition: none !important; } }
+/* Feedback moves only when it helps explain an interaction. */
+@media (prefers-reduced-motion: no-preference) {
+  .app :is(button,a,input,textarea,select) { transition:background-color 140ms ease,border-color 140ms ease,color 140ms ease,box-shadow 140ms ease; }
+  .app dialog[open] { animation:dialogEnter 180ms cubic-bezier(.2,.8,.2,1); }
+  .app progress::-webkit-progress-value { transition:width 180ms ease; }
+  @keyframes dialogEnter { from { opacity:0; translate:0 5px; } to { opacity:1; translate:0 0; } }
+}
 
 /* A planner palette: each part of the day has its own visual identity. */
 .app { --soft: #657362; }
@@ -469,3 +476,247 @@
   .taskRow .iconButton { width: 44px; }
   .startButton, .focusActions button { min-height: 44px; }
 }
+
+/* Calm workspace: shared surfaces, readable controls, and labelled section color. */
+.app,.app[data-section] { --bg:#fffcf8; --text:#201a30; --soft:#626376; --line:#e2dedb; --green:#bd472c; --accent:#bd472c; --pale:#fce9df; --section-ink:#a4422c; --section-tint:#fce9df; --section-line:#edd0c2; font-size:16px; line-height:1.6; }
+.app[data-section=calendar] { --section-ink:#3d5f99; --section-tint:#eaf0fc; --section-line:#c8d7ed; }
+.app[data-section=goals],.app[data-section=assistant],.app[data-section=memories] { --section-ink:#68508e; --section-tint:#eee8f8; --section-line:#d6c8e6; }
+.app[data-section=routines],.app[data-section=wake] { --section-ink:#886219; --section-tint:#fcf0d1; --section-line:#e4d4a8; }
+.app[data-section=nutrition] { --section-ink:#9a4157; --section-tint:#fbe9ed; --section-line:#e5c9d0; }
+.app[data-section=movement] { --section-ink:#246e61; --section-tint:#e4f2ec; --section-line:#bfdbcf; }
+.app[data-section=inbox] { --section-ink:#806522; --section-tint:#fbf2cf; --section-line:#e9db9e; }
+.app[data-section=settings] { --section-ink:#4d6377; --section-tint:#edf1f5; --section-line:#d3dce3; }
+.app h1,.app h2 { font-family:Georgia,"Times New Roman",serif; color:var(--text); }
+.app h1 { font-size:clamp(38px,4vw,58px);line-height:1.15;font-weight:700;letter-spacing:-1.5px; }
+.app h2 { font-size:28px;line-height:1.25;letter-spacing:-.6px; }
+.app h3 { color:var(--text);font-size:19px;line-height:1.4;letter-spacing:-.3px; }
+.app small { font-size:13px;color:var(--soft); }
+.app button:disabled { opacity:.6; }
+.app :focus-visible { outline:3px solid #386b91;outline-offset:4px; }
+.app a:focus-visible,.app button:focus-visible { border-radius:5px; }
+.sidebar { width:228px;padding:34px 18px 24px;background:#faf7f1;border-right:1px solid var(--line); }
+.brand { font-size:33px;color:#151529;letter-spacing:-1.3px;padding:0 10px;gap:10px; }
+.sidebar nav { margin-top:42px;gap:12px; }
+.sidebar nav button { font-size:18px;gap:18px;min-height:58px;padding:13px 18px;color:var(--text);border-radius:10px; }
+.sidebar nav button svg { width:24px;height:24px;color:#656578; }
+.sidebar nav button:hover { background:#f1eae2; }
+.sidebar nav .activeNav,.app[data-section] .sidebar nav .activeNav { background:#fbe7dd;color:#201a30;box-shadow:none; }
+.sidebar nav .activeNav svg { color:#bf482c; }
+.sidebarBottom { padding:30px 10px 0; }
+.sidebarBottom>.textButton { justify-content:flex-start;display:flex;text-decoration:underline;font-size:14px!important;font-weight:500; }
+.person { padding:15px 0;gap:12px; }
+.person>span { background:#e6e0f3;color:#4e3d76;width:40px;height:40px;font-size:18px;flex-shrink:0; }
+.person strong { font-size:16px;color:var(--text); }
+.person small { font-size:11px;color:var(--soft); }
+.person svg { color:var(--soft); }
+.main { margin-left:228px; }
+.content { max-width:1600px;padding:20px 38px 24px; }
+.content:focus { outline:none; }
+.topbar { min-height:55px;height:auto;border:0;background:transparent;padding:8px 38px;font-size:12px;color:var(--soft); }
+.topbar .textButton { font-size:13px!important; }
+.previewBanner { background:#f3eee5;color:#6b5c4d;display:flex;justify-content:space-between;gap:16px;padding:7px 38px;font-size:12px; }
+.previewBanner a { display:inline-flex;align-items:center;gap:6px;text-decoration:underline; }
+.pageHeading { min-height:0;border:0;padding:14px 0 20px;margin-bottom:14px; }
+.pageHeading.pageHeading h1 { font-size:clamp(32px,3.3vw,44px);letter-spacing:-1.2px; }
+.pageHeading p:not(.eyebrow) { font-size:16px;color:var(--soft);margin-top:12px; }
+.sectionArt { width:52px;height:52px;border-radius:15px;background:var(--section-tint);color:var(--section-ink); }
+.sectionArt>svg { width:25px;height:25px; }
+.sectionNav { display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding:8px 0 16px;margin-bottom:10px; }
+.sectionNav button { display:flex;align-items:center;gap:8px;border:1px solid transparent;background:transparent;min-height:44px;padding:8px 12px;border-radius:8px;font-size:14px;color:var(--soft); }
+.sectionNav button:hover { background:#f3eee8;color:var(--text); }
+.sectionNav .selectedSection { color:var(--section-ink);background:var(--section-tint);border-color:var(--section-line);font-weight:650; }
+.sectionHeading { margin-bottom:20px;flex-wrap:wrap; }
+.sectionHeading h2 { font-size:26px; }
+.primary,.darkButton,.startButton { background:var(--accent);color:white;border:1px solid #ad4129;border-radius:9px;min-height:46px;padding:11px 19px;font-size:15px!important;box-shadow:none; }
+.primary:hover,.darkButton:hover,.startButton:hover { background:#a63a23; }
+.secondary { background:white;color:var(--text);border:1px solid #bab5bd;font-size:14px!important;min-height:46px;border-radius:9px; }
+.secondary:hover { background:#f3efea; }
+.textButton { color:#415b8b;font-size:14px!important;font-weight:500; }
+.textButton:hover { color:#233d6b;text-decoration:underline; }
+.iconButton { min-width:44px;min-height:44px;color:var(--soft); }
+.iconButton:hover { background:#f0eae4;color:var(--text); }
+.card { border:1px solid var(--line);border-radius:14px;padding:24px;box-shadow:none;margin-bottom:22px; }
+.card>p:not(.eyebrow),.card .finePrint { font-size:14px!important;color:var(--soft)!important; }
+.card>h2 { margin-top:12px; }
+.card>h3 { margin-top:10px; }
+.eyebrow { color:var(--soft);font-size:11px;letter-spacing:1px; }
+.twoColumns { gap:24px; }
+.taskRow { gap:12px;border-bottom-color:var(--line);min-height:66px; }
+.taskRow strong { font-size:16px; }
+.taskRow small,.step small,.agendaItem small,.routineHint,.timerRing small { color:var(--soft);font-size:13px!important; }
+.taskRow .iconButton { display:inline-flex;width:44px; }
+.check,.step .check { width:36px;height:36px;min-width:36px;min-height:36px;border:2px solid #8b8a95;background:#fff;border-radius:7px;color:#fff; }
+.checked,.step .checked { background:#398866;border-color:#398866; }
+.check svg { width:22px;height:22px; }
+.app progress { height:8px;background:#e7e5e9; }
+.app progress::-webkit-progress-bar { background:#e7e5e9; }
+.app progress::-webkit-progress-value { background:#459775; }
+.app progress::-moz-progress-bar { background:#459775; }
+.routineCover { height:68px;margin:-24px -24px 20px;padding:0 24px;background:var(--section-tint); }
+.routineCover .sectionArt { width:44px;height:44px;background:transparent; }
+.routineCover>span { font-size:12px;letter-spacing:1px;color:var(--section-ink); }
+.routineVisual { padding-top:24px; }
+.routineVisual .step { background:#fffdf9;border:0;border-bottom:1px solid #e6dfd3;border-radius:0;padding:12px 0;font-size:16px; }
+.routineVisual .check { border-radius:7px; }
+.routineVisual h3 { font:700 26px/1.3 Georgia,serif; }
+.routineHint { color:var(--soft); }
+.mealTabs { display:flex;gap:8px;margin-bottom:24px;flex-wrap:wrap; }
+.mealTabs button { min-height:46px;padding:10px 20px;border:1px solid #d8cdc3;border-radius:9px;background:transparent;color:#6e5947; }
+.mealTabs button[aria-pressed=true] { background:#f7e6d5;border-color:#d7ad86;color:#75401f;font-weight:650; }
+.mealGrid { grid-template-columns:repeat(2,minmax(0,1fr));gap:24px; }
+.mealGrid .card { padding:24px; }
+.mealArt { height:60px;margin:-24px -24px 20px;padding:16px 24px;justify-content:start; }
+.mealArt svg { width:28px;height:28px;stroke-width:1.7; }
+.mealGrid .card h3 { font-size:21px; }
+.mealGrid .textButton { border:0;padding:8px 0; }
+.recipeCard { background:#fff8ef;border-top:3px solid #ddbd94; }
+.recipeCard details { font-size:14px; }
+.recipeGrid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.nutritionSummary { grid-template-columns:minmax(0,1.1fr) minmax(0,1fr); }
+.calorieCard,.app[data-section=nutrition] .calorieCard { background:#fbedef;border:1px solid #e6cdd4;flex-direction:column;align-items:flex-start;gap:20px; }
+.calorieCircle,.app[data-section=nutrition] .calorieCircle { border:0;background:none;box-shadow:none;min-width:0;height:auto;align-items:flex-start; }
+.calorieCircle svg { display:none; }
+.calorieCircle strong { font:700 66px/1.1 Georgia,serif;color:#8c354d!important; }
+.calorieCircle span { font-size:15px;color:#724757; }
+.nutrient { color:#4c4c60;font-size:15px;padding:12px 16px;margin-top:8px; }
+.nutrient strong { color:var(--text);font-size:20px; }
+.diaryMeal .eyebrow { font-size:13px; }
+.movementHero { background:#e7f3ed;min-height:170px;border:1px solid #c3ddcf; }
+.movementNumber { color:#256b58;font-family:Georgia,serif; }
+.movementHero p:not(.eyebrow) { font-size:15px;color:#426555; }
+.app[data-section=movement] .largeIcon { border:0;background:#d4eadd;color:#286b56; }
+.captureBox { background:var(--section-tint);border:1px solid var(--section-line);padding:24px; }
+.captureBox h2 { font-size:24px; }
+.captureBox p { font-size:14px;color:var(--soft); }
+.captureBox>svg { color:var(--section-ink); }
+.infoStrip { color:var(--section-ink);font-size:14px; }
+.inlineDetails { color:var(--soft);font-size:14px; }
+.inlineDetails summary,.noteDetails summary { min-height:44px;padding:10px 0;cursor:pointer; }
+.dateInput,.sectionHeading>input { border:1px solid #b7b2be;color:var(--text);border-radius:8px;min-height:46px;padding:10px 12px;background:white; }
+.weekStrip button { color:#53637a; }
+.weekStrip button[aria-pressed=true] { background:#4667a0;border-color:#4667a0;color:white; }
+.eventCard { border-left-color:#6c89b5; }.eventCard h3 { color:#314976; }.eventTime { color:#3d5780; }
+.calendarTask { font-size:14px!important;color:#3e5d4b;padding:16px; }
+.reminderEvent { flex-wrap:wrap; }.calendarLayout { grid-template-columns:minmax(0,1fr) 275px; }
+.calendarLayout aside .card { position:sticky;top:20px; }
+.chatLayout { grid-template-columns:minmax(0,1fr) 250px; }
+.messages { height:clamp(300px,48vh,560px); }
+.message { background:#f3efe9;color:var(--text);padding:16px 20px;font-size:15px; }
+.userMessage { background:#efe9fb; }
+.chatHeader strong { font-size:17px; }.chatHeader .badge { display:none; }
+.composer textarea { font-size:16px;color:var(--text); }
+.prompt { color:var(--text);font-size:14px;min-height:52px; }
+.badge { font-size:12px;background:#eee7f4;color:#61517a; }
+.everywhereComposer { margin-top:26px;border:1px solid #c9c4ce;box-shadow:none;border-radius:12px;gap:18px;padding:9px 10px 9px 20px; }
+.everywhereComposer input { color:var(--text);font-size:16px;padding:14px 0; }
+.everywhereComposer input::placeholder { color:var(--soft); }
+.everywhereComposer .primary { padding:14px 23px; }
+.footer { margin-top:16px;border-top:0;color:var(--soft);font-size:12px; }
+.toast { position:fixed;bottom:22px;left:calc(50% + 114px);transform:translateX(-50%);z-index:60;display:flex;align-items:center;gap:14px;max-width:calc(100vw - 270px);width:max-content;background:#fff;border:1px solid #c6c0cc;border-radius:12px;padding:10px 14px;color:var(--text);font-size:14px;box-shadow:0 6px 24px #30243a18; }
+.toast span { max-width:650px; }
+.dialog { margin:auto;border:1px solid #d7d0da;background:#fffcf8;color:var(--text);border-radius:16px;padding:28px; }
+.dialog::backdrop { background:#29243870; }
+.dialog h2 { font-size:30px; }.dialog p:not(.eyebrow) { font-size:15px;color:var(--soft);margin-bottom:20px; }
+.formFields label { font-size:14px; }.formFields label>span { color:var(--text); }
+.formFields input,.formFields textarea,.formFields select { border-color:#bcb5c1;color:var(--text);font-size:16px;min-height:46px; }
+.foodResult { color:var(--text); }.foodResult small { font-size:13px; }.foodAttribution { font-size:12px;color:var(--soft); }.foodNotice { color:#73511d!important; }
+.tabs button { min-height:44px;font-size:14px;color:#665b71; }.tabs button[aria-pressed=true] { color:#40334d; }
+.focusDialog,.focusOverlay { background:#f4f0fc;color:var(--text); }
+.focusCenter h1 { max-width:900px;margin:auto; }.focusCenter>p:not(.eyebrow) { color:var(--soft);font-size:17px; }
+.timerRing { border-color:#d8cce9;box-shadow:none;background:#fffdfb; }.timerRing span { color:#4a365f; }
+.focusDock { background:#5d4877;color:white;border-color:#7c6299;z-index:65; }
+.toggleRow input { accent-color:#bd472c;width:24px;height:24px; }.toggleRow strong { color:var(--text);font-size:16px; }
+.skipLink { position:fixed;top:-100px;left:20px;z-index:100;background:white;padding:14px;color:#243e70; }.skipLink:focus { top:12px; }
+.tour { max-width:500px; }.tourIcon { display:grid;place-items:center;width:72px;height:72px;border-radius:18px;background:#f6e7d8;color:#b2492c;font-size:32px;margin:18px 0 26px; }.tour .dialogActions { border-top:1px solid var(--line);padding-top:20px; }
+@media(min-width:1700px){.content{padding:30px 54px;}.topbar{padding:8px 54px;}}
+@media(max-width:1100px){.sidebar{width:200px;padding:28px 12px;}.main{margin-left:200px;}.content{padding:18px 26px;}.topbar{padding:8px 26px;}.brand{font-size:29px;}.sidebar nav button{font-size:16px;}.calendarLayout,.chatLayout{grid-template-columns:1fr;}.calendarLayout aside{display:block;}.chatLayout>aside{display:none;}.nutritionSummary{grid-template-columns:1fr 1fr;}.toast{left:calc(50% + 100px);max-width:calc(100vw - 230px);}}
+@media(max-width:760px){.sidebar{width:230px;}.main{margin-left:0;}.content{padding:16px 20px 25px;}.topbar{padding:6px 16px;}.topbar>div>span{display:none;}.previewBanner{padding:8px 20px;font-size:11px;flex-wrap:wrap;gap:4px;}.previewBanner a{min-height:32px;}.sectionNav{gap:4px;padding-bottom:14px;}.sectionNav button{font-size:13px;padding:8px 10px;}.pageHeading{min-height:100px;padding:16px 0;gap:12px;}.pageHeading h1{font-size:39px;}.pageHeading p:not(.eyebrow){font-size:15px;}.sectionArt{width:52px;height:52px;border-radius:14px;}.sectionArt>svg{width:25px;height:25px;}.twoColumns,.nutritionSummary{grid-template-columns:1fr;}.card{padding:20px;}.routineCover{margin:-20px -20px 18px;}.routineVisual{padding-top:20px;}.mealGrid{gap:16px;}.mealGrid .card{padding:20px;}.mealArt{margin:-20px -20px 18px;}.taskRow{flex-wrap:wrap;}.taskRow strong{font-size:15px;}.check,.step .check{min-width:44px;min-height:44px;}.everywhereComposer{gap:10px;padding:8px 10px;}.everywhereComposer>img{display:none;}.everywhereComposer input{font-size:16px;}.everywhereComposer .primary{padding:12px;}.everywhereComposer .primary span{display:none;}.toast{left:16px;right:16px;transform:none;bottom:16px;max-width:none;width:auto;font-size:13px;}.toast>img{display:none;}.focusActions button{font-size:14px!important;}.focusCenter>p:not(.eyebrow){font-size:15px;}.dialog{padding:22px;}.dialog h2{font-size:27px;}.captureBox{gap:16px;}.captureBox h2{font-size:24px;}.sectionHeading .row{flex-wrap:wrap;}.mealTabs button{padding:10px 16px;}}
+@media(max-width:480px){.mealGrid,.recipeGrid{grid-template-columns:1fr;}.sectionNav button svg{width:16px;}.sectionNav{gap:1px;}.movementHero{gap:20px;}.movementHero .largeIcon{width:60px!important;height:60px!important;}.calendarTask{gap:8px;}.macroChips{grid-template-columns:repeat(3,1fr);}.foodDialog .tabs{flex-wrap:wrap;}.foodSearchForm{flex-wrap:wrap;}.foodSearchForm input{flex-basis:100%;}.messages{height:48vh;}.focusTop{gap:12px;flex-wrap:wrap;}.focusTop .brand{font-size:26px;}}
+/* Keep the timer's primary controls visible on compact laptops and phones. */
+.focusDialog .focusOverlay { padding:22px 36px; }
+.focusCenter { padding:20px 0 8px;justify-content:center; }
+.focusCenter h1 { margin:8px auto 12px;font-size:clamp(28px,3.6vw,48px); }
+.timerRing { width:clamp(180px,30vh,280px);height:clamp(180px,30vh,280px);margin:20px 0;flex-shrink:0; }
+.timerRing>span { font-size:clamp(48px,8vh,76px); }
+.focusActions { margin-bottom:8px; }
+.focusFoot { color:var(--soft); }
+@media(max-height:760px){.focusDialog .focusOverlay{padding:16px 24px;}.focusCenter{padding:10px 0;}.focusCenter h1{font-size:32px;}.focusCenter>.eyebrow{margin-bottom:0!important;}.timerRing{width:190px;height:190px;margin:14px 0;}.timerRing>span{font-size:52px;}.focusCenter>p:not(.eyebrow){font-size:14px;}.focusFoot{display:none;}}
+@media(max-width:480px){.focusDialog .focusOverlay{padding:16px;}.focusTop .secondary{font-size:12px!important;padding:9px;}.focusActions{gap:8px;}.focusActions button{padding:10px 14px;}.focusActions .darkButton{min-width:120px;}.focusCenter h1{font-size:28px;}}
+/* Keep section navigation and the first useful action together on phones. */
+@media(max-width:760px){
+  .content{padding-top:8px;}
+  .sectionNav{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;padding:4px 0 10px;margin-bottom:4px;}
+  .sectionNav button{justify-content:center;gap:5px;padding:6px 5px;font-size:12px;line-height:1.25;min-height:44px;}
+  .sectionNav button svg{display:none;}
+  .pageHeading{min-height:0;padding:12px 0;margin-bottom:14px;}
+  .pageHeading h1{font-size:35px;}
+  .pageHeading p:not(.eyebrow){margin-top:6px;font-size:14px;}
+  .sectionHeading{gap:10px;margin-bottom:14px;}
+  .sectionHeading h2{font-size:24px;}
+  .weekStrip{margin-bottom:16px;}
+}
+/* Direct destinations: grouped for scanning, without an extra landing page. */
+.sidebar { padding:24px 12px 16px; overflow:hidden; }
+.sidebar nav { flex:1; }
+.sidebarBottom { padding:12px 8px 0; flex-shrink:0; border-top:1px solid var(--line); }
+.sidebarBottom>.textButton { min-height:36px; padding:5px 0; }
+.app[data-section=recipes] { --section-ink:#785513; --section-tint:#fbefc9; --section-line:#dcc784; }
+.app[data-section=groceries] { --section-ink:#416b48; --section-tint:#e8f1e2; --section-line:#b5cda9; }
+.app[data-section=goals] { --section-ink:#416b48; --section-tint:#e8f1e2; --section-line:#b5cda9; }
+.app[data-section=wake] { --section-ink:#67498a; --section-tint:#eee6f8; --section-line:#cab6e3; }
+.navigationClose { display:none; }
+@media(max-width:760px) {
+  .sidebar { width:min(360px,calc(100vw - 24px)); padding:20px 12px 12px; visibility:hidden; }
+  .sidebarOpen { visibility:visible; }
+  .navigationClose { display:inline-flex; position:absolute; right:12px; top:16px; }
+  .sidebarBottom { padding-top:8px; }
+}
+
+/* Expanded recipe instructions should not stretch the neighboring card. */
+.recipeGrid { align-items:start; }
+
+/* Family foundations. Individual sections keep their own task-specific layouts. */
+.app:is([data-section=tasks],[data-section=calendar],[data-section=goals],[data-section=reminders]) {
+  --bg:#faf8f2; --line:#dedbd3; --soft:#62616f;
+}
+.app:is([data-section=routines],[data-section=wake]) {
+  --bg:#fff8ec; --text:#4c3825; --soft:#70604c; --line:#eadbbd;
+  --accent:#93621e; --green:#93621e; --pale:#faedcc;
+}
+.app:is([data-section=meals],[data-section=recipes],[data-section=groceries],[data-section=nutrition],[data-section=movement]) {
+  --bg:#f1f7fc; --text:#17374d; --soft:#536d7f; --line:#d4e4ef;
+  --accent:#246c95; --green:#246c95; --pale:#e2f0fa;
+}
+.app:is([data-section=meals],[data-section=recipes],[data-section=groceries],[data-section=nutrition],[data-section=movement]) :is(h1,h2) {
+  font-family:"Manrope Variable","Avenir Next",Arial,sans-serif; font-weight:700;
+}
+.app:is([data-section=meals],[data-section=recipes],[data-section=groceries],[data-section=nutrition],[data-section=movement]) h1 {
+  font-size:clamp(32px,3.5vw,46px); letter-spacing:-1.3px;
+}
+.app:is([data-section=meals],[data-section=recipes],[data-section=groceries],[data-section=nutrition],[data-section=movement]) .card {
+  border-radius:20px;
+}
+.app:is([data-section=meals],[data-section=recipes],[data-section=groceries],[data-section=nutrition],[data-section=movement]) .pageHeading {
+  min-height:0; padding-block:12px 16px; margin-bottom:12px;
+}
+.app[data-section=nutrition] { --section-ink:#246c95; --section-tint:#e0edf7; --section-line:#b9d4e6; }
+.app:is([data-section=inbox],[data-section=memories]) {
+  --bg:#f6f3fc; --text:#352c49; --soft:#696078; --line:#ded5ed;
+  --accent:#6b4e8b; --green:#6b4e8b; --pale:#eee7f7;
+}
+.app:is([data-section=routines],[data-section=wake],[data-section=meals],[data-section=recipes],[data-section=groceries],[data-section=nutrition],[data-section=movement],[data-section=inbox],[data-section=memories]) :is(.primary,.darkButton,.startButton) {
+  border-color:var(--accent);
+}
+.app:is([data-section=routines],[data-section=wake],[data-section=meals],[data-section=recipes],[data-section=groceries],[data-section=nutrition],[data-section=movement],[data-section=inbox],[data-section=memories]) :is(.primary,.darkButton,.startButton):hover {
+  background:color-mix(in srgb,var(--accent),#000 12%);
+}
+
+/* Shared typography and quiet wayfinding; section content carries its palette. */
+.app :is(h1,h2),.app[data-section] :is(h1,h2) { font-family:"Manrope Variable","Avenir Next",Arial,sans-serif; font-weight:650; }
+.app h1 { letter-spacing:-1.4px; }
+.sectionArt { width:42px; height:42px; border-radius:0; background:transparent; color:var(--section-ink); }
+.sectionArt>svg { width:30px; height:30px; stroke-width:1.5; }
+
+@media (min-width:761px) { .toast { left:50%; max-width:min(680px,calc(100vw - 40px)); } }
+
+.app[data-section=today]{--bg:#fbfcfa;--text:#172324;--soft:#60676c}

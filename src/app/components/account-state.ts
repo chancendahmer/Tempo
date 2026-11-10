@@ -1,10 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
-export const ACCOUNT_EVENT = "tempo-account-change";
+import { ACCOUNT_CHANGE_PARAM, ACCOUNT_EVENT, publishAccountChange } from "./account-change";
+
+export { ACCOUNT_EVENT } from "./account-change";
 
 export type PublicAccount = {
+  cacheKey?: string;
   displayName: string | null;
   phoneLast4: string;
   phoneVerified: boolean;
@@ -14,37 +17,81 @@ export type PublicAccount = {
   calendarStatus: "active" | "requires_reauth" | "disconnected" | null;
 };
 
-export function useAccountStatus(pollMs = 0) {
+export function useAccountStatus(pollMs = 0, enabled = true) {
   const [account, setAccount] = useState<PublicAccount | null | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
+  const [sessionKey, setSessionKey] = useState<string | null>(null);
+  const request = useRef<AbortController | null>(null);
+  const suspended = useRef(!enabled);
+  const suspend = useCallback(() => {
+    suspended.current = true;
+    request.current?.abort();
+    setAccount(null);
+    setError(null);
+    setSessionKey(null);
+  }, []);
   const refresh = useCallback(async () => {
+    if (suspended.current) return;
+    request.current?.abort();
+    const controller = new AbortController();
+    request.current = controller;
     try {
-      const response = await fetch("/api/account/me", { cache: "no-store" });
+      const response = await fetch("/api/account/me", { cache: "no-store", signal: controller.signal });
+      if (controller.signal.aborted) return;
       if (response.status === 401 || response.status === 403) {
         setAccount(null);
         setError(null);
+        setSessionKey(null);
         return;
       }
       if (!response.ok) throw new Error("Account service unavailable");
-      const payload = (await response.json()) as { account?: PublicAccount | null };
+      const payload = (await response.json()) as { account?: PublicAccount | null; sessionKey?: string | null };
+      if (controller.signal.aborted) return;
       setAccount(payload.account ?? null);
+      setSessionKey(payload.account && typeof payload.sessionKey === "string" ? payload.sessionKey : null);
       setError(null);
     } catch {
+      if (controller.signal.aborted) return;
       setAccount((current) => current ?? null);
       setError("We couldn’t load your account. Please try again.");
     }
   }, []);
 
   useEffect(() => {
-    const initial = window.setTimeout(refresh, 0);
-    window.addEventListener(ACCOUNT_EVENT, refresh);
+    if (!enabled) return;
+    suspended.current = false;
+    const accountChanged = () => {
+      request.current?.abort();
+      setAccount(undefined);
+      setSessionKey(null);
+      setError(null);
+      void refresh();
+    };
+    const accountStorageChanged = (event: StorageEvent) => {
+      if (event.key === ACCOUNT_EVENT && event.newValue !== null) accountChanged();
+    };
+    window.addEventListener(ACCOUNT_EVENT, accountChanged);
+    window.addEventListener("storage", accountStorageChanged);
+
+    const url = new URL(window.location.href);
+    let initial: number | undefined;
+    if (url.searchParams.get(ACCOUNT_CHANGE_PARAM) === "1") {
+      url.searchParams.delete(ACCOUNT_CHANGE_PARAM);
+      window.history.replaceState(window.history.state, "", url);
+      publishAccountChange();
+    } else {
+      initial = window.setTimeout(refresh, 0);
+    }
     const interval = pollMs > 0 ? window.setInterval(refresh, pollMs) : undefined;
     return () => {
+      suspended.current = true;
+      request.current?.abort();
       window.clearTimeout(initial);
-      window.removeEventListener(ACCOUNT_EVENT, refresh);
+      window.removeEventListener(ACCOUNT_EVENT, accountChanged);
+      window.removeEventListener("storage", accountStorageChanged);
       if (interval) window.clearInterval(interval);
     };
-  }, [pollMs, refresh]);
+  }, [enabled, pollMs, refresh]);
 
-  return { account, refresh, error };
+  return { account, sessionKey, refresh, error, suspend };
 }

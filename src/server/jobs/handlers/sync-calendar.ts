@@ -5,17 +5,19 @@ import { requireEnv } from "../../config/env";
 import { DrizzleCalendarSyncRepository } from "../../db/repositories/calendar-sync-repository";
 import { DrizzleExtensionSignalRepository } from "../../db/repositories/extension-signal-repository";
 import { syncCalendar } from "../../domain/calendar-sync";
-import { logger } from "../../observability/logger";
 import { JOB_NAMES, SyncCalendarJob } from "../names";
 import { ScheduledActionRepository } from "../scheduled-action-repository";
+import { failJob } from "../job-failure";
 
 export async function registerSyncCalendarHandler(boss: PgBoss) {
   await boss.work<SyncCalendarJob>(JOB_NAMES.syncCalendar, { localConcurrency: 2 }, async (jobs) => {
     for (const job of jobs) {
       const actions = new ScheduledActionRepository();
-      const ownership = await actions.claimRecurring(job.data.scheduledActionId, job.signal, job.expireInSeconds * 1000);
-      if (!ownership) continue;
+      let running = false;
       try {
+        const ownership = await actions.claimRecurring(job.data.scheduledActionId, job.signal, job.expireInSeconds * 1000);
+        if (!ownership) continue;
+        running = true;
         const env = requireEnv(["FIELD_ENCRYPTION_KEY", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GOOGLE_REDIRECT_URI"]);
         const result = await inOwnedExecution(ownership, () => syncCalendar({
           userId: job.data.userId,
@@ -28,16 +30,16 @@ export async function registerSyncCalendarHandler(boss: PgBoss) {
           await actions.completeAndScheduleCalendarSync(job.data.scheduledActionId, job.data.userId, new Date(Date.now() + 15 * 60_000));
         } else await actions.markCompleted(job.data.scheduledActionId);
       } catch (error) {
-        if (job.signal.aborted) throw error;
-        await actions.markFailed(job.data.scheduledActionId, error);
-        await actions.scheduleRecurringRecovery({
-          failedActionId: job.data.scheduledActionId,
-          userId: job.data.userId,
-          kind: "sync_calendar",
-          runAt: new Date(Date.now() + 60 * 60_000),
-        });
-        logger.warn({ err: error, userId: job.data.userId }, "calendar sync failed without blocking SMS processing");
-        throw error;
+        await failJob(error, { jobId: job.id, operation: "Calendar sync", level: "warn", signal: job.signal,
+          logMessage: "calendar sync failed without blocking SMS processing", record: running ? async retry => {
+            await actions.markFailed(job.data.scheduledActionId, retry);
+            await actions.scheduleRecurringRecovery({
+              failedActionId: job.data.scheduledActionId,
+              userId: job.data.userId,
+              kind: "sync_calendar",
+              runAt: new Date(Date.now() + 60 * 60_000),
+            });
+          } : undefined });
       }
     }
   });

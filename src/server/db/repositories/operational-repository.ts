@@ -1,15 +1,23 @@
-import { eq, lt, sql } from "drizzle-orm";
+import { desc, eq, like, lt, lte, or, sql } from "drizzle-orm";
 import { getDatabase, TempoDatabase } from "../client";
-import { consentRecords, oauthStates, rateLimitBuckets, serviceHeartbeats, users } from "../schema";
+import { consentRecords, oauthStates, pendingDeliveryReceipts, rateLimitBuckets, serviceHeartbeats, users } from "../schema";
+import { MAX_ATTESTED_WORKERS, WORKER_INSTANCE_PREFIX } from "../../observability/worker-attestation";
+import { outboundAcknowledgedSql } from "./outbound-dispositions";
 
 export class OperationalRepository {
   constructor(private readonly database: TempoDatabase = getDatabase()) {}
 
   async messageHealth(now = new Date()) {
-    const result = await this.database.execute<{ ambiguousOutbound: number; pendingInbound: number; oldestPendingSeconds: number | null }>(sql`
+    const schema = await this.database.execute<{ present: boolean }>(sql`
+      select to_regclass('public.outbound_disposition_events') is not null
+        and to_regclass('pgboss.job') is not null as present
+    `);
+    const acknowledged = schema.rows[0]?.present ? sql`(${sql.raw(outboundAcknowledgedSql)})` : sql`0`;
+    const result = await this.database.execute<{ ambiguousOutbound: number; acknowledgedHistoricalOutbound: number; pendingInbound: number; oldestPendingSeconds: number | null }>(sql`
       select
         count(*) filter (where direction = 'outbound' and (outbound_state = 'ambiguous'
           or (outbound_state = 'submitting' and submission_started_at < ${new Date(now.getTime() - 120_000)})))::int as "ambiguousOutbound",
+        ${acknowledged} as "acknowledgedHistoricalOutbound",
         count(*) filter (where direction = 'inbound' and status in ('received','processing'))::int as "pendingInbound",
         extract(epoch from (${now}::timestamptz - min(created_at) filter (where direction = 'inbound' and status in ('received','processing'))))::int as "oldestPendingSeconds"
       from conversation_messages
@@ -29,6 +37,17 @@ export class OperationalRepository {
     const [heartbeat] = await this.database.select().from(serviceHeartbeats)
       .where(eq(serviceHeartbeats.serviceKey, serviceKey)).limit(1);
     return heartbeat ?? null;
+  }
+
+  async getWorkerHeartbeats() {
+    return this.database.select({ serviceKey: serviceHeartbeats.serviceKey, lastSeenAt: serviceHeartbeats.lastSeenAt, metadata: serviceHeartbeats.metadata })
+      .from(serviceHeartbeats).where(or(eq(serviceHeartbeats.serviceKey, "tempo-worker"), like(serviceHeartbeats.serviceKey, `${WORKER_INSTANCE_PREFIX}%`)))
+      .orderBy(desc(serviceHeartbeats.lastSeenAt)).limit(MAX_ATTESTED_WORKERS + 2);
+  }
+
+  async removeWorkerHeartbeat(serviceKey: string) {
+    if (!/^tempo-worker:[a-f0-9-]{36}$/.test(serviceKey)) throw new Error("Expected an instance heartbeat key");
+    await this.database.delete(serviceHeartbeats).where(eq(serviceHeartbeats.serviceKey, serviceKey));
   }
 
   async countEarlyAccess() {
@@ -73,7 +92,10 @@ export class OperationalRepository {
       const rateLimitRows = await transaction.delete(rateLimitBuckets)
         .where(lt(rateLimitBuckets.windowStart, new Date(now.getTime() - 24 * 3_600_000)))
         .returning({ key: rateLimitBuckets.key });
-      return { oauthStates: oauthRows.length, rateLimitBuckets: rateLimitRows.length };
+      const expiredReceipts = await transaction.delete(pendingDeliveryReceipts)
+        .where(lte(pendingDeliveryReceipts.expiresAt, now))
+        .returning({ provider: pendingDeliveryReceipts.provider });
+      return { oauthStates: oauthRows.length, rateLimitBuckets: rateLimitRows.length, pendingDeliveryReceipts: expiredReceipts.length };
     });
   }
 }

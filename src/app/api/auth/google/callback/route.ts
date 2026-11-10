@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { ACCOUNT_CHANGE_PARAM } from "../../../../components/account-change";
 import { GoogleCalendarProvider } from "@/server/adapters/calendar/google-calendar-provider";
 import { requireEnv } from "@/server/config/env";
 import { DrizzleCalendarOAuthRepository } from "@/server/db/repositories/calendar-oauth-repository";
@@ -15,14 +16,15 @@ function extensionUrl(baseUrl: string, status: string) {
 }
 
 export async function GET(request: NextRequest) {
-  const env = requireEnv(["APP_BASE_URL", "DATABASE_URL", "FIELD_ENCRYPTION_KEY", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GOOGLE_REDIRECT_URI"]);
-  const state = request.nextUrl.searchParams.get("state");
-  const code = request.nextUrl.searchParams.get("code");
-  if (request.nextUrl.searchParams.has("error") || !state || !code) {
-    return NextResponse.redirect(extensionUrl(env.APP_BASE_URL, "cancelled"), 303);
-  }
-
+  let appBaseUrl: string | undefined;
   try {
+    const env = requireEnv(["APP_BASE_URL", "DATABASE_URL", "FIELD_ENCRYPTION_KEY", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GOOGLE_REDIRECT_URI"]);
+    appBaseUrl = env.APP_BASE_URL;
+    const state = request.nextUrl.searchParams.get("state");
+    const code = request.nextUrl.searchParams.get("code");
+    if (request.nextUrl.searchParams.has("error") || !state || !code) {
+      return NextResponse.redirect(extensionUrl(env.APP_BASE_URL, "cancelled"), 303);
+    }
     const completed = await completeCalendarOAuth({
       state,
       code,
@@ -31,7 +33,9 @@ export async function GET(request: NextRequest) {
       encryptionKey: env.FIELD_ENCRYPTION_KEY!,
     });
     const session = await new WebSessionService().create(completed.userId, new Date(), true);
-    const response = NextResponse.redirect(extensionUrl(env.APP_BASE_URL, "connected"), 303);
+    const destination = extensionUrl(env.APP_BASE_URL, "connected");
+    destination.searchParams.set(ACCOUNT_CHANGE_PARAM, "1");
+    const response = NextResponse.redirect(destination, 303);
     response.cookies.set(WEB_SESSION_COOKIE, session.token, {
       httpOnly: true,
       secure: env.NODE_ENV === "production",
@@ -41,8 +45,10 @@ export async function GET(request: NextRequest) {
       expires: session.expiresAt,
     });
     return response;
-  } catch (error) {
-    logger.warn({ err: error }, "calendar OAuth callback failed");
-    return NextResponse.redirect(extensionUrl(env.APP_BASE_URL, "failed"), 303);
+  } catch {
+    logger.warn({ operation: "complete_calendar_oauth" }, "calendar OAuth callback failed");
+    // Configuration may have failed before a redirect destination was validated.
+    return appBaseUrl ? NextResponse.redirect(extensionUrl(appBaseUrl, "failed"), 303)
+      : NextResponse.json({ error: "Calendar connection is temporarily unavailable." }, { status: 503, headers: { "Cache-Control": "private, no-store" } });
   }
 }

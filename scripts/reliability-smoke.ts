@@ -61,9 +61,9 @@ async function worker(queue: string, fault: string) {
         }
       }(database);
       const outbound = new class extends DrizzleOutboundMessageRepository {
-        async beginSubmission(id: string) {
+        async beginSubmission(id: string, now: Date) {
           await barrier("reservation", fault);
-          return super.beginSubmission(id);
+          return super.beginSubmission(id, now);
         }
       }(database);
       const sender = new SafeSmsSender(outbound, {

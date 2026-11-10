@@ -15,9 +15,13 @@ export type ReminderRecord = {
 export interface ReminderRepository {
   createMany?(input: { userId: string; sourceMessageId: string; timezone: string; items: Array<{ contentMode?: "text" | "daily_rundown"; text: string; remindAt: Date; recurrence?: "daily" | "weekdays" | "weekly"; taskId?: string }> }): Promise<ReminderRecord[]>;
   updateMany?(input: { userId: string; sourceMessageId: string; now: Date; changes: Array<{ reminderId: string; expectedRemindAt: Date; remindAt: Date }> }): Promise<{ kind: "updated"; reminders: ReminderRecord[] } | { kind: "stale" }>;
+  cancelMany?(input: { userId: string; sourceMessageId: string; now: Date; reminders: Array<{ reminderId: string; expectedRemindAt: Date }> }): Promise<{ kind: "cancelled"; message: string } | { kind: "stale" }>;
 
   update?(input: { userId: string; sourceMessageId: string; reminderId?: string; reminderQuery?: string; remindAt?: Date; now: Date }): Promise<
     | { kind: "updated"; reminder: ReminderRecord }
+    | { kind: "followup"; originalReminderId: string; reminder: ReminderRecord }
+    | { kind: "blocked" }
+    | { kind: "conflict" }
     | { kind: "not_found" }
     | { kind: "ambiguous"; reminders: ReminderRecord[] }
   >;
@@ -33,7 +37,12 @@ export interface ReminderRepository {
     taskId?: string;
   }): Promise<ReminderRecord>;
   listUpcoming(userId: string, now: Date): Promise<ReminderRecord[]>;
+  findForRecall?(userId: string, terms: string[], sourceMessageIds: string[]): Promise<{
+    items: Array<Pick<ReminderRecord, "text" | "remindAt" | "timezone" | "recurrence" | "status">>;
+    truncated: boolean;
+  }>;
   listForManagement?(userId: string): Promise<ReminderRecord[]>;
+  listForHistory?(userId: string): Promise<{ items: ReminderRecord[]; truncated: boolean }>;
   listForRundown(userId: string, start: Date, end: Date): Promise<ReminderRecord[]>;
   cancel(input: { userId: string; reminderId?: string; reminderQuery?: string; now: Date }): Promise<
     | { kind: "cancelled"; reminder: ReminderRecord }
@@ -155,6 +164,12 @@ export async function executeReminderCommand(
   command: ReminderCommand,
   context: { userId: string; sourceMessageId: string; timezone: string; now: Date; forModel?: boolean },
 ): Promise<string> {
+  if (command.type === "cancel_reminders") {
+    if (!repository.cancelMany) return "Multiple reminder cancellations are temporarily unavailable. Nothing was changed.";
+    if (new Set(command.reminders.map(item => item.reminderId)).size !== command.reminders.length) return "Please choose distinct reminders. Nothing was changed.";
+    const result = await repository.cancelMany({ ...context, reminders: command.reminders.map(item => ({ ...item, expectedRemindAt: new Date(item.expectedRemindAt) })) });
+    return result.kind === "cancelled" ? result.message : "Those reminders changed or can no longer be cancelled together. Please let me check them again. Nothing was changed.";
+  }
   if (command.type === "create_reminders") {
     if (!repository.createMany) return "Multiple reminders are temporarily unavailable.";
     if (command.reminders.some(item => new Date(item.remindAt) <= context.now)) return "One of those times has passed. What future date and time should I use? No reminders were added.";
@@ -189,12 +204,20 @@ export async function executeReminderCommand(
   }
 
   if (command.type === "list_reminders") {
-    const reminders = command.includePast && repository.listForManagement ? await repository.listForManagement(context.userId) : await repository.listUpcoming(context.userId, context.now);
-    if (context.forModel) return JSON.stringify({ items: reminders, limit: 50, truncated: reminders.length >= 50 });
-    if (reminders.length === 0) return "You don’t have any upcoming reminders.";
-    return reminders.slice(0, 8).map((reminder, index) =>
-      `${index + 1}. ${reminder.recurrence ? `${recurrenceLabel(reminder.recurrence)}, next ` : ""}${formatReminderTime(reminder.remindAt, reminder.timezone)} — ${reminder.text}`,
-    ).join("\n");
+    const history = command.includePast ? await repository.listForHistory?.(context.userId) : undefined;
+    const reminders = history?.items ?? (command.includePast && repository.listForManagement
+      ? await repository.listForManagement(context.userId) : await repository.listUpcoming(context.userId, context.now));
+    const notice = command.includePast && !history ? "Full reminder history is unavailable; cancelled reminders may be omitted." : undefined;
+    const truncated = history?.truncated ?? reminders.length >= 50;
+    if (context.forModel) return JSON.stringify({ items: reminders, limit: 50, truncated, ...(notice ? { notice } : {}) });
+    if (!reminders.length) return notice ?? (command.includePast ? "You don’t have any saved reminders." : "You don’t have any upcoming reminders.");
+    const lines = reminders.slice(0, 8).map((reminder, index) => {
+      const recurrence = reminder.recurrence ? `${recurrenceLabel(reminder.recurrence)}${command.includePast ? ", " : ", next "}` : "";
+      return `${index + 1}. ${recurrence}${formatReminderTime(reminder.remindAt, reminder.timezone)} — ${reminder.text}${command.includePast ? ` · ${reminder.status}` : ""}`;
+    });
+    if (notice) lines.push(notice);
+    if (command.includePast && (truncated || reminders.length > 8)) lines.push("More reminder records exist; this list is incomplete.");
+    return lines.join("\n");
   }
 
   if (command.type === "reschedule_reminder" || command.type === "complete_reminder") {
@@ -202,8 +225,11 @@ export async function executeReminderCommand(
     const remindAt = command.type === "reschedule_reminder" ? new Date(command.remindAt) : undefined;
     if (remindAt && (!Number.isFinite(remindAt.getTime()) || remindAt <= context.now)) return "That time has already passed. What future date and time should I use?";
     const result = await repository.update({ ...context, reminderId: command.reminderId, reminderQuery: command.reminderQuery, remindAt });
+    if (result.kind === "blocked") return "I couldn’t schedule another text while messaging is unavailable for this account. Your original reminder is unchanged.";
+    if (result.kind === "conflict") return "That request differs from its earlier saved change. Nothing else was scheduled.";
     if (result.kind === "not_found") return "I couldn’t find an editable reminder with that description.";
     if (result.kind === "ambiguous") return `Please send the change again with a more specific reminder title: ${result.reminders.map((item) => item.text).join("; ")}.`;
+    if (result.kind === "followup") return `The original reminder was already sent for delivery. A new reminder was saved for ${formatReminderTime(result.reminder.remindAt, result.reminder.timezone)}: ${result.reminder.text}`;
     return remindAt ? `Reminder moved to ${formatReminderTime(result.reminder.remindAt, result.reminder.timezone)}: ${result.reminder.text}` : `Completed reminder: ${result.reminder.text}.`;
   }
 

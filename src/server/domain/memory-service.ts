@@ -23,6 +23,9 @@ export type MemoryRecord = {
   confidence: number | null;
 };
 
+export const savedMemoryTopicCoverage = "All active non-sensitive saved facts matching every search word in the saved content or category; notes are searched separately.";
+export const savedMemoryAllCoverage = "Active non-sensitive saved facts; notes are searched separately.";
+
 export interface MemoryRepository {
   forgetById?(userId: string, id: string, expectedContent: string, now: Date): Promise<boolean>;
   retrieveRelevant(userId: string, now: Date, limit: number): Promise<MemoryRecord[]>;
@@ -82,6 +85,16 @@ export function parseMemoryCorrection(body: string): MemoryCorrection | null {
   return null;
 }
 
+function correctionWriteType(correction: MemoryCorrection): "remember_memory" | "forget_memory" {
+  return correction.type === "forget" || correction.type === "forget_recent" ? "forget_memory" : "remember_memory";
+}
+
+export function memoryCorrectionWriteType(body: string): "remember_memory" | "forget_memory" | undefined {
+  const correction = parseMemoryCorrection(body);
+  if (!correction || ("content" in correction && isSensitiveMemory(correction.content))) return;
+  return correctionWriteType(correction);
+}
+
 export class MemoryService {
   constructor(private readonly repository: MemoryRepository) {}
 
@@ -106,8 +119,7 @@ export class MemoryService {
     const rows = await this.repository.searchRelevant(userId, now, query, size + 1);
     return { items: rows.slice(0, size), truncated: rows.length > size,
       coverage: rows.length > size ? "More matching saved facts exist; narrow the topic."
-        : query ? "All active non-sensitive saved facts matching every search word; notes are searched separately."
-        : "Active non-sensitive saved facts; notes are searched separately." };
+        : query ? savedMemoryTopicCoverage : savedMemoryAllCoverage };
   }
 
   async executeCommand(input: { userId: string; messageId: string; command: MemoryCommand; now: Date }) {
@@ -135,7 +147,7 @@ export class MemoryService {
     // A syntactic match is only a routing candidate. Let the shared assistant
     // resolve task/goal/workspace requests instead of stopping at memory denial
     // or consuming a mixed request as a generic fact.
-    if (canHandle && !await canHandle(correction.type === "forget" || correction.type === "forget_recent" ? "forget_memory" : "remember_memory")) return null;
+    if (canHandle && !await canHandle(correctionWriteType(correction))) return null;
     if (correction.type === "forget") {
       const count = await this.repository.forgetMatching(input.userId, correction.query, input.now);
       if (!count && canHandle) return null;

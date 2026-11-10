@@ -3,9 +3,9 @@ import { createMessagingTransport } from "../../adapters/sms/messaging-provider"
 import { getServerEnv } from "../../config/env";
 import { DrizzleOutboundMessageRepository } from "../../db/repositories/outbound-message-repository";
 import { SafeSmsSender } from "../../domain/outbound-messaging";
-import { logger } from "../../observability/logger";
 import { JOB_NAMES, SendComplianceJob } from "../names";
 import { ScheduledActionRepository } from "../scheduled-action-repository";
+import { failJob } from "../job-failure";
 import { and, eq } from "drizzle-orm";
 import { getDatabase } from "../../db/client";
 import { scheduledActions } from "../../db/schema";
@@ -14,9 +14,10 @@ export async function registerSendComplianceHandler(boss: PgBoss) {
   await boss.work<SendComplianceJob>(JOB_NAMES.sendCompliance, { localConcurrency: 2 }, async (jobs) => {
     for (const job of jobs) {
       const actions = new ScheduledActionRepository();
-      if (!(await actions.markRunning(job.data.scheduledActionId))) continue;
-
+      let running = false;
       try {
+        running = await actions.markRunning(job.data.scheduledActionId);
+        if (!running) continue;
         const env = getServerEnv();
         const sender = new SafeSmsSender(new DrizzleOutboundMessageRepository(), createMessagingTransport());
         const [action] = await getDatabase().select({ payload: scheduledActions.payload }).from(scheduledActions)
@@ -38,9 +39,8 @@ export async function registerSendComplianceHandler(boss: PgBoss) {
           await actions.markCancelled(job.data.scheduledActionId, result.reason);
         }
       } catch (error) {
-        await actions.markFailed(job.data.scheduledActionId, error);
-        logger.error({ err: error, jobId: job.id }, "compliance reply job failed");
-        throw error;
+        await failJob(error, { jobId: job.id, operation: "Compliance reply job", logMessage: "compliance reply job failed",
+          record: running ? retry => actions.markFailed(job.data.scheduledActionId, retry) : undefined });
       }
     }
   });

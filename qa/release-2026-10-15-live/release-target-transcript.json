@@ -1,0 +1,953 @@
+[
+  {
+    "decisionAt": "2027-01-14T15:00:00.001Z",
+    "input": "Set my daily protein target to 90 grams. Leave calories, carbs, fat and fiber targets unknown.",
+    "replies": [
+      "Saved: Daily Nutrition Target."
+    ],
+    "providerId": "ea8544b8-5f8f-4a69-8c1c-4876b53a84b8",
+    "duplicate": false,
+    "parserCalled": true,
+    "tools": [
+      "life_list",
+      "life_save"
+    ],
+    "elapsedMs": 8163,
+    "channel": "web",
+    "toolTrace": [
+      {
+        "command": {
+          "type": "life_list",
+          "kind": "nutrition_target"
+        },
+        "result": "{\"items\":[],\"truncated\":false,\"coverage\":{\"kind\":\"nutrition_target\",\"id\":null,\"query\":null,\"match\":\"all search words\",\"searched\":true,\"limit\":20},\"notice\":\"All records of this kind are included.\"}"
+      },
+      {
+        "command": {
+          "type": "life_save",
+          "data": {
+            "kind": "nutrition_target",
+            "title": "Daily Nutrition Target",
+            "calories": null,
+            "protein": 90,
+            "carbs": null,
+            "fat": null,
+            "fiber": null
+          }
+        },
+        "result": "Saved: Daily Nutrition Target."
+      }
+    ],
+    "issues": [],
+    "before": {
+      "timezone": "America/New_York",
+      "generatedAt": "2026-10-15T19:37:41.351Z",
+      "tasks": [],
+      "reminders": [],
+      "calendar": null,
+      "busy": [],
+      "tasksTruncated": false,
+      "goals": [],
+      "goalsTruncated": false,
+      "items": [
+        {
+          "id": "27a83ceb-74e9-445a-a1e6-0e172ea8c922",
+          "version": 1,
+          "data": {
+            "fat": 14,
+            "date": "2027-01-14",
+            "kind": "food",
+            "meal": "Breakfast",
+            "carbs": 42,
+            "fiber": 6,
+            "title": "Unrelated breakfast",
+            "protein": 21,
+            "calories": 380
+          }
+        }
+      ],
+      "itemsTruncated": false,
+      "itemCoverage": {
+        "focus": {
+          "included": 0,
+          "total": 0,
+          "limit": 1,
+          "truncated": false
+        },
+        "routine": {
+          "included": 0,
+          "total": 0,
+          "limit": 100,
+          "truncated": false
+        },
+        "nutrition_target": {
+          "included": 0,
+          "total": 0,
+          "limit": 1,
+          "truncated": false
+        },
+        "workout_plan": {
+          "included": 0,
+          "total": 0,
+          "limit": 100,
+          "truncated": false
+        },
+        "recipe": {
+          "included": 0,
+          "total": 0,
+          "limit": 250,
+          "truncated": false
+        },
+        "pantry": {
+          "included": 0,
+          "total": 0,
+          "limit": 250,
+          "truncated": false
+        },
+        "grocery": {
+          "included": 0,
+          "total": 0,
+          "limit": 500,
+          "truncated": false
+        },
+        "note": {
+          "included": 0,
+          "total": 0,
+          "limit": 250,
+          "truncated": false
+        },
+        "food": {
+          "included": 1,
+          "total": 1,
+          "limit": 500,
+          "truncated": false
+        },
+        "workout": {
+          "included": 0,
+          "total": 0,
+          "limit": 500,
+          "truncated": false
+        },
+        "meal": {
+          "included": 0,
+          "total": 0,
+          "limit": 500,
+          "truncated": false
+        }
+      },
+      "diaryCoverage": null,
+      "messages": [],
+      "profile": {
+        "displayName": null,
+        "proactiveOptIn": false,
+        "quietHoursStart": null,
+        "quietHoursEnd": null
+      },
+      "memories": [],
+      "memoriesTruncated": false,
+      "remindersTruncated": false
+    },
+    "after": {
+      "timezone": "America/New_York",
+      "generatedAt": "2026-10-15T19:37:49.539Z",
+      "tasks": [],
+      "reminders": [],
+      "calendar": null,
+      "busy": [],
+      "tasksTruncated": false,
+      "goals": [],
+      "goalsTruncated": false,
+      "items": [
+        {
+          "id": "df751063-3fbd-43ea-9625-55d58e63c822",
+          "version": 1,
+          "data": {
+            "fat": null,
+            "kind": "nutrition_target",
+            "carbs": null,
+            "fiber": null,
+            "title": "Daily Nutrition Target",
+            "protein": 90,
+            "calories": null
+          }
+        },
+        {
+          "id": "27a83ceb-74e9-445a-a1e6-0e172ea8c922",
+          "version": 1,
+          "data": {
+            "fat": 14,
+            "date": "2027-01-14",
+            "kind": "food",
+            "meal": "Breakfast",
+            "carbs": 42,
+            "fiber": 6,
+            "title": "Unrelated breakfast",
+            "protein": 21,
+            "calories": 380
+          }
+        }
+      ],
+      "itemsTruncated": false,
+      "itemCoverage": {
+        "focus": {
+          "included": 0,
+          "total": 0,
+          "limit": 1,
+          "truncated": false
+        },
+        "routine": {
+          "included": 0,
+          "total": 0,
+          "limit": 100,
+          "truncated": false
+        },
+        "nutrition_target": {
+          "included": 1,
+          "total": 1,
+          "limit": 1,
+          "truncated": false
+        },
+        "workout_plan": {
+          "included": 0,
+          "total": 0,
+          "limit": 100,
+          "truncated": false
+        },
+        "recipe": {
+          "included": 0,
+          "total": 0,
+          "limit": 250,
+          "truncated": false
+        },
+        "pantry": {
+          "included": 0,
+          "total": 0,
+          "limit": 250,
+          "truncated": false
+        },
+        "grocery": {
+          "included": 0,
+          "total": 0,
+          "limit": 500,
+          "truncated": false
+        },
+        "note": {
+          "included": 0,
+          "total": 0,
+          "limit": 250,
+          "truncated": false
+        },
+        "food": {
+          "included": 1,
+          "total": 1,
+          "limit": 500,
+          "truncated": false
+        },
+        "workout": {
+          "included": 0,
+          "total": 0,
+          "limit": 500,
+          "truncated": false
+        },
+        "meal": {
+          "included": 0,
+          "total": 0,
+          "limit": 500,
+          "truncated": false
+        }
+      },
+      "diaryCoverage": null,
+      "messages": [
+        {
+          "id": "df751063-3fbd-43ea-9625-55d58e63c822",
+          "body": "Set my daily protein target to 90 grams. Leave calories, carbs, fat and fiber targets unknown.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.001Z"
+        },
+        {
+          "id": "3e117769-f51d-4252-9975-62964ef19073",
+          "body": "Saved: Daily Nutrition Target.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.002Z"
+        }
+      ],
+      "profile": {
+        "displayName": null,
+        "proactiveOptIn": false,
+        "quietHoursStart": null,
+        "quietHoursEnd": null
+      },
+      "memories": [],
+      "memoriesTruncated": false,
+      "remindersTruncated": false
+    },
+    "reminders": []
+  },
+  {
+    "decisionAt": "2027-01-14T15:00:00.003Z",
+    "input": "What is my saved daily protein target now?",
+    "replies": [
+      "Your saved daily protein target is 90g. All other targets (calories, carbs, fat, fiber) are currently unset."
+    ],
+    "providerId": "a61fd1ca-4ce8-4679-9531-609e9917aaed",
+    "duplicate": false,
+    "parserCalled": true,
+    "tools": [
+      "life_list"
+    ],
+    "elapsedMs": 3638,
+    "channel": "sms",
+    "toolTrace": [
+      {
+        "command": {
+          "type": "life_list",
+          "kind": "nutrition_target"
+        },
+        "result": "{\"items\":[{\"id\":\"df751063-3fbd-43ea-9625-55d58e63c822\",\"version\":1,\"data\":{\"fat\":null,\"kind\":\"nutrition_target\",\"carbs\":null,\"fiber\":null,\"title\":\"Daily Nutrition Target\",\"protein\":90,\"calories\":null}}],\"truncated\":false,\"coverage\":{\"kind\":\"nutrition_target\",\"id\":null,\"query\":null,\"match\":\"all search words\",\"searched\":true,\"limit\":20},\"notice\":\"All records of this kind are included.\"}"
+      }
+    ],
+    "issues": [],
+    "before": {
+      "timezone": "America/New_York",
+      "generatedAt": "2026-10-15T19:37:49.606Z",
+      "tasks": [],
+      "reminders": [],
+      "calendar": null,
+      "busy": [],
+      "tasksTruncated": false,
+      "goals": [],
+      "goalsTruncated": false,
+      "items": [
+        {
+          "id": "df751063-3fbd-43ea-9625-55d58e63c822",
+          "version": 1,
+          "data": {
+            "fat": null,
+            "kind": "nutrition_target",
+            "carbs": null,
+            "fiber": null,
+            "title": "Daily Nutrition Target",
+            "protein": 90,
+            "calories": null
+          }
+        },
+        {
+          "id": "27a83ceb-74e9-445a-a1e6-0e172ea8c922",
+          "version": 1,
+          "data": {
+            "fat": 14,
+            "date": "2027-01-14",
+            "kind": "food",
+            "meal": "Breakfast",
+            "carbs": 42,
+            "fiber": 6,
+            "title": "Unrelated breakfast",
+            "protein": 21,
+            "calories": 380
+          }
+        }
+      ],
+      "itemsTruncated": false,
+      "itemCoverage": {
+        "focus": {
+          "included": 0,
+          "total": 0,
+          "limit": 1,
+          "truncated": false
+        },
+        "routine": {
+          "included": 0,
+          "total": 0,
+          "limit": 100,
+          "truncated": false
+        },
+        "nutrition_target": {
+          "included": 1,
+          "total": 1,
+          "limit": 1,
+          "truncated": false
+        },
+        "workout_plan": {
+          "included": 0,
+          "total": 0,
+          "limit": 100,
+          "truncated": false
+        },
+        "recipe": {
+          "included": 0,
+          "total": 0,
+          "limit": 250,
+          "truncated": false
+        },
+        "pantry": {
+          "included": 0,
+          "total": 0,
+          "limit": 250,
+          "truncated": false
+        },
+        "grocery": {
+          "included": 0,
+          "total": 0,
+          "limit": 500,
+          "truncated": false
+        },
+        "note": {
+          "included": 0,
+          "total": 0,
+          "limit": 250,
+          "truncated": false
+        },
+        "food": {
+          "included": 1,
+          "total": 1,
+          "limit": 500,
+          "truncated": false
+        },
+        "workout": {
+          "included": 0,
+          "total": 0,
+          "limit": 500,
+          "truncated": false
+        },
+        "meal": {
+          "included": 0,
+          "total": 0,
+          "limit": 500,
+          "truncated": false
+        }
+      },
+      "diaryCoverage": null,
+      "messages": [
+        {
+          "id": "df751063-3fbd-43ea-9625-55d58e63c822",
+          "body": "Set my daily protein target to 90 grams. Leave calories, carbs, fat and fiber targets unknown.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.001Z"
+        },
+        {
+          "id": "3e117769-f51d-4252-9975-62964ef19073",
+          "body": "Saved: Daily Nutrition Target.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.002Z"
+        }
+      ],
+      "profile": {
+        "displayName": null,
+        "proactiveOptIn": false,
+        "quietHoursStart": null,
+        "quietHoursEnd": null
+      },
+      "memories": [],
+      "memoriesTruncated": false,
+      "remindersTruncated": false
+    },
+    "after": {
+      "timezone": "America/New_York",
+      "generatedAt": "2026-10-15T19:37:53.264Z",
+      "tasks": [],
+      "reminders": [],
+      "calendar": null,
+      "busy": [],
+      "tasksTruncated": false,
+      "goals": [],
+      "goalsTruncated": false,
+      "items": [
+        {
+          "id": "df751063-3fbd-43ea-9625-55d58e63c822",
+          "version": 1,
+          "data": {
+            "fat": null,
+            "kind": "nutrition_target",
+            "carbs": null,
+            "fiber": null,
+            "title": "Daily Nutrition Target",
+            "protein": 90,
+            "calories": null
+          }
+        },
+        {
+          "id": "27a83ceb-74e9-445a-a1e6-0e172ea8c922",
+          "version": 1,
+          "data": {
+            "fat": 14,
+            "date": "2027-01-14",
+            "kind": "food",
+            "meal": "Breakfast",
+            "carbs": 42,
+            "fiber": 6,
+            "title": "Unrelated breakfast",
+            "protein": 21,
+            "calories": 380
+          }
+        }
+      ],
+      "itemsTruncated": false,
+      "itemCoverage": {
+        "focus": {
+          "included": 0,
+          "total": 0,
+          "limit": 1,
+          "truncated": false
+        },
+        "routine": {
+          "included": 0,
+          "total": 0,
+          "limit": 100,
+          "truncated": false
+        },
+        "nutrition_target": {
+          "included": 1,
+          "total": 1,
+          "limit": 1,
+          "truncated": false
+        },
+        "workout_plan": {
+          "included": 0,
+          "total": 0,
+          "limit": 100,
+          "truncated": false
+        },
+        "recipe": {
+          "included": 0,
+          "total": 0,
+          "limit": 250,
+          "truncated": false
+        },
+        "pantry": {
+          "included": 0,
+          "total": 0,
+          "limit": 250,
+          "truncated": false
+        },
+        "grocery": {
+          "included": 0,
+          "total": 0,
+          "limit": 500,
+          "truncated": false
+        },
+        "note": {
+          "included": 0,
+          "total": 0,
+          "limit": 250,
+          "truncated": false
+        },
+        "food": {
+          "included": 1,
+          "total": 1,
+          "limit": 500,
+          "truncated": false
+        },
+        "workout": {
+          "included": 0,
+          "total": 0,
+          "limit": 500,
+          "truncated": false
+        },
+        "meal": {
+          "included": 0,
+          "total": 0,
+          "limit": 500,
+          "truncated": false
+        }
+      },
+      "diaryCoverage": null,
+      "messages": [
+        {
+          "id": "df751063-3fbd-43ea-9625-55d58e63c822",
+          "body": "Set my daily protein target to 90 grams. Leave calories, carbs, fat and fiber targets unknown.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.001Z"
+        },
+        {
+          "id": "3e117769-f51d-4252-9975-62964ef19073",
+          "body": "Saved: Daily Nutrition Target.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.002Z"
+        },
+        {
+          "id": "5e85e328-0f20-4222-adab-ccf1776db504",
+          "body": "What is my saved daily protein target now?",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.003Z"
+        },
+        {
+          "id": "42f5c15a-7e46-4824-8174-bd27d6632f66",
+          "body": "Your saved daily protein target is 90g. All other targets (calories, carbs, fat, fiber) are currently unset.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.004Z"
+        }
+      ],
+      "profile": {
+        "displayName": null,
+        "proactiveOptIn": false,
+        "quietHoursStart": null,
+        "quietHoursEnd": null
+      },
+      "memories": [],
+      "memoriesTruncated": false,
+      "remindersTruncated": false
+    },
+    "reminders": []
+  },
+  {
+    "decisionAt": "2027-01-14T15:00:00.005Z",
+    "input": "Change only my saved protein target to 95 grams. Keep every other target and its name as they are.",
+    "replies": [
+      "Updated: Daily Nutrition Target."
+    ],
+    "providerId": "50bd63a4-eaec-44fb-b78d-465b833221fd",
+    "duplicate": false,
+    "parserCalled": true,
+    "tools": [
+      "life_list",
+      "life_patch"
+    ],
+    "elapsedMs": 7167,
+    "channel": "web",
+    "toolTrace": [
+      {
+        "command": {
+          "type": "life_list",
+          "kind": "nutrition_target"
+        },
+        "result": "{\"items\":[{\"id\":\"df751063-3fbd-43ea-9625-55d58e63c822\",\"version\":1,\"data\":{\"fat\":null,\"kind\":\"nutrition_target\",\"carbs\":null,\"fiber\":null,\"title\":\"Daily Nutrition Target\",\"protein\":90,\"calories\":null}}],\"truncated\":false,\"coverage\":{\"kind\":\"nutrition_target\",\"id\":null,\"query\":null,\"match\":\"all search words\",\"searched\":true,\"limit\":20},\"notice\":\"All records of this kind are included.\"}"
+      },
+      {
+        "command": {
+          "type": "life_patch",
+          "id": "df751063-3fbd-43ea-9625-55d58e63c822",
+          "version": 1,
+          "patch": {
+            "kind": "nutrition_target",
+            "protein": 95
+          }
+        },
+        "result": "Updated: Daily Nutrition Target."
+      }
+    ],
+    "issues": [],
+    "before": {
+      "timezone": "America/New_York",
+      "generatedAt": "2026-10-15T19:37:53.306Z",
+      "tasks": [],
+      "reminders": [],
+      "calendar": null,
+      "busy": [],
+      "tasksTruncated": false,
+      "goals": [],
+      "goalsTruncated": false,
+      "items": [
+        {
+          "id": "df751063-3fbd-43ea-9625-55d58e63c822",
+          "version": 1,
+          "data": {
+            "fat": null,
+            "kind": "nutrition_target",
+            "carbs": null,
+            "fiber": null,
+            "title": "Daily Nutrition Target",
+            "protein": 90,
+            "calories": null
+          }
+        },
+        {
+          "id": "27a83ceb-74e9-445a-a1e6-0e172ea8c922",
+          "version": 1,
+          "data": {
+            "fat": 14,
+            "date": "2027-01-14",
+            "kind": "food",
+            "meal": "Breakfast",
+            "carbs": 42,
+            "fiber": 6,
+            "title": "Unrelated breakfast",
+            "protein": 21,
+            "calories": 380
+          }
+        }
+      ],
+      "itemsTruncated": false,
+      "itemCoverage": {
+        "focus": {
+          "included": 0,
+          "total": 0,
+          "limit": 1,
+          "truncated": false
+        },
+        "routine": {
+          "included": 0,
+          "total": 0,
+          "limit": 100,
+          "truncated": false
+        },
+        "nutrition_target": {
+          "included": 1,
+          "total": 1,
+          "limit": 1,
+          "truncated": false
+        },
+        "workout_plan": {
+          "included": 0,
+          "total": 0,
+          "limit": 100,
+          "truncated": false
+        },
+        "recipe": {
+          "included": 0,
+          "total": 0,
+          "limit": 250,
+          "truncated": false
+        },
+        "pantry": {
+          "included": 0,
+          "total": 0,
+          "limit": 250,
+          "truncated": false
+        },
+        "grocery": {
+          "included": 0,
+          "total": 0,
+          "limit": 500,
+          "truncated": false
+        },
+        "note": {
+          "included": 0,
+          "total": 0,
+          "limit": 250,
+          "truncated": false
+        },
+        "food": {
+          "included": 1,
+          "total": 1,
+          "limit": 500,
+          "truncated": false
+        },
+        "workout": {
+          "included": 0,
+          "total": 0,
+          "limit": 500,
+          "truncated": false
+        },
+        "meal": {
+          "included": 0,
+          "total": 0,
+          "limit": 500,
+          "truncated": false
+        }
+      },
+      "diaryCoverage": null,
+      "messages": [
+        {
+          "id": "df751063-3fbd-43ea-9625-55d58e63c822",
+          "body": "Set my daily protein target to 90 grams. Leave calories, carbs, fat and fiber targets unknown.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.001Z"
+        },
+        {
+          "id": "3e117769-f51d-4252-9975-62964ef19073",
+          "body": "Saved: Daily Nutrition Target.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.002Z"
+        },
+        {
+          "id": "5e85e328-0f20-4222-adab-ccf1776db504",
+          "body": "What is my saved daily protein target now?",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.003Z"
+        },
+        {
+          "id": "42f5c15a-7e46-4824-8174-bd27d6632f66",
+          "body": "Your saved daily protein target is 90g. All other targets (calories, carbs, fat, fiber) are currently unset.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.004Z"
+        }
+      ],
+      "profile": {
+        "displayName": null,
+        "proactiveOptIn": false,
+        "quietHoursStart": null,
+        "quietHoursEnd": null
+      },
+      "memories": [],
+      "memoriesTruncated": false,
+      "remindersTruncated": false
+    },
+    "after": {
+      "timezone": "America/New_York",
+      "generatedAt": "2026-10-15T19:38:00.491Z",
+      "tasks": [],
+      "reminders": [],
+      "calendar": null,
+      "busy": [],
+      "tasksTruncated": false,
+      "goals": [],
+      "goalsTruncated": false,
+      "items": [
+        {
+          "id": "df751063-3fbd-43ea-9625-55d58e63c822",
+          "version": 2,
+          "data": {
+            "fat": null,
+            "kind": "nutrition_target",
+            "carbs": null,
+            "fiber": null,
+            "title": "Daily Nutrition Target",
+            "protein": 95,
+            "calories": null
+          }
+        },
+        {
+          "id": "27a83ceb-74e9-445a-a1e6-0e172ea8c922",
+          "version": 1,
+          "data": {
+            "fat": 14,
+            "date": "2027-01-14",
+            "kind": "food",
+            "meal": "Breakfast",
+            "carbs": 42,
+            "fiber": 6,
+            "title": "Unrelated breakfast",
+            "protein": 21,
+            "calories": 380
+          }
+        }
+      ],
+      "itemsTruncated": false,
+      "itemCoverage": {
+        "focus": {
+          "included": 0,
+          "total": 0,
+          "limit": 1,
+          "truncated": false
+        },
+        "routine": {
+          "included": 0,
+          "total": 0,
+          "limit": 100,
+          "truncated": false
+        },
+        "nutrition_target": {
+          "included": 1,
+          "total": 1,
+          "limit": 1,
+          "truncated": false
+        },
+        "workout_plan": {
+          "included": 0,
+          "total": 0,
+          "limit": 100,
+          "truncated": false
+        },
+        "recipe": {
+          "included": 0,
+          "total": 0,
+          "limit": 250,
+          "truncated": false
+        },
+        "pantry": {
+          "included": 0,
+          "total": 0,
+          "limit": 250,
+          "truncated": false
+        },
+        "grocery": {
+          "included": 0,
+          "total": 0,
+          "limit": 500,
+          "truncated": false
+        },
+        "note": {
+          "included": 0,
+          "total": 0,
+          "limit": 250,
+          "truncated": false
+        },
+        "food": {
+          "included": 1,
+          "total": 1,
+          "limit": 500,
+          "truncated": false
+        },
+        "workout": {
+          "included": 0,
+          "total": 0,
+          "limit": 500,
+          "truncated": false
+        },
+        "meal": {
+          "included": 0,
+          "total": 0,
+          "limit": 500,
+          "truncated": false
+        }
+      },
+      "diaryCoverage": null,
+      "messages": [
+        {
+          "id": "df751063-3fbd-43ea-9625-55d58e63c822",
+          "body": "Set my daily protein target to 90 grams. Leave calories, carbs, fat and fiber targets unknown.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.001Z"
+        },
+        {
+          "id": "3e117769-f51d-4252-9975-62964ef19073",
+          "body": "Saved: Daily Nutrition Target.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.002Z"
+        },
+        {
+          "id": "5e85e328-0f20-4222-adab-ccf1776db504",
+          "body": "What is my saved daily protein target now?",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.003Z"
+        },
+        {
+          "id": "42f5c15a-7e46-4824-8174-bd27d6632f66",
+          "body": "Your saved daily protein target is 90g. All other targets (calories, carbs, fat, fiber) are currently unset.",
+          "direction": "outbound",
+          "status": "queued",
+          "createdAt": "2027-01-14T15:00:00.004Z"
+        },
+        {
+          "id": "5e5dc606-58b1-4bc8-99b0-85a11c71da00",
+          "body": "Change only my saved protein target to 95 grams. Keep every other target and its name as they are.",
+          "direction": "inbound",
+          "status": "processed",
+          "createdAt": "2027-01-14T15:00:00.005Z"
+        },
+        {
+          "id": "c324777a-857c-419e-8bd4-5c036776d73f",
+          "body": "Updated: Daily Nutrition Target.",
+          "direction": "outbound",
+          "status": "delivered",
+          "createdAt": "2027-01-14T15:00:00.006Z"
+        }
+      ],
+      "profile": {
+        "displayName": null,
+        "proactiveOptIn": false,
+        "quietHoursStart": null,
+        "quietHoursEnd": null
+      },
+      "memories": [],
+      "memoriesTruncated": false,
+      "remindersTruncated": false
+    },
+    "reminders": []
+  }
+]

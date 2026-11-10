@@ -1,0 +1,16 @@
+{
+  "syntheticOnly": true,
+  "fixtureIssuedNotSms": true,
+  "mode": "replacement-link",
+  "checkedAt": "2026-10-23T01:22:31.762Z",
+  "replacementPending": true,
+  "tasks": 0,
+  "goals": 0,
+  "lifeItems": 0,
+  "proactiveOptIn": false,
+  "setupStatus": "new",
+  "timezoneConfirmed": false,
+  "queuedActions": 0,
+  "databaseWrites": 0,
+  "linkSavedToIgnoredLocalFile": true
+}

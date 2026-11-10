@@ -55,6 +55,6 @@ it("routes dinner rescheduling through the meal record instead of task shortcuts
     const state = await user.state();
     expect(state.tasks).toHaveLength(0);
     expect(state.lifeItems).toHaveLength(1);
-    expect(state.lifeItems[0].data).toEqual({ ...meal, date: "2026-09-29" });
+    expect(state.lifeItems[0].data).toEqual({ ...meal, date: "2026-09-29", groceriesEnabled: true });
   } finally { await simulation.close(); }
 }, 30000);

@@ -1,13 +1,16 @@
 import { sql } from "drizzle-orm";
 import {
+  bigint,
   boolean,
   check,
+  date,
   doublePrecision,
   index,
   integer,
   jsonb,
   pgEnum,
   pgTable,
+  primaryKey,
   text,
   time,
   timestamp,
@@ -19,6 +22,50 @@ const timestamps = {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 };
+
+// Operational accounting survives account erasure without message or identity content.
+export const aiBudgetStates = pgTable("ai_budget_states", {
+  scopeKey: text("scope_key").primaryKey(),
+  accountId: uuid("account_id").references(() => users.id, { onDelete: "set null" }),
+  windowDay: date("window_day", { mode: "string" }).notNull(),
+  settledMicrodollars: bigint("settled_microdollars", { mode: "number" }).default(0).notNull(),
+  settledCalls: bigint("settled_calls", { mode: "number" }).default(0).notNull(),
+  outstandingMicrodollars: bigint("outstanding_microdollars", { mode: "number" }).default(0).notNull(),
+  outstandingCalls: bigint("outstanding_calls", { mode: "number" }).default(0).notNull(),
+  halted: boolean("halted").default(false).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, table => [
+  index("ai_budget_states_account_idx").on(table.accountId),
+  check("ai_budget_states_nonnegative", sql`${table.settledMicrodollars} >= 0 AND ${table.settledCalls} >= 0 AND ${table.outstandingMicrodollars} >= 0 AND ${table.outstandingCalls} >= 0`),
+]);
+
+export const aiBudgetAttempts = pgTable("ai_budget_attempts", {
+  id: uuid("id").primaryKey(),
+  accountId: uuid("account_id").references(() => users.id, { onDelete: "set null" }),
+  accountKey: text("account_key").notNull(),
+  executionId: uuid("execution_id").notNull(),
+  operation: text("operation").notNull(),
+  model: text("model").notNull(),
+  priceVersion: text("price_version").notNull(),
+  policyVersion: text("policy_version").notNull(),
+  reservationFingerprint: text("reservation_fingerprint").notNull(),
+  windowDay: date("window_day", { mode: "string" }).notNull(),
+  reservedMicrodollars: bigint("reserved_microdollars", { mode: "number" }).notNull(),
+  actualMicrodollars: bigint("actual_microdollars", { mode: "number" }),
+  state: text("state").default("reserved").notNull(),
+  usage: jsonb("usage").$type<import("../domain/ai-budget").AiBudgetUsage>(),
+  failureCategory: text("failure_category"),
+  boundViolation: boolean("bound_violation").default(false).notNull(),
+  reconciliationId: uuid("reconciliation_id"),
+  ...timestamps,
+}, table => [
+  index("ai_budget_attempts_account_idx").on(table.accountId),
+  index("ai_budget_attempts_window_idx").on(table.windowDay, table.state),
+  index("ai_budget_attempts_execution_idx").on(table.executionId),
+  check("ai_budget_attempts_nonnegative", sql`${table.reservedMicrodollars} >= 0 AND (${table.actualMicrodollars} IS NULL OR ${table.actualMicrodollars} >= 0)`),
+  check("ai_budget_attempts_state_check", sql`${table.state} IN ('reserved', 'submitting', 'uncertain', 'settled')`),
+  check("ai_budget_attempts_operation_check", sql`${table.operation} IN ('assistant', 'turn_authorization', 'intervention_review', 'intervention_composition', 'task_presentation')`),
+]);
 
 export const lifeItems = pgTable("life_items", {
   id: uuid("id").primaryKey(),
@@ -41,6 +88,18 @@ export const lifeActionReceipts = pgTable("life_action_receipts", {
   message: text("message").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
+
+// Routine snapshots retain only their latest checked date. Keep actual daily
+// completions separately so the next checkoff or deleting a plan cannot erase
+// earlier progress. Account deletion still removes all of its history.
+export const routineCompletions = pgTable("routine_completions", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  routineId: uuid("routine_id").notNull(),
+  stepId: uuid("step_id").notNull(),
+  completedOn: date("completed_on", { mode: "string" }).notNull(),
+  recordedAt: timestamp("recorded_at", { withTimezone: true }).defaultNow().notNull(),
+}, table => [uniqueIndex("routine_completions_user_step_day_idx").on(table.userId, table.routineId, table.stepId, table.completedOn)]);
 
 export const userStatus = pgEnum("user_status", ["active", "paused", "opted_out", "deleted"]);
 export const onboardingState = pgEnum("onboarding_state", [
@@ -144,6 +203,7 @@ export const users = pgTable(
     displayName: text("display_name"),
     profileInstructions: text("profile_instructions"),
     profileCompletedAt: timestamp("profile_completed_at", { withTimezone: true }),
+    workspacePreferences: jsonb("workspace_preferences").$type<Record<string, unknown>>().default(sql`'{}'::jsonb`).notNull(),
     locale: text("locale").default("en-US").notNull(),
     timezone: text("timezone").default("UTC").notNull(),
     status: userStatus("status").default("active").notNull(),
@@ -190,6 +250,25 @@ export const webSessions = pgTable(
     index("web_sessions_expiry_idx").on(table.expiresAt),
   ],
 );
+
+export const pilotFeedback = pgTable("pilot_feedback", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  requestId: uuid("request_id").notNull(),
+  type: text("type").$type<"problem" | "improvement">().notNull(),
+  section: text("section").notNull(),
+  impact: text("impact").$type<"blocked" | "slowed" | "minor" | "idea">().notNull(),
+  encryptedDetail: text("encrypted_detail"),
+  followUpConsent: boolean("follow_up_consent").default(false).notNull(),
+  payloadHmac: text("payload_hmac").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, table => [
+  uniqueIndex("pilot_feedback_user_request_unique").on(table.userId, table.requestId),
+  index("pilot_feedback_created_idx").on(table.createdAt),
+  check("pilot_feedback_type_check", sql`${table.type} in ('problem','improvement')`),
+  check("pilot_feedback_impact_check", sql`${table.impact} in ('blocked','slowed','minor','idea')`),
+  check("pilot_feedback_section_check", sql`${table.section} in ('today','tasks','calendar','goals','reminders','routines','wake','meals','recipes','groceries','nutrition','movement','inbox','memories','assistant','settings','other')`),
+]);
 
 export const consentRecords = pgTable(
   "consent_records",
@@ -395,6 +474,46 @@ export const providerMessageBindings = pgTable(
   ],
 );
 
+// Signed receipts can arrive before the provider's send response is committed.
+// Keep only short-lived, unbound lifecycle evidence and no account or message content.
+export const pendingDeliveryReceipts = pgTable("pending_delivery_receipts", {
+  provider: messagingProvider("provider").notNull(),
+  externalMessageId: text("external_message_id").notNull(),
+  status: messageStatus("status").notNull().$type<"queued" | "sent" | "delivered" | "failed" | "undelivered">(),
+  errorCode: text("error_code"),
+  firstSeenAt: timestamp("first_seen_at", { withTimezone: true }).notNull(),
+  statusObservedAt: timestamp("status_observed_at", { withTimezone: true }).notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+}, table => [
+  primaryKey({ columns: [table.provider, table.externalMessageId] }),
+  index("pending_delivery_receipts_expiry_idx").on(table.expiresAt),
+  check("pending_delivery_receipts_status_check", sql`${table.status} in ('queued','sent','delivered','failed','undelivered')`),
+  check("pending_delivery_receipts_external_id_check", sql`length(${table.externalMessageId}) between 1 and 255`),
+  check("pending_delivery_receipts_error_code_check", sql`${table.errorCode} is null or ${table.errorCode} ~ '^[A-Za-z0-9_-]{1,64}$'`),
+]);
+
+// A disposition acknowledges unresolved history without changing its delivery
+// ledger. The latest explicit event is reversible by appending another event.
+export const outboundDispositionEvents = pgTable("outbound_disposition_events", {
+  id: bigint("id", { mode: "bigint" }).primaryKey().generatedAlwaysAsIdentity(),
+  messageId: uuid("message_id").notNull().references(() => conversationMessages.id, { onDelete: "cascade" }),
+  decision: text("decision").notNull().$type<"close_unresolved_without_replay" | "reopen">(),
+  manifestVersion: integer("manifest_version").notNull(),
+  manifestSha256: text("manifest_sha256").notNull(),
+  approvalRef: text("approval_ref").notNull(),
+  operatorRef: text("operator_ref").notNull(),
+  messageUpdatedAt: timestamp("message_updated_at", { withTimezone: true }).notNull(),
+  recordedAt: timestamp("recorded_at", { withTimezone: true }).defaultNow().notNull(),
+}, table => [
+  index("outbound_disposition_events_latest_idx").on(table.messageId, table.id.desc()),
+  uniqueIndex("outbound_disposition_events_manifest_once_idx").on(table.messageId, table.manifestSha256),
+  check("outbound_disposition_events_decision_check", sql`${table.decision} in ('close_unresolved_without_replay', 'reopen')`),
+  check("outbound_disposition_events_version_check", sql`${table.manifestVersion} = 1`),
+  check("outbound_disposition_events_digest_check", sql`${table.manifestSha256} ~ '^[a-f0-9]{64}$'`),
+  check("outbound_disposition_events_approval_check", sql`${table.approvalRef} ~ '^[a-zA-Z0-9_-]{1,80}$'`),
+  check("outbound_disposition_events_operator_check", sql`${table.operatorRef} ~ '^[a-zA-Z0-9_-]{1,80}$'`),
+]);
+
 export const messageRelations = pgTable(
   "message_relations",
   {
@@ -508,6 +627,7 @@ export const tasks = pgTable(
     title: text("title").notNull(),
     notes: text("notes"),
     estimatedMinutes: integer("estimated_minutes"),
+    presentation: jsonb("presentation").$type<import("../domain/task-presentation").TaskPresentation>(),
     dueAt: timestamp("due_at", { withTimezone: true }),
     status: taskStatus("status").default("not_started").notNull(),
     sourceMessageId: uuid("source_message_id").references(() => conversationMessages.id, { onDelete: "set null" }),

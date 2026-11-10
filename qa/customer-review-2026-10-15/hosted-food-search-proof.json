@@ -1,0 +1,24 @@
+{
+  "checkedAt": "2026-10-15T20:08:24.290Z",
+  "endpoint": "https://search.openfoodfacts.org/search",
+  "documentation": "https://openfoodfacts.github.io/search-a-licious/users/ref-openapi/",
+  "method": "POST",
+  "requestCount": 1,
+  "status": 200,
+  "request": {
+    "q": "plain yogurt",
+    "page_size": 3,
+    "page": 1,
+    "langs": ["en"],
+    "fields": ["code", "product_name", "brands", "serving_size", "product_quantity_unit", "nutrition_data_per", "nutriments"]
+  },
+  "observed": {
+    "hitCount": 3,
+    "barcodes": ["0736211663245", "0795709040029", "0816284020067"],
+    "caloriesPer100": [68, 53, 64.7],
+    "brandRepresentation": "array of strings",
+    "servingAndQuantityUnit": "absent in all three hits; retained as unknown",
+    "timedOut": false
+  },
+  "scope": "One documented hosted read-only search request, no retries, no product hydration, no paid API calls. Does not establish service uptime."
+}

@@ -1,0 +1,46 @@
+{
+  "passed": true,
+  "evidence": "isolated real PostgreSQL/pg-boss; scripted parser and captured provider; accelerated retries; no hosted/provider capacity claim",
+  "accounts": 100,
+  "inboundTurns": 200,
+  "duplicateReceipts": 100,
+  "capturedProviderAcceptances": 100,
+  "transientRejections": 10,
+  "retries": 10,
+  "consumers": 4,
+  "dispatchers": 2,
+  "runtimeCeilingMs": 120000,
+  "activeHighWater": 4,
+  "backlogHighWater": 200,
+  "queueHighWater": 197,
+  "healthyCompletedBeforeRecovery": 13,
+  "ingressBatchMs": 1554,
+  "workloadElapsedMs": 28246,
+  "setupAndWorkloadMs": 29659,
+  "turnsPerSecond": 7.08,
+  "ingressPerAccount": {
+    "samples": 100,
+    "p50Ms": 1537,
+    "p95Ms": 1541,
+    "maxMs": 1542
+  },
+  "firstStart": {
+    "samples": 200,
+    "p50Ms": 15292,
+    "p95Ms": 26556,
+    "maxMs": 28021
+  },
+  "completion": {
+    "samples": 200,
+    "p50Ms": 15440,
+    "p95Ms": 26685,
+    "maxMs": 28149
+  },
+  "final": {
+    "unfinishedActions": 0,
+    "pendingInbound": 0,
+    "uncertainOutbound": 0
+  },
+  "blockedAccounts": 0,
+  "isolatedDatabaseRemoved": true
+}

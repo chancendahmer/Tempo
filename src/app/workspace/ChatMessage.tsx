@@ -23,6 +23,7 @@ export function ChatMessage({ body }: { body: string }) {
     if (!lines[i].trim()) { i++; continue; }
     const list = lines[i].match(/^\s*(?:([-*•])|(\d+)\.)\s+(.+)$/);
     if (list) {
+      const firstLine = i;
       const ordered = !!list[2];
       const start = Number(list[2]);
       const items: ReactNode[] = [];
@@ -32,7 +33,7 @@ export function ChatMessage({ body }: { body: string }) {
         items.push(<li key={i}>{inline(item[3])}</li>);
         i++;
       }
-      blocks.push(ordered ? <ol key={i} start={start}>{items}</ol> : <ul key={i}>{items}</ul>);
+      blocks.push(ordered ? <ol key={firstLine} start={start}>{items}</ol> : <ul key={firstLine}>{items}</ul>);
     } else {
       blocks.push(<p key={i}>{inline(lines[i])}</p>);
       i++;

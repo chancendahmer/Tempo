@@ -17,6 +17,18 @@ describe("server environment", () => {
     const env = getServerEnv({ INTERVENTION_SHADOW_MODE: "false" });
     expect(env.INTERVENTION_SHADOW_MODE).toBe(false);
   });
+  it("defaults budget enforcement off and leaves invalid policy to the paid boundary", () => {
+    expect(getServerEnv({}).AI_BUDGET_MODE).toBe("off");
+    expect(getServerEnv({ AI_BUDGET_MODE: "enforce", AI_BUDGET_GLOBAL_DAILY_MICRODOLLARS: "bad" })).toMatchObject({ AI_BUDGET_MODE: "enforce", AI_BUDGET_GLOBAL_DAILY_MICRODOLLARS: "bad" });
+    expect(getServerEnv({ AI_BUDGET_MODE: "mistyped" }).AI_BUDGET_MODE).toBe("mistyped");
+  });
+
+  it("accepts only a bounded build SHA and permits an explicit unknown local build", () => {
+    expect(getServerEnv({ TEMPO_BUILD_SHA: "" }).TEMPO_BUILD_SHA).toBeUndefined();
+    expect(getServerEnv({ TEMPO_BUILD_SHA: "abcdef1234567" }).TEMPO_BUILD_SHA).toBe("abcdef1234567");
+    expect(() => getServerEnv({ TEMPO_BUILD_SHA: "secret/branch-name" })).toThrow();
+    expect(getServerEnv({ RAILWAY_GIT_COMMIT_SHA: "arbitrary-config" }).RAILWAY_GIT_COMMIT_SHA).toBeUndefined();
+  });
 
   it("reports required keys together", () => {
     expect(() => requireEnv(["DATABASE_URL", "FIELD_ENCRYPTION_KEY"], {})).toThrow(

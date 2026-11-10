@@ -180,81 +180,105 @@ export class DrizzleInterventionRepository implements InterventionOpportunityPla
     now = new Date(),
     provider: MessagingProvider = "test",
   ) {
-    const [message] = await this.database.select({
+    return (await this.withDeliveryAccount(interventionId, (tx, userId) =>
+      this.projectSubmission(tx, interventionId, userId, provider, providerMessageSid, now))) ?? "unavailable";
+  }
+
+  private async withDeliveryAccount<T>(interventionId: string, operation: (tx: TempoDatabase, userId: string) => Promise<T>) {
+    return this.database.transaction(async transaction => {
+      // The status callback takes the same account lock before updating the
+      // message or intervention. Project from the locked account's latest receipt.
+      const [owner] = await transaction.select({ id: users.id }).from(users)
+        .innerJoin(interventions, eq(interventions.userId, users.id))
+        .where(eq(interventions.id, interventionId)).for("update", { of: users });
+      return owner ? operation(transaction as unknown as TempoDatabase, owner.id) : undefined;
+    });
+  }
+
+  private async projectSubmission(transaction: TempoDatabase, interventionId: string, userId: string,
+    provider: MessagingProvider, providerMessageSid: string, now: Date) {
+    const [message] = await transaction.select({
       status: conversationMessages.status,
       sentAt: conversationMessages.sentAt,
       deliveredAt: conversationMessages.deliveredAt,
     }).from(conversationMessages).where(and(
       eq(conversationMessages.relatedInterventionId, interventionId),
+      eq(conversationMessages.userId, userId),
+      eq(conversationMessages.direction, "outbound"),
       eq(conversationMessages.provider, provider),
       eq(conversationMessages.providerMessageSid, providerMessageSid),
     )).limit(1);
-    const status = message?.status === "delivered"
+    if (!message || !["queued", "sent", "delivered", "failed", "undelivered"].includes(message.status)) return null;
+    const status = message.status === "delivered"
       ? "delivered"
-      : message?.status === "failed" || message?.status === "undelivered"
+      : message.status === "failed" || message.status === "undelivered"
         ? "failed"
         : "sent";
-    await this.database.update(interventions).set({
-      status,
+    const [projected] = await transaction.update(interventions).set({
+      status: sql`case when ${interventions.status} = 'delivered' then ${interventions.status} else ${status}::intervention_status end`,
       provider,
       providerMessageSid,
-      sentAt: message?.sentAt ?? now,
-      ...(status === "delivered" ? { deliveredAt: message?.deliveredAt ?? now } : {}),
-      updatedAt: now,
-    }).where(eq(interventions.id, interventionId));
-    return status;
+      sentAt: message.sentAt ?? (status === "failed" ? undefined : sql`coalesce(${interventions.sentAt}, ${now}::timestamptz)`),
+      ...(status === "delivered" ? { deliveredAt: message.deliveredAt ?? now } : {}),
+      updatedAt: sql`greatest(${interventions.updatedAt}, ${now}::timestamptz)`,
+    }).where(and(eq(interventions.id, interventionId), eq(interventions.userId, userId),
+      inArray(interventions.status, ["queued", "sent", "delivered", "failed"]))).returning({ status: interventions.status });
+    return projected?.status === "delivered" ? "delivered" : projected ? status : null;
   }
 
   async markCancelled(interventionId: string, now = new Date()) {
     await this.database.update(interventions).set({ status: "cancelled", cancelledAt: now, updatedAt: now })
-      .where(eq(interventions.id, interventionId));
+      .where(and(eq(interventions.id, interventionId), inArray(interventions.status, ["candidate", "queued"])));
   }
 
   async markFailed(interventionId: string) {
     await this.database.update(interventions).set({ status: "failed", updatedAt: new Date() })
-      .where(eq(interventions.id, interventionId));
+      .where(and(eq(interventions.id, interventionId), inArray(interventions.status, ["candidate", "queued"])));
   }
 
   async reconcileDelivery(interventionId: string) {
-    const [row] = await this.database.select({
-      id: interventions.id,
-      userId: interventions.userId,
-      style: interventions.style,
-      interventionStatus: interventions.status,
-      messageStatus: conversationMessages.status,
-      provider: conversationMessages.provider,
-      providerMessageSid: conversationMessages.providerMessageSid,
-    }).from(interventions)
-      .leftJoin(conversationMessages, eq(conversationMessages.relatedInterventionId, interventions.id))
-      .where(eq(interventions.id, interventionId))
-      .limit(1);
-    if (!row || row.interventionStatus === "candidate") return null;
-    if (["cancelled", "failed", "held_out"].includes(row.interventionStatus)) {
-      return { kind: "terminal" as const, status: row.interventionStatus };
-    }
-    if (["responded", "expired"].includes(row.interventionStatus)) {
-      return { kind: "complete" as const, status: row.interventionStatus };
-    }
-    if (row.providerMessageSid) {
-      const status = row.messageStatus === "delivered" ? "delivered" : "sent";
+    return (await this.withDeliveryAccount(interventionId, async (transaction, userId) => {
+      const [row] = await transaction.select({
+        style: interventions.style,
+        interventionStatus: interventions.status,
+        messageStatus: conversationMessages.status,
+        provider: conversationMessages.provider,
+        providerMessageSid: conversationMessages.providerMessageSid,
+      }).from(interventions)
+        .leftJoin(conversationMessages, and(
+          eq(conversationMessages.relatedInterventionId, interventions.id),
+          eq(conversationMessages.userId, userId), eq(conversationMessages.direction, "outbound"),
+          or(eq(conversationMessages.idempotencyKey, `intervention-sms:${interventionId}`), and(
+            eq(conversationMessages.provider, interventions.provider),
+            eq(conversationMessages.providerMessageSid, interventions.providerMessageSid),
+          )),
+        ))
+        .where(and(eq(interventions.id, interventionId), eq(interventions.userId, userId)))
+        .orderBy(sql`(${conversationMessages.idempotencyKey} = ${`intervention-sms:${interventionId}`}) desc nulls last`)
+        .limit(1);
+      if (!row || row.interventionStatus === "candidate") return null;
+      if (["cancelled", "held_out"].includes(row.interventionStatus)) {
+        return { kind: "terminal" as const, status: row.interventionStatus };
+      }
+      if (["responded", "expired"].includes(row.interventionStatus)) {
+        return { kind: "complete" as const, status: row.interventionStatus };
+      }
       const now = new Date();
-      await this.database.update(interventions).set({
-        status,
-        provider: row.provider,
-        providerMessageSid: row.providerMessageSid,
-        sentAt: now,
-        ...(status === "delivered" ? { deliveredAt: now } : {}),
-        updatedAt: now,
-      }).where(eq(interventions.id, interventionId));
-      return { kind: "submitted" as const, userId: row.userId, style: row.style };
-    }
-    if (row.messageStatus && ["cancelled", "failed", "undelivered"].includes(row.messageStatus)) {
-      const status = row.messageStatus === "cancelled" ? "cancelled" : "failed";
-      await this.database.update(interventions).set({ status, updatedAt: new Date() })
-        .where(eq(interventions.id, interventionId));
-      return { kind: "terminal" as const, status };
-    }
-    return null;
+      if (row.provider && row.providerMessageSid) {
+        const status = await this.projectSubmission(transaction, interventionId, userId, row.provider, row.providerMessageSid, now);
+        if (status === "failed") return { kind: "terminal" as const, status };
+        if (status) return { kind: "submitted" as const, userId, style: row.style };
+        return null;
+      }
+      if (row.interventionStatus === "failed") return { kind: "terminal" as const, status: "failed" as const };
+      if (row.messageStatus && ["cancelled", "failed", "undelivered"].includes(row.messageStatus)) {
+        const status = row.messageStatus === "cancelled" ? "cancelled" : "failed";
+        await transaction.update(interventions).set({ status, updatedAt: now })
+          .where(and(eq(interventions.id, interventionId), eq(interventions.status, row.interventionStatus)));
+        return { kind: "terminal" as const, status };
+      }
+      return null;
+    })) ?? null;
   }
 
   async getFeedbackContext(interventionId: string) {

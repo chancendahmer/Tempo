@@ -8,7 +8,7 @@ export function isConversationOnlyMessage(message: string): boolean {
 
 /** Structured life records must not be swallowed by generic memory/task shortcuts. */
 export function isLifeWorkspaceRequest(message: string): boolean {
-  return /\b(recipes?|nutrition|shopping list|meal\s*(?:plan|prep)|(?:this|that|favorite|favourite) meal|routines?|food (?:log|diary)|calories|nutrients?|workouts?|grocer(?:y|ies)|notes?|thought inbox|barcode)\b/i.test(message);
+  return /\b(recipes?|nutrition|shopping list|pantry|meal\s*(?:plan|prep)|(?:this|that|favorite|favourite) meal|routines?|food (?:log|diary)|calories|nutrients?|workouts?|grocer(?:y|ies)|notes?|thought inbox|barcode)\b/i.test(message);
 }
 
 /** Shortcuts are for standalone commands, not advice or multi-part conversation. */

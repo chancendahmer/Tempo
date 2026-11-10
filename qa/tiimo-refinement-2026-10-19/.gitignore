@@ -1,0 +1,9 @@
+# Keep account screenshots, session artifacts and raw logs local.
+*
+!.gitignore
+!README.md
+!RESEARCH.md
+!public-references.md
+!customer-review/
+customer-review/*
+!customer-review/review.md

@@ -1,0 +1,93 @@
+[
+  {
+    "drawerHidden": true,
+    "focus": "To-do",
+    "heading": "To-do",
+    "overflow": false,
+    "page": "To-do"
+  },
+  {
+    "drawerHidden": true,
+    "focus": "Calendar",
+    "heading": "Calendar",
+    "overflow": false,
+    "page": "Calendar"
+  },
+  {
+    "drawerHidden": true,
+    "focus": "Goals",
+    "heading": "Goals",
+    "overflow": false,
+    "page": "Goals"
+  },
+  {
+    "drawerHidden": true,
+    "focus": "Reminders",
+    "heading": "Reminders",
+    "overflow": false,
+    "page": "Reminders"
+  },
+  {
+    "drawerHidden": true,
+    "focus": "Routines",
+    "heading": "Routines",
+    "overflow": false,
+    "page": "Routines"
+  },
+  {
+    "drawerHidden": true,
+    "focus": "Sunrise & sunset",
+    "heading": "Sunrise & sunset",
+    "overflow": false,
+    "page": "Sunrise & sunset"
+  },
+  {
+    "drawerHidden": true,
+    "focus": "Meal plan",
+    "heading": "Meal plan",
+    "overflow": false,
+    "page": "Meal plan"
+  },
+  {
+    "drawerHidden": true,
+    "focus": "Recipes",
+    "heading": "Recipes",
+    "overflow": false,
+    "page": "Recipes"
+  },
+  {
+    "drawerHidden": true,
+    "focus": "Groceries",
+    "heading": "Groceries",
+    "overflow": false,
+    "page": "Groceries"
+  },
+  {
+    "drawerHidden": true,
+    "focus": "Nutrition Tracker",
+    "heading": "Nutrition Tracker",
+    "overflow": false,
+    "page": "Nutrition Tracker"
+  },
+  {
+    "drawerHidden": true,
+    "focus": "Fitness",
+    "heading": "Fitness",
+    "overflow": false,
+    "page": "Fitness"
+  },
+  {
+    "drawerHidden": true,
+    "focus": "Thoughts",
+    "heading": "Thoughts",
+    "overflow": false,
+    "page": "Thoughts"
+  },
+  {
+    "drawerHidden": true,
+    "focus": "Memories",
+    "heading": "Memories",
+    "overflow": false,
+    "page": "Memories"
+  }
+]

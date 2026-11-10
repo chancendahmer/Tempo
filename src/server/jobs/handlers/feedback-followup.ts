@@ -5,16 +5,18 @@ import { createMessagingTransport } from "../../adapters/sms/messaging-provider"
 import { DrizzleInterventionRepository } from "../../db/repositories/intervention-repository";
 import { DrizzleOutboundMessageRepository } from "../../db/repositories/outbound-message-repository";
 import { SafeSmsSender } from "../../domain/outbound-messaging";
-import { logger } from "../../observability/logger";
 import { FeedbackFollowupJob, JOB_NAMES } from "../names";
 import { ScheduledActionRepository } from "../scheduled-action-repository";
+import { failJob } from "../job-failure";
 
 export async function registerFeedbackFollowupHandler(boss: PgBoss) {
   await boss.work<FeedbackFollowupJob>(JOB_NAMES.feedbackFollowup, { localConcurrency: 2 }, async (jobs) => {
     for (const job of jobs) {
       const actions = new ScheduledActionRepository();
-      if (!(await actions.markRunning(job.data.scheduledActionId))) continue;
+      let running = false;
       try {
+        running = await actions.markRunning(job.data.scheduledActionId);
+        if (!running) continue;
         const context = await new DrizzleInterventionRepository().getFeedbackContext(job.data.interventionId);
         if (!context) {
           await actions.markCompleted(job.data.scheduledActionId);
@@ -45,9 +47,8 @@ export async function registerFeedbackFollowupHandler(boss: PgBoss) {
           );
         } else await actions.markCancelled(job.data.scheduledActionId, result.reason);
       } catch (error) {
-        await actions.markFailed(job.data.scheduledActionId, error);
-        logger.error({ err: error, interventionId: job.data.interventionId }, "feedback follow-up failed");
-        throw error;
+        await failJob(error, { jobId: job.id, operation: "Feedback follow-up", logMessage: "feedback follow-up failed",
+          record: running ? retry => actions.markFailed(job.data.scheduledActionId, retry) : undefined });
       }
     }
   });

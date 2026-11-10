@@ -1,4 +1,4 @@
-import { createElement } from "react";
+import { Children, createElement, isValidElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { ChatMessage } from "./ChatMessage";
@@ -11,6 +11,11 @@ describe("chat message formatting", () => {
     expect(html).toContain('<ol start="1">');
     expect(html).toContain('href="https://calendar.google.com/"');
     expect(html).not.toContain("**Today**");
+  });
+  it("keys a numbered list separately from its following reminder paragraph", () => {
+    const message = ChatMessage({ body: "1. Call the pottery studio\n2. Outline the neighborhood poster\nStudio reminder at 12:30 PM." });
+    const keys = Children.map(message.props.children, child => isValidElement(child) ? child.key : null);
+    expect(keys).toEqual(["0", "2"]);
   });
   it("escapes HTML and does not activate unsafe or credential-bearing links", () => {
     const html = renderToStaticMarkup(createElement(ChatMessage, { body: '<img src=x onerror=alert(1)> [run](javascript:alert(1)) https://user:pass@example.com' }));

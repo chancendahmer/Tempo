@@ -1,7 +1,9 @@
+import { randomUUID } from "node:crypto";
+import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createAssistantSimulator, type AssistantSimulator } from "../../../scripts/lib/assistant-simulator";
 import { assistantScenarios, scriptedScenarioParser } from "../../../scripts/lib/assistant-scenarios";
-import { tasks, goals, reminders } from "../db/schema";
+import { tasks, goals, lifeItems, reminders } from "../db/schema";
 
 describe("captured SMS acceptance conversations (scripted model; real repositories)", () => {
   it("passes an exact task move to the parser and preserves its goal association", async () => {
@@ -76,6 +78,31 @@ describe("captured SMS acceptance conversations (scripted model; real repositori
     expect(await outsider.state()).toEqual(otherBefore);
     expect((await owner.send("Weekly rundown for 2027-01-11", { providerId: sms.providerId })).duplicate).toBe(true);
   });
+
+  it("runs an explicitly expanded web rundown against the real owned workspace reader", async () => {
+    const date = "2027-01-14";
+    const isolated = await createAssistantSimulator({ parse: async input => ({
+      kind: "conversation",
+      reply: await input.execute!({ type: "get_rundown", startDate: date, days: 1, include: ["food", "thoughts"] }),
+    }) });
+    try {
+      isolated.setTime(new Date(`${date}T17:00:00Z`));
+      const owner = await isolated.user(), outsider = await isolated.user();
+      await isolated.database.insert(lifeItems).values([
+        { id: randomUUID(), userId: owner.id, data: { kind: "food", title: "Owned lunch", date, meal: "Lunch",
+          calories: 105, protein: null, carbs: null, fat: null, fiber: null } },
+        { id: randomUUID(), userId: owner.id, data: { kind: "note", title: "Owned idea", body: "Sketch the second draft." } },
+        { id: randomUUID(), userId: outsider.id, data: { kind: "note", title: "PRIVATE OTHER NOTE", body: "Never show this." } },
+      ]);
+      const before = await isolated.database.select().from(lifeItems).where(eq(lifeItems.userId, owner.id));
+      const turn = await owner.send("What is in my current day plan, food diary and Thoughts? Do not change anything.", { channel: "web" });
+      expect(turn.parserCalled).toBe(true);
+      expect(turn.replies[0]).toContain("Owned lunch · 105 kcal, protein unknown");
+      expect(turn.replies[0]).toContain("Owned idea — Sketch the second draft.");
+      expect(turn.replies[0]).not.toContain("PRIVATE OTHER NOTE");
+      expect(await isolated.database.select().from(lifeItems).where(eq(lifeItems.userId, owner.id))).toEqual(before);
+    } finally { await isolated.close(); }
+  }, 30_000);
 
   it("stores dessert preferences, forgets only yogurt, and declines secrets", async () => {
     const user = await simulation.user();

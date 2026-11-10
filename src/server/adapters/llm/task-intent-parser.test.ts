@@ -2,18 +2,30 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AnthropicTaskIntentParser, hasCurrentActionEvidence, parseTaskIntentResponse } from "./task-intent-parser";
 import { isExplicitReminderRequest } from "../../domain/reminder-commands";
 import { AssistantProviderFailure } from "../../domain/assistant-provider-failure";
+import { AiBudgetDeniedError } from "./paid-invocation";
 import { HEALTH_CAPABILITY_LIMIT } from "../../domain/connection-status-reply";
 import { RUNDOWN_HISTORY_LIMIT } from "../../domain/rundown";
-import { WRITE_COMMANDS } from "../../domain/turn-write-policy";
+import { WRITE_COMMANDS, isReadOnlyAssistantCommand } from "../../domain/turn-write-policy";
+import { navigationGroups, sections } from "../../../app/workspace/WorkspaceNavigation";
 
 const { create, authorize, settings } = vi.hoisted(() => ({ create: vi.fn(), authorize: vi.fn(), settings: { webSearch: false } }));
 vi.mock("@anthropic-ai/sdk", () => ({ default: class { messages = { create }; } }));
 vi.mock("./turn-authorizer", () => ({ AnthropicTurnAuthorizer: class { authorize = authorize; } }));
-vi.mock("../../config/env", async (importOriginal) => ({ ...(await importOriginal<typeof import("../../config/env")>()), requireEnv: () => ({ ANTHROPIC_API_KEY: "test-only", ANTHROPIC_MODEL: "test-model", ASSISTANT_WEB_SEARCH_ENABLED: settings.webSearch }) }));
+vi.mock("../../config/env", async (importOriginal) => ({ ...(await importOriginal<typeof import("../../config/env")>()), requireEnv: () => ({ AI_BUDGET_MODE: "off", ANTHROPIC_API_KEY: "test-only", ANTHROPIC_MODEL: "test-model", ASSISTANT_WEB_SEARCH_ENABLED: settings.webSearch }) }));
 
 vi.mock("./turn-authorizer", () => ({ AnthropicTurnAuthorizer: class { authorize = authorize; } }));
 
 describe("current-message routing", () => {
+  it("preserves a completed write confirmation when the next physical call is budget denied", async () => {
+    const message = "Add milk to my groceries";
+    authorize.mockResolvedValue({ mode: "write", commands: ["grocery_add"] });
+    create.mockResolvedValueOnce({ content: [{ type: "tool_use", id: "write", name: "grocery_add", input: { items: ["Milk"], sourceQuote: message } }] })
+      .mockRejectedValueOnce(new AiBudgetDeniedError());
+    const execute = vi.fn(async () => "Added Milk.");
+    expect(await new AnthropicTaskIntentParser().parse({ ...input, message, execute })).toEqual({ kind: "conversation", reply: "Added Milk." });
+    expect(execute).toHaveBeenCalledExactlyOnceWith({ type: "grocery_add", items: ["Milk"] });
+    expect(create).toHaveBeenCalledTimes(2);
+  });
   it("repairs a UTC-midnight tomorrow error internally before any write", async () => {
     const message = 'Remind me at 12pm tomorrow about "innovation center"';
     authorize.mockResolvedValue({mode: "write", commands: ["create_reminder"]});
@@ -32,7 +44,7 @@ describe("current-message routing", () => {
     authorize.mockResolvedValue({mode: "write", commands: ["life_save", "create_reminder"]});
     create.mockResolvedValueOnce({content: [{type: "tool_use", id: "capture", name: "capture_with_reminder", input: {sourceQuote: message, destination: "note", title: "Innovation center", remindAt: "2026-10-07T12:00:00-04:00"}}]})
       .mockResolvedValueOnce({content: [{type: "text", text: "ACK_ONLY"}]});
-    const execute = vi.fn(async () => "Saved to Thought inbox and reminder set.");
+    const execute = vi.fn(async () => "Saved to Thoughts and reminder set.");
     await new AnthropicTaskIntentParser().parse({...input, now: new Date("2026-10-07T00:44:00Z"), message, execute, history: [
       {id: "request", role: "user", content: "Save Innovation center in my thought box and remind me tomorrow", createdAt: new Date("2026-10-07T00:42:00Z")},
       {id: "question", role: "assistant", replyToMessageId: "request", content: "What time tomorrow?", createdAt: new Date("2026-10-07T00:43:00Z")},
@@ -106,6 +118,76 @@ describe("current-message routing", () => {
     create.mockReset(); settings.webSearch = false;
     // Existing tests isolate grounding/schema behavior after an independent grant.
     authorize.mockReset().mockResolvedValue({ mode: "write", commands: [...WRITE_COMMANDS] });
+  });
+
+  it("describes the actual sidebar destinations and groups without promising hardware or alarm control", async () => {
+    create.mockResolvedValueOnce({ content: [{ type: "text", text: "Open Food & fitness, then Groceries or Fitness." }] });
+    const execute = vi.fn();
+    await new AnthropicTaskIntentParser().parse({ ...input, message: "Where can I find my groceries and workout plan?", execute });
+    const system = create.mock.calls[0][0].system as string;
+    for (const [, label] of sections) expect(system).toContain(label);
+    for (const group of navigationGroups) expect(system).toContain(group.label);
+    expect(JSON.stringify(create.mock.calls[0][0].tools)).not.toContain("Thought inbox");
+    for (const obsolete of ["Tasks & focus", "My routines", "Meal planner", "Food & nutrition", "Movement", "Thought inbox", "Wake & Wind Down", "Do not invent Recipes"]) expect(system).not.toContain(obsolete);
+    expect(system).toContain("only mention navigation when it helps");
+    expect(system).toContain("you cannot set a scheduled wake alarm");
+    expect(system).toContain("control a physical light");
+    expect(system).toContain("does not schedule an alarm, create outreach, or control hardware");
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it.each([false, true])("sets only explicit nutrition targets after current lookup (existing=%s)", async existing => {
+    const message = "Set my daily protein target to 90 grams. Leave calories, carbs, fat and fiber targets unknown.";
+    const id = "00000000-0000-4000-8000-000000000093";
+    const data = { kind: "nutrition_target" as const, title: "Daily protein target", calories: null, protein: 90, carbs: null, fat: null, fiber: null };
+    authorize.mockResolvedValue({ mode: "write", commands: ["life_save", "life_patch"] });
+    create.mockResolvedValueOnce({ content: [{ type: "tool_use", id: "read-target", name: "life_list", input: { kind: "nutrition_target", sourceQuote: message } }] })
+      .mockResolvedValueOnce({ content: [{ type: "tool_use", id: "set-target", name: existing ? "life_patch" : "life_save", input: { sourceQuote: message, ...(existing ? { id, version: 3, patch: { kind: "nutrition_target", protein: 90, calories: null, carbs: null, fat: null, fiber: null } } : { data }) } }] })
+      .mockResolvedValueOnce({ content: [{ type: "text", text: "ACK_ONLY" }] });
+    const execute = vi.fn(async (command: { type: string }) => command.type === "life_list" ? JSON.stringify({ items: existing ? [{ id, version: 3, data: { ...data, protein: 80 } }] : [] }) : "Saved your protein target.");
+    await new AnthropicTaskIntentParser().parse({ ...input, message, execute });
+    expect(execute.mock.calls).toHaveLength(2);
+    expect(execute.mock.calls[0][0]).toEqual({ type: "life_list", kind: "nutrition_target" });
+    expect(execute.mock.calls[1][0]).toEqual(existing ? { type: "life_patch", id, version: 3, patch: { kind: "nutrition_target", protein: 90, calories: null, carbs: null, fat: null, fiber: null } } : { type: "life_save", data });
+    expect(authorize).toHaveBeenCalledTimes(1);
+  });
+
+  it("exposes exact-day nutrition and passes the verified daily total to the next model turn", async () => {
+    const message = "How many calories did I log on October 5?";
+    const date = "2026-10-05";
+    const tool = { type: "tool_use" as const, id: "read-food", name: "life_list", input: { kind: "food", date, sourceQuote: message } };
+    create.mockResolvedValueOnce({ content: [tool] }).mockResolvedValueOnce({ content: [{ type: "text", text: "You logged 440 known calories." }] });
+    const result = JSON.stringify({ items: [], truncated: true, dailyNutrition: { date, included: 25, truncated: false, totals: { calories: { value: 440, missing: 0 } } } });
+    const execute = vi.fn(async () => result);
+    await expect(new AnthropicTaskIntentParser().parse({ ...input, message, execute })).resolves.toEqual({ kind: "conversation", reply: "You logged 440 known calories." });
+    expect(execute).toHaveBeenCalledExactlyOnceWith({ type: "life_list", kind: "food", date });
+    expect(create.mock.calls[0][0].tools.find((item: { name: string }) => item.name === "life_list").input_schema.properties.date).toEqual({ type: "string", format: "date" });
+    expect(create.mock.calls[1][0].messages.at(-1).content[0].content).toBe(result);
+    expect(authorize).not.toHaveBeenCalled();
+    expect(() => parseTaskIntentResponse([{ ...tool, input: { kind: "food", date: "2026-02-30" } }])).toThrow();
+    expect(() => parseTaskIntentResponse([{ ...tool, input: { kind: "routine", date } }])).toThrow();
+  });
+
+  it("requires a current target lookup even when the model tries to create directly", async () => {
+    const message = "Set my daily protein target to 90 grams.";
+    create.mockResolvedValueOnce({ content: [{ type: "tool_use", id: "unread-target", name: "life_save", input: { sourceQuote: message, data: { kind: "nutrition_target", title: "Daily protein target", calories: null, protein: 90, carbs: null, fat: null, fiber: null } } }] })
+      .mockResolvedValueOnce({ content: [{ type: "text", text: "ACK_ONLY" }] });
+    const execute = vi.fn();
+    await new AnthropicTaskIntentParser().parse({ ...input, message, execute });
+    expect(execute).not.toHaveBeenCalled();
+    expect(create.mock.calls[1][0].messages.at(-1).content[0].content).toContain("first read life_list kind nutrition_target");
+  });
+
+  it.each([
+    ["Would a protein target of 90 grams make sense?", "read_only"],
+    ["Do not change my protein target to 90 grams.", "write"],
+  ])("never treats target advice or negation as permission: %s", async (message, mode) => {
+    authorize.mockResolvedValue({ mode, commands: mode === "write" ? ["life_save", "life_patch"] : [] });
+    create.mockResolvedValueOnce({ content: [{ type: "tool_use", id: "read-target", name: "life_list", input: { kind: "nutrition_target", sourceQuote: message } }] })
+      .mockResolvedValueOnce({ content: [{ type: "tool_use", id: "set-target", name: "life_save", input: { sourceQuote: message, data: { kind: "nutrition_target", title: "Protein target", calories: null, protein: 90, carbs: null, fat: null, fiber: null } } }] });
+    const execute = vi.fn(async () => JSON.stringify({ items: [] }));
+    await new AnthropicTaskIntentParser().parse({ ...input, message, execute });
+    expect(execute).toHaveBeenCalledExactlyOnceWith({ type: "life_list", kind: "nutrition_target" });
   });
 
   it("cannot delete a routine during an explicit no-change question after a valid lookup", async () => {
@@ -379,6 +461,136 @@ describe("current-message routing", () => {
     await new AnthropicTaskIntentParser().parse({ ...input, message, execute });
     expect(execute).not.toHaveBeenCalled();
     expect(create).toHaveBeenCalledTimes(2);
+  });
+
+  it("passes one explicitly expanded read-only rundown to the current tool", async () => {
+    const message = "Please summarize today's food, shopping, workout plans and Thoughts without changing anything.";
+    const include = ["food", "shopping", "workoutPlans", "thoughts"];
+    create.mockResolvedValueOnce({ content: [{ type: "tool_use", id: "expanded", name: "get_rundown",
+      input: { sourceQuote: message, startDate: "2026-09-07", days: 1, include } }] })
+      .mockResolvedValueOnce({ content: [{ type: "text", text: "Here is your current roundup." }] });
+    const execute = vi.fn(async () => "Verified current workspace.");
+    const result = await new AnthropicTaskIntentParser().parse({ ...input, message, execute });
+    expect(execute).toHaveBeenCalledExactlyOnceWith({ type: "get_rundown", startDate: "2026-09-07", days: 1, include });
+    expect(result).toEqual({ kind: "conversation", reply: "Here is your current roundup." });
+  });
+
+  it("supplies only the trusted full current message as each read quote while writes retain exact-span schemas", async () => {
+    const message = "Read my current day, goals, tasks, and cancelled reminders. Do not change anything.";
+    create.mockResolvedValueOnce({ content: [{ type: "text", text: "Ready." }] });
+    await new AnthropicTaskIntentParser().parse({ ...input, message, history: [
+      { id: "history", role: "user", content: "Old request: delete my goal.", createdAt: input.now },
+    ] });
+    const tools = create.mock.calls[0][0].tools as Array<{ name: string; input_schema: { properties: Record<string, unknown> } }>;
+    for (const tool of tools) {
+      const schema = tool.input_schema.properties.sourceQuote;
+      expect(schema).toMatchObject({ type: "string" });
+      if (isReadOnlyAssistantCommand(tool.name)) expect(schema).toMatchObject({ enum: [message] });
+      else expect(schema).not.toHaveProperty("enum");
+    }
+    expect(authorize).not.toHaveBeenCalled();
+  });
+
+  it("uses the supplied read quote for four independent lookups and synthesis without a repair", async () => {
+    const message = "Read my current day, goals, tasks, and cancelled reminders. Do not change anything.";
+    for (const [name, args] of [
+      ["get_rundown", { startDate: "2026-09-07", days: 1 }], ["list_goals", { status: "all" }],
+      ["list_tasks", { status: "all" }], ["list_reminders", { includePast: true }],
+    ] as const) {
+      create.mockImplementationOnce(async request => {
+        const tool = request.tools.find((tool: { name: string }) => tool.name === name);
+        const [sourceQuote] = tool.input_schema.properties.sourceQuote.enum;
+        return { content: [{ type: "tool_use", id: name, name, input: { ...args, sourceQuote } }] };
+      });
+    }
+    create.mockResolvedValueOnce({ content: [{ type: "text", text: "The goal is completed and the reminder is cancelled." }] });
+    const execute = vi.fn(async () => "Verified owned record."), onToolRejection = vi.fn();
+    const result = await new AnthropicTaskIntentParser().parse({ ...input, message, execute, onToolRejection });
+    expect(create).toHaveBeenCalledTimes(5);
+    expect(execute).toHaveBeenCalledTimes(4);
+    expect(onToolRejection).not.toHaveBeenCalled();
+    expect(authorize).not.toHaveBeenCalled();
+    expect(result).toEqual({ kind: "conversation", reply: "The goal is completed and the reminder is cancelled." });
+  });
+
+  it("reports a rejected quote only through the explicit private observer and keeps the read blocked", async () => {
+    const message = "Read today's reminders.";
+    const quote = "Earlier fictional fixture request";
+    create.mockResolvedValue({ content: [{ type: "tool_use", id: "bad", name: "list_reminders", input: { sourceQuote: quote } }] });
+    const execute = vi.fn(), onRejectedToolQuote = vi.fn();
+    await new AnthropicTaskIntentParser().parse({ ...input, message, execute, onRejectedToolQuote });
+    expect(execute).not.toHaveBeenCalled();
+    expect(create).toHaveBeenCalledTimes(2);
+    expect(onRejectedToolQuote).toHaveBeenNthCalledWith(1, { tool: "list_reminders", sourceQuote: quote, iteration: 1 });
+    expect(onRejectedToolQuote).toHaveBeenNthCalledWith(2, { tool: "list_reminders", sourceQuote: quote, iteration: 2 });
+  });
+
+  it.each([
+    ["source_quote_missing", undefined],
+    ["source_quote_mismatch", "stale fixture wording"],
+  ] as const)("repairs the fourth offered read once and synthesizes within six requests: %s", async (reason, badQuote) => {
+    const message = "Read my current day, goals, tasks, and cancelled reminders. Do not change anything.";
+    const tool = (name: string, args: Record<string, unknown>, id = name) =>
+      ({ content: [{ type: "tool_use", name, id, input: args }] });
+    create.mockResolvedValueOnce(tool("get_rundown", { sourceQuote: message, startDate: "2026-09-07", days: 1 }))
+      .mockResolvedValueOnce(tool("list_goals", { sourceQuote: message, status: "all" }))
+      .mockResolvedValueOnce(tool("list_tasks", { sourceQuote: message, status: "all" }))
+      .mockResolvedValueOnce(tool("list_reminders", { sourceQuote: badQuote, includePast: true }, "bad-read"))
+      .mockResolvedValueOnce(tool("list_reminders", { sourceQuote: "cancelled reminders", includePast: true }, "fixed-read"))
+      .mockResolvedValueOnce({ content: [{ type: "text", text: "The reminder is cancelled." }] });
+    const execute = vi.fn(async () => RUNDOWN_HISTORY_LIMIT);
+    const onToolRejection = vi.fn();
+    const result = await new AnthropicTaskIntentParser().parse({ ...input, message, execute, onToolRejection });
+    expect(create).toHaveBeenCalledTimes(6);
+    expect(create.mock.calls[4][0].messages).toContainEqual({ role: "user", content: [
+      expect.objectContaining({ type: "tool_result", tool_use_id: "bad-read", is_error: true,
+        content: expect.stringContaining("original request’s currentMessage field") }),
+    ] });
+    expect(execute).toHaveBeenCalledTimes(4);
+    expect(execute).toHaveBeenNthCalledWith(4, { type: "list_reminders", includePast: true });
+    expect(onToolRejection).toHaveBeenCalledExactlyOnceWith({ reason, iteration: 4, repairRequested: true });
+    expect(authorize).not.toHaveBeenCalled();
+    expect(result).toEqual({ kind: "conversation", reply: `The reminder is cancelled.\n\n${RUNDOWN_HISTORY_LIMIT}` });
+  });
+
+  it.each([
+    { name: "create_task", args: { title: "Buy rice", sourceQuote: "previous prompt" }, reason: "source_quote_mismatch" },
+    { name: "unoffered_lookup", args: { sourceQuote: "Show reminders" }, reason: "tool_not_offered" },
+  ])("does not repair invalid writes or unoffered tools: $name", async ({ name, args, reason }) => {
+    const message = "Show reminders and add a task to buy rice.";
+    create.mockResolvedValueOnce({ content: [{ type: "tool_use", id: "rejected", name, input: args }] });
+    const execute = vi.fn(), onToolRejection = vi.fn();
+    expect(await new AnthropicTaskIntentParser().parse({ ...input, message, execute, onToolRejection })).toMatchObject({ kind: "conversation" });
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(execute).not.toHaveBeenCalled();
+    expect(authorize).not.toHaveBeenCalled();
+    expect(onToolRejection).toHaveBeenCalledExactlyOnceWith({ reason, iteration: 1, repairRequested: false });
+  });
+
+  it("does not let a read quote repair switch to a write with an otherwise valid current quote", async () => {
+    const message = "Show reminders and add a task to buy rice.";
+    create.mockResolvedValueOnce({ content: [{ type: "tool_use", id: "read", name: "list_reminders", input: { includePast: true } }] })
+      .mockResolvedValueOnce({ content: [{ type: "tool_use", id: "write", name: "create_task", input: { title: "Buy rice", sourceQuote: message } }] });
+    const execute = vi.fn(), onToolRejection = vi.fn();
+    await new AnthropicTaskIntentParser().parse({ ...input, message, execute, onToolRejection });
+    expect(create).toHaveBeenCalledTimes(2);
+    expect(execute).not.toHaveBeenCalled();
+    expect(authorize).not.toHaveBeenCalled();
+    expect(onToolRejection.mock.calls).toEqual([
+      [{ reason: "source_quote_missing", iteration: 1, repairRequested: true }],
+      [{ reason: "read_repair_tool_mismatch", iteration: 2, repairRequested: false }],
+    ]);
+  });
+
+  it("does not retry a read quote after the shared schema-repair allowance is used", async () => {
+    const message = "Show my current tasks.";
+    create.mockResolvedValueOnce({ content: [{ type: "tool_use", id: "schema", name: "list_tasks", input: { status: "invalid", sourceQuote: message } }] })
+      .mockResolvedValueOnce({ content: [{ type: "tool_use", id: "quote", name: "list_tasks", input: { status: "all", sourceQuote: "old prompt" } }] });
+    const execute = vi.fn(), onToolRejection = vi.fn();
+    await new AnthropicTaskIntentParser().parse({ ...input, message, execute, onToolRejection });
+    expect(create).toHaveBeenCalledTimes(2);
+    expect(execute).not.toHaveBeenCalled();
+    expect(onToolRejection).toHaveBeenCalledExactlyOnceWith({ reason: "source_quote_mismatch", iteration: 2, repairRequested: false });
   });
 
   it("keeps the rundown history limit while completing a compound write", async () => {
@@ -669,17 +881,14 @@ describe("current-message routing", () => {
     expect(execute).not.toHaveBeenCalled();
   });
 
-  it("caps hosted searches across model continuations and preserves citations", async () => {
+  it("keeps the main model's search capability as a client tool", async () => {
     settings.webSearch = true;
-    const budgets: Array<number | undefined> = [];
-    create.mockImplementation(async (request: { tools: Array<{ name: string; max_uses?: number }> }) => {
-      budgets.push(request.tools.find((tool) => tool.name === "web_search")?.max_uses);
-      if (budgets.length <= 2) return { stop_reason: "pause_turn", content: [{ type: "server_tool_use", id: `search-${budgets.length}`, name: "web_search" }] };
-      return { content: [{ type: "text", text: "Here is the current information.", citations: [{ type: "web_search_result_location", url: "https://example.test/source" }] }] };
-    });
-    const result = await new AnthropicTaskIntentParser().parse({ ...input, message: "Search for current information" });
-    expect(budgets).toEqual([2, 1, undefined]);
-    expect(result).toMatchObject({ kind: "conversation", reply: expect.stringContaining("https://example.test/source") });
+    create.mockResolvedValue({ content: [{ type: "text", text: "What would you like to find?" }] });
+    await new AnthropicTaskIntentParser().parse({ ...input, message: "Search for current information" });
+    const tool = create.mock.calls[0][0].tools.find((tool: { name: string }) => tool.name === "web_search");
+    expect(tool).toHaveProperty("input_schema");
+    expect(tool).not.toHaveProperty("max_uses");
+    expect(tool.type).not.toBe("web_search_20250305");
   });
 
   it("feeds a completed memory action back to the model for the rest of the request", async () => {
@@ -784,6 +993,56 @@ describe("Anthropic task tool boundary", () => {
     expect(parseTaskIntentResponse([{ type: "text", text: "That sounds heavy. Want to choose one tiny next step?" }])).toEqual({
       kind: "conversation",
       reply: "That sounds heavy. Want to choose one tiny next step?",
+    });
+  });
+
+  it("keeps complete lines and full deduplicated citations when shortening a reply", () => {
+    const kept = "A completed line stays intact.\n".repeat(48).trimEnd();
+    const text = `${kept}\n\n---\n\n**CALENDAR**\nOne note: ${"this very long detail keeps going ".repeat(20)}`;
+    const first = "https://example.org/source?field=first";
+    const second = "https://example.org/another-source";
+    const citations = [first, first, second, "https://example.org/extra"].map(url => ({ type: "web_search_result_location", url }));
+    expect(parseTaskIntentResponse([{ type: "text", text, citations }])).toEqual({
+      kind: "conversation",
+      reply: `${kept}\n\nReply shortened.\nSources: ${first}\n${second}`,
+    });
+  });
+
+  it.each([
+    `https://example.org/${"a".repeat(300)}`,
+    `[a longer reference label with spaces](https://example.org/${"a".repeat(300)})`,
+  ])("keeps whole words and drops an over-limit inline link", link => {
+    const kept = "A useful detail ".repeat(90).trimEnd();
+    const fittingLink = "[full link](https://example.org/a?test=1)";
+    const result = parseTaskIntentResponse([{ type: "text", text: `${kept} ${fittingLink} ${link}` }]);
+    expect(result).toEqual({ kind: "conversation", reply: `${kept} ${fittingLink}\n\nReply shortened.` });
+  });
+
+  it("falls back to a whole word when no sentence boundary fits", () => {
+    const kept = "paper ".repeat(263).trimEnd();
+    const text = `${kept} flamingo ${"sleeps in the water ".repeat(20)}`;
+    expect(parseTaskIntentResponse([{ type: "text", text }])).toEqual({
+      kind: "conversation",
+      reply: `${kept}\n\nReply shortened.`,
+    });
+  });
+
+  it("shortens on Unicode word or symbol boundaries within the prose limit", () => {
+    const emoji = "👩‍💻";
+    const result = parseTaskIntentResponse([{ type: "text", text: emoji.repeat(400) }]);
+    expect(result.kind).toBe("conversation");
+    if (result.kind !== "conversation") throw new Error("Expected a conversational response.");
+    const [visible, notice] = result.reply.split("\n\n");
+    expect(visible.length).toBeGreaterThan(1000);
+    expect(visible.replaceAll(emoji, "")).toBe("");
+    expect(notice).toBe("Reply shortened.");
+    expect(result.reply.length).toBeLessThanOrEqual(1600);
+  });
+
+  it("keeps the existing fallback for empty model text", () => {
+    expect(parseTaskIntentResponse([{ type: "text", text: " \n " }])).toEqual({
+      kind: "conversation",
+      reply: "I couldn’t finish that response. Please try asking again.",
     });
   });
 });

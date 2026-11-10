@@ -1,0 +1,34 @@
+{
+  "generatedAt": "2026-10-22T23:19:14.877Z",
+  "base": "http://localhost:3103",
+  "database": "127.0.0.1:55437/tempo_ui_release",
+  "checks": [
+    "QA Riley: inactive denied, preview read-only, normal activation, replay denied",
+    "QA Riley Isolation: inactive denied, preview read-only, normal activation, replay denied",
+    "Fresh signed-in account has default adaptive Home preferences and no sample records",
+    "Home times/lead persist; stale repeated preference submission returns 409 without overwrite",
+    "Concurrent preference edits serialize: one succeeds, one conflicts; latest expected state can update",
+    "Foreign origin and stale other-account preference writes preserve both accounts",
+    "Three concurrent identical task creates persist exactly one task",
+    "Manual category/timer persist across reads/repeats; stale, invalid and foreign edits are rejected",
+    "Concurrent Start persists one running task and one seven-minute focus; changed replay/second focus/foreign update rejected",
+    "Independent PostgreSQL reads match HTTP state; isolation account unchanged; no scheduled provider work"
+  ],
+  "accountId": "6bc04a17-1fe0-4274-9037-633d3bdfe89a",
+  "isolationAccountId": "4480c570-5c80-4528-8492-4193cc87ba72",
+  "preferences": {
+    "pinned": "auto",
+    "morningTime": "07:30",
+    "dinnerTime": "18:30",
+    "eveningTime": "21:00",
+    "workoutLeadMinutes": 30
+  },
+  "taskId": "48ffd47a-fb07-4e17-846e-320e495d088b",
+  "focusId": "64a3d631-7d4d-4e03-91dc-80a4c4baa95c",
+  "runningTask": {
+    "title": "Write a short project outline",
+    "minutes": 7
+  },
+  "providerJobs": 0,
+  "limits": "Synthetic local accounts, normal activation, HTTP and PostgreSQL checks only; no browser or live provider claim."
+}

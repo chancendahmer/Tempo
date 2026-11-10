@@ -2,8 +2,10 @@
 
 ## Normal checks
 
-- `/api/health` proves the web process is alive and exposes the two sending safety switches.
-- `/api/ready` proves PostgreSQL is reachable and the worker heartbeat is under two minutes old; it also rejects blocked accounts, stale inbound backlog and outbound submissions awaiting reconciliation.
+- `/api/health` proves only the web process is alive. Its `configurationScope=web`, build and sending flags describe the web process; they do not attest worker settings.
+- `/api/ready` checks PostgreSQL, active per-instance worker attestations, known matching web/worker builds and valid queue health. It rejects blocked accounts, stale inbound backlog and outbound submissions awaiting reconciliation. A live legacy worker without attestation is not reported ready. Fresh runtime readiness is separate from proof of disabled coaching: any observed stale/unretired evidence makes `policyKnown=false` and `allCoachingDisabled=false` even if fresh workers are ready. `workerAttestation` exposes only validated aggregate booleans/counts/builds, never account/canary IDs, worker IDs or secrets.
+- Set the same `TEMPO_BUILD_SHA` (7–40 hexadecimal commit characters) on web and all workers, or verify a valid deployment-provided `RAILWAY_GIT_COMMIT_SHA` is present on each. Unknown or mismatched builds fail readiness while web liveness remains available. Mixed deployment versions require operator review; restart every intended worker and confirm the deployed instance count outside Tempo too.
+- With `DATABASE_URL` already supplied in the secure operator process environment, run `npx tsx scripts/pilot-operations-report.ts --hours 24`. It opens a repeatable-read **read-only** SQL transaction with a five-second statement timeout. It reports account/onboarding counts, recent delivery failures and all-time held work, due actions, queued/failed jobs, worker policy/build evidence and recovery-audit counts. It never starts pg-boss, migrates, retries, sends, loads environment files or prints phones, message bodies, IDs, tokens, raw errors or invite/canary lists. The window is 1–168 hours; held backlog is intentionally not hidden by that window. Exit 0 means no reported problems, 2 means review the reported operational/attestation problems, and 1 means the report could not complete. An absent queue schema is reported unknown, never initialized by the report.
 - `npm run context:report` shows recent policy decisions and hard-block reasons.
 - `npm run beta:report` shows masked per-user and aggregate intervention outcomes.
 - Railway receives Tempo's single-line Pino JSON logs. Filter `@level:error`, `calendar sync failed`, `job queue error`, and `intervention delivery failed`.
@@ -14,11 +16,12 @@ Configure Railway project webhooks for failed/crashed deployments. On Railway Pr
 
 For unexpected or inappropriate outbound messages:
 
-1. Set `AUTONOMOUS_SENDING_ENABLED=false` on the worker immediately.
-2. Set `INTERVENTION_SHADOW_MODE=true` and clear `PROACTIVE_CANARY_USER_IDS`; the allowlist can permit delivery despite the global switches.
-3. Redeploy/restart the worker and verify `/api/health` reports the safe values.
-4. Inspect `context_snapshots`, `interventions`, `conversation_messages`, and `intervention_outcomes` before changing policy.
-5. Do not re-enable until the founder signs the launch checklist.
+1. Stop **every worker instance** to halt queued execution. If every application path that can trigger provider messages must halt, also suspend web signup/verification entry points or stop the web service: signup can request a provider verification message directly. Use deployment controls; environment edits take effect only after a restart. Already accepted provider submissions can still arrive; stopping Tempo cannot recall them. Preserve their ledger state for reconciliation and preserve provider-side carrier suppression.
+2. Before restarting, set `AUTONOMOUS_SENDING_ENABLED=false`, `INTERVENTION_SHADOW_MODE=true`, **`CLEANUP_CHECKINS_ENABLED=false`**, and clear `PROACTIVE_CANARY_USER_IDS` on all workers. A nonempty canary list overrides the global coaching switches; cleanup has an independent release switch. Disable/close new admission as needed using the pilot admission controls.
+3. Restart only the intended workers with known matching build stamps. Verify fresh `/api/ready` worker attestations, `workerAttestation.allCoachingDisabled=true`, zero aggregate canaries and both proactive/cleanup permissions false. A missing, stale, malformed or unknown-build attestation is not proof that sending is disabled. Check deployment inventory as well: instance heartbeats describe observed processes, not an authoritative inventory of every external deployment. `/api/health` alone cannot confirm worker safety.
+4. These coaching permissions do not disable requested reminders, assistant replies, sign-in or compliance paths. Keep workers stopped when the incident requires all application-originated sending to remain halted; do not re-enable them merely because the coaching verdict is disabled. STOP/HELP handling and provider carrier suppression remain separate requirements.
+5. Inspect `context_snapshots`, `interventions`, `conversation_messages`, and `intervention_outcomes` securely before changing policy. Do not paste raw user data into incident reports, reset uncertain submissions to reserved or bulk replay failed work.
+6. Do not re-enable coaching until the founder signs the launch checklist and the intended policy/build is attested. The reader inspects at most 22 heartbeat rows across unretired history, supporting twenty fresh instances plus compatibility/overflow evidence. Bounded inventory overflow cannot prove disabled policy. Graceful shutdown removes only its exact instance record after its heartbeat write settles and pg-boss reports no remaining application worker loops. A timeout/crash leaves its record; old timestamps are **never automatically treated as termination or deleted**. Independently verify that process stopped before an authorized operator retires its exact record. The read-only report never retires records. This observed-instance verdict still requires an external deployment inventory check; absent/unobserved processes cannot be certified by a database heartbeat.
 
 STOP/revoked consent is enforced again immediately before every provider send. A provider, calendar, or LLM failure cannot bypass that gate.
 
@@ -29,7 +32,7 @@ STOP/revoked consent is enforced again immediately before every provider send. A
 - **Sendblue outage, blocked line, or exhausted sandbox contacts:** pause new signups and autonomous sending. Do not bulk replay ambiguous failures; Tempo's message ledger intentionally favors no duplicate message. Compare Tempo's masked message records with Sendblue message handles before retrying manually.
 - **Optional Linq or Twilio outage:** keep the fallback disabled unless its credentials, compliance, and end-to-end matrix are current. Switching providers is an explicit operational decision, not an automatic retry of an ambiguous send.
 - **Google outage or revoked token:** calendar jobs fail independently from inbound SMS. Mark persistent authentication failures `requires_reauth`; never infer that missing calendar data means free time.
-- **Anthropic outage:** intervention composition uses a deterministic, safety-validated fallback. Task-intent parsing retries and retains the inbound message for later processing.
+- **Anthropic outage:** intervention composition uses a deterministic, safety-validated fallback. The reviewer/composer have fifteen-second deadlines and no SDK retries. Assistant parsing has its own bounded retries and can persist a transparent unavailable response; do not assume every provider failure leaves the inbound pending. Actual failed jobs retain durable recovery state for operator review.
 - **PostgreSQL outage:** web readiness fails, worker jobs stop durably, and the liveness endpoint remains available for diagnosis.
 
 ## Backup and restore
@@ -58,6 +61,8 @@ Never test restores against the production database. Encryption-key backup is eq
 
 Inspect queueProblems from /api/ready and the worker queueHealth log. An outbound submission marked ambiguous or left submitting may already have reached the provider. Compare the provider's receipt with the account-scoped message before reconciling; do not reset it to reserved or resend on a guess. New readiness checks can expose old failures after migration. Do not delete history to make readiness green.
 
+A reminder marked sent records provider acceptance. The outbound message ledger records subsequent delivery or failure separately. An accepted occurrence is finalized once even if its delivery receipt reports failure.
+
 For a terminal failed inbound job, use a securely configured process environment and run:
 
 ```text
@@ -65,3 +70,41 @@ npx tsx scripts/recover-inbound.ts --user ACCOUNT_UUID --job JOB_UUID --operator
 ```
 
 Default is dry run. Add --apply only after reviewing the selected account/job and provider evidence. The command checks job/action/message ownership, lease expiry and outbound state, and records the operator/reason. It refuses uncertain provider submissions. Do not automatically retry every failed job. Configure an external monitor for /api/ready before an unattended pilot; logging alone does not notify an operator.
+
+### Acknowledged historical uncertainty
+
+Migration 0035 adds a separate operator audit for the reviewed legacy outbound cohort. The original delivery state, provider references and replay restrictions remain intact. Readiness and the operations report expose pending uncertainty and acknowledged historical uncertainty separately. A changed message, new linked work or an explicit reopen puts the row back in the pending count.
+
+Prepare a private JSON manifest with version 1, the decision, an opaque approval reference, and the exact account and message pairs from the approved review. Every row includes its UTC update timestamp with six fractional digits and the expected latest disposition event ID as a string, or null for the first decision. Preserve this manifest outside the repository with owner-only permissions. Preview it using the same secure database environment.
+
+For the November 10 historical investigation, the preparation command validates all 35 rows and two accounts together in one read-only snapshot. It can preview a first close before migration 0035 when the event table is absent and the queue is available. On the Linux worker, an optional `--private-output` path creates an owner-only manifest file after successful validation. The default output contains aggregate counts. It includes the digest only when eligible, and exits 2 when the review is blocked.
+
+```text
+npx tsx qa/pilot-2026-11-10/prepare-outbound-disposition.ts REVIEW_REFERENCE
+```
+
+```json
+{
+  "version": 1,
+  "decision": "close_unresolved_without_replay",
+  "approvalRef": "EXAMPLE_REVIEW_REFERENCE",
+  "rows": [
+    {
+      "accountId": "a21fb6b6-5af6-4865-b16b-6e90f330ae04",
+      "messageId": "d1106309-3120-4c05-889c-804994db64ad",
+      "messageUpdatedAt": "2026-09-03T12:00:00.002123Z",
+      "expectedLatestEventId": null
+    }
+  ]
+}
+```
+
+```text
+npx tsx scripts/outbound-disposition.ts --manifest PRIVATE_MANIFEST.json
+```
+
+Obtain the founder’s explicit acknowledgment of the reviewed manifest digest and the decision before applying any production disposition. Applying requires migration 0035, the exact digest, decision and operator reference. The two decisions are `close_unresolved_without_replay` and `reopen`. Reopening appends a new event and uses a freshly reviewed manifest with the current latest event ID.
+
+```text
+npx tsx scripts/outbound-disposition.ts --manifest PRIVATE_MANIFEST.json --apply --expected-sha256 REVIEWED_DIGEST --acknowledge close_unresolved_without_replay --operator OPERATOR_REF
+```

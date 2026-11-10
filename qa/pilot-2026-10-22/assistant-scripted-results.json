@@ -1,0 +1,609 @@
+{
+  "mode": "scripted",
+  "model": null,
+  "generatedAt": "2026-10-22T20:47:24.565Z",
+  "limitations": "Temporary PGlite database; captured transport; fixture Google calendar; no real SMS, Google writes, or pg-boss worker. Scripted mode does not evaluate AI quality. Live mode sends only synthetic prompts to Anthropic and may incur API/search charges.",
+  "issues": [],
+  "transcript": [
+    {
+      "decisionAt": "2027-01-14T15:00:00.001Z",
+      "input": "Hello",
+      "replies": [
+        "[SCRIPTED MODEL FIXTURE] greeting"
+      ],
+      "providerId": "c6ad41ec-7087-45e6-ad51-1d94a5ee01b0",
+      "duplicate": false,
+      "parserCalled": true,
+      "tools": [],
+      "elapsedMs": 88,
+      "channel": "sms"
+    },
+    {
+      "decisionAt": "2027-01-14T15:00:00.003Z",
+      "input": "Who are you? What can you do?",
+      "replies": [
+        "[SCRIPTED MODEL FIXTURE] capabilities"
+      ],
+      "providerId": "2466eab2-295a-44a9-bcfb-ff937fcb1a43",
+      "duplicate": false,
+      "parserCalled": true,
+      "tools": [],
+      "elapsedMs": 63,
+      "channel": "sms"
+    },
+    {
+      "decisionAt": "2027-01-14T15:00:00.005Z",
+      "input": "That’s not what I said to do.",
+      "replies": [
+        "[SCRIPTED MODEL FIXTURE] correction"
+      ],
+      "providerId": "f0d00d59-a7ce-4ca7-a162-e0d52deff4a5",
+      "duplicate": false,
+      "parserCalled": true,
+      "tools": [],
+      "elapsedMs": 59,
+      "channel": "sms"
+    },
+    {
+      "decisionAt": "2027-01-14T15:00:00.007Z",
+      "input": "Can you remember my favorite foods?",
+      "replies": [
+        "Yes—I can keep your favorite foods and help you pick something when deciding feels hard. What’s one food you’d like me to remember?"
+      ],
+      "providerId": "46725aec-34d6-4a3e-a011-b49c75134360",
+      "duplicate": false,
+      "parserCalled": false,
+      "tools": [],
+      "elapsedMs": 59,
+      "channel": "sms"
+    },
+    {
+      "decisionAt": "2027-01-14T15:00:00.009Z",
+      "input": "I really like frozen blueberries and yogurt as a dessert.",
+      "replies": [
+        "Added to your favorite-food list: frozen blueberries and yogurt."
+      ],
+      "providerId": "6d2e3753-9798-4d9a-b890-9dee052e19ba",
+      "duplicate": false,
+      "parserCalled": false,
+      "tools": [],
+      "elapsedMs": 63,
+      "channel": "sms"
+    },
+    {
+      "decisionAt": "2027-01-14T15:00:00.011Z",
+      "input": "What are my favorite foods?",
+      "replies": [
+        "{\"facts\":[\"Favorite food: frozen blueberries and yogurt.\"],\"memories\":[{\"id\":\"2cb9677d-44a6-47e7-afb0-afd0c66f11e5\",\"content\":\"Favorite food: frozen blueberries and yogurt.\"}],\"factsTruncated\":false,\"factsCoverage\":\"Active non-sensitive saved facts; notes are searched separately.\",\"noteSearchNotice\":\"Thoughts notes have not been searched; use specific query keywords before answering a personal recall question.\"}"
+      ],
+      "providerId": "a491e8c6-eef0-43fd-86be-751c5bcea14e",
+      "duplicate": false,
+      "parserCalled": true,
+      "tools": [
+        "recall_memories"
+      ],
+      "elapsedMs": 56,
+      "channel": "sms"
+    },
+    {
+      "decisionAt": "2027-01-14T15:00:00.013Z",
+      "input": "Forget yogurt.",
+      "replies": [
+        "Forgot it."
+      ],
+      "providerId": "9e168038-bb7e-4333-bd15-098b18dc6ddd",
+      "duplicate": false,
+      "parserCalled": false,
+      "tools": [],
+      "elapsedMs": 59,
+      "channel": "sms"
+    },
+    {
+      "decisionAt": "2027-01-14T15:00:00.015Z",
+      "input": "What foods do you remember now?",
+      "replies": [
+        "{\"facts\":[\"Favorite food: frozen blueberries.\"],\"memories\":[{\"id\":\"2cb9677d-44a6-47e7-afb0-afd0c66f11e5\",\"content\":\"Favorite food: frozen blueberries.\"}],\"factsTruncated\":false,\"factsCoverage\":\"Active non-sensitive saved facts; notes are searched separately.\",\"noteSearchNotice\":\"Thoughts notes have not been searched; use specific query keywords before answering a personal recall question.\"}"
+      ],
+      "providerId": "eb2af092-338f-4f6f-bcb4-04cd486bb365",
+      "duplicate": false,
+      "parserCalled": true,
+      "tools": [
+        "recall_memories"
+      ],
+      "elapsedMs": 54,
+      "channel": "sms"
+    },
+    {
+      "decisionAt": "2027-01-14T15:00:00.017Z",
+      "input": "What should I eat?",
+      "replies": [
+        "[SCRIPTED MODEL FIXTURE] meal ideas"
+      ],
+      "providerId": "a4533d6a-a716-4bc3-9a2c-6cd538fc06b6",
+      "duplicate": false,
+      "parserCalled": true,
+      "tools": [],
+      "elapsedMs": 51,
+      "channel": "sms"
+    },
+    {
+      "decisionAt": "2027-01-14T15:00:00.019Z",
+      "input": "Give me something savory using what I usually like.",
+      "replies": [
+        "[SCRIPTED MODEL FIXTURE] savory meal"
+      ],
+      "providerId": "782858f6-170b-40a3-aaa9-724d052c319c",
+      "duplicate": false,
+      "parserCalled": true,
+      "tools": [],
+      "elapsedMs": 54,
+      "channel": "sms"
+    },
+    {
+      "decisionAt": "2027-01-14T15:00:00.021Z",
+      "input": "Give me a quick three-ingredient recipe with a preparation time.",
+      "replies": [
+        "[SCRIPTED MODEL FIXTURE] recipe"
+      ],
+      "providerId": "aba15b29-db56-4188-9aca-14956e098bd7",
+      "duplicate": false,
+      "parserCalled": true,
+      "tools": [],
+      "elapsedMs": 53,
+      "channel": "sms"
+    },
+    {
+      "decisionAt": "2027-01-14T15:00:00.023Z",
+      "input": "Remind me in 2 minutes to do the dishes.",
+      "replies": [
+        "Reminder set for Thu, Jan 14, 10:02 AM EST: do the dishes"
+      ],
+      "providerId": "9d97c28c-dd23-4bda-b038-67d63bb82e5a",
+      "duplicate": false,
+      "parserCalled": true,
+      "tools": [
+        "create_reminder"
+      ],
+      "elapsedMs": 78,
+      "channel": "sms"
+    },
+    {
+      "decisionAt": "2027-01-14T15:00:00.025Z",
+      "input": "Hello",
+      "replies": [
+        "[SCRIPTED MODEL FIXTURE] greeting"
+      ],
+      "providerId": "9cafe22f-b20e-49e3-8268-9837cf4c30e0",
+      "duplicate": false,
+      "parserCalled": true,
+      "tools": [],
+      "elapsedMs": 52,
+      "channel": "sms"
+    },
+    {
+      "decisionAt": "2027-01-14T15:00:00.027Z",
+      "input": "That’s not what I said to do.",
+      "replies": [
+        "[SCRIPTED MODEL FIXTURE] correction"
+      ],
+      "providerId": "f35bc39f-6dd3-4198-90d7-44d16141b06b",
+      "duplicate": false,
+      "parserCalled": true,
+      "tools": [],
+      "elapsedMs": 58,
+      "channel": "sms"
+    },
+    {
+      "decisionAt": "2027-01-14T15:00:00.029Z",
+      "input": "Who are you?",
+      "replies": [
+        "[SCRIPTED MODEL FIXTURE] identity after reminder"
+      ],
+      "providerId": "1499fe0f-cb56-46bb-b98a-80746c71ca6d",
+      "duplicate": false,
+      "parserCalled": true,
+      "tools": [],
+      "elapsedMs": 50,
+      "channel": "sms"
+    },
+    {
+      "decisionAt": "2027-01-14T15:00:00.031Z",
+      "input": "Remind me tomorrow at 11 AM to add Davis to get home.",
+      "replies": [
+        "Reminder set for Fri, Jan 15, 11:00 AM EST: add Davis to get home"
+      ],
+      "providerId": "bd7ff9cf-e124-4259-82b9-48663c7bc33e",
+      "duplicate": false,
+      "parserCalled": true,
+      "tools": [
+        "create_reminder"
+      ],
+      "elapsedMs": 75,
+      "channel": "sms"
+    },
+    {
+      "decisionAt": "2027-01-14T15:00:00.033Z",
+      "input": "List my reminders.",
+      "replies": [
+        "{\"items\":[{\"id\":\"a0ddca28-3f5e-4896-ae2e-efd998bbb346\",\"text\":\"do the dishes\",\"contentMode\":\"text\",\"remindAt\":\"2027-01-14T15:02:00.023Z\",\"timezone\":\"America/New_York\",\"recurrence\":null,\"occurrenceCount\":0,\"status\":\"scheduled\"},{\"id\":\"f88fe314-e81b-48ee-95d4-21066f16f819\",\"text\":\"add Davis to get home\",\"contentMode\":\"text\",\"remindAt\":\"2027-01-15T16:00:00.000Z\",\"timezone\":\"America/New_York\",\"recurrence\":null,\"occurrenceCount\":0,\"status\":\"scheduled\"}],\"limit\":50,\"truncated\":false}"
+      ],
+      "providerId": "6040050a-6ff9-4299-8b38-4656ac60cd9c",
+      "duplicate": false,
+      "parserCalled": true,
+      "tools": [
+        "list_reminders"
+      ],
+      "elapsedMs": 52,
+      "channel": "sms"
+    },
+    {
+      "decisionAt": "2027-01-14T15:00:00.035Z",
+      "input": "Move my dishes reminder to tomorrow at 11 AM.",
+      "replies": [
+        "Reminder moved to Fri, Jan 15, 11:00 AM EST: do the dishes"
+      ],
+      "providerId": "05bd8cd6-df31-44b2-a045-05d8087b0a4f",
+      "duplicate": false,
+      "parserCalled": true,
+      "tools": [
+        "reschedule_reminder"
+      ],
+      "elapsedMs": 67,
+      "channel": "sms"
+    },
+    {
+      "decisionAt": "2027-01-14T15:00:00.037Z",
+      "input": "I completed my dishes reminder.",
+      "replies": [
+        "Completed reminder: do the dishes."
+      ],
+      "providerId": "fc6c8d91-5186-43b9-85d1-ecdef3bb6f4e",
+      "duplicate": false,
+      "parserCalled": true,
+      "tools": [
+        "complete_reminder"
+      ],
+      "elapsedMs": 56,
+      "channel": "sms"
+    },
+    {
+      "decisionAt": "2027-01-14T15:00:00.039Z",
+      "input": "Cancel my Davis reminder.",
+      "replies": [
+        "Cancelled: add Davis to get home."
+      ],
+      "providerId": "a3710e0a-ca31-43e3-9503-3be2969adccc",
+      "duplicate": false,
+      "parserCalled": true,
+      "tools": [
+        "cancel_reminder"
+      ],
+      "elapsedMs": 56,
+      "channel": "sms"
+    },
+    {
+      "decisionAt": "2027-01-14T15:00:00.041Z",
+      "input": "Add a task to write the report",
+      "replies": [
+        "Added: write the report."
+      ],
+      "providerId": "94db4320-3e27-408a-9271-4869d14cd86d",
+      "duplicate": false,
+      "parserCalled": false,
+      "tools": [],
+      "elapsedMs": 60,
+      "channel": "sms"
+    },
+    {
+      "decisionAt": "2027-01-14T15:00:00.043Z",
+      "input": "List my tasks",
+      "replies": [
+        "1. write the report — not started · no deadline"
+      ],
+      "providerId": "6ca3195b-c762-4ec0-9b2d-b1794723ad71",
+      "duplicate": false,
+      "parserCalled": false,
+      "tools": [],
+      "elapsedMs": 46,
+      "channel": "sms"
+    },
+    {
+      "decisionAt": "2027-01-14T15:00:00.045Z",
+      "input": "Done with write the report",
+      "replies": [
+        "Done: write the report."
+      ],
+      "providerId": "5d8f8fad-57c1-462d-9e10-7bf40aa8777b",
+      "duplicate": false,
+      "parserCalled": false,
+      "tools": [],
+      "elapsedMs": 55,
+      "channel": "sms"
+    },
+    {
+      "decisionAt": "2027-01-14T15:00:00.047Z",
+      "input": "My goal is to run a half marathon",
+      "replies": [
+        "Goal added: run a half marathon."
+      ],
+      "providerId": "c384682c-8057-4944-8dce-b7197c1f4843",
+      "duplicate": false,
+      "parserCalled": false,
+      "tools": [],
+      "elapsedMs": 53,
+      "channel": "sms"
+    },
+    {
+      "decisionAt": "2027-01-14T15:00:00.049Z",
+      "input": "List my goals",
+      "replies": [
+        "1. run a half marathon"
+      ],
+      "providerId": "32fdf767-53aa-45a9-93f6-1e295a31ab56",
+      "duplicate": false,
+      "parserCalled": false,
+      "tools": [],
+      "elapsedMs": 49,
+      "channel": "sms"
+    },
+    {
+      "decisionAt": "2027-01-14T15:00:00.051Z",
+      "input": "What’s on my calendar Friday?",
+      "replies": [
+        "{\"simulated\":true,\"events\":[{\"id\":\"fixture-dentist\",\"title\":\"Dentist\",\"start\":{\"dateTime\":\"2027-01-15T14:00:00-05:00\"},\"end\":{\"dateTime\":\"2027-01-15T15:00:00-05:00\"},\"editable\":true}]}"
+      ],
+      "providerId": "1738c8ed-0114-4396-8b27-7943f2c3310c",
+      "duplicate": false,
+      "parserCalled": true,
+      "tools": [
+        "calendar_agenda"
+      ],
+      "elapsedMs": 59,
+      "channel": "sms"
+    },
+    {
+      "decisionAt": "2027-01-14T15:00:00.053Z",
+      "input": "Move my dentist appointment on January 15 to 3 PM for one hour.",
+      "replies": [
+        "Proposed calendar update: {\"operation\":\"update\",\"eventId\":\"fixture-dentist\",\"start\":\"2027-01-15T15:00:00-05:00\",\"end\":\"2027-01-15T16:00:00-05:00\"}. Reply YES to confirm or NO to cancel."
+      ],
+      "providerId": "0108620d-b796-418c-b753-10447f0d4ebe",
+      "duplicate": false,
+      "parserCalled": true,
+      "tools": [
+        "calendar_change"
+      ],
+      "elapsedMs": 54,
+      "channel": "sms"
+    },
+    {
+      "decisionAt": "2027-01-14T15:00:00.055Z",
+      "input": "NO",
+      "replies": [
+        "Okay—I dropped that pending change."
+      ],
+      "providerId": "acc8ef59-f219-402f-8c4d-3e836ce1e842",
+      "duplicate": false,
+      "parserCalled": false,
+      "tools": [],
+      "elapsedMs": 49,
+      "channel": "sms"
+    },
+    {
+      "decisionAt": "2027-01-14T15:00:00.057Z",
+      "input": "Can you read my latest email?",
+      "replies": [
+        "Calendar: simulated fixture only. Email, Apple Calendar, shopping and health data: not connected.\n\nGoogle Health / Google Fit is not supported. Tempo cannot read or sync your steps. Fitness has no step-count field; you can save a step count as a note in Thoughts if you ask.\n\nManage supported connections in Extensions."
+      ],
+      "providerId": "5417bd38-a356-412a-80db-bf3cefc03418",
+      "duplicate": false,
+      "parserCalled": true,
+      "tools": [
+        "connection_status"
+      ],
+      "elapsedMs": 49,
+      "channel": "sms"
+    },
+    {
+      "decisionAt": "2027-01-14T15:00:00.059Z",
+      "input": "Remember my password is fake-test-secret.",
+      "replies": [
+        "I can remember everyday preferences, but I can’t save secrets or sensitive personal details."
+      ],
+      "providerId": "a98985ed-f82e-47ae-925a-4b30a91bc040",
+      "duplicate": false,
+      "parserCalled": false,
+      "tools": [],
+      "elapsedMs": 45,
+      "channel": "sms"
+    },
+    {
+      "decisionAt": "2027-01-14T15:00:00.061Z",
+      "input": "Please enable proactive check-ins twice a day.",
+      "replies": [
+        "Check-in preference saved. Proactive delivery is disabled in this simulation."
+      ],
+      "providerId": "14732c8c-18c1-4cff-ae9e-ed2cd407bba6",
+      "duplicate": false,
+      "parserCalled": true,
+      "tools": [
+        "set_checkins"
+      ],
+      "elapsedMs": 54,
+      "channel": "sms"
+    },
+    {
+      "decisionAt": "2027-01-14T15:00:00.063Z",
+      "input": "Turn off proactive check-ins.",
+      "replies": [
+        "Optional check-ins are off."
+      ],
+      "providerId": "b283404c-0f37-4b1f-bfa8-3a2ef0f569a2",
+      "duplicate": false,
+      "parserCalled": true,
+      "tools": [
+        "set_checkins"
+      ],
+      "elapsedMs": 53,
+      "channel": "sms"
+    },
+    {
+      "decisionAt": "2027-01-14T15:00:00.065Z",
+      "input": "Search the web for the latest Next.js release and link the official release notes.",
+      "replies": [
+        "[SCRIPTED MODEL FIXTURE] web question"
+      ],
+      "providerId": "02f0027f-bfab-4928-a93d-d87342ccbc79",
+      "duplicate": false,
+      "parserCalled": true,
+      "tools": [],
+      "elapsedMs": 58,
+      "channel": "sms"
+    },
+    {
+      "decisionAt": "2027-01-14T15:00:00.066Z",
+      "input": "Remind me in 2 minutes to do the dishes.",
+      "replies": [],
+      "providerId": "9d97c28c-dd23-4bda-b038-67d63bb82e5a",
+      "duplicate": true,
+      "parserCalled": false,
+      "tools": [],
+      "elapsedMs": 9,
+      "channel": "sms"
+    },
+    {
+      "decisionAt": "2027-01-14T15:00:00.067Z",
+      "input": "Hello",
+      "replies": [
+        "[SCRIPTED MODEL FIXTURE] greeting"
+      ],
+      "providerId": "206bffa9-e159-4e20-9334-056df9f4f6ba",
+      "duplicate": false,
+      "parserCalled": true,
+      "tools": [],
+      "elapsedMs": 48,
+      "channel": "sms"
+    }
+  ],
+  "secondUser": [
+    {
+      "decisionAt": "2027-01-14T15:00:00.069Z",
+      "input": "What are my favorite foods?",
+      "replies": [
+        "{\"facts\":[],\"memories\":[],\"factsTruncated\":false,\"factsCoverage\":\"Active non-sensitive saved facts; notes are searched separately.\",\"noteSearchNotice\":\"Thoughts notes have not been searched; use specific query keywords before answering a personal recall question.\"}"
+      ],
+      "providerId": "17194e27-0944-4e8b-ac70-181f67401165",
+      "duplicate": false,
+      "parserCalled": true,
+      "tools": [
+        "recall_memories"
+      ],
+      "elapsedMs": 57,
+      "channel": "sms"
+    }
+  ],
+  "state": {
+    "tasks": [
+      {
+        "id": "0e69d198-ce55-472e-8590-46bcbc70de70",
+        "userId": "61347dee-8bab-4dd3-a55f-de07a07cf80d",
+        "goalId": null,
+        "title": "write the report",
+        "notes": null,
+        "estimatedMinutes": null,
+        "presentation": null,
+        "dueAt": null,
+        "status": "completed",
+        "sourceMessageId": "187967bb-9233-494a-a257-348279a77666",
+        "startedAt": null,
+        "completedAt": "2027-01-14T15:00:00.045Z",
+        "abandonedAt": null,
+        "createdAt": "2026-10-22T20:47:23.704Z",
+        "updatedAt": "2026-10-22T20:47:23.823Z"
+      }
+    ],
+    "reminders": [
+      {
+        "contentMode": "text",
+        "sourceOperation": 0,
+        "id": "f88fe314-e81b-48ee-95d4-21066f16f819",
+        "userId": "61347dee-8bab-4dd3-a55f-de07a07cf80d",
+        "taskId": null,
+        "sourceMessageId": "7ca44b5d-e2d0-4499-af2f-9a74766fad51",
+        "text": "add Davis to get home",
+        "remindAt": "2027-01-15T16:00:00.000Z",
+        "timezone": "America/New_York",
+        "recurrence": null,
+        "occurrenceCount": 0,
+        "status": "cancelled",
+        "idempotencyKey": "reminder:7ca44b5d-e2d0-4499-af2f-9a74766fad51",
+        "provider": null,
+        "providerMessageSid": null,
+        "sentAt": null,
+        "cancelledAt": "2027-01-14T15:00:00.039Z",
+        "lastError": null,
+        "createdAt": "2026-10-22T20:47:23.370Z",
+        "updatedAt": "2027-01-14T15:00:00.039Z"
+      },
+      {
+        "contentMode": "text",
+        "sourceOperation": 0,
+        "id": "a0ddca28-3f5e-4896-ae2e-efd998bbb346",
+        "userId": "61347dee-8bab-4dd3-a55f-de07a07cf80d",
+        "taskId": null,
+        "sourceMessageId": "c45677f6-50a0-4fb1-8138-92e664ad7d42",
+        "text": "do the dishes",
+        "remindAt": "2027-01-15T16:00:00.000Z",
+        "timezone": "America/New_York",
+        "recurrence": null,
+        "occurrenceCount": 0,
+        "status": "completed",
+        "idempotencyKey": "reminder:c45677f6-50a0-4fb1-8138-92e664ad7d42",
+        "provider": null,
+        "providerMessageSid": null,
+        "sentAt": null,
+        "cancelledAt": null,
+        "lastError": null,
+        "createdAt": "2026-10-22T20:47:23.105Z",
+        "updatedAt": "2027-01-14T15:00:00.037Z"
+      }
+    ],
+    "memories": [
+      {
+        "id": "2cb9677d-44a6-47e7-afb0-afd0c66f11e5",
+        "content": "Favorite food: frozen blueberries.",
+        "category": "preference",
+        "confidence": 1
+      }
+    ],
+    "lifeItems": [],
+    "user": {
+      "id": "61347dee-8bab-4dd3-a55f-de07a07cf80d",
+      "phoneE164": "+12025550100",
+      "displayName": null,
+      "profileInstructions": null,
+      "profileCompletedAt": null,
+      "workspacePreferences": {},
+      "locale": "en-US",
+      "timezone": "America/New_York",
+      "status": "active",
+      "onboardingState": "complete",
+      "quietHoursStart": null,
+      "quietHoursEnd": null,
+      "preferredCoachingStyle": null,
+      "coachingTone": "balanced",
+      "dailyInterventionCap": 0,
+      "proactiveOptIn": false,
+      "interventionCooldownMinutes": 120,
+      "pausedUntil": null,
+      "optedOutAt": null,
+      "phoneVerifiedAt": "2026-10-22T20:47:22.322Z",
+      "lastInboundAt": "2026-10-22T20:47:24.450Z",
+      "lastOutboundAt": null,
+      "responseStats": {},
+      "createdAt": "2026-10-22T20:47:22.297Z",
+      "updatedAt": "2026-10-22T20:47:24.450Z"
+    },
+    "calendarWrites": []
+  }
+}

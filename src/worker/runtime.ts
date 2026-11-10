@@ -1,4 +1,6 @@
 import { PgBoss } from "pg-boss";
+import { randomUUID } from "node:crypto";
+import { registerTaskPresentationHandler } from "../server/jobs/handlers/task-presentation";
 import { getServerEnv, requireEnv, ServerEnvKey } from "../server/config/env";
 import { closeDatabase } from "../server/db/client";
 import { startActionDispatcher } from "../server/jobs/dispatcher";
@@ -15,9 +17,13 @@ import { registerFeedbackTimeoutHandler } from "../server/jobs/handlers/feedback
 import { registerAccountabilityFollowupHandler } from "../server/jobs/handlers/accountability-followup";
 import { ScheduledActionRepository } from "../server/jobs/scheduled-action-repository";
 import { JOB_NAMES } from "../server/jobs/names";
+import { classifyJobFailure } from "../server/jobs/job-failure";
 import { logger } from "../server/observability/logger";
 import { OperationalRepository } from "../server/db/repositories/operational-repository";
 import { queueHealthProblems } from "../server/domain/queue-health";
+import { createWorkerAttestation, WORKER_INSTANCE_PREFIX } from "../server/observability/worker-attestation";
+import { createHeartbeatLifecycle } from "./heartbeat-lifecycle";
+import { createAiBudgetAttestation } from "../server/observability/ai-budget-attestation";
 
 export async function runWorker() {
   const messagingProvider = getServerEnv().MESSAGING_PROVIDER;
@@ -47,11 +53,20 @@ export async function runWorker() {
     schema: "pgboss",
     application_name: env.WORKER_ID,
     useListenNotify: true,
+    persistWarnings: false,
   });
-  boss.on("error", (error) => logger.error({ err: error }, "job queue error"));
-  boss.on("warning", (warning) => logger.warn({ warning }, "job queue warning"));
+  boss.on("error", (error) => logger.error(classifyJobFailure(error), "job queue error"));
+  boss.on("warning", ({ data }) => {
+    // pg-boss slow-query warnings include SQL and bound values.
+    const warning = "elapsed" in data && typeof data.elapsed === "number" ? { category: "slow_query", elapsedSeconds: data.elapsed }
+      : "queuedCount" in data ? { category: "queue_backlog", queuedCount: Number(data.queuedCount) }
+      : "seconds" in data && typeof data.seconds === "number" ? { category: "clock_skew", seconds: data.seconds }
+      : { category: "unexpected" };
+    logger.warn(warning, "job queue warning");
+  });
 
   await boss.start();
+  await registerTaskPresentationHandler(boss);
   await boss.createQueue(JOB_NAMES.sendSignIn, {
     policy: "standard", retryLimit: 2, retryDelay: 30, retryBackoff: true,
     expireInSeconds: 90, deleteAfterSeconds: 604_800, notify: true,
@@ -169,19 +184,23 @@ export async function runWorker() {
     scheduledActionRepository.seedMissingCalendarSyncs(),
   ]);
   const operations = new OperationalRepository();
-  const heartbeat = async () => {
+  const heartbeatKey = `${WORKER_INSTANCE_PREFIX}${randomUUID()}`;
+  const heartbeat = createHeartbeatLifecycle(async () => {
     const [messages, blocked] = await Promise.all([operations.messageHealth(), boss.getBlockedKeys(JOB_NAMES.processInbound)]);
     const queueHealth = { ...messages, blockedAccounts: blocked.length };
     const problems = queueHealthProblems(queueHealth);
     if (problems.length) logger.error({ queueHealth, problems }, "inbound queue requires recovery");
-    await operations.heartbeat("tempo-worker", { workerId: env.WORKER_ID, pid: process.pid, queueHealth });
-  };
+    const attestation = { ...createWorkerAttestation(env, queueHealth), aiBudget: createAiBudgetAttestation(env, process.env.ANTHROPIC_BASE_URL) };
+    await operations.heartbeat(heartbeatKey, attestation);
+    // Preserve the existing demo-report contract; readiness uses instance rows.
+    await operations.heartbeat("tempo-worker", { ...attestation, workerId: env.WORKER_ID, pid: process.pid });
+  });
   const cleanup = () => operations.cleanupExpiredData();
-  await heartbeat();
+  await heartbeat.pulse();
   await cleanup();
-  const heartbeatInterval = setInterval(() => void heartbeat().catch((error) => logger.error({ err: error }, "worker heartbeat failed")), 30_000);
+  const heartbeatInterval = setInterval(() => void heartbeat.pulse().catch((error) => logger.error(classifyJobFailure(error), "worker heartbeat failed")), 30_000);
   const cleanupInterval = setInterval(
-    () => void cleanup().catch((error) => logger.error({ err: error }, "expired operational data cleanup failed")),
+    () => void cleanup().catch((error) => logger.error(classifyJobFailure(error), "expired operational data cleanup failed")),
     6 * 3_600_000,
   );
   const stopDispatcher = startActionDispatcher(boss, env.WORKER_POLL_INTERVAL_MS);
@@ -195,7 +214,12 @@ export async function runWorker() {
     stopDispatcher();
     clearInterval(heartbeatInterval);
     clearInterval(cleanupInterval);
+    await heartbeat.stop().catch(error => logger.error(classifyJobFailure(error), "final worker heartbeat failed"));
     await boss.stop({ graceful: true, timeout: 30_000 });
+    // pg-boss may return after its timeout while application handlers are still
+    // unwinding. Only an empty worker list proves their loops have drained.
+    if (boss.getWipData().length === 0) await operations.removeWorkerHeartbeat(heartbeatKey);
+    else logger.warn("worker stopped with unresolved handlers; retaining instance attestation for operator review");
     await closeDatabase();
   };
 

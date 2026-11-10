@@ -6,11 +6,15 @@ export function LegalPage({
   eyebrow,
   title,
   summary,
+  effectiveDate = "August 18, 2026",
+  version = "2026-08-18.v1",
   children,
 }: {
   eyebrow: string;
   title: string;
   summary: string;
+  effectiveDate?: string;
+  version?: string;
   children: ReactNode;
 }) {
   return (
@@ -21,7 +25,7 @@ export function LegalPage({
           <p className="eyebrow">{eyebrow}</p>
           <h1>{title}</h1>
           <p>{summary}</p>
-          <p className="legal-effective">Effective August 18, 2026 · Version 2026-08-18.v1</p>
+          <p className="legal-effective">Effective {effectiveDate} · Version {version}</p>
         </header>
         <article className="legal-card">{children}</article>
         <nav className="legal-footer" aria-label="Legal navigation">

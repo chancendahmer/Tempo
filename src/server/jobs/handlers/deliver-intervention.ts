@@ -1,4 +1,5 @@
 import { PgBoss } from "pg-boss";
+import { withAiInvocationScope } from "../../domain/ai-invocation-scope";
 import { AnthropicInterventionComposer } from "../../adapters/llm/intervention-composer";
 import { createMessagingTransport } from "../../adapters/sms/messaging-provider";
 import { getServerEnv } from "../../config/env";
@@ -7,20 +8,22 @@ import { DrizzleContextEngineRepository } from "../../db/repositories/context-en
 import { DrizzleInterventionRepository } from "../../db/repositories/intervention-repository";
 import { DrizzleOutboundMessageRepository } from "../../db/repositories/outbound-message-repository";
 import { evaluateContext } from "../../domain/context-engine";
-import { SafeSmsSender } from "../../domain/outbound-messaging";
+import { OutboundDeliveryPendingError, SafeSmsSender } from "../../domain/outbound-messaging";
 import { buildInitialAccountabilityPrompt } from "../../domain/accountability";
 import { validateInterventionMessage } from "../../domain/intervention-strategy";
-import { logger } from "../../observability/logger";
 import { DeliverInterventionJob, JOB_NAMES } from "../names";
 import { ScheduledActionRepository } from "../scheduled-action-repository";
+import { failJob } from "../job-failure";
 
 export async function registerDeliverInterventionHandler(boss: PgBoss) {
   await boss.work<DeliverInterventionJob>(JOB_NAMES.deliverIntervention, { localConcurrency: 2 }, async (jobs) => {
     for (const job of jobs) {
       const actions = new ScheduledActionRepository();
       const interventions = new DrizzleInterventionRepository();
-      if (!(await actions.markRunning(job.data.scheduledActionId))) continue;
+      let running = false;
       try {
+        running = await actions.markRunning(job.data.scheduledActionId);
+        if (!running) continue;
         const env = getServerEnv();
         const recovered = await interventions.reconcileDelivery(job.data.interventionId);
         if (recovered?.kind === "submitted") {
@@ -70,7 +73,7 @@ export async function registerDeliverInterventionHandler(boss: PgBoss) {
           continue;
         }
 
-        const nudge = context.messageText ?? await new AnthropicInterventionComposer().compose({
+        const nudge = context.messageText ?? await withAiInvocationScope({ accountId: context.userId, executionId: job.data.scheduledActionId, signal: job.signal }, () => new AnthropicInterventionComposer().compose({
             style: context.style,
             taskTitle: context.taskTitle,
             dueAt: context.dueAt,
@@ -80,7 +83,7 @@ export async function registerDeliverInterventionHandler(boss: PgBoss) {
             timezone: signals.timezone,
             tone: context.coachingTone,
             memories: context.memories,
-          });
+          }));
         const message = validateInterventionMessage(buildInitialAccountabilityPrompt(nudge));
         await interventions.markQueued(context.id, message, "intervention-v1", env.ANTHROPIC_MODEL ?? "deterministic-fallback");
         const sent = await new SafeSmsSender(new DrizzleOutboundMessageRepository(), createMessagingTransport()).send({
@@ -96,8 +99,8 @@ export async function registerDeliverInterventionHandler(boss: PgBoss) {
           continue;
         }
         const deliveryStatus = await interventions.markSent(context.id, sent.providerMessageSid, new Date(), sent.provider);
-        if (deliveryStatus === "failed") {
-          await actions.markCancelled(job.data.scheduledActionId, "provider_delivery_failed");
+        if (deliveryStatus === "failed" || deliveryStatus === "unavailable") {
+          await actions.markCancelled(job.data.scheduledActionId, deliveryStatus === "failed" ? "provider_delivery_failed" : "intervention_no_longer_active");
           continue;
         }
         await interventions.startAccountability(context.id);
@@ -108,10 +111,11 @@ export async function registerDeliverInterventionHandler(boss: PgBoss) {
           new Date(Date.now() + 12 * 3_600_000),
         );
       } catch (error) {
-        await interventions.markFailed(job.data.interventionId);
-        await actions.markFailed(job.data.scheduledActionId, error);
-        logger.error({ err: error, interventionId: job.data.interventionId }, "intervention delivery failed");
-        throw error;
+        await failJob(error, { jobId: job.id, operation: "Intervention delivery", logMessage: "intervention delivery failed",
+          record: running ? async retry => {
+            if (!(error instanceof OutboundDeliveryPendingError)) await interventions.markFailed(job.data.interventionId);
+            await actions.markFailed(job.data.scheduledActionId, retry);
+          } : undefined });
       }
     }
   });

@@ -1,12 +1,14 @@
 import { and, desc, eq, isNull } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import {
-  OutboundBlockReason,
+  evaluateMessagingPermission,
   OutboundMessageRepository,
+  type OutboundSubmission,
 } from "../../domain/outbound-messaging";
 import { getDatabase, TempoDatabase } from "../client";
 import { consentRecords, conversationMessages, conversations, messageRelations, providerMessageBindings, users } from "../schema";
 import { ensureDirectConversation } from "./messaging-identity-repository";
+import { applyPendingDeliveryReceipt, lockDeliveryReceipt } from "./delivery-receipts";
 
 export class DrizzleOutboundMessageRepository implements OutboundMessageRepository {
   constructor(private readonly database: TempoDatabase = getDatabase()) {}
@@ -27,7 +29,7 @@ export class DrizzleOutboundMessageRepository implements OutboundMessageReposito
         .select({ status: consentRecords.status })
         .from(consentRecords)
         .where(eq(consentRecords.userId, userId))
-        .orderBy(desc(consentRecords.createdAt))
+        .orderBy(desc(consentRecords.createdAt), desc(consentRecords.id))
         .limit(1),
     ]);
 
@@ -85,23 +87,33 @@ export class DrizzleOutboundMessageRepository implements OutboundMessageReposito
     return message?.body;
   }
 
-  async beginSubmission(messageId: string) {
-    const rows = await this.database.update(conversationMessages).set({ outboundState: "submitting", submissionToken: randomUUID(), submissionStartedAt: new Date(), updatedAt: new Date() })
-      .where(and(eq(conversationMessages.id, messageId), eq(conversationMessages.outboundState, "reserved"))).returning({ id: conversationMessages.id });
-    return rows.length === 1;
-  }
-
-  async cancel(messageId: string, reason: OutboundBlockReason) {
-    await this.database
-      .update(conversationMessages)
-      .set({
-        status: "cancelled",
-        outboundState: "suppressed",
-        providerErrorCode: `TEMPO_BLOCKED_${reason.toUpperCase()}`,
-        providerErrorMessage: `Outbound send blocked: ${reason}`,
-        updatedAt: new Date(),
-      })
-      .where(and(eq(conversationMessages.id, messageId), eq(conversationMessages.outboundState, "reserved")));
+  async beginSubmission(messageId: string, now: Date): Promise<OutboundSubmission> {
+    return this.database.transaction(async transaction => {
+      // Serialize the final permission check and the durable submission start
+      // with STOP, pause, and web consent. Release the lock before provider I/O.
+      const [owner] = await transaction.select({ userId: users.id }).from(users)
+        .innerJoin(conversationMessages, eq(conversationMessages.userId, users.id))
+        .where(and(eq(conversationMessages.id, messageId), eq(conversationMessages.direction, "outbound")))
+        .for("update", { of: users });
+      if (!owner) return { status: "not_reserved" };
+      const permission = await new DrizzleOutboundMessageRepository(transaction as unknown as TempoDatabase).getPermission(owner.userId);
+      const gate = evaluateMessagingPermission(permission, now);
+      const reservation = and(eq(conversationMessages.id, messageId), eq(conversationMessages.outboundState, "reserved"));
+      if (!gate.allowed) {
+        const rows = await transaction.update(conversationMessages).set({
+          status: "cancelled",
+          outboundState: "suppressed",
+          providerErrorCode: `TEMPO_BLOCKED_${gate.reason.toUpperCase()}`,
+          providerErrorMessage: `Outbound send blocked: ${gate.reason}`,
+          updatedAt: now,
+        }).where(reservation).returning({ id: conversationMessages.id });
+        return rows.length ? { status: "blocked", reason: gate.reason } : { status: "not_reserved" };
+      }
+      const rows = await transaction.update(conversationMessages).set({
+        outboundState: "submitting", submissionToken: randomUUID(), submissionStartedAt: now, updatedAt: now,
+      }).where(reservation).returning({ id: conversationMessages.id });
+      return rows.length ? { status: "started", phoneE164: permission!.phoneE164 } : { status: "not_reserved" };
+    });
   }
 
   async markSubmitted(
@@ -118,17 +130,26 @@ export class DrizzleOutboundMessageRepository implements OutboundMessageReposito
       const [message] = await transaction.select({
         conversationId: conversationMessages.conversationId,
         userId: conversationMessages.userId,
+        outboundState: conversationMessages.outboundState,
+        provider: conversationMessages.provider,
+        providerMessageSid: conversationMessages.providerMessageSid,
         phoneE164: users.phoneE164,
         phoneVerifiedAt: users.phoneVerifiedAt,
       }).from(conversationMessages)
         .innerJoin(users, eq(users.id, conversationMessages.userId))
-        .where(eq(conversationMessages.id, messageId)).limit(1);
+        .where(and(eq(conversationMessages.id, messageId), eq(conversationMessages.direction, "outbound")))
+        .for("update", { of: users });
+      if (message?.outboundState === "accepted" && message.provider === provider && message.providerMessageSid === providerMessageSid) return;
+      if (message?.outboundState !== "submitting") throw new Error("Provider acceptance has no matching submission attempt");
+      const db = transaction as unknown as TempoDatabase;
+      await lockDeliveryReceipt(db, provider, providerMessageSid);
       await transaction
         .update(conversationMessages)
-        .set({ provider, providerService: service, providerMessageSid, outboundState: "accepted", status: "queued", updatedAt: now })
+        .set({ provider, providerService: service, providerMessageSid, outboundState: "accepted", status: "queued",
+          providerErrorCode: null, providerErrorMessage: null, updatedAt: now })
         .where(eq(conversationMessages.id, messageId));
-      const providerIdentity = message && providerLineAddress
-        ? await ensureDirectConversation(transaction as unknown as TempoDatabase, {
+      const providerIdentity = providerLineAddress
+        ? await ensureDirectConversation(db, {
           userId: message.userId,
           phoneE164: message.phoneE164,
           phoneVerifiedAt: message.phoneVerifiedAt,
@@ -150,15 +171,13 @@ export class DrizzleOutboundMessageRepository implements OutboundMessageReposito
       }).onConflictDoNothing({
         target: [providerMessageBindings.provider, providerMessageBindings.externalMessageId],
       });
-      if (message) {
-        await transaction.update(conversations).set({ lastMessageAt: now, updatedAt: now })
-          .where(eq(conversations.id, message.conversationId));
-      }
+      await applyPendingDeliveryReceipt(db, message.userId, provider, providerMessageSid, now);
+      await transaction.update(conversations).set({ lastMessageAt: now, updatedAt: now })
+        .where(eq(conversations.id, message.conversationId));
     });
   }
 
   async markFailed(messageId: string, error: unknown) {
-    const message = error instanceof Error ? error.message : String(error);
     const definitelyRejected = typeof error === "object" && error !== null && "submissionOutcome" in error && error.submissionOutcome === "not_accepted";
     await this.database
       .update(conversationMessages)
@@ -166,7 +185,7 @@ export class DrizzleOutboundMessageRepository implements OutboundMessageReposito
         status: "failed",
         outboundState: definitelyRejected ? "reserved" : "ambiguous",
         providerErrorCode: "TEMPO_PROVIDER_ERROR",
-        providerErrorMessage: message.slice(0, 500),
+        providerErrorMessage: definitelyRejected ? "Provider rejected the submission before acceptance." : "Provider acceptance could not be verified.",
         updatedAt: new Date(),
       })
       .where(and(eq(conversationMessages.id, messageId), eq(conversationMessages.outboundState, "submitting"), isNull(conversationMessages.providerMessageSid)));
