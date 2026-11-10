@@ -1,11 +1,31 @@
 import { expect, it } from "vitest";
-import { reminderTimeIssue } from "./reminder-time-policy";
+import { elapsedReminderTime, reminderTimeIssue } from "./reminder-time-policy";
+import { relativeReminderTime } from "./reminder-commands";
 
 const now = new Date("2026-10-05T18:00:00Z"), timezone = "America/New_York";
 const history = [
   { id: "request", role: "user" as const, content: "Give me a morning reminder tomorrow to do homework", createdAt: now },
   { id: "reply", role: "assistant" as const, replyToMessageId: "request", content: "What time would you like?", createdAt: now },
 ];
+
+it.each([
+  ["Save a thought about exercising in two hours and remind me tomorrow at noon", undefined],
+  ["Save a thought about exercising in two hours and remind me to review it in two minutes", "2026-10-05T18:02:00.000Z"],
+  ["Save a thought about exercising. In two minutes, remind me to review it", "2026-10-05T18:02:00.000Z"],
+  ["Save a thought. Remind me in two minutes or in one hour", undefined],
+  ["Remind me in two minutes. Remind me in one hour.", undefined],
+])("scopes a compound duration to its reminder request: %s", (message, expected) => {
+  expect(relativeReminderTime(message, now, "request")).toBe(expected);
+});
+
+it.each([
+  'Save the thought "Remind me in two minutes"',
+  "Don’t remind me in two minutes",
+  "Remind me tomorrow to review it in two hours",
+  "Remind me at 9 PM or in two minutes",
+])("does not apply an elapsed-time override for %s", message => {
+  expect(elapsedReminderTime(message, now, timezone)).toBeUndefined();
+});
 
 it("treats quoted reminder content as content, and resolves a weekday with a day of month", () => {
   expect(reminderTimeIssue({ type: "create_reminder", text: "Doctors appointment at 11:45 tomorrow", remindAt: "2026-10-15T18:00:00-04:00" }, {
