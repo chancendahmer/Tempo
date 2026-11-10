@@ -1,4 +1,5 @@
 import { beforeEach, expect, it, vi } from "vitest";
+import { DatabaseError } from "pg";
 import type { PgBoss } from "pg-boss";
 import { registerDeliverReminderHandler } from "./deliver-reminder";
 
@@ -26,6 +27,7 @@ vi.mock("../../adapters/sms/messaging-provider", () => ({ createMessagingTranspo
 vi.mock("../../domain/outbound-messaging", async original => ({ ...await original<typeof import("../../domain/outbound-messaging")>(), SafeSmsSender: class { send = mocks.send; } }));
 vi.mock("../../db/repositories/task-repository", () => ({ DrizzleTaskRepository: class {} }));
 vi.mock("../../db/repositories/goal-repository", () => ({ DrizzleGoalRepository: class {} }));
+vi.mock("../../db/repositories/life-assistant", () => ({ LifeAssistant: class {} }));
 vi.mock("../../adapters/calendar/calendar-assistant", () => ({ CalendarAssistantIntegrations: class {} }));
 
 beforeEach(() => {
@@ -73,4 +75,17 @@ it("reuses a persisted briefing body on a retry instead of sending a changed pla
   mocks.send.mockResolvedValue({sent:true,provider:"test",providerMessageSid:"accepted"});
   await work.mock.calls[0][2]([{data:{reminderId:"r",scheduledActionId:"a",occurrenceAt:"2026-10-05T15:00:00Z"}}]);
   expect(mocks.send).toHaveBeenCalledWith(expect.objectContaining({body:"Your daily briefing\nCanonical saved plan",idempotencyKey:"same-occurrence",userId:"u"}));
+});
+
+it("records safe diagnostics in both reminder and scheduled action failure state", async () => {
+  const work = vi.fn();
+  await registerDeliverReminderHandler({ work } as unknown as PgBoss);
+  const driver = new DatabaseError("SYNTHETIC_PRIVATE_REMINDER", 0, "error");
+  driver.code = "23514";
+  mocks.send.mockRejectedValue(new Error("Failed query with SYNTHETIC_PRIVATE_REMINDER", { cause: driver }));
+  const error: unknown = await work.mock.calls[0][2]([{ id: "job", data: { reminderId: "r", scheduledActionId: "a", occurrenceAt: "2026-10-05T15:00:00Z" } }]).catch((failure: unknown) => failure);
+  expect(error).toHaveProperty("message", "Reminder delivery failed (database SQLSTATE 23514)");
+  expect(error).not.toHaveProperty("cause");
+  expect(mocks.reminderFailed).toHaveBeenCalledExactlyOnceWith("r", error);
+  expect(mocks.actionFailed).toHaveBeenCalledExactlyOnceWith("a", error);
 });

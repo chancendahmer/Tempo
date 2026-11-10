@@ -5,7 +5,7 @@ import { drizzle } from "drizzle-orm/pglite";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { TempoDatabase } from "../client";
 import * as schema from "../schema";
-import { consentRecords, oauthStates, rateLimitBuckets, users } from "../schema";
+import { consentRecords, oauthStates, pendingDeliveryReceipts, rateLimitBuckets, users } from "../schema";
 import { OperationalRepository } from "./operational-repository";
 
 describe("operational controls", () => {
@@ -67,7 +67,7 @@ describe("operational controls", () => {
     expect(await repository.getHeartbeat("other-service")).not.toBeNull();
   });
 
-  it("removes expired OAuth state and old rate-limit buckets without touching current rows", async () => {
+  it("removes expired OAuth state, rate buckets and unbound delivery receipts without touching current rows", async () => {
     const now = new Date("2026-08-18T12:00:00Z");
     const [user] = await database.insert(users).values({ phoneE164: "+12025550176" }).returning({ id: users.id });
     await database.insert(oauthStates).values([
@@ -78,10 +78,16 @@ describe("operational controls", () => {
       { key: "old", windowStart: new Date("2026-08-17T11:00:00Z") },
       { key: "current", windowStart: new Date("2026-08-18T11:45:00Z") },
     ]);
+    const firstSeenAt = new Date("2026-08-17T12:00:00Z");
+    await database.insert(pendingDeliveryReceipts).values([
+      { provider: "linq", externalMessageId: "expired", status: "sent", firstSeenAt, statusObservedAt: firstSeenAt, expiresAt: now },
+      { provider: "linq", externalMessageId: "current", status: "sent", firstSeenAt, statusObservedAt: firstSeenAt, expiresAt: new Date("2026-08-18T12:01:00Z") },
+    ]);
 
-    expect(await repository.cleanupExpiredData(now)).toEqual({ oauthStates: 1, rateLimitBuckets: 1 });
+    expect(await repository.cleanupExpiredData(now)).toEqual({ oauthStates: 1, rateLimitBuckets: 1, pendingDeliveryReceipts: 1 });
     expect((await database.select().from(oauthStates)).map((row) => row.stateHash)).toEqual(["current"]);
     expect((await database.select().from(rateLimitBuckets)).map((row) => row.key)).toContain("current");
+    expect((await database.select().from(pendingDeliveryReceipts)).map(row => row.externalMessageId)).toEqual(["current"]);
   });
 
   it("counts only users whose latest consent is granted", async () => {

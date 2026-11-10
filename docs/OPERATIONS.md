@@ -61,6 +61,8 @@ Never test restores against the production database. Encryption-key backup is eq
 
 Inspect queueProblems from /api/ready and the worker queueHealth log. An outbound submission marked ambiguous or left submitting may already have reached the provider. Compare the provider's receipt with the account-scoped message before reconciling; do not reset it to reserved or resend on a guess. New readiness checks can expose old failures after migration. Do not delete history to make readiness green.
 
+A reminder marked sent records provider acceptance. The outbound message ledger records subsequent delivery or failure separately. An accepted occurrence is finalized once even if its delivery receipt reports failure.
+
 For a terminal failed inbound job, use a securely configured process environment and run:
 
 ```text

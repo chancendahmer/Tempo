@@ -239,6 +239,13 @@
       "when": 1792623300830,
       "tag": "0033_ai_budget",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1794335732312,
+      "tag": "0034_pending_delivery_receipts",
+      "breakpoints": true
     }
   ]
 }

@@ -66,6 +66,16 @@ it("runs real report SQL in a read-only snapshot, folds private queue names, and
     expect(failedDeliveries.problems).toContain("delivery_failures_require_review");
     expect(failedDeliveries.nextActions.some(action => action.includes("provider receipts") && action.includes("never bulk replay"))).toBe(true);
     for (const value of ["private-delivery-body", "private-provider-detail", conversation.rows[0].id]) expect(JSON.stringify(failedDeliveries)).not.toContain(value);
+    await client.query(`insert into pending_delivery_receipts(provider,external_message_id,status,first_seen_at,status_observed_at,expires_at) values
+      ('linq','private-unbound-id','sent',$1::timestamptz,$1::timestamptz,$1::timestamptz + interval '1 hour'),
+      ('linq','private-expired-id','sent',$1::timestamptz - interval '1 day',$1::timestamptz - interval '1 day',$1::timestamptz)`, [now]);
+    await client.query(`insert into rate_limit_buckets(key,window_start,count) values
+      ('pending-delivery-drop:linq',$1::timestamptz,2),('pending-delivery-drop:linq',$1::timestamptz - interval '25 hours',9),
+      ('pending-delivery-drop:sendblue',$1::timestamptz + interval '1 hour',6),('private-other-bucket',$1::timestamptz,20)`, [now]);
+    const inbox = await readPilotOperationsReport({ query } as unknown as Pick<PoolClient, "query">, { hours: 168, webBuild: build, now });
+    expect(inbox.deliveryReceiptInbox).toEqual({ available: true, active: 1, quotaDrops: 2, quotaDropCounterCapped: false, dropWindowHours: 24 });
+    expect(inbox.problems).toContain("delivery_receipt_inbox_overflow");
+    for (const value of ["private-unbound-id", "private-expired-id", "private-other-bucket"]) expect(JSON.stringify(inbox)).not.toContain(value);
     const shortWindow = await readPilotOperationsReport({ query } as unknown as Pick<PoolClient, "query">, { hours: 1, webBuild: build, now: new Date(now.getTime() + 60 * 60_000) });
     expect(shortWindow.recentMessages.deliveryFailures).toBe(1); // Only the deliberately future row is now in this later window.
     await client.query("update conversation_messages set status='delivered' where direction='outbound'");

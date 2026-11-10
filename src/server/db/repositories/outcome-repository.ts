@@ -183,8 +183,14 @@ export class DrizzleOutcomeRepository implements OutcomeRepository {
 
   async recordTimeout(interventionId: string, now: Date) {
     await this.database.transaction(async (transaction) => {
+      // Delivery callbacks hold the account before touching an intervention.
+      // Read its status again after this lock before recording a timeout.
+      const [account] = await transaction.select({ id: users.id }).from(users)
+        .innerJoin(interventions, eq(interventions.userId, users.id))
+        .where(eq(interventions.id, interventionId)).for("update", { of: users });
+      if (!account) return;
       const [intervention] = await transaction.select({ userId: interventions.userId, status: interventions.status })
-        .from(interventions).where(eq(interventions.id, interventionId)).limit(1);
+        .from(interventions).where(and(eq(interventions.id, interventionId), eq(interventions.userId, account.id))).limit(1);
       if (!intervention || !["sent", "delivered"].includes(intervention.status)) return;
       await transaction.insert(interventionOutcomes).values({
         interventionId,

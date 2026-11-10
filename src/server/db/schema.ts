@@ -10,6 +10,7 @@ import {
   jsonb,
   pgEnum,
   pgTable,
+  primaryKey,
   text,
   time,
   timestamp,
@@ -472,6 +473,24 @@ export const providerMessageBindings = pgTable(
     index("provider_message_bindings_conversation_idx").on(table.providerConversationId),
   ],
 );
+
+// Signed receipts can arrive before the provider's send response is committed.
+// Keep only short-lived, unbound lifecycle evidence and no account or message content.
+export const pendingDeliveryReceipts = pgTable("pending_delivery_receipts", {
+  provider: messagingProvider("provider").notNull(),
+  externalMessageId: text("external_message_id").notNull(),
+  status: messageStatus("status").notNull().$type<"queued" | "sent" | "delivered" | "failed" | "undelivered">(),
+  errorCode: text("error_code"),
+  firstSeenAt: timestamp("first_seen_at", { withTimezone: true }).notNull(),
+  statusObservedAt: timestamp("status_observed_at", { withTimezone: true }).notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+}, table => [
+  primaryKey({ columns: [table.provider, table.externalMessageId] }),
+  index("pending_delivery_receipts_expiry_idx").on(table.expiresAt),
+  check("pending_delivery_receipts_status_check", sql`${table.status} in ('queued','sent','delivered','failed','undelivered')`),
+  check("pending_delivery_receipts_external_id_check", sql`length(${table.externalMessageId}) between 1 and 255`),
+  check("pending_delivery_receipts_error_code_check", sql`${table.errorCode} is null or ${table.errorCode} ~ '^[A-Za-z0-9_-]{1,64}$'`),
+]);
 
 export const messageRelations = pgTable(
   "message_relations",

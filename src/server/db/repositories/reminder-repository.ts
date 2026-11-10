@@ -1,4 +1,4 @@
-import { and, asc, eq, gt, gte, lt, or, isNotNull, ilike, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, lt, or, isNotNull, ilike, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { DrizzleOutboundMessageRepository } from "./outbound-message-repository";
 import { evaluateMessagingPermission } from "../../domain/outbound-messaging";
@@ -182,7 +182,7 @@ export class DrizzleReminderRepository implements ReminderRepository {
       if (matches.length > 1) return { kind: "ambiguous" as const, reminders: matches.map(asRecord) };
       const original = matches[0];
       if (input.remindAt && original.status === "sent") {
-        // A delivered occurrence is immutable. Repeating it is an explicitly
+        // A provider-accepted occurrence is immutable. Repeating it is an explicitly
         // requested one-time follow-up, never a second recurring series.
         if (original.recurrence) return { kind: "not_found" as const };
         const [createdBySource] = await transaction.select({ id: reminders.id }).from(reminders).where(and(eq(reminders.userId, input.userId), eq(reminders.sourceMessageId, input.sourceMessageId))).limit(1);
@@ -223,6 +223,20 @@ export class DrizzleReminderRepository implements ReminderRepository {
 
   async listForManagement(userId: string) {
     return (await this.database.select().from(reminders).where(and(eq(reminders.userId, userId), inArray(reminders.status, ["scheduled", "sent", "failed", "completed"]))).orderBy(asc(reminders.remindAt)).limit(50)).map(asRecord);
+  }
+
+  async findForRecall(userId: string, terms: string[], sourceMessageIds: string[]) {
+    const limit = 8;
+    if (!terms.length || terms.length > 12 || terms.some(term => !/^[\p{L}\p{N}]+$/u.test(term))) return { items: [], truncated: false };
+    const sources = sourceMessageIds.slice(-6);
+    const rows = await this.database.select({
+      text: reminders.text, remindAt: reminders.remindAt, timezone: reminders.timezone,
+      recurrence: reminders.recurrence, status: reminders.status,
+    }).from(reminders).where(and(eq(reminders.userId, userId), or(
+      and(...terms.map(term => ilike(reminders.text, `%${term}%`))),
+      sources.length ? inArray(reminders.sourceMessageId, sources) : undefined,
+    ))).orderBy(desc(reminders.updatedAt), desc(reminders.id)).limit(limit + 1);
+    return { items: rows.slice(0, limit), truncated: rows.length > limit };
   }
 
   async cancel(input: Parameters<ReminderRepository["cancel"]>[0]) {
@@ -280,13 +294,17 @@ export class DrizzleReminderRepository implements ReminderRepository {
     const [message] = await this.database.select({
       provider: conversationMessages.provider,
       providerMessageSid: conversationMessages.providerMessageSid,
+      outboundState: conversationMessages.outboundState,
       status: conversationMessages.status,
-    }).from(conversationMessages).where(eq(
-      conversationMessages.idempotencyKey,
-      this.occurrenceIdempotencyKey(reminderId, occurrenceAt),
+    }).from(conversationMessages).where(and(
+      eq(conversationMessages.userId, reminder.userId),
+      eq(conversationMessages.direction, "outbound"),
+      eq(conversationMessages.idempotencyKey, this.occurrenceIdempotencyKey(reminderId, occurrenceAt)),
     )).limit(1);
     if (!reminder.recurrence && reminder.status === "sent") return "sent" as const;
-    if (message?.provider && message.providerMessageSid && ["queued", "sent", "delivered"].includes(message.status)) {
+    const accepted = message?.outboundState === "accepted"
+      || (message?.outboundState === null && ["queued", "sent", "delivered"].includes(message.status));
+    if (message?.provider && message.providerMessageSid && accepted) {
       await this.recordSuccessfulDelivery(
         { ...asRecord(reminder), userId: reminder.userId },
         occurrenceAt,
@@ -298,6 +316,7 @@ export class DrizzleReminderRepository implements ReminderRepository {
     return "pending" as const;
   }
 
+  /** A sent reminder records provider acceptance. Carrier delivery lives in the message ledger. */
   async recordSuccessfulDelivery(
     reminder: ReminderRecord & { userId: string },
     occurrenceAt: Date,

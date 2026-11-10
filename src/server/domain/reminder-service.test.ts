@@ -71,7 +71,7 @@ describe("reminder service", () => {
     const update = vi.fn().mockResolvedValue({ kind: "followup", originalReminderId: "original", reminder: { id: "new", text: "Call studio", remindAt: new Date("2027-01-12T17:00:00Z"), timezone: "America/New_York", recurrence: null, occurrenceCount: 0, status: "scheduled" } });
     const repository: ReminderRepository = { update, findBySourceMessage: async () => null, create: vi.fn(), listUpcoming: async () => [], listForRundown: async () => [], cancel: async () => ({ kind: "not_found" }) };
     const context = { userId: "user", sourceMessageId: "request", timezone: "UTC", now: new Date("2027-01-11T16:00:00Z") };
-    expect(await executeReminderCommand(repository, { type: "reschedule_reminder", reminderId: "00000000-0000-4000-8000-000000000001", remindAt: "2027-01-12T17:00:00Z" }, context)).toBe("The original reminder was already delivered. A new reminder was saved for Tue, Jan 12, 12:00 PM EST: Call studio");
+    expect(await executeReminderCommand(repository, { type: "reschedule_reminder", reminderId: "00000000-0000-4000-8000-000000000001", remindAt: "2027-01-12T17:00:00Z" }, context)).toBe("The original reminder was already sent for delivery. A new reminder was saved for Tue, Jan 12, 12:00 PM EST: Call studio");
     update.mockClear();
     expect(await executeReminderCommand(repository, { type: "reschedule_reminder", reminderId: "00000000-0000-4000-8000-000000000001", remindAt: "2027-01-10T17:00:00Z" }, context)).toContain("already passed");
     expect(update).not.toHaveBeenCalled();

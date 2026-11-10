@@ -1,6 +1,6 @@
-import { desc, eq, like, lt, or, sql } from "drizzle-orm";
+import { desc, eq, like, lt, lte, or, sql } from "drizzle-orm";
 import { getDatabase, TempoDatabase } from "../client";
-import { consentRecords, oauthStates, rateLimitBuckets, serviceHeartbeats, users } from "../schema";
+import { consentRecords, oauthStates, pendingDeliveryReceipts, rateLimitBuckets, serviceHeartbeats, users } from "../schema";
 import { MAX_ATTESTED_WORKERS, WORKER_INSTANCE_PREFIX } from "../../observability/worker-attestation";
 
 export class OperationalRepository {
@@ -85,7 +85,10 @@ export class OperationalRepository {
       const rateLimitRows = await transaction.delete(rateLimitBuckets)
         .where(lt(rateLimitBuckets.windowStart, new Date(now.getTime() - 24 * 3_600_000)))
         .returning({ key: rateLimitBuckets.key });
-      return { oauthStates: oauthRows.length, rateLimitBuckets: rateLimitRows.length };
+      const expiredReceipts = await transaction.delete(pendingDeliveryReceipts)
+        .where(lte(pendingDeliveryReceipts.expiresAt, now))
+        .returning({ provider: pendingDeliveryReceipts.provider });
+      return { oauthStates: oauthRows.length, rateLimitBuckets: rateLimitRows.length, pendingDeliveryReceipts: expiredReceipts.length };
     });
   }
 }

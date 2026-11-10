@@ -17,21 +17,22 @@ import { SafeSmsSender } from "../../domain/outbound-messaging";
 import { OutcomeTracker } from "../../domain/outcome-tracker";
 import { MemoryService } from "../../domain/memory-service";
 import { createSecureActionLinks } from "../../security/action-links";
-import { logger } from "../../observability/logger";
 import { JOB_NAMES, ProcessInboundJob } from "../names";
 import { ScheduledActionRepository } from "../scheduled-action-repository";
 import { CalendarAssistantIntegrations } from "../../adapters/calendar/calendar-assistant";
 import { isWebMessage, WebReplySender } from "../../db/repositories/web-reply-repository";
 import { LifeAssistant } from "../../db/repositories/life-assistant";
-import { InboundOwnershipLostError } from "../../domain/inbound-execution";
+import { failJob } from "../job-failure";
 
 export async function registerProcessInboundHandler(boss: PgBoss) {
   await boss.work<ProcessInboundJob>(JOB_NAMES.processInbound, { localConcurrency: 4 }, async (jobs) => {
     for (const job of jobs) {
-      const actions = new ScheduledActionRepository();
-      if (!(await actions.markRunning(job.data.scheduledActionId))) continue;
-
+      let actions: ScheduledActionRepository | undefined;
+      let running = false;
       try {
+        actions = new ScheduledActionRepository();
+        running = await actions.markRunning(job.data.scheduledActionId);
+        if (!running) continue;
         const env = getServerEnv();
         const orchestrator = new ConversationOrchestrator(
           new DrizzleConversationRepository(),
@@ -53,9 +54,9 @@ export async function registerProcessInboundHandler(boss: PgBoss) {
         await orchestrator.process(job.data.messageId, job.signal);
         await actions.markCompleted(job.data.scheduledActionId);
       } catch (error) {
-        if (!job.signal?.aborted && !(error instanceof InboundOwnershipLostError)) await actions.markFailed(job.data.scheduledActionId, error);
-        logger.error({ err: error, jobId: job.id }, "inbound conversation job failed");
-        throw error;
+        const claimed = running ? actions : undefined;
+        await failJob(error, { jobId: job.id, operation: "Inbound conversation processing", logMessage: "inbound conversation job failed", signal: job.signal,
+          record: claimed ? retry => claimed.markFailed(job.data.scheduledActionId, retry) : undefined });
       }
     }
   });

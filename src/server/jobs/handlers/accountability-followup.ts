@@ -6,17 +6,19 @@ import { DrizzleInterventionRepository } from "../../db/repositories/interventio
 import { DrizzleOutboundMessageRepository } from "../../db/repositories/outbound-message-repository";
 import { buildFollowupAccountabilityPrompt } from "../../domain/accountability";
 import { SafeSmsSender } from "../../domain/outbound-messaging";
-import { logger } from "../../observability/logger";
 import { AccountabilityFollowupJob, JOB_NAMES } from "../names";
 import { ScheduledActionRepository } from "../scheduled-action-repository";
+import { failJob } from "../job-failure";
 
 export async function registerAccountabilityFollowupHandler(boss: PgBoss) {
   await boss.work<AccountabilityFollowupJob>(JOB_NAMES.accountabilityFollowup, { localConcurrency: 4 }, async (jobs) => {
     for (const job of jobs) {
       const actions = new ScheduledActionRepository();
       const interventions = new DrizzleInterventionRepository();
-      if (!(await actions.markRunning(job.data.scheduledActionId))) continue;
+      let running = false;
       try {
+        running = await actions.markRunning(job.data.scheduledActionId);
+        if (!running) continue;
         const context = await interventions.getAccountabilityFollowupContext(job.data.interventionId);
         if (!context) {
           await actions.markCompleted(job.data.scheduledActionId);
@@ -40,9 +42,8 @@ export async function registerAccountabilityFollowupHandler(boss: PgBoss) {
           await actions.markCancelled(job.data.scheduledActionId, result.reason);
         }
       } catch (error) {
-        await actions.markFailed(job.data.scheduledActionId, error);
-        logger.error({ err: error, interventionId: job.data.interventionId }, "accountability follow-up failed");
-        throw error;
+        await failJob(error, { jobId: job.id, operation: "Accountability follow-up", logMessage: "accountability follow-up failed",
+          record: running ? retry => actions.markFailed(job.data.scheduledActionId, retry) : undefined });
       }
     }
   });

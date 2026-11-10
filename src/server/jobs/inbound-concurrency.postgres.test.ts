@@ -15,6 +15,8 @@ import { DrizzleOutboundMessageRepository } from "../db/repositories/outbound-me
 import { DrizzleTaskRepository } from "../db/repositories/task-repository";
 import { DrizzleGoalRepository } from "../db/repositories/goal-repository";
 import { DrizzleSchedulingRepository } from "../db/repositories/scheduling-repository";
+import { DrizzleAccountControlRepository } from "../db/repositories/account-control-repository";
+import { LifeAssistant } from "../db/repositories/life-assistant";
 import { mutateWorkspace } from "../db/repositories/workspace-repository";
 import { isWebMessage, WebReplySender } from "../db/repositories/web-reply-repository";
 import { ConversationOrchestrator, type InboundConversationContext } from "../domain/conversation-orchestrator";
@@ -23,6 +25,7 @@ import { TestSmsTransport } from "../adapters/sms/sms-transport";
 import { dispatchDueActions } from "./dispatcher";
 import { JOB_NAMES, type ProcessInboundJob } from "./names";
 import { ScheduledActionRepository } from "./scheduled-action-repository";
+import { InboundOwnershipLostError } from "../domain/inbound-execution";
 
 const url = process.env.TEST_DATABASE_URL;
 it.skipIf(!url)("real PostgreSQL: two dispatchers preserve twenty accounts' duplicate SMS and back-to-back web chronology", async () => {
@@ -153,3 +156,78 @@ it.skipIf(!url)("real PostgreSQL: two dispatchers preserve twenty accounts' dupl
     await admin.end();
   }
 }, 90000);
+
+it.skipIf(!url)("real PostgreSQL: account deletion waits safely during life writes and grocery refresh", async () => {
+  const adminUrl = new URL(url!);
+  if (adminUrl.protocol !== "postgresql:" || !["127.0.0.1", "localhost"].includes(adminUrl.hostname) || !/^\/tempo_/.test(adminUrl.pathname) || adminUrl.search || adminUrl.hash) {
+    throw new Error("Requires a disposable local tempo_* database without connection URL options");
+  }
+  const name = `tempo_life_lock_${randomUUID().replaceAll("-", "").slice(0, 16)}_test`;
+  const isolated = new URL(adminUrl);
+  isolated.pathname = `/${name}`;
+  const admin = new Pool({ connectionString: adminUrl.toString(), max: 1, query_timeout: 5000 });
+  const options = { connectionString: isolated.toString(), max: 1, query_timeout: 10000, statement_timeout: 10000 };
+  const pool = new Pool(options);
+  const deleter = new Pool(options);
+  const database = scopedDatabase(drizzle(pool, { schema }));
+  let created = false;
+  try {
+    await admin.query(`CREATE DATABASE "${name}"`);
+    created = true;
+    await migrate(database, { migrationsFolder: "drizzle" });
+    for (const [phone, command] of [
+      ["+12025550193", { type: "life_save", data: { kind: "note", title: "Owned thought", body: "Synthetic." } }],
+      ["+12025550194", { type: "life_list", kind: "grocery" }],
+    ] as const) {
+      const [user] = await database.insert(schema.users).values({ phoneE164: phone, onboardingState: "complete" }).returning();
+      await mutateWorkspace(user.id, { action: "chat", requestId: randomUUID(), text: "Please use my workspace" }, database);
+      const [source] = await database.select().from(schema.conversationMessages).where(eq(schema.conversationMessages.userId, user.id));
+      let entered!: () => void;
+      let resume!: () => void;
+      const reading = new Promise<void>(resolve => { entered = resolve; });
+      const hold = new Promise<void>(resolve => { resume = resolve; });
+      let applied = false;
+      class PausedLifeAssistant extends LifeAssistant {
+        override async execute(...args: Parameters<LifeAssistant["execute"]>) {
+          entered();
+          await hold;
+          const result = await super.execute(...args);
+          applied = true;
+          return result;
+        }
+      }
+      const coach = new ConversationOrchestrator(new DrizzleConversationRepository(database), new DrizzleTaskRepository(database), new DrizzleGoalRepository(database), new DrizzleSchedulingRepository(database), {
+        authorizer: { authorize: async () => ({ mode: "write", commands: ["life_save"] }) },
+        parse: async () => ({ kind: "command", command }),
+      }, { send: async () => undefined }, undefined, undefined, undefined, undefined, undefined, undefined, undefined, new PausedLifeAssistant(database));
+      try {
+        const pid = (await deleter.query<{ pid: number }>("select pg_backend_pid() pid")).rows[0].pid;
+        const process = coach.process(source.id);
+        const processOutcome = Promise.allSettled([process]);
+        await Promise.race([reading, process.then(() => { throw new Error("Expected the inbound turn to reach its life command"); })]);
+        const deleting = new DrizzleAccountControlRepository(drizzle(deleter, { schema })).deleteAccount(user.id);
+        const deleteOutcome = Promise.allSettled([deleting]);
+        let blocked = false;
+        try {
+          const deadline = Date.now() + 4000;
+          while (!blocked && Date.now() < deadline) {
+            blocked = (await admin.query<{ blocked: boolean }>("select cardinality(pg_blocking_pids($1)) > 0 blocked", [pid])).rows[0].blocked;
+            if (!blocked) await delay(20);
+          }
+        } finally { resume(); }
+        const [[turn], [deletion]] = await Promise.all([processOutcome, deleteOutcome]);
+        expect(blocked).toBe(true);
+        expect(deletion).toEqual({ status: "fulfilled", value: true });
+        expect(applied).toBe(true);
+        if (turn.status === "rejected") expect(turn.reason).toBeInstanceOf(InboundOwnershipLostError);
+        expect(await database.select().from(schema.lifeItems).where(eq(schema.lifeItems.userId, user.id))).toHaveLength(0);
+      } finally {
+        resume();
+      }
+    }
+  } finally {
+    await Promise.all([pool.end(), deleter.end()]);
+    try { if (created) await admin.query(`DROP DATABASE "${name}" WITH (FORCE)`); }
+    finally { await admin.end(); }
+  }
+}, 30000);

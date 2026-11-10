@@ -5,13 +5,16 @@ import { createWorkerAttestation } from "./worker-attestation";
 const now = new Date("2026-10-22T12:00:00Z"), build = "abcdef1234567";
 const env = { TEMPO_BUILD_SHA: build, RAILWAY_GIT_COMMIT_SHA: undefined, INTERVENTION_SHADOW_MODE: true, AUTONOMOUS_SENDING_ENABLED: false, CLEANUP_CHECKINS_ENABLED: false, PROACTIVE_CANARY_USER_IDS: [] };
 const queue = { blockedAccounts: 0, ambiguousOutbound: 0, pendingInbound: 0, oldestPendingSeconds: null };
-function fixture(queuePresent = true, stale = false, deliveryFailures = 1) {
+function fixture(queuePresent = true, stale = false, deliveryFailures = 1, receiptDrops = 0) {
   const query = vi.fn(async (text: string) => {
     if (text.includes("from service_heartbeats")) return { rows: [{ serviceKey: "tempo-worker:private-id", lastSeenAt: now, metadata: { ...createWorkerAttestation(env, queue), phone: "+12025550199", token: "private-token" } },
       ...(stale ? [{ serviceKey: "tempo-worker:old-instance", lastSeenAt: new Date(now.getTime() - 121_000), metadata: createWorkerAttestation(env, queue) }] : [])] };
     if (text.includes("from users")) return { rows: [{ total: 10, verified: 8, onboardingComplete: 6, optedOut: 1, paused: 1, proactiveOptIn: 2 }] };
     if (text.includes("created_at >=")) return { rows: [{ inbound: 20, outbound: 18, deliveryFailures, delivered: 18 - deliveryFailures }] };
     if (text.includes("from conversation_messages")) return { rows: [{ pendingInbound: 1, oldestPendingSeconds: 700, uncertainOutbound: 1 }] };
+    if (text.includes("to_regclass('public.pending_delivery_receipts')")) return { rows: [{ present: true }] };
+    if (text.includes("from pending_delivery_receipts")) return { rows: [{ active: 1 }] };
+    if (text.includes("from rate_limit_buckets")) return { rows: [{ count: receiptDrops, capped: false }] };
     if (text.includes("jsonb_array_length")) return { rows: [{ audits: 2 }] };
     if (text.includes("from scheduled_actions")) return { rows: [{ kind: "process_inbound_message", state: "failed", count: 1, oldestDueSeconds: 700 }] };
     if (text.includes("to_regclass")) return { rows: [{ present: queuePresent }] };
@@ -65,6 +68,11 @@ it("raises an explicit delivery-failure signal and receipt-first recovery action
   ]);
   expect(failed.recentMessages.deliveryFailures).toBe(2);
   expect(failed.aiBudget.enforcementVerified).toBe(false);
+});
+it("reports quota drops as an aggregate over at most one day", async () => {
+  const report = await readPilotOperationsReport(fixture(true, false, 0, 2).client, { hours: 168, webBuild: build, now });
+  expect(report.deliveryReceiptInbox).toEqual({ available: true, active: 1, quotaDrops: 2, quotaDropCounterCapped: false, dropWindowHours: 24 });
+  expect(report.problems).toContain("delivery_receipt_inbox_overflow");
 });
 it("rolls back on a failed/timeout read and never emits a partial success", async () => {
   const { query, client } = fixture();

@@ -140,6 +140,11 @@ describe("shared life workspace", () => {
     expect(result.diaryCoverage).toEqual({ date: food.date, food: { included: 1000, total: 1001, limit: 1000, truncated: true }, workout: { included: 0, total: 0, limit: 1000, truncated: false } });
     const empty = await readWorkspace(reader.id, db, { diaryDate: "1999-01-01" });
     expect(empty.diaryCoverage?.food).toEqual({ included: 0, total: 0, limit: 1000, truncated: false });
+    const assistant = new LifeAssistant(db);
+    const partialSummary = JSON.parse(await assistant.execute(reader.id, randomUUID(), { type: "life_list", kind: "food", date: food.date }));
+    expect(partialSummary.dailyNutrition).toMatchObject({ included: 1000, limit: 1000, truncated: true, totals: { calories: { value: 1000, missing: 0 }, protein: { value: null, missing: 1000 } } });
+    const emptySummary = JSON.parse(await assistant.execute(reader.id, randomUUID(), { type: "life_list", kind: "food", date: "1999-01-01" }));
+    expect(emptySummary.dailyNutrition).toMatchObject({ included: 0, truncated: false, totals: { calories: { value: null, missing: 0 } } });
   });
 
   it("defaults an undated read to account-local today, keeping its diary complete or explicitly partial", async () => {
@@ -442,6 +447,34 @@ describe("shared life workspace", () => {
     expect(JSON.parse(await assistant.execute(other, randomUUID(), lookup)).items).toHaveLength(0);
     await assistant.execute(owner, randomUUID(), { type: "life_patch", id, version: found.items[0].version, patch: { kind: "food", protein: 12 } });
     expect(JSON.parse(await assistant.execute(owner, randomUUID(), lookup)).items).toEqual([expect.objectContaining({ id, version: 2, data: { ...food, protein: 12 } })]);
+  });
+
+  it("restricts dated assistant reads to one account day and totals actual food beyond the item preview", async () => {
+    const [person, neighbor] = await db.insert(schema.users).values([{ phoneE164: "+12025550761" }, { phoneE164: "+12025550762" }]).returning();
+    const date = "2027-02-16";
+    const food = { kind: "food" as const, title: "Oats", date, meal: "Breakfast" as const, calories: 1, protein: null, carbs: null, fat: null, fiber: null };
+    const meal = { kind: "meal" as const, title: "Planned oats", date, meal: "Dinner" as const, ingredients: "" };
+    const workout = { kind: "workout" as const, title: "Walk", date, minutes: 20, activity: "Walk" as const };
+    await db.insert(schema.lifeItems).values([
+      ...Array.from({ length: 25 }, (_, index) => ({ id: randomUUID(), userId: person.id, createdAt: new Date(Date.UTC(2027, 1, 16, 12, index)), data: index === 0 ? { ...food, calories: 20, protein: 3 } : food })),
+      { id: randomUUID(), userId: person.id, data: { ...food, title: "Adjacent day oats", date: "2027-02-17", calories: 200 } },
+      { id: randomUUID(), userId: neighbor.id, data: { ...food, title: "Foreign oats", calories: 2000 } },
+      { id: randomUUID(), userId: person.id, data: meal },
+      { id: randomUUID(), userId: person.id, data: workout },
+    ]);
+    const assistant = new LifeAssistant(db);
+    const lookup = async (kind: "food" | "meal" | "workout", query?: string) => JSON.parse(await assistant.execute(person.id, randomUUID(), { type: "life_list", kind, date, query }));
+    const summary = await lookup("food");
+    expect(summary.items).toHaveLength(20);
+    expect(summary).toMatchObject({ truncated: true, coverage: { date }, dailyNutrition: { date, included: 25, truncated: false,
+      totals: { calories: { value: 44, missing: 0 }, protein: { value: 3, missing: 24 }, fiber: { value: null, missing: 25 } } } });
+    expect(await lookup("food", "Adjacent day")).toMatchObject({ items: [], coverage: { date } });
+    const candidates = await lookup("food", "Oats dinner");
+    expect(candidates).toMatchObject({ truncated: true, coverage: { date, match: "partial title candidates" } });
+    expect(candidates.items).toEqual(summary.items);
+    expect(candidates.dailyNutrition).toBeUndefined();
+    expect((await lookup("meal")).items).toEqual([expect.objectContaining({ data: meal })]);
+    expect((await lookup("workout")).items).toEqual([expect.objectContaining({ data: workout })]);
   });
 
   it("keeps task creation atomic and idempotent, and clears a paused focus when the task completes", async () => {

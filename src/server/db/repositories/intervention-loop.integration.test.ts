@@ -142,8 +142,38 @@ describe("intervention, outcome, and memory loop", () => {
 
     expect(await repository.markSent(interventionId, sent.providerMessageSid, new Date("2026-08-18T12:11:00Z")))
       .toBe("delivered");
+    await repository.markFailed(interventionId);
+    await repository.markCancelled(interventionId);
     const [stored] = await database.select().from(interventions).where(eq(interventions.id, interventionId));
     expect(stored).toMatchObject({ status: "delivered", deliveredAt: expect.any(Date) });
+  });
+
+  it.each(["finalization", "recovery"])("projects a failed accepted delivery during intervention %s", async mode => {
+    const repository = new DrizzleInterventionRepository(database);
+    const interventionId = await repository.plan({
+      snapshotId: await snapshot(`failed-delivery-${mode}`), userId, taskId,
+      style: "micro_start", decision: "send", now: new Date(),
+    });
+    await repository.markQueued(interventionId, "Synthetic coaching prompt", "test", "test");
+    const outbound = new DrizzleOutboundMessageRepository(database);
+    const sender = new SafeSmsSender(outbound, new TestSmsTransport(`PROJECTION-${mode}`));
+    const send = (idempotencyKey: string) => sender.send({
+      userId, body: "Synthetic coaching prompt", kind: "coach", idempotencyKey, relatedInterventionId: interventionId,
+    });
+    // An accepted follow-up with the same intervention ID is not the original send.
+    if (mode === "recovery") expect((await send(`accountability-followup-sms:${interventionId}`)).sent).toBe(true);
+    const original = await send(`intervention-sms:${interventionId}`);
+    if (!original.sent) throw new Error("Expected simulated acceptance");
+    await new DrizzleMessagingRepository(database).updateDelivery({
+      provider: original.provider, providerMessageId: original.providerMessageSid, status: "undelivered",
+    });
+    if (mode === "finalization") {
+      await expect(repository.markSent(interventionId, original.providerMessageSid, new Date(), original.provider)).resolves.toBe("failed");
+    } else {
+      await expect(repository.reconcileDelivery(interventionId)).resolves.toEqual({ kind: "terminal", status: "failed" });
+    }
+    const [row] = await database.select().from(interventions).where(eq(interventions.id, interventionId));
+    expect(row).toMatchObject({ status: "failed", providerMessageSid: original.providerMessageSid, sentAt: null });
   });
 
   it("attributes outcomes, learns only after repeated evidence, and supersedes old learning", async () => {

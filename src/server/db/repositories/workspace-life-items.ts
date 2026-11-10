@@ -4,7 +4,7 @@ import type { TempoDatabase } from "../client";
 import { lifeItems } from "../schema";
 
 const limits: Record<LifeItem["kind"], number> = { focus: 1, routine: 100, nutrition_target: 1, workout_plan: 100, recipe: 250, pantry: 250, grocery: 500, note: 250, food: 500, workout: 500, meal: 500 };
-const selectedDayLimit = 1000;
+export const selectedDayLimit = 1000;
 type Coverage = { included: number; total: number; limit: number; truncated: boolean };
 
 /** Independent kind budgets protect durable settings from diary growth. A

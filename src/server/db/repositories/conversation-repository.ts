@@ -119,8 +119,8 @@ export class DrizzleConversationRepository implements ConversationRepository {
     context.signal?.throwIfAborted();
     return this.database.transaction(async transaction => {
       if (options?.accountFirst) {
-        // Short reminder mutations share the account-first order used by UI
-        // cancellation/deletion. Never request this option around provider work.
+        // Local writes share the account-first order used by the workspace and
+        // account deletion. Keep provider work outside this lock.
         const [account] = await transaction.select({ id: users.id }).from(users).where(eq(users.id, context.userId)).for("update");
         if (!account) throw new InboundOwnershipLostError();
       }
@@ -155,6 +155,8 @@ export class DrizzleConversationRepository implements ConversationRepository {
   async markProcessed(userId: string, messageId: string, processingToken: string) {
     const now = new Date();
     await this.database.transaction(async (transaction) => {
+      const [account] = await transaction.select({ id: users.id }).from(users).where(eq(users.id, userId)).for("update");
+      if (!account) throw new InboundOwnershipLostError();
       const changed = await transaction
         .update(conversationMessages)
         .set({ status: "processed", processingStartedAt: null, processingToken: null, updatedAt: now })

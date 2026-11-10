@@ -17,6 +17,7 @@ import { registerFeedbackTimeoutHandler } from "../server/jobs/handlers/feedback
 import { registerAccountabilityFollowupHandler } from "../server/jobs/handlers/accountability-followup";
 import { ScheduledActionRepository } from "../server/jobs/scheduled-action-repository";
 import { JOB_NAMES } from "../server/jobs/names";
+import { classifyJobFailure } from "../server/jobs/job-failure";
 import { logger } from "../server/observability/logger";
 import { OperationalRepository } from "../server/db/repositories/operational-repository";
 import { queueHealthProblems } from "../server/domain/queue-health";
@@ -52,9 +53,17 @@ export async function runWorker() {
     schema: "pgboss",
     application_name: env.WORKER_ID,
     useListenNotify: true,
+    persistWarnings: false,
   });
-  boss.on("error", (error) => logger.error({ err: error }, "job queue error"));
-  boss.on("warning", (warning) => logger.warn({ warning }, "job queue warning"));
+  boss.on("error", (error) => logger.error(classifyJobFailure(error), "job queue error"));
+  boss.on("warning", ({ data }) => {
+    // pg-boss slow-query warnings include SQL and bound values.
+    const warning = "elapsed" in data && typeof data.elapsed === "number" ? { category: "slow_query", elapsedSeconds: data.elapsed }
+      : "queuedCount" in data ? { category: "queue_backlog", queuedCount: Number(data.queuedCount) }
+      : "seconds" in data && typeof data.seconds === "number" ? { category: "clock_skew", seconds: data.seconds }
+      : { category: "unexpected" };
+    logger.warn(warning, "job queue warning");
+  });
 
   await boss.start();
   await registerTaskPresentationHandler(boss);
@@ -189,9 +198,9 @@ export async function runWorker() {
   const cleanup = () => operations.cleanupExpiredData();
   await heartbeat.pulse();
   await cleanup();
-  const heartbeatInterval = setInterval(() => void heartbeat.pulse().catch((error) => logger.error({ err: error }, "worker heartbeat failed")), 30_000);
+  const heartbeatInterval = setInterval(() => void heartbeat.pulse().catch((error) => logger.error(classifyJobFailure(error), "worker heartbeat failed")), 30_000);
   const cleanupInterval = setInterval(
-    () => void cleanup().catch((error) => logger.error({ err: error }, "expired operational data cleanup failed")),
+    () => void cleanup().catch((error) => logger.error(classifyJobFailure(error), "expired operational data cleanup failed")),
     6 * 3_600_000,
   );
   const stopDispatcher = startActionDispatcher(boss, env.WORKER_POLL_INTERVAL_MS);
@@ -205,7 +214,7 @@ export async function runWorker() {
     stopDispatcher();
     clearInterval(heartbeatInterval);
     clearInterval(cleanupInterval);
-    await heartbeat.stop().catch(error => logger.error({ err: error }, "final worker heartbeat failed"));
+    await heartbeat.stop().catch(error => logger.error(classifyJobFailure(error), "final worker heartbeat failed"));
     await boss.stop({ graceful: true, timeout: 30_000 });
     // pg-boss may return after its timeout while application handlers are still
     // unwinding. Only an empty worker list proves their loops have drained.

@@ -54,4 +54,35 @@ describe("account rundown", () => {
     expect(reply).toContain("Tasks due\nNone.");
     expect(reply).not.toContain("private provider details");
   });
+
+  it("uses current routines and keeps planned meals distinct from logged activity", async () => {
+    const listForRundown = vi.fn(async () => ({ items: [
+      { id: "r", data: { kind: "routine" as const, title: "Leave home", period: "morning" as const, time: "08:00", steps: [
+        { id: "s1", title: "Breakfast", minutes: 10, completedOn: "2027-03-14" },
+        { id: "s2", title: "Pack keys", minutes: 2, completedOn: "2027-03-13" },
+      ] } },
+      { id: "m", data: { kind: "meal" as const, title: "Chickpea bowl", date: "2027-03-14", meal: "Dinner" as const, ingredients: "chickpeas", servings: 2 } },
+      { id: "w", data: { kind: "workout" as const, title: "Lunch walk", date: "2027-03-14", minutes: 18, activity: "Walk" as const } },
+    ], truncated: true }));
+    const repositories = { tasks: { list: async () => [] }, goals: { list: async () => [] }, workspace: { listForRundown } };
+    const reply = await buildRundown(repositories, context, request);
+    expect(listForRundown).toHaveBeenCalledWith("owner", "2027-03-14", "2027-03-15");
+    expect(reply).toContain("1/2 steps done today); next: Pack keys");
+    expect(reply).toContain("Meals · planned, not logged as eaten\n• 2027-03-14 · Dinner — Chickpea bowl (2 servings)");
+    expect(reply).toContain("Movement · logged activity\n• 2027-03-14 — Lunch walk · 18 min (Walk)");
+    expect(reply).toContain("complete records");
+    const future = await buildRundown(repositories, context, { startDate: "2027-03-15", days: 1 });
+    expect(future).toContain("past/future completion not inferred");
+    expect(future).not.toContain("steps done today");
+  });
+
+  it("does not infer inactivity from missing logs or an unavailable workspace", async () => {
+    const repositories = { tasks: { list: async () => [] }, goals: { list: async () => [] } };
+    const empty = await buildRundown({ ...repositories, workspace: { listForRundown: async () => ({ items: [], truncated: false }) } }, context, request);
+    expect(empty).toContain("this does not mean you were inactive");
+    const unavailable = await buildRundown({ ...repositories, workspace: { listForRundown: async () => { throw Error("private details"); } } }, context, request);
+    expect(unavailable).toContain("saved records have not been checked");
+    expect(unavailable).not.toContain("private details");
+    expect(unavailable).not.toContain("No saved routines");
+  });
 });

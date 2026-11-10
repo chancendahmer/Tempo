@@ -152,6 +152,22 @@ describe("current-message routing", () => {
     expect(authorize).toHaveBeenCalledTimes(1);
   });
 
+  it("exposes exact-day nutrition and passes the verified daily total to the next model turn", async () => {
+    const message = "How many calories did I log on October 5?";
+    const date = "2026-10-05";
+    const tool = { type: "tool_use" as const, id: "read-food", name: "life_list", input: { kind: "food", date, sourceQuote: message } };
+    create.mockResolvedValueOnce({ content: [tool] }).mockResolvedValueOnce({ content: [{ type: "text", text: "You logged 440 known calories." }] });
+    const result = JSON.stringify({ items: [], truncated: true, dailyNutrition: { date, included: 25, truncated: false, totals: { calories: { value: 440, missing: 0 } } } });
+    const execute = vi.fn(async () => result);
+    await expect(new AnthropicTaskIntentParser().parse({ ...input, message, execute })).resolves.toEqual({ kind: "conversation", reply: "You logged 440 known calories." });
+    expect(execute).toHaveBeenCalledExactlyOnceWith({ type: "life_list", kind: "food", date });
+    expect(create.mock.calls[0][0].tools.find((item: { name: string }) => item.name === "life_list").input_schema.properties.date).toEqual({ type: "string", format: "date" });
+    expect(create.mock.calls[1][0].messages.at(-1).content[0].content).toBe(result);
+    expect(authorize).not.toHaveBeenCalled();
+    expect(() => parseTaskIntentResponse([{ ...tool, input: { kind: "food", date: "2026-02-30" } }])).toThrow();
+    expect(() => parseTaskIntentResponse([{ ...tool, input: { kind: "routine", date } }])).toThrow();
+  });
+
   it("requires a current target lookup even when the model tries to create directly", async () => {
     const message = "Set my daily protein target to 90 grams.";
     create.mockResolvedValueOnce({ content: [{ type: "tool_use", id: "unread-target", name: "life_save", input: { sourceQuote: message, data: { kind: "nutrition_target", title: "Daily protein target", calories: null, protein: 90, carbs: null, fat: null, fiber: null } } }] })

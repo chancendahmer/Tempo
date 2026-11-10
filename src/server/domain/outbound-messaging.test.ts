@@ -3,6 +3,7 @@ import { TestSmsTransport } from "../adapters/sms/sms-transport";
 import {
   MessagingPermission,
   OutboundMessageRepository,
+  type OutboundSubmission,
   SafeSmsSender,
   evaluateMessagingPermission,
 } from "./outbound-messaging";
@@ -19,13 +20,11 @@ function permission(overrides: Partial<MessagingPermission> = {}): MessagingPerm
   };
 }
 
-function repository(permissionSequence: MessagingPermission[], duplicate = false): OutboundMessageRepository {
-  let permissionIndex = 0;
+function repository(initial: MessagingPermission, duplicate = false, submission: OutboundSubmission = { status: "started", phoneE164: initial.phoneE164 }): OutboundMessageRepository {
   return {
-    getPermission: vi.fn(async () => permissionSequence[Math.min(permissionIndex++, permissionSequence.length - 1)] ?? null),
+    getPermission: vi.fn(async () => initial),
     reserve: vi.fn(async () => ({ messageId: "message-1", duplicate, state: duplicate ? "accepted" as const : "reserved" as const })),
-    beginSubmission: vi.fn(async () => true),
-    cancel: vi.fn(async () => undefined),
+    beginSubmission: vi.fn(async () => submission),
     markSubmitted: vi.fn(async () => undefined),
     markFailed: vi.fn(async () => undefined),
   };
@@ -55,7 +54,7 @@ describe("outbound messaging safety", () => {
   });
 
   it("does not call the provider for an opted-out user", async () => {
-    const store = repository([permission({ userStatus: "opted_out" })]);
+    const store = repository(permission({ userStatus: "opted_out" }));
     const transport = new TestSmsTransport();
 
     const result = await new SafeSmsSender(store, transport, () => NOW).send({
@@ -72,7 +71,7 @@ describe("outbound messaging safety", () => {
   });
 
   it("rechecks consent after reservation and cancels before dispatch", async () => {
-    const store = repository([permission(), permission({ userStatus: "opted_out" })]);
+    const store = repository(permission(), false, { status: "blocked", reason: "opted_out" });
     const transport = new TestSmsTransport();
 
     const result = await new SafeSmsSender(store, transport, () => NOW).send({
@@ -84,12 +83,12 @@ describe("outbound messaging safety", () => {
     });
 
     expect(result).toEqual({ sent: false, reason: "opted_out", messageId: "message-1" });
-    expect(store.cancel).toHaveBeenCalledWith("message-1", "opted_out");
+    expect(store.beginSubmission).toHaveBeenCalledWith("message-1", NOW);
     expect(transport.sent).toHaveLength(0);
   });
 
   it("does not dispatch an idempotency-key duplicate", async () => {
-    const store = repository([permission()], true);
+    const store = repository(permission(), true);
     const transport = new TestSmsTransport();
 
     const result = await new SafeSmsSender(store, transport, () => NOW).send({
@@ -105,7 +104,7 @@ describe("outbound messaging safety", () => {
   });
 
   it("submits one permitted message through the transport", async () => {
-    const store = repository([permission(), permission(), permission()]);
+    const store = repository(permission(), false, { status: "started", phoneE164: "+12025550197" });
     const transport = new TestSmsTransport();
 
     const result = await new SafeSmsSender(store, transport, () => NOW).send({
@@ -119,7 +118,7 @@ describe("outbound messaging safety", () => {
     expect(result).toEqual({ sent: true, messageId: "message-1", provider: "test", providerMessageSid: "TEST000001" });
     expect(transport.sent).toEqual([
       {
-        to: "+12025550198",
+        to: "+12025550197",
         body: "Tempo check-in",
         idempotencyKey: "check-in-1",
         statusCallbackUrl: "https://tempo.example/api/twilio/status",

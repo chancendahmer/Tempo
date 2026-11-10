@@ -1,6 +1,7 @@
 import { parseLinqWebhook, validateLinqWebhook } from "@/server/adapters/sms/linq-webhook";
 import { requireEnv } from "@/server/config/env";
 import { DrizzleMessagingRepository } from "@/server/db/repositories/messaging-repository";
+import { classifyJobFailure } from "@/server/jobs/job-failure";
 import { logger } from "@/server/observability/logger";
 
 export const dynamic = "force-dynamic";
@@ -33,7 +34,7 @@ export async function POST(request: Request) {
     }
     return new Response(null, { status: 204 });
   } catch (error) {
-    logger.error({ err: error }, "Linq webhook failed");
+    logger.error(classifyJobFailure(error), "Linq webhook failed");
     return new Response("Webhook processing failed", { status: 500 });
   }
 }

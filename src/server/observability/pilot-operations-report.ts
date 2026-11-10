@@ -3,6 +3,7 @@ import { JOB_NAMES } from "../jobs/names";
 import { summarizeWorkerAttestations, type WorkerHeartbeat } from "./worker-attestation";
 import { readAiBudgetReport } from "./ai-budget-report";
 import { MAX_AI_ATTESTATION_ROWS, summarizeAiBudgetAttestations } from "./ai-budget-attestation";
+import { MAX_REPORTED_RECEIPT_DROPS_PER_MINUTE } from "../db/repositories/delivery-receipts";
 
 const jobNames = [...Object.values(JOB_NAMES), "tempo.task-presentation"];
 const actionKinds = ["send_signin", "send_welcome", "send_compliance", "process_inbound_message", "deliver_reminder", "sync_calendar", "evaluate_context", "deliver_intervention", "accountability_followup", "feedback_followup", "feedback_timeout"];
@@ -40,6 +41,16 @@ export async function readPilotOperationsReport(client: Pick<PoolClient, "query"
       greatest(0, extract(epoch from ($1::timestamptz - min(created_at) filter (where direction='inbound' and status in ('received','processing'))))::int) as "oldestPendingSeconds",
       count(*) filter (where direction='outbound' and (outbound_state='ambiguous' or (outbound_state='submitting' and submission_started_at < $2)))::int as "uncertainOutbound"
       from conversation_messages`, [now, new Date(now.getTime() - 120_000)]);
+    const [inboxSchema] = (await client.query<{ present: boolean }>("select to_regclass('public.pending_delivery_receipts') is not null as present")).rows;
+    const inboxSize = inboxSchema.present ? (await client.query<{ active: number }>(
+      "select count(*)::int as active from pending_delivery_receipts where expires_at > $1", [now])).rows[0].active : null;
+    const dropWindowStart = new Date(Math.max(since.getTime(), now.getTime() - 24 * 3_600_000));
+    const [receiptDrops] = (await client.query<{ count: number; capped: boolean }>(`select coalesce(sum(count), 0)::int as count,
+      coalesce(bool_or(count >= $4), false) as capped from rate_limit_buckets where key = any($3::text[])
+      and window_start >= $1 and window_start <= $2`, [dropWindowStart, now,
+      ["pending-delivery-drop:linq", "pending-delivery-drop:sendblue", "pending-delivery-drop:twilio"], MAX_REPORTED_RECEIPT_DROPS_PER_MINUTE])).rows;
+    const deliveryReceiptInbox = { available: inboxSchema.present, active: inboxSize, quotaDrops: receiptDrops.count,
+      quotaDropCounterCapped: receiptDrops.capped, dropWindowHours: Math.min(hours, 24) };
     const actions = await client.query<{ kind: string; state: string; count: number; oldestDueSeconds: number }>(`select
       case when kind=any($1::text[]) then kind else 'other' end as kind, status::text as state,
       count(*)::int as count, greatest(0, extract(epoch from ($2::timestamptz - min(run_at)))::int) as "oldestDueSeconds"
@@ -63,6 +74,8 @@ export async function readPilotOperationsReport(client: Pick<PoolClient, "query"
     const problems = [...worker.problems, ...worker.queueProblems, ...aiBudget.problems,
       ...(!queueExists.rows[0]?.present ? ["queue_table_unavailable"] : []),
       ...(messages.rows[0].deliveryFailures > 0 ? ["delivery_failures_require_review"] : []),
+      ...(!deliveryReceiptInbox.available ? ["delivery_receipt_inbox_unavailable"] : []),
+      ...(deliveryReceiptInbox.quotaDrops > 0 ? ["delivery_receipt_inbox_overflow"] : []),
       ...(held.rows[0].uncertainOutbound > 0 ? ["outbound_reconciliation_required"] : []),
       ...((held.rows[0].oldestPendingSeconds ?? 0) > 660 ? ["inbound_backlog_stale"] : []),
       ...(jobs.some(row => row.state === "failed") ? ["failed_jobs_require_review"] : []),
@@ -70,12 +83,14 @@ export async function readPilotOperationsReport(client: Pick<PoolClient, "query"
     ];
     const report = { generatedAt: now.toISOString(), windowHours: hours, worker, aiBudget,
       accounts: accounts.rows[0], recentMessages: messages.rows[0], heldWorkAllTime: held.rows[0],
+      deliveryReceiptInbox,
       dueActionsAllTime: actions.rows, queueAvailable: Boolean(queueExists.rows[0]?.present), queuedJobsAllTime: jobs,
       recoveryAuditsAllTime: recovery.rows[0]?.audits ?? 0, problems: [...new Set(problems)],
       nextActions: [
         ...aiBudget.nextActions,
         ...(!worker.ok || !worker.policyKnown ? ["Verify all worker deployments, build stamps and unretired instance records; web liveness cannot prove worker configuration or termination."] : []),
         ...(messages.rows[0].deliveryFailures > 0 ? ["Review failed/undelivered outbound messages from the selected creation-time window using secure account-scoped provider receipts; never bulk replay or reset uncertain submissions."] : []),
+        ...(deliveryReceiptInbox.quotaDrops > 0 ? ["Investigate authenticated delivery callback volume and compare provider receipts for affected sends before taking recovery action."] : []),
         ...(held.rows[0].uncertainOutbound > 0 ? ["Compare provider receipts before reconciling uncertain sends; never blindly resend or reset the ledger."] : []),
         ...(jobs.some(row => row.state === "failed") ? ["Inspect failed jobs securely; use recover-inbound dry run for one verified account/job after confirming provider state."] : []),
         ...(worker.policy.cleanupPermission || worker.policy.proactivePermission ? ["Confirm coaching release is intentional; see the runbook to stop workers and disable cleanup/canary/global permissions."] : []),

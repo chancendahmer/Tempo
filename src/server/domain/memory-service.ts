@@ -82,6 +82,16 @@ export function parseMemoryCorrection(body: string): MemoryCorrection | null {
   return null;
 }
 
+function correctionWriteType(correction: MemoryCorrection): "remember_memory" | "forget_memory" {
+  return correction.type === "forget" || correction.type === "forget_recent" ? "forget_memory" : "remember_memory";
+}
+
+export function memoryCorrectionWriteType(body: string): "remember_memory" | "forget_memory" | undefined {
+  const correction = parseMemoryCorrection(body);
+  if (!correction || ("content" in correction && isSensitiveMemory(correction.content))) return;
+  return correctionWriteType(correction);
+}
+
 export class MemoryService {
   constructor(private readonly repository: MemoryRepository) {}
 
@@ -135,7 +145,7 @@ export class MemoryService {
     // A syntactic match is only a routing candidate. Let the shared assistant
     // resolve task/goal/workspace requests instead of stopping at memory denial
     // or consuming a mixed request as a generic fact.
-    if (canHandle && !await canHandle(correction.type === "forget" || correction.type === "forget_recent" ? "forget_memory" : "remember_memory")) return null;
+    if (canHandle && !await canHandle(correctionWriteType(correction))) return null;
     if (correction.type === "forget") {
       const count = await this.repository.forgetMatching(input.userId, correction.query, input.now);
       if (!count && canHandle) return null;

@@ -40,7 +40,7 @@ it("atomically creates one linked follow-up after delivery and preserves its ori
     expect(jobs).toHaveLength(1); expect(jobs[0].payload).toMatchObject({ followsReminderId: original.id, reminderId: followup.id });
     expect(await repository.update({ ...input, remindAt: new Date("2027-01-12T18:00:00Z") })).toMatchObject({ kind: "conflict" });
     const explanation = await executeReminderCommand(repository, { type: "reschedule_reminder", reminderId: original.id, remindAt: input.remindAt.toISOString() }, { ...input, timezone: "UTC" });
-    expect(explanation).toContain("original reminder was already delivered"); expect(explanation).toContain("new reminder was saved"); expect(explanation).toContain("12:00 PM EST");
+    expect(explanation).toContain("original reminder was already sent for delivery"); expect(explanation).toContain("new reminder was saved"); expect(explanation).toContain("12:00 PM EST");
     w.day(2, "17:00:00"); await w.deliver(followup.id);
     const message = (await db.select().from(schema.conversationMessages).where(eq(schema.conversationMessages.relatedReminderId, followup.id)))[0];
     expect(message.relatedReminderId).toBe(followup.id); expect(message.id).not.toBe(f.history[0].id);

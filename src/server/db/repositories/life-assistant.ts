@@ -8,9 +8,15 @@ import { isSensitiveMemory } from "../../domain/memory-service";
 import { lifeSavedReply } from "../../domain/life-patch";
 import { captureWithReminder } from "./capture-reminder";
 import { refreshMealGroceries } from "./meal-groceries";
+import { selectedDayLimit } from "./workspace-life-items";
+import { nutritionTotals } from "../../domain/nutrition-totals";
+import { readWorkspaceRundown } from "./workspace-rundown";
 
 export class LifeAssistant {
   constructor(private readonly database: TempoDatabase = getDatabase()) {}
+  listForRundown(userId: string, startDate: string, endDateExclusive: string) {
+    return readWorkspaceRundown(this.database, userId, startDate, endDateExclusive);
+  }
   captureWithReminder(userId: string, sourceMessageId: string, command: Extract<AssistantCommand, {type: "capture_with_reminder"}>, now: Date, timezone: string) {
     return captureWithReminder(this.database, userId, sourceMessageId, command, now, timezone);
   }
@@ -19,12 +25,17 @@ export class LifeAssistant {
     if (command.type === "life_list") {
       if (command.kind === "grocery") await refreshMealGroceries(this.database, userId);
       const terms = [...new Set(command.query?.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [])];
-      if (command.query && (!terms.length || terms.length > 12)) return JSON.stringify({ items: [], truncated: false, coverage: { kind: command.kind, query: command.query, searched: false }, notice: "Use 1–12 search words for this lookup." });
+      const coverage = { kind: command.kind, id: command.id ?? null, query: command.query ?? null, date: command.date ?? null };
+      if (command.query && (!terms.length || terms.length > 12)) return JSON.stringify({ items: [], truncated: false, coverage: { ...coverage, searched: false }, notice: "Use 1–12 search words for this lookup." });
+      const summaryDate = command.kind === "food" && !command.id && !command.query ? command.date : undefined;
+      const scope = and(eq(lifeItems.userId, userId), sql`${lifeItems.data}->>'kind' = ${command.kind}`,
+        command.date ? sql`${lifeItems.data}->>'date' = ${command.date}` : undefined);
+      const itemLimit = 20;
       let rows = await this.database.select({ id: lifeItems.id, version: lifeItems.version, data: lifeItems.data }).from(lifeItems)
-        .where(and(eq(lifeItems.userId, userId), sql`${lifeItems.data}->>'kind' = ${command.kind}`,
+        .where(and(scope,
           command.id ? eq(lifeItems.id, command.id) : undefined,
           ...terms.map(term => sql`lower(concat_ws(' ', ${lifeItems.data}->>'title', ${lifeItems.data}->>'body', ${lifeItems.data}->>'ingredients', ${lifeItems.data}->>'instructions', ${lifeItems.data}->>'date', ${lifeItems.data}->>'meal', ${lifeItems.data}->>'activity', ${lifeItems.data}->>'period', ${lifeItems.data}->>'time', ${lifeItems.data}->>'steps', ${lifeItems.data}->>'barcode')) like ${`%${term}%`}`)))
-        .orderBy(desc(lifeItems.createdAt), desc(lifeItems.id)).limit(21);
+        .orderBy(desc(lifeItems.createdAt), desc(lifeItems.id)).limit((summaryDate ? selectedDayLimit : itemLimit) + 1);
       let partial = false;
       // Natural-language qualifiers (such as month names) need not match the
       // stored representation. Offer bounded title candidates, never an assumed
@@ -34,14 +45,25 @@ export class LifeAssistant {
         const matches = titleTerms.map(term => sql`lower(${lifeItems.data}->>'title') like ${`%${term}%`}`);
         const rank = sql`(${sql.join(matches.map(match => sql`case when ${match} then 1 else 0 end`), sql` + ` )})`;
         rows = await this.database.select({id:lifeItems.id,version:lifeItems.version,data:lifeItems.data}).from(lifeItems)
-          .where(and(eq(lifeItems.userId,userId),sql`${lifeItems.data}->>'kind' = ${command.kind}`,or(...matches)))
-          .orderBy(desc(rank),desc(lifeItems.createdAt),desc(lifeItems.id)).limit(21);
+          .where(and(scope, or(...matches)))
+          .orderBy(desc(rank),desc(lifeItems.createdAt),desc(lifeItems.id)).limit(itemLimit + 1);
         partial = rows.length > 0;
       }
-      return JSON.stringify({ items: rows.slice(0, 20), truncated: rows.length > 20,
-        coverage: { kind: command.kind, id: command.id ?? null, query: command.query ?? null, match: partial ? "partial title candidates" : "all search words", searched: true, limit: 20 },
-        notice: partial ? "No record matched every search word. These are partial title candidates only. Verify their date, meal and other requested details before selecting; ask which one if ambiguous." + (rows.length > 20 ? " More candidates exist; narrow the query. This list is incomplete." : "") : rows.length > 20 ? "More matching records exist; narrow the query or use an exact id. This list is incomplete."
-          : command.query || command.id ? "Only matching records of this kind are included; this is not a complete account search." : "All records of this kind are included." });
+      const truncated = rows.length > itemLimit;
+      const dateScope = command.date ? ` on ${command.date}` : "";
+      let dailyNutrition;
+      if (summaryDate) {
+        const foods = rows.slice(0, selectedDayLimit).flatMap(row => row.data.kind === "food" ? [{ data: row.data }] : []);
+        const incomplete = rows.length > selectedDayLimit;
+        dailyNutrition = { date: summaryDate, totals: nutritionTotals(foods), included: foods.length, limit: selectedDayLimit, truncated: incomplete,
+          notice: incomplete ? "Some food logs were omitted. These totals cover only the included logs." : "Totals cover all saved food logs on this date. Missing nutrients are unknown." };
+      }
+      return JSON.stringify({ items: rows.slice(0, itemLimit), truncated,
+        coverage: { ...coverage, match: partial ? "partial title candidates" : "all search words", searched: true, limit: itemLimit },
+        ...(dailyNutrition ? { dailyNutrition } : {}),
+        notice: partial ? "No record matched every search word. These are partial title candidates only. Verify their date, meal and other requested details before selecting; ask which one if ambiguous." + (truncated ? " More candidates exist; narrow the query. This list is incomplete." : "")
+          : truncated ? "More matching records exist; narrow the query or use an exact id. This item list is incomplete."
+          : command.query || command.id ? `Only matching records of this kind${dateScope} are included; this is not a complete account search.` : `All records of this kind${dateScope} are included.` });
     }
     try {
       if (command.type === "grocery_add") {

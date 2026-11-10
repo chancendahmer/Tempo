@@ -77,7 +77,7 @@ it("Maya: seven scripted days preserve thought identity, focus, reminders, corre
     expect(sim.transport.sent.filter(row => row.body === "Reminder: Outline project")).toHaveLength(1);
     await w.turn("I have a separate question about the studio", []);
     const moved = await w.turn("Move my delivered outline project reminder to Saturday January 16 at 2 PM", [{ type: "list_reminders", includePast: true }, { type: "reschedule_reminder", reminderId: reminder.id, remindAt: "2027-01-16T14:00:00-05:00" }]);
-    expect(moved.replies.join(" ")).toContain("The original reminder was already delivered. A new reminder was saved");
+    expect(moved.replies.join(" ")).toContain("The original reminder was already sent for delivery. A new reminder was saved");
     expect((await person.state()).reminders.find(row => row.id === reminder.id)).toMatchObject({ status: "sent", remindAt: new Date("2027-01-15T19:00:00Z") });
     await person.send("Move my delivered outline project reminder to Saturday January 16 at 2 PM", { providerId: moved.providerId });
     expect((await person.state()).reminders).toHaveLength(2);

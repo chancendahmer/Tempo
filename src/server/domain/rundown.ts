@@ -2,9 +2,17 @@ import { z } from "zod";
 import type { AssistantIntegrations } from "./assistant-commands";
 import type { TaskRepository } from "./task-service";
 import type { GoalRepository } from "./goal-service";
+import type { LifeItem } from "./life-items";
 import { localDateTimeToUtc, nextRecurringOccurrence, formatReminderTime, type ReminderRepository } from "./reminder-service";
 
 export type RundownRequest = { startDate: string; days: number };
+export type WorkspaceRundown = {
+  items: Array<{ id: string; data: Extract<LifeItem, { kind: "routine" | "meal" | "workout" }> }>;
+  truncated: boolean;
+};
+export interface WorkspaceRundownSource {
+  listForRundown(userId: string, startDate: string, endDateExclusive: string): Promise<WorkspaceRundown>;
+}
 export function isRundownQuestion(message: string): boolean {
   return /\b(rundown|overview|summary|agenda)\b/i.test(message)
     || (/\b(show|list|what|give|tell)\b/i.test(message)
@@ -75,7 +83,7 @@ export function parseRundownRequest(message: string, now: Date, timezone: string
 export const RUNDOWN_HISTORY_LIMIT = "This is your current open plan, not a history of completed tasks, delivered reminders or calendar edits.";
 
 export async function buildRundown(
-  repositories: { tasks: Pick<TaskRepository, "list">; goals: Pick<GoalRepository, "list">; reminders?: Pick<ReminderRepository, "listForRundown">; integrations?: Pick<AssistantIntegrations, "agenda"> },
+  repositories: { tasks: Pick<TaskRepository, "list">; goals: Pick<GoalRepository, "list">; reminders?: Pick<ReminderRepository, "listForRundown">; integrations?: Pick<AssistantIntegrations, "agenda">; workspace?: WorkspaceRundownSource },
   context: { userId: string; timezone: string; now: Date },
   request: RundownRequest,
 ): Promise<string> {
@@ -85,8 +93,9 @@ export async function buildRundown(
     repositories.goals.list(context.userId, "active"),
     repositories.reminders ? repositories.reminders.listForRundown(context.userId, start, end) : Promise.reject(new Error("unavailable")),
     repositories.integrations ? repositories.integrations.agenda(context.userId, start.toISOString(), end.toISOString()) : Promise.reject(new Error("unavailable")),
+    repositories.workspace ? repositories.workspace.listForRundown(context.userId, request.startDate, shiftDate(request.startDate, request.days)) : Promise.reject(new Error("unavailable")),
   ]);
-  const [taskResult, goalResult, reminderResult, calendarResult] = results;
+  const [taskResult, goalResult, reminderResult, calendarResult, workspaceResult] = results;
   const sections: string[] = [`${request.days === 1 ? "Daily" : request.days === 7 ? "Weekly" : "Upcoming"} rundown · ${request.startDate}${request.days > 1 ? ` – ${shiftDate(request.startDate, request.days - 1)}` : ""} (${context.timezone})`];
   const line = (text: string) => text.replace(/[\r\n]+/g, " ").slice(0, 240);
   const section = (title: string, items: string[], empty = "None.") => {
@@ -136,6 +145,20 @@ export async function buildRundown(
   } else sections.push("Tasks unavailable; try again later.");
   if (goalResult.status === "fulfilled") section("Goals · ongoing, not scheduled", goalResult.value.map(g => line(g.title)));
   else sections.push("Goals unavailable; try again later.");
+  if (workspaceResult.status === "fulfilled") {
+    const items = workspaceResult.value.items;
+    const today = localDate(context.now, context.timezone);
+    const includesToday = request.startDate <= today && today < shiftDate(request.startDate, request.days);
+    section("Routines · daily templates", items.flatMap(({ data }) => {
+      if (data.kind !== "routine") return [];
+      const progress = includesToday ? `${data.steps.filter(step => step.completedOn === today).length}/${data.steps.length} steps done today` : "daily template; past/future completion not inferred";
+      const next = includesToday ? data.steps.find(step => step.completedOn !== today) : undefined;
+      return [`${data.time} · ${data.period} — ${line(data.title)} (${progress})${next ? `; next: ${line(next.title)}` : ""}`];
+    }), "No saved routines.");
+    section("Meals · planned, not logged as eaten", items.flatMap(({ data }) => data.kind === "meal" ? [`${data.date} · ${data.meal} — ${line(data.title)}${data.servings ? ` (${data.servings} serving${data.servings === 1 ? "" : "s"})` : ""}`] : []), "No meal plans saved in this range.");
+    section("Movement · logged activity", items.flatMap(({ data }) => data.kind === "workout" ? [`${data.date} — ${line(data.title)} · ${data.minutes} min (${data.activity})`] : []), "No activity logged in this range; this does not mean you were inactive.");
+    if (workspaceResult.value.truncated) sections.push("More routines, meal plans or activity logs exist in this range; check the app for the complete records.");
+  } else if (repositories.workspace) sections.push("Routines, meals and activity unavailable; these saved records have not been checked.");
   if (start < context.now) sections.push(RUNDOWN_HISTORY_LIMIT);
   return sections.join("\n\n");
 }

@@ -3,6 +3,7 @@ import { fromDrizzle, PgBoss } from "pg-boss";
 import { getDatabase, TempoDatabase } from "../db/client";
 import { scheduledActions } from "../db/schema";
 import { logger } from "../observability/logger";
+import { classifyJobFailure } from "./job-failure";
 import { AccountabilityFollowupJob, DeliverInterventionJob, DeliverReminderJob, EvaluateContextJob, FeedbackFollowupJob, FeedbackTimeoutJob, JOB_NAMES, ProcessInboundJob, SendComplianceJob, SendWelcomeJob, SyncCalendarJob } from "./names";
 
 type DispatchableAction = {
@@ -120,7 +121,7 @@ export function startActionDispatcher(boss: PgBoss, intervalMs: number): () => v
       const count = await dispatchDueActions(boss);
       if (count > 0) logger.info({ count }, "scheduled actions dispatched");
     } catch (error) {
-      logger.error({ err: error }, "scheduled action dispatch failed");
+      logger.error(classifyJobFailure(error), "scheduled action dispatch failed");
     } finally {
       dispatching = false;
     }

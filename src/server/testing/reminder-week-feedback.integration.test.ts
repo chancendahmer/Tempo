@@ -132,7 +132,7 @@ it("moves a delivered reminder through the existing parser tool contract into on
       .mockResolvedValueOnce(tool("reschedule_reminder", edit, { reminderId: original.id, remindAt: "2026-10-04T14:00:00-04:00" })).mockResolvedValueOnce(ack);
     const moved = await person.send(edit);
     expect(moved.tools).toEqual(["list_reminders", "reschedule_reminder"]);
-    expect(moved.replies.join(" ")).toContain("original reminder was already delivered. A new reminder was saved");
+    expect(moved.replies.join(" ")).toContain("original reminder was already sent for delivery. A new reminder was saved");
     const saved = (await person.state()).reminders;
     expect(saved).toHaveLength(2);
     expect(saved.find(row => row.id === original.id)).toMatchObject({ status: "sent", remindAt: original.remindAt });

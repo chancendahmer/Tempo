@@ -21,7 +21,7 @@ vi.mock("../scheduled-action-repository", () => ({ ScheduledActionRepository: cl
 } }));
 vi.mock("../../db/repositories/outbound-message-repository", () => ({ DrizzleOutboundMessageRepository: class {
   getPermission = m.permission; reserve = m.reserve; markSubmitted = m.submitted;
-  async beginSubmission() { return true; }
+  async beginSubmission() { return { status: "started", phoneE164: "+12025550123" }; }
 } }));
 beforeEach(() => {
   vi.clearAllMocks();
@@ -41,7 +41,7 @@ it.each([registerAccountabilityFollowupHandler, registerFeedbackFollowupHandler]
   expect(m.transportSend).not.toHaveBeenCalled();
   m.env.PROACTIVE_CANARY_USER_IDS = [userId];
   await run();
-  expect(m.permission).toHaveBeenCalledTimes(2);
+  expect(m.permission).toHaveBeenCalledOnce();
   expect(m.transportSend).toHaveBeenCalledOnce();
   m.permission.mockResolvedValue({ userStatus: "active", latestConsent: "revoked", phoneE164: "+12025550123" });
   await run();

@@ -10,13 +10,16 @@ import { SafeSmsSender } from "../../domain/outbound-messaging";
 import { issueActionToken } from "../../security/action-token";
 import { JOB_NAMES, SendWelcomeJob } from "../names";
 import { ScheduledActionRepository } from "../scheduled-action-repository";
+import { failJob } from "../job-failure";
 
 export async function registerSendSignInHandler(boss: PgBoss) {
   await boss.work<SendWelcomeJob>(JOB_NAMES.sendSignIn, { localConcurrency: 2 }, async jobs => {
     for (const job of jobs) {
       const actions = new ScheduledActionRepository();
-      if (!(await actions.markRunning(job.data.scheduledActionId))) continue;
+      let running = false;
       try {
+        running = await actions.markRunning(job.data.scheduledActionId);
+        if (!running) continue;
         const env = requireEnv(["APP_BASE_URL", "FIELD_ENCRYPTION_KEY"]);
         const database = getDatabase();
         const [action] = await database.select().from(scheduledActions).where(and(
@@ -42,8 +45,8 @@ export async function registerSendSignInHandler(boss: PgBoss) {
         if (result.sent || result.reason === "duplicate") await actions.markCompleted(job.data.scheduledActionId);
         else await actions.markCancelled(job.data.scheduledActionId, result.reason);
       } catch (error) {
-        await actions.markFailed(job.data.scheduledActionId, error);
-        throw error;
+        await failJob(error, { jobId: job.id, operation: "Sign-in SMS job", logMessage: "Sign-in SMS job failed",
+          record: running ? retry => actions.markFailed(job.data.scheduledActionId, retry) : undefined });
       }
     }
   });
