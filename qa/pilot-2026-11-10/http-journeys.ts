@@ -4,7 +4,9 @@ import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 import { promisify } from "node:util";
+import type { PublicAccount } from "../../src/app/components/account-state";
 import type { WorkspaceAction } from "../../src/server/db/repositories/workspace-repository";
+import type { GentleSetup, GentleSetupAction } from "../../src/server/domain/gentle-setup";
 import { localDay } from "../../src/server/domain/life-items";
 import { localDateTimeToUtc } from "../../src/server/domain/reminder-service";
 import { steps, titles } from "./scenario-steps";
@@ -19,7 +21,7 @@ const bridgeEnv = { ...process.env, TEMPO_QA_RUN: runName };
 const outcomes: string[] = [];
 let phase = "setup";
 type Actor = { cookie: string; owner: string };
-type HttpWorkspace = { cacheKey: string; profile: { displayName: string }; tasks: Array<{ id: string; title: string; status: string }>; items: Array<{ id: string; version: number; data: { kind: string; title: string; endsAt?: string | null; remaining?: number } }>; reminders: Array<{ id: string; status: string }>; messages: Array<{ body: string }> };
+type HttpWorkspace = { cacheKey: string; profile: { displayName: string; proactiveOptIn: boolean; quietHoursStart: string | null; quietHoursEnd: string | null }; tasks: Array<{ id: string; title: string; status: string; goalId: string | null; estimatedMinutes: number | null }>; goals: Array<{ id: string; title: string; status: string }>; activityStreak: { totalCompletions: number; completedToday: number; totalActiveDays: number }; items: Array<{ id: string; version: number; data: { kind: string; title: string; endsAt?: string | null; remaining?: number } }>; reminders: Array<{ id: string; status: string }>; messages: Array<{ body: string }> };
 
 async function bridge(...args: string[]) {
   const child = await runBridge(process.execPath, ["--import", "tsx", `${root}/account-bridge.ts`, ...args], { timeout: 15000, env: bridgeEnv, windowsHide: true });
@@ -29,7 +31,7 @@ async function bridge(...args: string[]) {
 async function request(path: string, init?: RequestInit) {
   const url = new URL(path, base);
   assert.equal(url.origin, base);
-  assert.ok(["/api/account/workspace", "/api/auth/phone", "/api/auth/logout", "/api/account/me"].includes(url.pathname));
+  assert.ok(["/api/account/workspace", "/api/account/setup", "/api/auth/phone", "/api/auth/logout", "/api/account/me"].includes(url.pathname));
   return fetch(url, { ...init, redirect: "manual", signal: AbortSignal.timeout(15000) });
 }
 async function activate(url: string) {
@@ -61,6 +63,69 @@ async function write(actor: Actor, action: WorkspaceAction, owner = actor.owner,
   }, body: JSON.stringify(action) });
   assert.equal(response.status, status);
   return response.json();
+}
+
+async function readSettings(actor: Actor) {
+  const [setupResponse, profileResponse] = await Promise.all([
+    request("/api/account/setup", { headers: { Cookie: actor.cookie } }),
+    request("/api/account/me", { headers: { Cookie: actor.cookie } }),
+  ]);
+  for (const response of [setupResponse, profileResponse]) {
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get("cache-control"), "private, no-store");
+  }
+  const { cacheKey, setup } = await setupResponse.json() as { cacheKey: string; setup: GentleSetup };
+  const { account } = await profileResponse.json() as { account: PublicAccount };
+  assert.equal(cacheKey, actor.owner);
+  assert.equal(account.cacheKey, actor.owner);
+  return { setup, account };
+}
+
+async function settingsJourney(a: Actor, b: Actor) {
+  const [beforeA, beforeB, workspaceA, workspaceB] = await Promise.all([readSettings(a), readSettings(b), workspace(a), workspace(b)]);
+  const setup = { action: "save", coachingTone: "gentle", showStreak: false } satisfies GentleSetupAction;
+  const setupBody = JSON.stringify(setup);
+  const postSetup = (actor: Actor, owner: string, body = setupBody) => request("/api/account/setup", { method: "POST", headers: {
+    Cookie: actor.cookie, Origin: base, "Content-Type": "application/json", "x-tempo-account": owner,
+  }, body });
+  const firstSetup = await postSetup(a, a.owner);
+  const retrySetup = await postSetup(a, a.owner);
+  assert.equal(firstSetup.status, 200);
+  assert.equal(retrySetup.status, 200);
+  const savedSetup = { ...beforeA.setup, coachingTone: "gentle", showStreak: false, setupStatus: "complete" };
+  const setupResponse = { cacheKey: a.owner, setup: savedSetup };
+  assert.deepEqual(await firstSetup.json(), setupResponse);
+  assert.deepEqual(await retrySetup.json(), setupResponse);
+  assert.equal((await postSetup(a, a.owner, JSON.stringify({ ...setup, proactiveOptIn: true }))).status, 400);
+  const staleSetup = await postSetup(b, a.owner);
+  assert.equal(staleSetup.status, 409);
+  assert.equal((await staleSetup.json()).code, "account_changed");
+
+  const displayName = "QA Ash after profile replay";
+  assert.ok(beforeA.account.profileInstructions);
+  const profileBody = JSON.stringify({ displayName, profileInstructions: beforeA.account.profileInstructions, expectedCacheKey: a.owner });
+  const putProfile = (actor: Actor) => request("/api/account/me", { method: "PUT", headers: {
+    Cookie: actor.cookie, Origin: base, "Content-Type": "application/json",
+  }, body: profileBody });
+  const firstProfile = await putProfile(a);
+  const retryProfile = await putProfile(a);
+  assert.equal(firstProfile.status, 200);
+  assert.equal(retryProfile.status, 200);
+  const profile = { ...beforeA.account, displayName, profileComplete: true };
+  assert.deepEqual(await firstProfile.json(), { account: profile });
+  assert.deepEqual(await retryProfile.json(), { account: profile });
+  assert.equal((await putProfile(b)).status, 409);
+
+  const [afterA, afterB, afterWorkspaceA, afterWorkspaceB] = await Promise.all([readSettings(a), readSettings(b), workspace(a), workspace(b)]);
+  assert.deepEqual(afterA, { account: profile, setup: { ...savedSetup, displayName } });
+  assert.deepEqual(afterB, beforeB);
+  assert.equal(workspaceA.profile.proactiveOptIn, false);
+  assert.deepEqual(afterWorkspaceA.profile, { ...workspaceA.profile, displayName });
+  assert.deepEqual(afterWorkspaceB.profile, workspaceB.profile);
+  for (const key of ["tasks", "goals", "items", "reminders", "messages", "activityStreak"] as const) {
+    assert.deepEqual(afterWorkspaceA[key], workspaceA[key]);
+    assert.deepEqual(afterWorkspaceB[key], workspaceB[key]);
+  }
 }
 function task(actor: Actor, command: Extract<WorkspaceAction, { action: "task" }>["command"], focusMinutes?: number) {
   return write(actor, { action: "task", requestId: randomUUID(), command, focusMinutes });
@@ -108,6 +173,47 @@ async function main() {
   await task(a, { type: "complete_task", taskId: linkedTask.id });
   await turn("thought-read", { channel: "web", actor: a, date });
   outcomes.push("Thought becomes one linked six-minute task after SMS replay. A separate authenticated read sees the paused timer, then web chat reads completion and the surviving thought.");
+
+  phase = "goal and Journey replay";
+  const beforeGoal = await workspace(a);
+  const beforeOther = await workspace(b);
+  const goalTitle = "Finish a synthetic mood board";
+  const taskTitle = "Choose three synthetic pottery photos";
+  await write(a, { action: "goal", requestId: randomUUID(), command: { type: "create_goal", title: goalTitle } });
+  const goal = (await workspace(a)).goals.find(item => item.title === goalTitle);
+  assert.ok(goal);
+  await task(a, { type: "create_task", title: taskTitle, estimatedMinutes: 5, goalId: goal.id });
+  const goalTask = (await workspace(a)).tasks.find(item => item.title === taskTitle);
+  assert.ok(goalTask);
+  assert.equal(goalTask.goalId, goal.id);
+  await task(a, { type: "start_task", taskId: goalTask.id }, 5);
+  const focused = await workspace(a);
+  verify(focused.items.some(item => item.data.kind === "focus" && item.data.title === taskTitle && item.data.remaining === 300));
+  const complete: WorkspaceAction = { action: "task", requestId: randomUUID(), command: { type: "complete_task", taskId: goalTask.id } };
+  const completeFirst = await write(a, complete);
+  const completed = await workspace(a);
+  assert.deepEqual(await write(a, complete), completeFirst);
+  const completedReplay = await workspace(a);
+  assert.deepEqual(completedReplay.activityStreak, completed.activityStreak);
+  assert.equal(completedReplay.activityStreak.totalCompletions, beforeGoal.activityStreak.totalCompletions + 1);
+  assert.equal(completedReplay.activityStreak.completedToday, beforeGoal.activityStreak.completedToday + 1);
+  assert.equal(completedReplay.activityStreak.totalActiveDays, beforeGoal.activityStreak.totalActiveDays);
+  verify(completedReplay.tasks.some(item => item.id === goalTask.id && item.goalId === goal.id && item.status === "completed" && item.estimatedMinutes === 5));
+  verify(!completedReplay.items.some(item => item.data.kind === "focus"));
+  const achieve: WorkspaceAction = { action: "goal", requestId: randomUUID(), command: { type: "complete_goal", goalId: goal.id } };
+  const achieveFirst = await write(a, achieve);
+  assert.deepEqual(await write(a, achieve), achieveFirst);
+  const achieved = await workspace(a);
+  verify(achieved.goals.filter(item => item.id === goal.id && item.status === "completed").length === 1);
+  assert.deepEqual(achieved.activityStreak, completed.activityStreak);
+  await write(b, complete, b.owner, 409);
+  await write(b, achieve, b.owner, 409);
+  const afterOther = await workspace(b);
+  for (const key of ["tasks", "goals", "items", "activityStreak", "messages", "reminders", "profile"] as const) {
+    assert.deepEqual(afterOther[key], beforeOther[key]);
+  }
+  assert.deepEqual(await bridge("goal-proof", goalTask.id, goal.id), { taskCompletionEvents: 1, goalAchievementEvents: 1, otherAccountGoalTaskEvents: 0 });
+  outcomes.push("Exact authenticated retries of the goal-linked task completion and goal achievement leave one event each. Only the task adds one Journey win, and the separate account cannot act on either foreign ID.");
 
   phase = "timed task and reminder";
   const [year, month, day] = date.split("-").map(Number);
@@ -181,6 +287,9 @@ async function main() {
   const current = await workspace(reauthenticated);
   verify(current.cacheKey === a.owner && current.items.some(item => item.data.title === titles.thought) && !current.items.some(item => item.id === oldNoteId));
   outcomes.push("Removal survives normal sign-out/relogin. Stale A owner with B cookie gets 409, both accounts return only current own notes, and the other account stays unchanged.");
+  phase = "setup and profile replay";
+  await settingsJourney(reauthenticated, b);
+  outcomes.push("Exact setup and profile retries preserve the same saved choices and workspace records. Proactive check-ins stay off and an opt-in field is rejected. Both routes reject A ownership with B's cookie and leave B's setup and profile unchanged.");
   phase = "owned fixture cleanup";
   verify((await bridge("clean")).removedRunOwnedAccounts === 2);
   outcomes.push("Removed only the two run-owned HTTP fixture accounts and the private sign-in file.");

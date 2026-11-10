@@ -10,23 +10,78 @@ The observed worker used default open admission with zero configured invitees, s
 
 ## Before rollout
 
-- Verify the deployed web and worker commit stamps, Railway service roles, source branches, configuration file paths, replica inventory and PostgreSQL service reference in the intended environment. Record the public commit hashes and deployment times. Both service paths should target the same database. Keep project, deployment, database and replica identifiers in Railway.
-- Run the read-only probe in both runtime consoles. Require an exact ordered journal and SQL digest prefix. The `86ae010` source ships through `0028`. A later exact prefix requires a documented migration source. A missing, unknown or divergent prefix blocks rollout. Confirm `0033` accounting, `0034` receipt inbox and `0035` disposition table presence agrees with the recorded prefix.
-- Confirm the production database's latest successful backup, timestamp, retention and recovery options in Railway. Record actual PITR availability and recoverable window where applicable. Demonstrate restoration to an isolated database and verify its ledger and application compatibility. Agree on recovery ownership and limits. Local PostgreSQL tests and an application catalog probe do not establish hosted recovery.
-- Verify the live effective settings in both service roles. Confirm public HTTPS, the shared existing encryption key, the correct provider and webhook setup, and the Google callback at the canonical origin. Use invite-only admission and check that the approved roster matches privately. Keep shadow mode on and autonomous sending, cleanup check-ins and proactive canaries off for the first rollout. Configured key presence does not prove a credential works or matches across services.
-- Obtain approval for paid usage and retention before enabling a metered canary. Verify the same enforced policy across every AI-producing web and worker instance, including pinned model, current price snapshot, approved daily money and call caps, and direct provider route. Confirm provider billing and alert ownership. An environment variable on the old build does not enable candidate enforcement. The candidate's checked-in price snapshot requires review by 2026-11-22 00:00 UTC.
-- Keep the exact historical approval separate from release approval. The proposed close manifest covers 35 unresolved deliveries across two accounts. Its reviewed fingerprint begins `aaddd2dd3a46`. Require the full exact digest and explicit acknowledgment through the disposition command before recording any events. Re-run the dry-run after migration. Verify that pending uncertainty excludes only the approved unchanged historical rows and continues to detect new uncertainty or reactivated linked work.
+November 10 updates: the founder approved the exact historical disposition below.
+It has not yet been applied. An encrypted production snapshot was successfully
+restored to an isolated PostgreSQL 18.6 clone; original aggregates and the exact
+0028 ledger matched. The pinned candidate migrated the clone through 0035 and a
+second migration run was unchanged. The clone was stopped and transient plaintext
+retired. This establishes one recovery point; scheduled backups/PITR are still
+unavailable on the observed plan. See `logical-backup-restore.md`.
+
+The running worker's allowlisted model probe returned `claude-sonnet-4-6`. The
+candidate uses this model for the primary parser and Haiku 4.5 for separately
+metered hosted search. The same v2 pricing policy must be effective on both web
+and worker. The exact approved historical disposition remains pending in the
+observed hosted state.
+
+- Verify the intended Railway service roles, source/config paths, replica inventory, public HTTPS, common PostgreSQL service and existing encryption key. Verify the carrier webhook and Google callback at the canonical origin. Record public build stamps and deployment times. Verify sensitive values privately.
+- Verify the complete ordered migration prefix and SQL digests before rollout. Baseline `86ae010` ships through `0028`. The normal pinned candidate pre-deploy runs through `0035`. The shared migration lock serializes the two services. Inspect accounting, receipt inbox and disposition schema at the resulting prefix.
+- Apply the same settings to web and worker for bounded demo verification. Start with an empty invite list so new enrollment stays closed. Existing accounts with a verified phone and an onboarding state beyond awaiting consent remain admitted. Use only the dedicated demo account for the live check.
+
+```dotenv
+PILOT_ADMISSION_MODE=invite_only
+PILOT_INVITED_PHONES=
+INTERVENTION_SHADOW_MODE=true
+AUTONOMOUS_SENDING_ENABLED=false
+CLEANUP_CHECKINS_ENABLED=false
+PROACTIVE_CANARY_USER_IDS=
+ANTHROPIC_MODEL=claude-sonnet-4-6
+AI_BUDGET_MODE=enforce
+AI_BUDGET_PRICE_VERSION=anthropic-standard-2026-11-10-v2
+AI_BUDGET_GLOBAL_DAILY_MICRODOLLARS=9000000
+AI_BUDGET_ACCOUNT_DAILY_MICRODOLLARS=9000000
+AI_BUDGET_GLOBAL_DAILY_CALLS=100
+AI_BUDGET_ACCOUNT_DAILY_CALLS=60
+```
+
+Use the direct `https://api.anthropic.com` SDK route. The price snapshot expires
+November 22 at 00:00 UTC. Reserve the one-time **$9 hosted hold** in the
+existing amended QA journal before enabling this hosted allowance. The lead uses
+`node --import tsx qa/pilot-2026-11-10/live-budget-hosted-hold.ts --reserve-9-usd`
+after the local paid checks. It appends the hold under the journal lock and
+requires no network request. The live Sonnet metering proof left $7.422493
+committed before the hosted hold. At that point $9 would leave $3.577507 in the
+$20 authorization for other independent QA commitment. Read the actual balance
+at the hold, since later tests can change it. The $1 carrier hold is already in
+the balance. Count each request once and track hosted attempts within the held
+$9. The limits apply per UTC day, and outstanding debt remains reserved. Pause
+the hosted test allowance at the end of verification or before midnight UTC,
+whichever comes first, unless the approved ongoing policy takes effect.
+
+The production ledger shares one global reservation lock across candidate
+instances. A normal Sonnet request reserves up to $6.021 at 1,400 output tokens,
+and each isolated Haiku hosted-search request reserves $4.08. Complete one demo
+scenario at a time so settlement can free reservation headroom.
+
+After migration, re-preview the exact 35-row batch and require the approved
+SHA-256 `aaddd2dd3a463820aec0af2dc25f0ac8b08b05dc75e787620fb2900e5fa98565`.
+Use approval reference `nov10-history-review`, require the default dry run to
+verify the same private manifest, and apply the approved
+`close_unresolved_without_replay` decision. Audit that manifest again and verify
+that readiness continues to count any new ambiguity or reactivated linked work.
+[Historical review](outbound-history-review.md)
 
 ## Rollout verification
 
-- Confirm the pinned candidate revision and successful checks before an authorized deployment. Verify the web and worker pre-deploy commands use the shared advisory-lock migration runner. Recheck the resulting exact `0035` prefix and required schema objects before traffic or worker activity is resumed.
-- Confirm matching web and worker build stamps, fresh worker attestations and retirement of the old replicas in Railway. Verify `/api/health` for web liveness and `/api/ready` for database, worker and queue readiness. Check worker logs and the operations report for unresolved submissions, failed or stalled jobs, failed or unobserved metering, and receipt overflow. A healthy endpoint does not establish complete platform inventory or prove provider delivery.
-- With the approved pilot accounts and budget, verify a signed inbound SMS, the correct account's durable record and the resulting workspace update. Verify authenticated carrier status, independent provider billing reconciliation when applicable, and an alert reaching its intended operator. Keep admission and sending controls in force until each required live gate has evidence.
+- Freeze the candidate after the integrated checks. Deploy it to the existing Railway web and worker services using their normal pre-deploy migrations. Require the exact 36-entry ledger through `0035`, matching pinned build and effective configuration, fresh web and worker attestations, and retired old replicas. The old `86ae010` build lacks both invite admission and AI metering. Retire its AI-producing processes before starting the paid demo.
+- Verify `/api/health` and `/api/ready`. Recheck operations evidence for new outbound uncertainty, receipt overflow, failed or stalled jobs, accounting errors and intended alert delivery. Confirm carrier and billing evidence from the operator views. Recheck the same build and readiness after publishing the approved main revision.
+- From the authorized demo account, send one uniquely named task request with a reminder at an explicit near-future local time in the permitted window. Require one owned task and scheduled reminder in the workspace after reload, then observe actual phone delivery and its carrier status. Verify the task and reminder remain separate.
+- Request one uniquely named Google Calendar event at an explicit date, time and time zone. Verify the proposal precedes the write, confirm through the normal flow, and see the exact event in Google Calendar and the workspace after reload. Remove that disposable event through the normal confirmed flow and verify its absence.
 
 ## Rollback
 
-- Agree on the rollback owner, compatible web and worker build pair and stop conditions before deployment. Stop the affected sender or worker for new ambiguity, consent or account isolation failure, mismatched builds, or unmetered paid activity.
-- Before restoring a build without enforcement, stop all affected AI-producing traffic and workers. Keep admission and autonomous sending controlled. Restore a compatible code pair with the additive schema and ledger intact. Verify the code stamps, worker state and queue again. Reconcile any uncertain outbound attempts or unsettled AI charges without replaying them.
-- Use an approved and verified hosted restore only when data recovery is required. The ordinary code rollback retains the migration ledger, receipt inbox, disposition audit and accounting history.
+- To pause candidate paid calls, retain `AI_BUDGET_MODE=enforce` and the v2 price version, and set both daily money caps and both daily call caps to `0` across all AI-producing roles. Verify the paused configuration took effect. Keep invite-only admission, shadow mode on, autonomous and cleanup sending off, and the proactive canary list empty.
+- If reverting to `86ae010` or another build without enforcement, stop paid ingress and workers before reverting. Those builds lack the candidate pause controls. Preserve the compatible web and worker pair, additive schema, receipt inbox, historical dispositions and accounting records. Verify code stamps and queue state, and reconcile uncertain outcomes without replay.
+- Use the verified encrypted recovery point when data recovery is required. The restored snapshot and clone rehearsal establish one recovery point. The observed Railway plan lacks scheduled backups and PITR. [Recovery drill](logical-backup-restore.md)
 
 The probe source is `release-preflight.ts`. It reports allowlisted release metadata and fixed aggregates from a bounded read-only PostgreSQL snapshot. Its `ok` field indicates that the probe completed.

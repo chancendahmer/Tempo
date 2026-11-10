@@ -1,5 +1,7 @@
 # Bounded server-search continuation — 2026-10-22
 
+November 10 candidate update. The primary parser now calls the isolated Haiku hosted-search adapter through a custom client tool. The two-search aggregate, exact paused-context replay and six-request ceiling apply within that per-turn search session, with a shared 30-second deadline. The primary model receives public search evidence through a normal tool result. The current contract and validation are recorded in [PILOT_AI_ACCOUNTING.md](../../docs/PILOT_AI_ACCOUNTING.md). The observations below describe the October implementation.
+
 Implemented only in the adaptive worktree's task-intent parser and nearest tests. No provider/model calls, secret reads, deployments or commits were performed.
 
 ## Verified protocol and decision

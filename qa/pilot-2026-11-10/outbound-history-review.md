@@ -29,3 +29,17 @@ or migration has been performed as of this preview; founder acknowledgment and
 the remaining release gates are pending.
 
 After the exact private manifest is prepared and dry-run, review its displayed digest and row count. The proposed decision is to acknowledge the listed historical cases as unresolved without replay. Each original record keeps its current ledger state and any future authoritative evidence can trigger an audited reopen. Pending and newer uncertainty stays visible and continues to block readiness. This decision is separate from release approval.
+
+## Founder approval received
+
+On November 10 the founder replied, “Yes I approve everything,” to the pending
+review. The lead explicitly confirmed the scope: acknowledge the exact 35 reviewed
+historical messages as unknown without resending, retain the API cap, and keep
+release checks. This authorizes the decision and full digest above. It does not
+establish delivery, authorize replay, or waive the deployment gates.
+
+Application is still pending the normal candidate migration and a fresh matching
+dry-run. Use the existing preparation and disposition commands with
+`nov10-history-review`. Stop if the digest, ownership, historical states or linked
+work differ. The subsequent read-only result must show the acknowledgment recorded
+while the original delivery states remain unchanged.

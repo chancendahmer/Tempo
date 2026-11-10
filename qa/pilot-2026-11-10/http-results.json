@@ -5,11 +5,13 @@
   "outcomes": [
     "Normal links activate different accounts and reject repeat redemption.",
     "Thought becomes one linked six-minute task after SMS replay. A separate authenticated read sees the paused timer, then web chat reads completion and the surviving thought.",
+    "Exact authenticated retries of the goal-linked task completion and goal achievement leave one event each. Only the task adds one Journey win, and the separate account cannot act on either foreign ID.",
     "Explicit reminder moves first to 1 PM and then to 12:30 PM New York while the 3 PM task is unchanged. Task completion leaves one occurrence pending until a separate cancellation.",
     "Current meal edits recalculate linked shopping, preserve the manual item and pantry quantity, and keep unlogged consumption separate.",
     "Reorder and duration edit retain exact routine step IDs and completion date. Contextual read reports the corrected next step.",
     "Assistant schedules the selected plan session. The shorter actual log keeps its plan link, the future task remains open, and today's retrieval excludes a separate prior-day workout.",
     "Removal survives normal sign-out/relogin. Stale A owner with B cookie gets 409, both accounts return only current own notes, and the other account stays unchanged.",
+    "Exact setup and profile retries preserve the same saved choices and workspace records. Proactive check-ins stay off and an opt-in field is rejected. Both routes reject A ownership with B's cookie and leave B's setup and profile unchanged.",
     "Removed only the two run-owned HTTP fixture accounts and the private sign-in file."
   ]
 }
