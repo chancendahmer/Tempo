@@ -35,21 +35,34 @@ export const reminderCommandSchema = z.discriminatedUnion("type", [
 
 export type ReminderCommand = z.infer<typeof reminderCommandSchema>;
 
+const reminderRequests = [
+  /\bremind me\b/i,
+  /\b(?:text|message|ping|alert|notify) me\b/i,
+  /\b(?:send|give) me (?:a )?(?:(?:morning|evening|nightly|daily) )?reminder\b/i,
+  /\bcheck in with me\b/i,
+  /\breach out to me\b/i,
+];
+
 export function isExplicitReminderRequest(text: string): boolean {
-  const normalized = text.trim().toLowerCase();
-  return [
-    /\bremind me\b/,
-    /\b(?:text|message|ping|alert|notify) me\b/,
-    /\b(?:send|give) me (?:a )?(?:(?:morning|evening|nightly|daily) )?reminder\b/,
-    /\bcheck in with me\b/,
-    /\breach out to me\b/,
-  ].some((pattern) => pattern.test(normalized));
+  return reminderRequests.some(pattern => pattern.test(text));
 }
 
 /** Resolve simple relative durations with arithmetic rather than model timezone guesses. */
-export function relativeReminderTime(message: string, now: Date): string | undefined {
-  if (!isExplicitReminderRequest(message) || /\b(?:cancel|stop|disable|turn off|don't|do not|every|daily|weekly|weekday|if|unless)\b/i.test(message)) return undefined;
-  const matches = [...message.matchAll(/\bin\s+(\d+|one|two|three|four|five|ten|fifteen|twenty|thirty|an?|half an?)\s+(minutes?|mins?|hours?|hrs?)\b/gi)];
+export function relativeReminderTime(message: string, now: Date, scope: "message" | "request" = "message"): string | undefined {
+  if (!isExplicitReminderRequest(message) || /\b(?:cancel|stop|disable|turn off|don['’]t|do not|every|daily|weekly|weekday|if|unless)\b/i.test(message)) return undefined;
+  const duration = /\bin\s+(\d+|one|two|three|four|five|ten|fifteen|twenty|thirty|an?|half an?)\s+(minutes?|mins?|hours?|hrs?)\b/gi;
+  let schedule = message;
+  if (scope === "request") {
+    const requests = reminderRequests.flatMap(pattern => [...message.matchAll(new RegExp(pattern.source, "gi"))]);
+    if (requests.length !== 1) return undefined;
+    const requestStart = requests[0].index;
+    const before = message.slice(0, requestStart).split(/[.!?;](?:\s|$)/u).at(-1) ?? "";
+    const after = message.slice(requestStart).split(/[.!?;](?:\s|$)/u, 1)[0];
+    // A duration before the request belongs to it only when it leads the clause.
+    const leading = [...before.matchAll(duration)].find(match => !before.slice(0, match.index).trim() && /^[,\s]*$/u.test(before.slice(match.index + match[0].length)));
+    schedule = `${leading?.[0] ?? ""} ${after}`;
+  }
+  const matches = [...schedule.matchAll(duration)];
   if (matches.length !== 1) return undefined;
   const words: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five: 5, ten: 10, fifteen: 15, twenty: 20, thirty: 30, a: 1, an: 1, "half a": 0.5, "half an": 0.5 };
   const amount = words[matches[0][1].toLowerCase()] ?? Number(matches[0][1]);

@@ -16,6 +16,6 @@
     "isolatedModules": false,
     "incremental": false
   },
-  "include": ["scripts/migrate.ts", "src/server/config/**/*.ts", "src/server/db/**/*.ts"],
+  "include": ["scripts/migrate.ts", "scripts/retire-heartbeats.ts", "src/server/config/**/*.ts", "src/server/db/**/*.ts"],
   "exclude": ["**/*.test.ts", "node_modules"]
 }

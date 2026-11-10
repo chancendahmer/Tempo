@@ -1,5 +1,4 @@
 import type { ItemReviewResponder } from "./item-review";
-import { reminderScheduleText } from "./reminder-time-policy";
 import { calendarRequestFailureReply } from "./calendar-request-error";
 import type { SendSafeSmsInput } from "./outbound-messaging";
 import { handleOnboardingMessage } from "./onboarding";
@@ -54,6 +53,7 @@ export type InboundConversationContext = {
   conversationId: string;
   userId: string;
   body: string;
+  receivedAt?: Date;
   timezone: string;
   profileInstructions: string | null;
   processingToken: string;
@@ -504,7 +504,7 @@ export class ConversationOrchestrator {
     if (command.type === "set_checkins" && requestedCheckinConsent(context.body) !== command.enabled) {
       return CHECKIN_CONSENT_REPLY;
     }
-    if (command.type === "capture_with_reminder") return this.life?.captureWithReminder?.(context.userId, context.messageId, command, now, context.timezone) ?? "Saving a plan with its reminder is temporarily unavailable. Nothing was saved.";
+    if (command.type === "capture_with_reminder") return this.life?.captureWithReminder?.(context.userId, context.messageId, command, this.now(), context.timezone) ?? "Saving a plan with its reminder is temporarily unavailable. Nothing was saved.";
     if (command.type === "get_rundown") return this.currentRundown(context, now, command);
     if (command.type === "grocery_add" || command.type === "food_search" || command.type === "life_list" || command.type === "life_save" || command.type === "life_patch" || command.type === "life_remove") {
       return this.life?.execute(context.userId, context.messageId, command, now) ?? "Your life workspace is not configured in this environment.";
@@ -559,14 +559,16 @@ export class ConversationOrchestrator {
     }
     if (isReminderCommand(intent.command)) {
       if (!this.reminders) return "Reminder scheduling is temporarily unavailable.";
-      const reminderCommand = intent.command.type === "create_reminder" || intent.command.type === "reschedule_reminder"
-        ? { ...intent.command, remindAt: requestedReminderTime(reminderScheduleText(context.body), now, context.timezone) ?? intent.command.remindAt }
-        : intent.command;
+      const reminder = intent.command;
+      const schedulesOneReminder = reminder.type === "create_reminder" || reminder.type === "reschedule_reminder";
+      const reminderCommand = schedulesOneReminder
+        ? { ...reminder, remindAt: requestedReminderTime(context.body, now, context.timezone, context.receivedAt) ?? reminder.remindAt }
+        : reminder;
       return executeReminderCommand(this.reminders, reminderCommand, {
         userId: context.userId,
         sourceMessageId: context.messageId,
         timezone: context.timezone,
-        now,
+        now: schedulesOneReminder ? this.now() : now,
         forModel: command.type === "list_reminders",
       });
     }

@@ -155,6 +155,15 @@ $9 hosted hold.
 
 ## Rollback
 
+The November 10 hotfix also requires a compound request with **in two minutes**:
+verify the owned persisted receipt + 120 seconds equals both reminder and job
+due times, observe the local display and actual demo-phone arrival, reload the
+saved thought, and remove only that disposable thought. Candidate `36f7f27`
+passed these checks; the independent bounded score is 9/10. The exact results,
+old-replica archive digests and remaining main rollout are recorded in
+`docs/PILOT_RUN_2026_11_10.md`. Match both final-main runtime stamps and verify
+old replicas Removed before archiving their exact heartbeat manifests.
+
 - To pause candidate paid calls, retain `AI_BUDGET_MODE=enforce` and the v2 price version, and set both daily money caps and both daily call caps to `0` across all AI-producing roles. Verify the paused configuration took effect. Keep invite-only admission, shadow mode on, autonomous and cleanup sending off, and the proactive canary list empty.
 - If reverting to `86ae010` or another build without enforcement, stop paid ingress and workers before reverting. Those builds lack the candidate pause controls. Preserve the compatible web and worker pair, additive schema, receipt inbox, historical dispositions and accounting records. Verify code stamps and queue state, and reconcile uncertain outcomes without replay.
 - Use the verified encrypted recovery point when data recovery is required. The restored snapshot and clone rehearsal establish one recovery point. The observed Railway plan lacks scheduled backups and PITR. [Recovery drill](logical-backup-restore.md)

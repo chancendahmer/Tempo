@@ -1,5 +1,5 @@
 import { ReminderCommand } from "./reminder-commands";
-import { relativeReminderTime } from "./reminder-commands";
+import { elapsedReminderTime, reminderScheduleText } from "./reminder-time-policy";
 
 export type ReminderRecord = {
   contentMode?: "text" | "daily_rundown";
@@ -94,10 +94,10 @@ export function localDateTimeToUtc(target: LocalDateTime, timezone: string): Dat
 }
 
 /** Deterministic common dates; leave unspecified/ambiguous times for clarification. */
-export function requestedReminderTime(message: string, now: Date, timezone: string): string | undefined {
-  const relative = relativeReminderTime(message, now);
+export function requestedReminderTime(message: string, now: Date, timezone: string, receivedAt = now): string | undefined {
+  const relative = elapsedReminderTime(message, receivedAt, timezone);
   if (relative) return relative;
-  const match = message.match(/\btomorrow\s+at\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/i);
+  const match = reminderScheduleText(message).match(/\btomorrow\s+at\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/i);
   if (!match) return undefined;
   const hour = Number(match[1]), minute = Number(match[2] ?? 0);
   if (hour < 1 || hour > 12 || minute > 59) return undefined;

@@ -1,6 +1,20 @@
 # Executable continuation brief: Tempo private pilot
 
-Updated October 23, 2026. This is a live engineering checkpoint, not release approval.
+Updated November 10, 2026. This is a live engineering checkpoint, not release approval.
+
+**Current continuation:** read `docs/PILOT_RUN_2026_11_10.md` and
+`qa/pilot-2026-11-10/release-audit-checklist.md` first. PR27 is merged as
+`2e62b62`, and both production services run that main revision with the approved
+enforced $10 aggregate UTC-day AI cap. A final real SMS found a five-hour error
+in a compound relative reminder; it was cancelled. The reviewed local fix is
+`a6db4fb` on `codex/tempo-relative-reminder-fix` in the same adaptive-home worktree.
+Full release checks and a new actual scheduled delivery are pending. Do not
+treat the historical unmerged/candidate-only statements below as current state.
+The new run's testing cap is $20, with conservative committed exposure $16.902717
+including the $9 hosted hold, $3.021 unresolved prior-call hold and $1 carrier
+hold. No agent may spend independently or release uncertain holds by assumption.
+
+The sections below preserve the earlier October checkpoint for context.
 
 Current tested continuation: the commit containing this brief, based on **`49c3088`**,
 on `codex/tempo-adaptive-home`. It follows `188d0f8` (C1/W2), `fed7d5b`

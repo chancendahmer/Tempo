@@ -91,6 +91,8 @@ export class DrizzleConversationRepository implements ConversationRepository {
           userId: conversationMessages.userId,
           conversationId: conversationMessages.conversationId,
           body: conversationMessages.body,
+          receivedAt: conversationMessages.receivedAt,
+          createdAt: conversationMessages.createdAt,
           processingToken: conversationMessages.processingToken,
           replyBody: conversationMessages.replyBody,
         });
@@ -111,7 +113,7 @@ export class DrizzleConversationRepository implements ConversationRepository {
         .where(eq(users.id, claimed.userId))
         .limit(1);
       if (!user) throw new Error("Inbound message user not found");
-      return { ...claimed, ...user, processingToken: claimed.processingToken! };
+      return { ...claimed, ...user, receivedAt: claimed.receivedAt ?? claimed.createdAt, processingToken: claimed.processingToken! };
     });
   }
 

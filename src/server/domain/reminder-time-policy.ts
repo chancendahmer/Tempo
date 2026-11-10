@@ -101,3 +101,9 @@ export function reminderScheduleConstraints(input: { message: string; now: Date;
   const text = reminderScheduleText(input.message);
   return { ...localTimeContext(input.now, input.timezone), dates: datesIn(text, input.now, input.timezone), minutesAfterMidnight: requestedClocks(text) };
 }
+
+/** Resolve elapsed time from receipt without overriding a conflicting calendar constraint. */
+export function elapsedReminderTime(message: string, receivedAt: Date, timezone: string, scope: "message" | "request" = "message"): string | undefined {
+  const remindAt = relativeReminderTime(reminderScheduleText(message), receivedAt, scope);
+  if (remindAt && !reminderTimeIssue({ type: "create_reminder", text: "", remindAt }, { message, now: receivedAt, timezone })) return remindAt;
+}

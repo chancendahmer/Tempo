@@ -5,6 +5,7 @@ import { relativeReminderTime } from "./reminder-commands";
 describe("reminder service", () => {
   it("resolves two minutes and tomorrow at 11 in the user's timezone, including DST", () => {
     expect(requestedReminderTime("Remind me in two minutes to do the dishes", new Date("2026-09-15T14:00:00Z"), "America/New_York")).toBe("2026-09-15T14:02:00.000Z");
+    expect(requestedReminderTime("Remind me to call Dr. Smith in two minutes", new Date("2026-09-15T14:01:00Z"), "America/New_York", new Date("2026-09-15T14:00:00Z"))).toBe("2026-09-15T14:02:00.000Z");
     expect(requestedReminderTime("Remind me tomorrow at 11 AM to add Davis to get home", new Date("2026-09-15T02:00:00Z"), "America/New_York")).toBe("2026-09-15T15:00:00.000Z");
     expect(requestedReminderTime("Remind me tomorrow at 11 AM to cook", new Date("2027-03-13T14:00:00Z"), "America/New_York")).toBe("2027-03-14T15:00:00.000Z");
   });

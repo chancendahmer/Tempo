@@ -3,6 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { assistantCommandSchema, type AssistantCommand } from "../../domain/assistant-commands";
 import { isSensitiveMemory } from "../../domain/memory-service";
 import { formatReminderTime } from "../../domain/reminder-service";
+import { elapsedReminderTime } from "../../domain/reminder-time-policy";
 import type { TempoDatabase } from "../client";
 import { conversationMessages, lifeActionReceipts, lifeItems, users } from "../schema";
 import { DrizzleTaskRepository } from "./task-repository";
@@ -17,18 +18,22 @@ export async function captureWithReminder(database: TempoDatabase, userId: strin
   if (isSensitiveMemory(`${command.title}\n${command.details ?? ""}`)) return "I can save everyday plans, but not secrets or sensitive medical details. Nothing was saved.";
   return database.transaction(async transaction => {
     const tx = transaction as unknown as TempoDatabase;
-    const [source] = await tx.select({ id: conversationMessages.id }).from(conversationMessages)
+    const [source] = await tx.select({ body: conversationMessages.body, receivedAt: conversationMessages.receivedAt, createdAt: conversationMessages.createdAt }).from(conversationMessages)
       .where(and(eq(conversationMessages.id, sourceMessageId), eq(conversationMessages.userId, userId), eq(conversationMessages.direction, "inbound"))).for("update");
     if (!source) throw new Error("Invalid capture source");
     await tx.select({ id: users.id }).from(users).where(eq(users.id, userId)).for("update");
     const key = `capture:${userId}:${sourceMessageId}`;
-    const fingerprint = createHash("sha256").update(JSON.stringify(command)).digest("hex");
+    const relativeTime = elapsedReminderTime(source.body, source.receivedAt ?? source.createdAt, timezone, "request");
+    const scheduled = relativeTime ? { ...command, remindAt: relativeTime } : command;
+    const fingerprint = createHash("sha256").update(JSON.stringify(scheduled)).digest("hex");
     const [prior] = await tx.select().from(lifeActionReceipts).where(and(eq(lifeActionReceipts.key, key), eq(lifeActionReceipts.userId, userId)));
     if (prior) {
-      if (prior.fingerprint !== fingerprint) throw new Error("Capture replay differs from the saved request");
+      // Receipts created before elapsed-time normalization contain the original proposal.
+      const originalFingerprint = createHash("sha256").update(JSON.stringify(command)).digest("hex");
+      if (prior.fingerprint !== fingerprint && prior.fingerprint !== originalFingerprint) throw new Error("Capture replay differs from the saved request");
       return prior.message;
     }
-    const remindAt = new Date(command.remindAt);
+    const remindAt = new Date(scheduled.remindAt);
     if (remindAt <= now) return "That reminder time has passed. What future time should I use? Nothing was saved yet.";
     let taskId: string | undefined;
     if (command.destination === "note") {
