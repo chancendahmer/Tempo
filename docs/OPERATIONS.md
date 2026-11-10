@@ -27,6 +27,38 @@ STOP/revoked consent is enforced again immediately before every provider send. A
 
 “Leave me alone” is a seven-day coaching pause, not a consent revocation. It blocks application-originated messages until `paused_until`, schedules one evaluation at expiry, and can be ended early by an explicit resume command. STOP and its carrier aliases remain authoritative and require the carrier-approved opt-in path to reverse.
 
+## Retire verified stopped heartbeat records
+
+Use this command after Railway shows that every replica of the selected
+build and role has stopped. Record the private Railway evidence and verify the
+expected stale web and worker row counts. A heartbeat timestamp alone cannot
+establish termination. The compatibility key `tempo-worker` stays active.
+
+Run from the deployed application directory using the existing operator process
+environment. The web build ships `dist-ops/scripts/retire-heartbeats.js`. The
+worker source entry can run through Node with `--import tsx`.
+
+```sh
+umask 077
+private_dir=$(mktemp -d /tmp/tempo-heartbeat-retirement.XXXXXXXX)
+manifest="$private_dir/manifest.json"
+node dist-ops/scripts/retire-heartbeats.js --prepare --removed-build "$removed_sha" --expected-web 1 --expected-worker 1 --evidence-ref "$verified_railway_evidence_ref" --private-output "$manifest"
+node dist-ops/scripts/retire-heartbeats.js --manifest "$manifest"
+node dist-ops/scripts/retire-heartbeats.js --manifest "$manifest" --apply --expected-sha256 "$reviewed_sha" --acknowledge verified_platform_removed --operator "$operator_ref"
+node dist-ops/scripts/retire-heartbeats.js --manifest "$manifest"
+```
+
+Set `removed_sha` to the full verified stopped build hash. Set the expected
+counts from the reviewed inventory and `verified_railway_evidence_ref` to its
+private audit reference. Compare the preparation and dry-run fingerprints before
+setting `reviewed_sha`. Keep the manifest private. The apply checks the exact
+key, build and microsecond heartbeat time under row locks, then moves the rows
+to `tempo-retired:` with the original metadata and a recorded operator audit.
+The final read-only check should report `alreadyRecorded=true`. A later pulse
+recreates the original active key and participates in readiness again. The old
+manifest cannot retire that new heartbeat. Verify Railway inventory, readiness
+and the operations report after the audit.
+
 ## Provider failures
 
 - **Sendblue outage, blocked line, or exhausted sandbox contacts:** pause new signups and autonomous sending. Do not bulk replay ambiguous failures; Tempo's message ledger intentionally favors no duplicate message. Compare Tempo's masked message records with Sendblue message handles before retrying manually.
