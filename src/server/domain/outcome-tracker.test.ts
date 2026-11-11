@@ -35,6 +35,20 @@ describe("outcome tracker", () => {
 
   it("classifies explicit negative feedback without guessing unrelated text", () => {
     expect(classifyOutcomeReply("wrong nudge", true)).toMatchObject({ helpful: false });
+    expect(classifyOutcomeReply("No.", false)).toMatchObject({ helpful: false });
+    expect(classifyOutcomeReply("That helped!", true)).toMatchObject({ helpful: true });
+    expect(classifyOutcomeReply("I'm working on it.", false)).toMatchObject({ started: true, completed: false });
     expect(classifyOutcomeReply("tell me about the report", false)).toBeNull();
+  });
+
+  it.each([
+    'Delete the task titled "Demo handoff". It was just a test and is no longer needed.',
+    "No. Please remove the old report task.",
+    "That helped. Add a task to send my notes.",
+    "Remind me to start the report at 9.",
+    "Move the finished report to tomorrow.",
+  ])("leaves a full request on the intent path: %s", body => {
+    expect(classifyOutcomeReply(body, false)).toBeNull();
+    expect(classifyOutcomeReply(body, true)).toBeNull();
   });
 });
