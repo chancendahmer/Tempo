@@ -150,9 +150,8 @@ export function isQuietTime(now: Date, timezone: string, start?: string | null, 
 
 function urgency(task: ContextTask, now: Date, horizonHours: number): number {
   if (!task.dueAt) return task.status === "in_progress" ? 0.35 : 0.15;
-  const hours = (task.dueAt.getTime() - now.getTime()) / 3_600_000;
-  if (hours <= 0) return 1;
-  return clamp01(1 - hours / horizonHours);
+  const hoursFromDeadline = Math.abs(task.dueAt.getTime() - now.getTime()) / 3_600_000;
+  return clamp01(1 - hoursFromDeadline / horizonHours);
 }
 
 function selectTask(tasks: ContextTask[], score: (task: ContextTask) => number): ContextTask | null {
@@ -261,7 +260,7 @@ export function evaluateContext(input: {
     scoreBreakdown,
     inputs: {
       policyVersion: policy.version,
-      scoreVersion: "workspace-v1",
+      scoreVersion: "workspace-v2",
       scorePercent: Math.round(score * 100),
       localTimeBucket: local.bucket,
       localDate: local.date,

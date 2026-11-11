@@ -96,6 +96,25 @@ describe("context engine", () => {
     expect(evaluate({ tasks: [...tasks].reverse(), freeMinutes: 30 }).task?.id).toBe("later");
   });
 
+  it("keeps recently overdue work ahead of a more distant deadline when both fit", () => {
+    const recent = { ...baseSignals.tasks[0], id: "recent", dueAt: new Date("2026-08-18T13:30:00Z") };
+    const distant = { ...recent, id: "distant", dueAt: new Date("2026-08-21T14:00:00Z") };
+    const soon = { ...recent, dueAt: new Date("2026-08-18T14:30:00Z") };
+
+    expect(evaluate({ tasks: [distant, recent] })).toMatchObject({ task: { id: recent.id }, decision: "send" });
+    expect(evaluate({ tasks: [recent] }).scoreBreakdown.taskUrgency).toBeCloseTo(evaluate({ tasks: [soon] }).scoreBreakdown.taskUrgency, 10);
+  });
+
+  it("keeps an old deadline below threshold unless a fresh linked Thought raises its relevance", () => {
+    const old = { ...baseSignals.tasks[0], dueAt: new Date("2026-08-01T14:00:00Z") };
+    const signals = { tasks: [old], responseRate: 1 };
+
+    expect(evaluate(signals)).toMatchObject({ decision: "blocked", reasonCodes: ["below_threshold"], scoreBreakdown: { taskUrgency: 0 } });
+    expect(evaluate({ ...signals, workspace: { ...emptyWorkspace, linkedThoughts: new Map([[old.id, now]]) } })).toMatchObject({
+      task: { id: old.id }, decision: "send", scoreBreakdown: { taskUrgency: 0, linkedThought: 0.08 },
+    });
+  });
+
   it("defers a strong task when an unfinished saved routine overlaps recent workspace activity", () => {
     const routine = { time: "10:00", steps: [{ minutes: 20, completedOn: null }] };
     const evaluation = evaluate({ workspace: { ...emptyWorkspace, routines: [routine], latestActivityAt: now } });
