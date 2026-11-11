@@ -153,16 +153,20 @@ $9 hosted hold.
 - From the authorized demo account, send one uniquely named task request with a reminder at an explicit near-future local time in the permitted window. Require one owned task and scheduled reminder in the workspace after reload, then observe actual phone delivery and its carrier status. Verify the task and reminder remain separate.
 - Request one uniquely named Google Calendar event at an explicit date, time and time zone. Verify the proposal precedes the write, confirm through the normal flow, and see the exact event in Google Calendar and the workspace after reload. Remove that disposable event through the normal confirmed flow and verify its absence.
 
-## Rollback
-
 The November 10 hotfix also requires a compound request with **in two minutes**:
 verify the owned persisted receipt + 120 seconds equals both reminder and job
 due times, observe the local display and actual demo-phone arrival, reload the
 saved thought, and remove only that disposable thought. Candidate `36f7f27`
 passed these checks; the independent bounded score is 9/10. The exact results,
-old-replica archive digests and remaining main rollout are recorded in
-`docs/PILOT_RUN_2026_11_10.md`. Match both final-main runtime stamps and verify
-old replicas Removed before archiving their exact heartbeat manifests.
+old-replica archive digests and completed main rollout are recorded in
+`docs/PILOT_RUN_2026_11_10.md`. Both final-main runtime stamps match `2ca6fc0`.
+The separate final-main dashboard request also produced one owned thought,
+one reminder due at receipt + 120 seconds and one actual SMS arrival.
+Old replicas were verified Removed before archiving their exact heartbeat
+manifests. The final [release checkpoint](RELEASE-CHECKPOINT.md) records the
+deployment identifiers, operations advisories and remaining pilot boundaries.
+
+## Rollback
 
 - To pause candidate paid calls, retain `AI_BUDGET_MODE=enforce` and the v2 price version, and set both daily money caps and both daily call caps to `0` across all AI-producing roles. Verify the paused configuration took effect. Keep invite-only admission, shadow mode on, autonomous and cleanup sending off, and the proactive canary list empty.
 - If reverting to `86ae010` or another build without enforcement, stop paid ingress and workers before reverting. Those builds lack the candidate pause controls. Preserve the compatible web and worker pair, additive schema, receipt inbox, historical dispositions and accounting records. Verify code stamps and queue state, and reconcile uncertain outcomes without replay.

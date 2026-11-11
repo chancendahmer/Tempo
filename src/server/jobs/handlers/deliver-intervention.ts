@@ -7,7 +7,6 @@ import { proactiveDeliveryEnabled } from "../../config/proactive-delivery";
 import { DrizzleContextEngineRepository } from "../../db/repositories/context-engine-repository";
 import { DrizzleInterventionRepository } from "../../db/repositories/intervention-repository";
 import { DrizzleOutboundMessageRepository } from "../../db/repositories/outbound-message-repository";
-import { evaluateContext } from "../../domain/context-engine";
 import { OutboundDeliveryPendingError, SafeSmsSender } from "../../domain/outbound-messaging";
 import { buildInitialAccountabilityPrompt } from "../../domain/accountability";
 import { validateInterventionMessage } from "../../domain/intervention-strategy";
@@ -44,22 +43,26 @@ export async function registerDeliverInterventionHandler(boss: PgBoss) {
           await actions.markCancelled(job.data.scheduledActionId, `intervention_${recovered.status}`);
           continue;
         }
+        if (recovered?.kind === "pending") throw new OutboundDeliveryPendingError();
         const context = await interventions.getDeliveryContext(job.data.interventionId);
         if (!context) {
           await actions.markCompleted(job.data.scheduledActionId);
           continue;
         }
-        const contextRepository = new DrizzleContextEngineRepository();
-        const [policy, signals] = await Promise.all([
-          contextRepository.getActivePolicy(),
-          contextRepository.loadSignals(context.userId, new Date()),
-        ]);
-        if (!signals || !proactiveDeliveryEnabled(env, context.userId)) {
+        if (context.staleDraft) {
+          await interventions.markCancelled(context.id);
+          await actions.markCancelled(job.data.scheduledActionId, "draft_context_changed");
+          continue;
+        }
+        const checked = proactiveDeliveryEnabled(env, context.userId)
+          ? await new DrizzleContextEngineRepository().evaluateDelivery(context.userId, context.id, new Date())
+          : null;
+        if (!checked) {
           await interventions.markCancelled(context.id);
           await actions.markCancelled(job.data.scheduledActionId, "shadow_mode_or_missing_user");
           continue;
         }
-        const revalidation = evaluateContext({ signals, policy, now: new Date(), shadowMode: false });
+        const { signals, evaluation: revalidation } = checked;
         if (revalidation.decision === "blocked" || revalidation.task?.id !== context.taskId) {
           await interventions.markCancelled(context.id);
           await actions.markCancelled(job.data.scheduledActionId, `eligibility_changed:${revalidation.reasonCodes.join(",")}`);
@@ -73,7 +76,8 @@ export async function registerDeliverInterventionHandler(boss: PgBoss) {
           continue;
         }
 
-        const nudge = context.messageText ?? await withAiInvocationScope({ accountId: context.userId, executionId: job.data.scheduledActionId, signal: job.signal }, () => new AnthropicInterventionComposer().compose({
+        const message = context.messageText ?? await withAiInvocationScope({ accountId: context.userId, executionId: job.data.scheduledActionId, signal: job.signal }, async () => {
+          const nudge = await new AnthropicInterventionComposer().compose({
             style: context.style,
             taskTitle: context.taskTitle,
             dueAt: context.dueAt,
@@ -83,10 +87,13 @@ export async function registerDeliverInterventionHandler(boss: PgBoss) {
             timezone: signals.timezone,
             tone: context.coachingTone,
             memories: context.memories,
-          }));
-        const message = validateInterventionMessage(buildInitialAccountabilityPrompt(nudge));
-        await interventions.markQueued(context.id, message, "intervention-v1", env.ANTHROPIC_MODEL ?? "deterministic-fallback");
-        const sent = await new SafeSmsSender(new DrizzleOutboundMessageRepository(), createMessagingTransport()).send({
+          });
+          return validateInterventionMessage(buildInitialAccountabilityPrompt(nudge));
+        });
+        await interventions.markQueued(context.id, message, context.draftVersion, env.ANTHROPIC_MODEL ?? "deterministic-fallback");
+        const outbound = new DrizzleOutboundMessageRepository(undefined, (database, userId) =>
+          new DrizzleInterventionRepository(database).canSubmitDelivery(context.id, userId, new Date(), context.draftVersion));
+        const sent = await new SafeSmsSender(outbound, createMessagingTransport()).send({
           userId: context.userId,
           body: message,
           kind: "coach",

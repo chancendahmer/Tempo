@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ContextPolicy, ContextSignals, DEFAULT_CONTEXT_POLICY, evaluateContext, isQuietTime, selectTask } from "./context-engine";
+import { ContextPolicy, ContextSignals, DEFAULT_CONTEXT_POLICY, evaluateContext, isQuietTime, LINKED_THOUGHT_WINDOW_MS, WORKSPACE_ACTIVITY_WINDOW_MS } from "./context-engine";
 import { proactiveDeliveryEnabled } from "../config/proactive-delivery";
 
 const now = new Date("2026-08-18T14:00:00Z");
@@ -27,6 +27,10 @@ const baseSignals: ContextSignals = {
   bodyDoublingAffinity: false,
   tasks: [{ id: "task-1", title: "Report", status: "not_started", dueAt: new Date("2026-08-18T18:00:00Z"), estimatedMinutes: 60, createdAt: now }],
 };
+const emptyWorkspace = { focusUntil: null, routines: [], latestActivityAt: null, linkedThoughts: new Map<string, Date>() };
+const evaluate = (overrides: Partial<ContextSignals> = {}) => evaluateContext({
+  signals: { ...baseSignals, ...overrides }, policy: { ...policy, holdoutBasisPoints: 0 }, now, shadowMode: false,
+});
 
 describe("context engine", () => {
   it("holds proactive nudges during conversation and allows the exact five-minute boundary", () => {
@@ -35,7 +39,7 @@ describe("context engine", () => {
     expect(evaluate(300_000).decision).toBe("send");
     expect(evaluate(300_001).decision).toBe("send");
   });
-  it.each([
+  it.each<[string, Partial<ContextSignals>]>([
     ["proactive_opt_in_missing", { proactiveOptIn: false }],
     ["quiet_hours", { timezone: "UTC", quietHoursStart: "13:00", quietHoursEnd: "15:00" }],
     ["calendar_busy", { calendarBusy: true }],
@@ -53,11 +57,15 @@ describe("context engine", () => {
     expect(evaluation.decision).toBe("shadow");
     expect(evaluation.reasonCodes).toContain("above_threshold_shadow");
     expect(evaluation.score).toBeGreaterThan(policy.threshold);
-    expect(Object.keys(evaluation.scoreBreakdown)).toEqual(["taskUrgency", "freeTime", "idleGap", "responseRate", "recentContact"]);
+    expect(evaluation.scoreBreakdown).toMatchObject({ linkedThought: 0, routineOverlap: 0, recentWorkspaceActivity: 0 });
   });
 
-  it.each([
+  it.each<[string, Partial<ContextSignals>]>([
     ["proactive_opt_in_missing", { proactiveOptIn: false }],
+    ["consent_missing", { hasConsent: false }],
+    ["onboarding_incomplete", { onboardingComplete: false }],
+    ["user_opted_out", { status: "opted_out" }],
+    ["active_focus", { workspace: { ...emptyWorkspace, focusUntil: new Date(now.getTime() + 1) } }],
     ["cooldown_active", { interventionCooldownMinutes: 5, minutesSinceLastIntervention: 119 }],
     ["daily_cap_reached", { dailyInterventionCap: 10, dailyInterventionCount: 3 }],
     ["quiet_hours", { timezone: "UTC", quietHoursStart: "13:00", quietHoursEnd: "15:00" }],
@@ -65,6 +73,7 @@ describe("context engine", () => {
     ["daily_cap_reached", { dailyInterventionCount: 3 }],
     ["pending_response", { hasPendingResponse: true }],
     ["cooldown_active", { minutesSinceLastIntervention: 30 }],
+    ["no_checkin_window", { freeMinutes: 4 }],
   ])("hard-blocks %s regardless of score", (reason, override) => {
     const evaluation = evaluateContext({ signals: { ...baseSignals, ...override }, policy, now, shadowMode: false });
     expect(evaluation.decision).toBe("blocked");
@@ -77,12 +86,50 @@ describe("context engine", () => {
     expect(isQuietTime(new Date("2026-08-18T14:00:00Z"), "UTC", "22:00", "07:00")).toBe(false);
   });
 
-  it("selects the most urgent task deterministically", () => {
-    const selected = selectTask([
+  it("selects the strongest actionable task using both urgency and how it fits the window", () => {
+    const tasks: ContextSignals["tasks"] = [
       { id: "later", title: "Later", status: "in_progress", dueAt: new Date("2026-08-21T14:00:00Z"), createdAt: now },
-      { id: "today", title: "Today", status: "not_started", dueAt: new Date("2026-08-18T16:00:00Z"), createdAt: now },
-    ], now, 168);
-    expect(selected?.id).toBe("today");
+      { id: "today", title: "Today", status: "not_started", dueAt: new Date("2026-08-18T16:00:00Z"), estimatedMinutes: 180, createdAt: now },
+    ];
+    expect(evaluate({ tasks, freeMinutes: 240 }).task?.id).toBe("today");
+    expect(evaluate({ tasks, freeMinutes: 30 }).task?.id).toBe("later");
+    expect(evaluate({ tasks: [...tasks].reverse(), freeMinutes: 30 }).task?.id).toBe("later");
+  });
+
+  it("defers a strong task when an unfinished saved routine overlaps recent workspace activity", () => {
+    const routine = { time: "10:00", steps: [{ minutes: 20, completedOn: null }] };
+    const evaluation = evaluate({ workspace: { ...emptyWorkspace, routines: [routine], latestActivityAt: now } });
+    expect(evaluate().decision).toBe("send");
+    expect(evaluation).toMatchObject({ decision: "blocked", reasonCodes: ["below_threshold"], scoreBreakdown: { routineOverlap: -0.24, recentWorkspaceActivity: -0.16 } });
+  });
+
+  it("ignores completed and elapsed routines, ended focus, and expired or future activity", () => {
+    const routines = [
+      { time: "10:00", steps: [{ minutes: 20, completedOn: "2026-08-18" }] },
+      { time: "09:40", steps: [{ minutes: 20, completedOn: null }] },
+    ];
+    for (const latestActivityAt of [new Date(now.getTime() - WORKSPACE_ACTIVITY_WINDOW_MS), new Date(now.getTime() + 1)]) {
+      const result = evaluate({ workspace: { ...emptyWorkspace, focusUntil: now, routines, latestActivityAt } });
+      expect(result.score).toBe(evaluate().score);
+      expect(result.decision).toBe("send");
+    }
+  });
+
+  it("prioritizes a fresh task-linked Thought while ignoring stale, future, or unrelated links", () => {
+    const first = { ...baseSignals.tasks[0], id: "a" };
+    const second = { ...first, id: "b" };
+    const rank = (thoughts: [string, Date][]) => evaluate({
+      tasks: [first, second], workspace: { ...emptyWorkspace, linkedThoughts: new Map(thoughts) },
+    });
+    expect(rank([["b", now]])).toMatchObject({ task: { id: "b" }, scoreBreakdown: { linkedThought: 0.08 } });
+    expect(rank([["b", new Date(now.getTime() - LINKED_THOUGHT_WINDOW_MS)]])).toMatchObject({ task: { id: "a" }, scoreBreakdown: { linkedThought: 0 } });
+    expect(rank([["b", new Date(now.getTime() + 1)], ["unrelated", now]])).toMatchObject({ task: { id: "a" }, scoreBreakdown: { linkedThought: 0 } });
+  });
+
+  it("keeps standalone app activity and a weak unscheduled task below send eligibility", () => {
+    const workspace = { ...emptyWorkspace, latestActivityAt: now, linkedThoughts: new Map([["unrelated", now]]) };
+    expect(evaluate({ workspace, tasks: [] })).toMatchObject({ decision: "blocked", reasonCodes: ["no_actionable_task"] });
+    expect(evaluate({ workspace, tasks: [{ ...baseSignals.tasks[0], dueAt: null }] })).toMatchObject({ decision: "blocked", reasonCodes: ["below_threshold"] });
   });
 
   it("assigns non-shadow opportunities to a reproducible holdout", () => {

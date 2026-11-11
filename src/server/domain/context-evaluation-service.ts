@@ -31,6 +31,7 @@ export interface ContextEngineRepository {
     capturedAt: Date;
     evaluation: ContextEvaluation;
   }): Promise<{ id: string; created: boolean }>;
+  completeReview(snapshotId: string, userId: string, evaluation: ContextEvaluation): Promise<void>;
 }
 
 export async function evaluateUserContext(input: {
@@ -48,8 +49,19 @@ export async function evaluateUserContext(input: {
   ]);
   if (!signals) return { evaluated: false as const, reason: "user_not_found" as const };
   let evaluation = evaluateContext({ signals, policy, now, shadowMode: input.shadowMode });
-  if (evaluation.decision === "send" && input.reviewer) {
-    const review = await input.reviewer.review({ evaluation, signals, policy, now });
+  const reviewer = evaluation.decision === "send" ? input.reviewer : undefined;
+  const snapshot = await input.repository.saveSnapshot({
+    userId: input.userId,
+    taskId: evaluation.task?.id,
+    policyId: policy.id,
+    capturedAt: now,
+    // Reserve the opportunity before a paid call. A worker crash leaves it blocked.
+    evaluation: reviewer ? { ...evaluation, decision: "blocked", reasonCodes: [...evaluation.reasonCodes, "ai_review_pending"] } : evaluation,
+  });
+  if (reviewer && !snapshot.created) {
+    evaluation = { ...evaluation, decision: "blocked", reasonCodes: [...evaluation.reasonCodes, "opportunity_already_evaluated"] };
+  } else if (reviewer) {
+    const review = await reviewer.review({ evaluation, signals, policy, now });
     evaluation = {
       ...evaluation,
       decision: review.send ? "send" : "blocked",
@@ -59,14 +71,8 @@ export async function evaluateUserContext(input: {
         hybridReview: { send: review.send, reason: review.reason, model: review.model },
       },
     };
+    await input.repository.completeReview(snapshot.id, input.userId, evaluation);
   }
-  const snapshot = await input.repository.saveSnapshot({
-    userId: input.userId,
-    taskId: evaluation.task?.id,
-    policyId: policy.id,
-    capturedAt: now,
-    evaluation,
-  });
   let interventionId: string | undefined;
   if (
     snapshot.created &&

@@ -19,7 +19,7 @@ export type OutboundReservation = {
 
 export type OutboundSubmission =
   | { status: "started"; phoneE164: string }
-  | { status: "blocked"; reason: Exclude<OutboundBlockReason, "duplicate" | "suppressed"> }
+  | { status: "blocked"; reason: Exclude<OutboundBlockReason, "duplicate"> }
   | { status: "not_reserved" };
 
 export class OutboundDeliveryPendingError extends Error {

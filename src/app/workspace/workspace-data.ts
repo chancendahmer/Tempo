@@ -28,7 +28,7 @@ export type Workspace = {
   calendar: { status: string; lastSyncedAt: string | null } | null;
   busy: { id: string; startsAt: string; endsAt: string }[];
   demoCalendarEvents?: { id: string; title: string; startsAt: string; endsAt: string }[];
-  profile: { displayName: string | null; phoneLast4?: string; proactiveOptIn: boolean; quietHoursStart: string | null; quietHoursEnd: string | null };
+  profile: { displayName: string | null; phoneLast4?: string; proactiveOptIn: boolean; quietHoursStart: string | null; quietHoursEnd: string | null; checkinStatus?: import("../../server/domain/checkin-availability").CheckinAvailability };
 };
 export const demoId = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 /** Preview-only activity follows its fictional checkoffs; it never writes a real account. */

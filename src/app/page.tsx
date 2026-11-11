@@ -17,9 +17,9 @@ export default function Home() {
             <span className="headline-line-two">pays attention.</span>
           </h1>
           <p>
-            Tempo remembers your commitments, notices when
+            Tempo keeps tasks, routines, and reminders together{" "}
             <br className="desktop-break" />
-            the moment is right, and texts first to help you move.
+            so you can plan by text or in your dashboard.
           </p>
         </div>
 
@@ -31,7 +31,7 @@ export default function Home() {
           </p>
           <div className="proof-row">
             <EarlyAccessCounter />
-            <span>Be among the first to meet Tempo</span>
+            <span>Private pilot · invitation required</span>
           </div>
 
         </div>

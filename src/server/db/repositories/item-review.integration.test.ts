@@ -7,8 +7,9 @@ import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, expect, it, vi } from "vitest";
 import type { TempoDatabase } from "../client";
 import * as s from "../schema";
-import { DrizzleItemReviewRepository } from "./item-review-repository";
+import { DrizzleItemReviewRepository, itemReviewSubmissionGate } from "./item-review-repository";
 import { DrizzleContextEngineRepository } from "./context-engine-repository";
+import { DrizzleInterventionRepository } from "./intervention-repository";
 import { DrizzleMemoryRepository } from "./memory-repository";
 import { DrizzleReminderRepository } from "./reminder-repository";
 import { DrizzleOutboundMessageRepository } from "./outbound-message-repository";
@@ -17,7 +18,7 @@ import { mutateWorkspace, readWorkspace } from "./workspace-repository";
 import { DAY_MS, reviewIsDue } from "../../domain/item-review";
 import { deliverItemReview } from "../../domain/item-review-delivery";
 import { MemoryService } from "../../domain/memory-service";
-import { SafeSmsSender } from "../../domain/outbound-messaging";
+import { SafeSmsSender, type SendSafeSmsInput } from "../../domain/outbound-messaging";
 import { TestSmsTransport } from "../../adapters/sms/sms-transport";
 
 let client: PGlite, db: TempoDatabase;
@@ -166,12 +167,123 @@ it("resumes one reservation after restart, sends once, and shares contact counts
   const input = { userId: a.user.id, enabled: true, repository: a.repo, sender, now: () => now, runOwned: async <T>(operation: () => Promise<T>) => operation() };
   await expect(deliverItemReview(input)).rejects.toThrow("Worker crashed");
   finish.mockRestore();
+  await db.update(s.users).set({ proactiveOptIn: false }).where(eq(s.users.id, a.user.id));
   await deliverItemReview({ ...input, repository: new DrizzleItemReviewRepository(db) });
   expect(transport.sent).toHaveLength(1);
+  expect((await db.select().from(s.itemReviews).where(eq(s.itemReviews.userId, a.user.id)))[0]).toMatchObject({ status: "sent", sentAt: now });
   const signals = await new DrizzleContextEngineRepository(db).loadSignals(a.user.id, now);
   expect(signals?.dailyInterventionCount).toBe(1);
   expect(signals?.hasPendingResponse).toBe(true);
   expect(await a.repo.reserve(a.user.id, now)).toBeNull();
+});
+
+it.each(["reserved", "submitting", "ambiguous", "rejected", "accepted"])("recovers a changed review target after restart with an outbound %s", async state => {
+  const a = await account();
+  const task = await staleTask(a.user.id);
+  const review = await a.repo.reserve(a.user.id, now);
+  if (!review) throw new Error("expected review reservation");
+  const ready = await a.repo.ready(review.id, now);
+  if (!ready) throw new Error("expected review to be ready");
+  const outbound = new DrizzleOutboundMessageRepository(db, itemReviewSubmissionGate(review.id, () => now));
+  const reservation = await outbound.reserve({
+    userId: a.user.id, body: ready.body, kind: "coach", idempotencyKey: `item-review:${review.id}`,
+  });
+  if (state !== "reserved") expect(await outbound.beginSubmission(reservation.messageId, now)).toMatchObject({ status: "started" });
+  if (state === "ambiguous") await outbound.markFailed(reservation.messageId, new Error("Uncertain provider acceptance"));
+  if (state === "rejected") await outbound.markFailed(reservation.messageId, { submissionOutcome: "not_accepted" });
+  if (state === "accepted") await outbound.markSubmitted(reservation.messageId, "test", "RECOVERED-STALE-REVIEW");
+  await db.update(s.tasks).set({ title: "Changed after reservation", updatedAt: now }).where(eq(s.tasks.id, task.id));
+
+  const transport = new TestSmsTransport("RESTART-STALE");
+  const sender = new SafeSmsSender(outbound, transport, () => now);
+  expect(await deliverItemReview({
+    userId: a.user.id, enabled: true, repository: new DrizzleItemReviewRepository(db), sender,
+    now: () => now, runOwned: async operation => operation(),
+  })).toBe(true);
+  expect(transport.sent).toHaveLength(0);
+  const [message] = await db.select().from(s.conversationMessages).where(eq(s.conversationMessages.id, reservation.messageId));
+  expect(message.outboundState).toBe(state === "reserved" ? "suppressed" : state === "rejected" ? "reserved" : state);
+  const [saved] = await db.select().from(s.itemReviews).where(eq(s.itemReviews.id, review.id));
+  expect(saved.status).toBe(state === "reserved" || state === "rejected" ? "cancelled" : state === "accepted" ? "sent" : "reserved");
+});
+
+it.each(["optout", "focus", "quiet", "cap", "stale-calendar", "target"])("blocks cleanup when %s changes after readiness but before submission", async scenario => {
+  const a = await account();
+  const task = await staleTask(a.user.id);
+  const focusId = randomUUID();
+  const transport = new TestSmsTransport(`FINAL-REVIEW-${scenario}`);
+  const sender = {
+    send: (message: SendSafeSmsInput, reviewId: string) => {
+      const outbound = new DrizzleOutboundMessageRepository(db, itemReviewSubmissionGate(reviewId, () => now));
+      return new SafeSmsSender(outbound, transport, () => now).send(message);
+    },
+  };
+  const racingSender = {
+    send: (message: SendSafeSmsInput, reviewId: string) => {
+      const outbound = new DrizzleOutboundMessageRepository(db, itemReviewSubmissionGate(reviewId, () => now));
+      const begin = outbound.beginSubmission.bind(outbound);
+      vi.spyOn(outbound, "beginSubmission").mockImplementationOnce(async (id, at) => {
+        if (scenario === "optout") await db.update(s.users).set({ proactiveOptIn: false }).where(eq(s.users.id, a.user.id));
+        if (scenario === "quiet") await db.update(s.users).set({ quietHoursStart: "15:00", quietHoursEnd: "17:00" }).where(eq(s.users.id, a.user.id));
+        if (scenario === "cap") await db.update(s.users).set({ dailyInterventionCap: 0 }).where(eq(s.users.id, a.user.id));
+        if (scenario === "stale-calendar") await db.update(s.calendarConnections).set({ lastSyncedAt: old }).where(eq(s.calendarConnections.userId, a.user.id));
+        if (scenario === "focus") await db.insert(s.lifeItems).values({
+          id: focusId, userId: a.user.id, updatedAt: now,
+          data: { kind: "focus", title: "Focus", remaining: 600, endsAt: new Date(now.getTime() + 600_000).toISOString() },
+        });
+        if (scenario === "target") await db.update(s.tasks).set({ title: "New plan", updatedAt: now }).where(eq(s.tasks.id, task.id));
+        return begin(id, at);
+      });
+      return new SafeSmsSender(outbound, transport, () => now).send(message);
+    },
+  };
+  const input = { userId: a.user.id, enabled: true, repository: a.repo, now: () => now, runOwned: async <T>(operation: () => Promise<T>) => operation() };
+  expect(await deliverItemReview({ ...input, sender: racingSender })).toBe(true);
+  expect(transport.sent).toHaveLength(0);
+  const [review] = await db.select().from(s.itemReviews).where(eq(s.itemReviews.userId, a.user.id));
+  const [reserved] = await db.select().from(s.conversationMessages).where(eq(s.conversationMessages.idempotencyKey, `item-review:${review.id}`));
+  if (scenario === "target") {
+    expect(review.status).toBe("cancelled");
+    expect(reserved.outboundState).toBe("suppressed");
+    return;
+  }
+  expect(review.status).toBe("reserved");
+  expect(reserved.outboundState).toBe("reserved");
+
+  await db.update(s.users).set({ proactiveOptIn: true, dailyInterventionCap: 1, quietHoursStart: "22:00", quietHoursEnd: "07:00" }).where(eq(s.users.id, a.user.id));
+  await db.update(s.calendarConnections).set({ lastSyncedAt: now }).where(eq(s.calendarConnections.userId, a.user.id));
+  if (scenario === "focus") await db.delete(s.lifeItems).where(eq(s.lifeItems.id, focusId));
+  expect(await deliverItemReview({ ...input, sender })).toBe(true);
+  expect(transport.sent).toHaveLength(1);
+  expect((await db.select().from(s.itemReviews).where(eq(s.itemReviews.id, review.id)))[0]).toMatchObject({ status: "sent", messageId: reserved.id });
+});
+
+it("counts a resumed cleanup reservation at provider submission before any competing coaching claim", async () => {
+  const a = await account();
+  const task = await staleTask(a.user.id);
+  const review = await a.repo.reserve(a.user.id, now);
+  if (!review) throw new Error("expected review reservation");
+  await db.update(s.itemReviews).set({ createdAt: old }).where(eq(s.itemReviews.id, review.id));
+  const [snapshot] = await db.insert(s.contextSnapshots).values({
+    userId: a.user.id, taskId: task.id, capturedAt: now, decision: "send", inputs: {},
+  }).returning();
+  const interventions = new DrizzleInterventionRepository(db);
+  const candidateId = await interventions.plan({
+    userId: a.user.id, taskId: task.id, snapshotId: snapshot.id, decision: "send", style: "micro_start", now,
+  });
+  const transport = new TestSmsTransport("RESUMED-REVIEW");
+  const send = transport.send.bind(transport);
+  vi.spyOn(transport, "send").mockImplementation(async message => {
+    const signals = await new DrizzleContextEngineRepository(db).loadSignals(a.user.id, now);
+    expect(signals).toMatchObject({ dailyInterventionCount: 1, minutesSinceLastIntervention: 0, hasPendingResponse: true });
+    expect(await interventions.claimDelivery(candidateId, now)).toEqual({ claimed: false, reason: "cooldown_active" });
+    return send(message);
+  });
+  const sender = new SafeSmsSender(new DrizzleOutboundMessageRepository(db, itemReviewSubmissionGate(review.id, () => now)), transport, () => now);
+  expect(await deliverItemReview({
+    userId: a.user.id, enabled: true, repository: a.repo, sender, now: () => now, runOwned: async operation => operation(),
+  })).toBe(true);
+  expect(transport.sent).toHaveLength(1);
 });
 
 it("does not age out useful reference data, fresh progress, future tasks or recurring reminders", async () => {

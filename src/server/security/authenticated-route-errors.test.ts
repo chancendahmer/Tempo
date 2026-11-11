@@ -95,6 +95,12 @@ describe("authenticated route outage privacy", () => {
     expect(mocks.log).toHaveBeenCalledExactlyOnceWith({ operation: "update_web_profile" }, "profile update failed");
     expect(`${await response.text()} ${JSON.stringify(mocks.log.mock.calls)}`).not.toMatch(/private-|token_hash|select /);
   });
+  it("lets an owner who skipped their optional name save coaching preferences", async () => {
+    const owner = randomUUID(); mocks.account.mockResolvedValue({ userId: owner, phoneVerified: true });
+    const response = await me.PUT(request("/api/account/me", "PUT", { displayName: "  ", profileInstructions: "Please offer one small next step.", expectedCacheKey: `cache:${owner}` }));
+    expect(response.status).toBe(200);
+    expect(mocks.profile).toHaveBeenCalledExactlyOnceWith(owner, { displayName: null, profileInstructions: "Please offer one small next step." });
+  });
   it("rejects a missing or different profile owner before any mutation", async () => {
     const owner = randomUUID(); mocks.account.mockResolvedValue({ userId: owner, phoneVerified: true });
     for (const expectedCacheKey of [undefined, "cache:other-account"]) {

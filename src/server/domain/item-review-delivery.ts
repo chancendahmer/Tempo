@@ -5,12 +5,12 @@ interface ReviewDeliveryRepository {
   ready(id: string, now: Date): Promise<{ body: string } | null>;
   finish(id: string, messageId: string | null, now?: Date): Promise<void>;
 }
-class ReviewDeferred extends Error {}
+export class ReviewDeferred extends Error {}
 
 /** The recurring evaluator resumes reservations; the existing SMS adapter handles ambiguous acceptance. */
 export async function deliverItemReview(input: {
   userId: string; enabled: boolean; repository: ReviewDeliveryRepository;
-  sender: { send(input: SendSafeSmsInput): Promise<SendSafeSmsResult> };
+  sender: { send(input: SendSafeSmsInput, reviewId: string): Promise<SendSafeSmsResult> };
   runOwned: <T>(operation: () => Promise<T>) => Promise<T>;
   signal?: AbortSignal; now?: () => Date;
 }): Promise<boolean> {
@@ -21,9 +21,10 @@ export async function deliverItemReview(input: {
   const ready = await input.runOwned(() => input.repository.ready(reserved.id, now()));
   if (!ready) return true;
   try {
-    const result = await input.sender.send({ userId: input.userId, body: ready.body, kind: "coach", idempotencyKey: `item-review:${reserved.id}`, signal: input.signal, runOwned: input.runOwned,
-      assertOwnership: () => input.runOwned(async () => { if (!await input.repository.ready(reserved.id, now())) throw new ReviewDeferred(); }),
-    });
+    const result = await input.sender.send({
+      userId: input.userId, body: ready.body, kind: "coach", idempotencyKey: `item-review:${reserved.id}`,
+      signal: input.signal, runOwned: input.runOwned,
+    }, reserved.id);
     await input.runOwned(() => input.repository.finish(reserved.id, result.sent || result.reason === "duplicate" ? result.messageId! : null, now()));
   } catch (error) { if (!(error instanceof ReviewDeferred)) throw error; }
   return true;

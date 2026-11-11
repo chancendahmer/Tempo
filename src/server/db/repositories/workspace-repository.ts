@@ -1,5 +1,5 @@
 import { isDeepStrictEqual } from "node:util";
-import { and, asc, desc, eq, inArray, isNull, or, gt, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, isNull, or, gt, sql } from "drizzle-orm";
 import { z } from "zod";
 import { createHash, randomUUID } from "node:crypto";
 import { getDatabase, TempoDatabase } from "../client";
@@ -24,6 +24,9 @@ import { homePreferencesSchema, readHomePreferences } from "../../domain/home-pr
 import { taskCategorySchema } from "../../domain/task-presentation";
 import { workoutCompletionDateError } from "../../domain/workout";
 
+const quietTimeSchema = z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/);
+const savedQuietTimeSchema = z.string().regex(/^\d{2}:\d{2}(?::\d{2}(?:\.\d{1,6})?)?$/).nullable();
+
 export const workspaceActionSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("home_preferences"), preferences: homePreferencesSchema, expected: homePreferencesSchema }).strict(),
   z.object({ action: z.literal("task_presentation"), taskId: z.uuid(), expectedTitle: z.string().max(240), category: taskCategorySchema, focusMinutes: z.number().int().min(1).max(60) }).strict(),
@@ -37,6 +40,13 @@ export const workspaceActionSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("goal"), requestId: z.uuid(), command: goalCommandSchema }),
   z.object({ action: z.literal("chat"), requestId: z.uuid(), text: z.string().trim().min(1).max(2000) }),
   z.object({ action: z.literal("checkins"), enabled: z.boolean() }),
+  z.object({
+    action: z.literal("quiet_hours"),
+    start: quietTimeSchema,
+    end: quietTimeSchema,
+    expectedStart: savedQuietTimeSchema,
+    expectedEnd: savedQuietTimeSchema,
+  }).strict().refine(input => input.start !== input.end, "Choose different start and end times."),
   z.object({ action: z.literal("finish_focus"), id: z.uuid(), version: z.number().int().min(1) }),
   z.object({ action: z.literal("stop_focus"), requestId: z.uuid(), focus: z.object({ id: z.uuid(), version: z.number().int().min(1) }).optional(), task: z.object({ id: z.uuid(), startedAt: z.iso.datetime().nullable() }).optional() }).strict().refine(input => input.focus || input.task, "Choose the current focus session."),
 ]);
@@ -47,19 +57,42 @@ export async function readWorkspace(userId: string, database: TempoDatabase = ge
   const requestedDiaryDate = z.iso.date().optional().parse(options.diaryDate);
   const accountToday = await refreshMealGroceries(database, userId);
   const diaryDate = requestedDiaryDate ?? accountToday;
-  const [board, allTasks, allGoals, life, messages, profile, memories, allReminders, activityStreak, setup] = await Promise.all([
-    readBoard(userId, new Date(), database),
+  const now = new Date();
+  const [board, allTasks, allGoals, life, messages, profileRows, memories, allReminders, activityStreak, setup] = await Promise.all([
+    readBoard(userId, now, database),
     database.select({ id: tasks.id, title: tasks.title, status: tasks.status, dueAt: tasks.dueAt, estimatedMinutes: tasks.estimatedMinutes, presentation: tasks.presentation, startedAt: tasks.startedAt, goalId: tasks.goalId }).from(tasks).where(and(eq(tasks.userId, userId), inArray(tasks.status, ["not_started", "in_progress", "completed"]))).orderBy(asc(sql`case when ${tasks.status} = 'in_progress' then 0 when ${tasks.status} = 'not_started' then 1 else 2 end`), asc(sql`case when ${tasks.status} <> 'completed' then ${tasks.dueAt} end`), desc(tasks.updatedAt), desc(tasks.id)).limit(201),
     database.select({ id: goals.id, title: goals.title, description: goals.description, status: goals.status }).from(goals).where(and(eq(goals.userId, userId), inArray(goals.status, ["active", "completed"]))).orderBy(asc(sql`case when ${goals.status} = 'active' then 0 else 1 end`), desc(goals.updatedAt), desc(goals.id)).limit(101),
     readWorkspaceLifeItems(database, userId, diaryDate),
-    database.select({ id: conversationMessages.id, body: conversationMessages.body, direction: conversationMessages.direction, status: conversationMessages.status, createdAt: conversationMessages.createdAt }).from(conversationMessages).where(and(eq(conversationMessages.userId, userId), inArray(conversationMessages.kind, ["user", "coach"]))).orderBy(desc(conversationMessages.createdAt)).limit(50),
-    database.select({ displayName: users.displayName, proactiveOptIn: users.proactiveOptIn, quietHoursStart: users.quietHoursStart, quietHoursEnd: users.quietHoursEnd, workspacePreferences: users.workspacePreferences }).from(users).where(eq(users.id, userId)).limit(1),
+    database.select({ id: conversationMessages.id, body: conversationMessages.body, direction: conversationMessages.direction, status: conversationMessages.status, createdAt: conversationMessages.createdAt })
+      .from(conversationMessages).where(and(
+        eq(conversationMessages.userId, userId),
+        or(
+          and(eq(conversationMessages.kind, "user"), eq(conversationMessages.direction, "inbound")),
+          and(eq(conversationMessages.kind, "coach"), eq(conversationMessages.direction, "outbound"), or(
+            inArray(conversationMessages.status, ["sent", "delivered"]),
+            // Provider-accepted messages can remain queued while awaiting a delivery receipt.
+            and(eq(conversationMessages.status, "queued"), eq(conversationMessages.outboundState, "accepted"), isNotNull(conversationMessages.providerMessageSid)),
+          )),
+        ),
+      )).orderBy(desc(conversationMessages.createdAt)).limit(50),
+    database.select({
+      displayName: users.displayName,
+      proactiveOptIn: users.proactiveOptIn,
+      quietHoursStart: users.quietHoursStart,
+      quietHoursEnd: users.quietHoursEnd,
+      workspacePreferences: users.workspacePreferences,
+      onboardingState: users.onboardingState,
+      status: users.status,
+      pausedUntil: users.pausedUntil,
+      dailyInterventionCap: users.dailyInterventionCap,
+    }).from(users).where(eq(users.id, userId)).limit(1),
     database.select({ id: memoryEntries.id, content: memoryEntries.content, category: memoryEntries.category }).from(memoryEntries).where(and(eq(memoryEntries.userId, userId), isNull(memoryEntries.deletedAt), or(isNull(memoryEntries.expiresAt), gt(memoryEntries.expiresAt, new Date())))).orderBy(desc(memoryEntries.createdAt)).limit(201),
     database.select({ id: reminders.id, text: reminders.text, remindAt: reminders.remindAt, timezone: reminders.timezone, recurrence: reminders.recurrence, status: reminders.status }).from(reminders).where(and(eq(reminders.userId, userId), inArray(reminders.status, ["scheduled", "sending", "sent", "failed", "cancelled", "completed"]))).orderBy(asc(sql`case when ${reminders.status} in ('scheduled','sending') then 0 else 1 end`), asc(sql`case when ${reminders.status} in ('scheduled','sending') then ${reminders.remindAt} end`), desc(reminders.remindAt), desc(reminders.id)).limit(201),
     readActivityStreak(userId, database),
     readGentleSetup(userId, database),
   ]);
-  if (!profile[0]) throw new WorkspaceConflict("Account unavailable.");
+  const [profile] = profileRows;
+  if (!profile) throw new WorkspaceConflict("Account unavailable.");
   const thoughtTaskIds = life.items.flatMap(item => item.data.kind === "note" && item.data.taskId ? [item.data.taskId] : []);
   const thoughtTasks = thoughtTaskIds.length ? await database.select().from(tasks).where(and(eq(tasks.userId, userId), inArray(tasks.id, thoughtTaskIds))) : [];
   const linkedLifeItems: SavedLifeItem[] = life.items.map(item => {
@@ -68,7 +101,25 @@ export async function readWorkspace(userId: string, database: TempoDatabase = ge
     const task = thoughtTasks.find(task => task.id === taskId);
     return { ...item, linkedTask: task ? { id: task.id, title: task.title, status: task.status, estimatedMinutes: task.estimatedMinutes, dueAt: task.dueAt?.toISOString() ?? null, startedAt: task.startedAt?.toISOString() ?? null, goalId: task.goalId, presentation: task.presentation } : null };
   });
-  return { ...board, tasks: allTasks.slice(0, 200), tasksTruncated: allTasks.length > 200, goals: allGoals.slice(0, 100), goalsTruncated: allGoals.length > 100, ...life, items: linkedLifeItems, messages: messages.reverse(), profile: { displayName: profile[0].displayName, proactiveOptIn: profile[0].proactiveOptIn, quietHoursStart: profile[0].quietHoursStart, quietHoursEnd: profile[0].quietHoursEnd }, homePreferences: readHomePreferences(profile[0]?.workspacePreferences.home), memories: memories.slice(0, 200), memoriesTruncated: memories.length > 200, reminders: allReminders.slice(0, 200), remindersTruncated: allReminders.length > 200, activityStreak, setup };
+  return {
+    ...board,
+    tasks: allTasks.slice(0, 200), tasksTruncated: allTasks.length > 200,
+    goals: allGoals.slice(0, 100), goalsTruncated: allGoals.length > 100,
+    ...life, items: linkedLifeItems, messages: messages.reverse(),
+    profile: {
+      displayName: profile.displayName,
+      proactiveOptIn: profile.proactiveOptIn,
+      quietHoursStart: profile.quietHoursStart,
+      quietHoursEnd: profile.quietHoursEnd,
+      onboardingComplete: profile.onboardingState === "complete",
+      accountActive: profile.status === "active" && (!profile.pausedUntil || profile.pausedUntil <= now),
+      dailyInterventionCap: profile.dailyInterventionCap,
+    },
+    homePreferences: readHomePreferences(profile.workspacePreferences.home),
+    memories: memories.slice(0, 200), memoriesTruncated: memories.length > 200,
+    reminders: allReminders.slice(0, 200), remindersTruncated: allReminders.length > 200,
+    activityStreak, setup,
+  };
 }
 
 // The optional clock is supplied by trusted orchestration, never by the action payload.
@@ -263,8 +314,20 @@ export async function mutateWorkspace(userId: string, input: WorkspaceAction, da
       return { message: "Removed." };
     }
     if (input.action === "checkins") {
-      await transaction.update(users).set({ proactiveOptIn: input.enabled, updatedAt: new Date() }).where(eq(users.id, userId));
-      return { message: input.enabled ? "Check-ins enabled. Quiet hours and sending limits still apply." : "Optional check-ins turned off." };
+      await transaction.update(users).set({
+        proactiveOptIn: input.enabled,
+        // An earlier assistant opt-out can leave the account with no delivery allowance.
+        dailyInterventionCap: input.enabled && user.dailyInterventionCap === 0 ? 1 : user.dailyInterventionCap,
+        updatedAt: now,
+      }).where(eq(users.id, userId));
+      return { message: input.enabled ? "Check-in preference saved." : "Optional check-ins turned off." };
+    }
+    if (input.action === "quiet_hours") {
+      if (user.quietHoursStart?.slice(0, 5) !== input.expectedStart?.slice(0, 5) || user.quietHoursEnd?.slice(0, 5) !== input.expectedEnd?.slice(0, 5)) {
+        throw new WorkspaceConflict("Quiet hours changed elsewhere. Review the current times before saving.");
+      }
+      await transaction.update(users).set({ quietHoursStart: input.start, quietHoursEnd: input.end, updatedAt: now }).where(eq(users.id, userId));
+      return { message: "Quiet hours saved." };
     }
     if (input.action === "task" && input.command.type === "start_task") {
       const [activeFocus] = await transaction.select().from(lifeItems).where(and(eq(lifeItems.userId, userId), sql`${lifeItems.data}->>'kind' = 'focus'`)).limit(1);

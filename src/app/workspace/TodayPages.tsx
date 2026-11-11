@@ -6,8 +6,9 @@ import { JourneyView } from "./JourneyView";
 import { journeySwipe } from "./journey-model";
 import s from "./journey.module.css";
 
-export function TodayPages({ children, data, now, preview, onSetup, motion, setMotion }: { children: ReactNode; data: Workspace; now: Date; preview: boolean; onSetup: () => void; motion: boolean; setMotion: (value: boolean) => void }) {
-  const [page, setPage] = useState<"today" | "journey">("today");
+export function TodayPages({ children, data, now, preview, onSetup, motion, setMotion, guided = false }: { children: ReactNode; data: Workspace; now: Date; preview: boolean; onSetup: () => void; motion: boolean; setMotion: (value: boolean) => void; guided?: boolean }) {
+  const [selectedPage, setPage] = useState<"today" | "journey">("today");
+  const page = guided ? "today" : selectedPage;
   const region = useRef<HTMLDivElement>(null);
   const touch = useRef<{ x: number; y: number } | null>(null);
   function change(next: typeof page) {

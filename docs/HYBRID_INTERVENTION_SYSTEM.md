@@ -12,15 +12,21 @@ Tempo uses durable scheduling plus bounded AI judgment. It does not run one alwa
 
 Every active user has a recurring context evaluation. The current cadence is five minutes. Each evaluation follows this order:
 
-1. Load consent, account state, onboarding, quiet hours, pause state, daily cap, pending response, recent interventions, tasks, current free/busy calendar windows, learned response rate, and active extension signals.
-2. Apply hard gates. Missing or stale calendar data is never treated as free time.
-3. Select one actionable task and compute a versioned 0–100 opportunity score with a persisted breakdown.
+1. Load account-scoped consent, explicit check-in opt-in, onboarding, quiet hours, pause state, recent conversation and optional contacts, open tasks, calendar free/busy, learned response rate, and active extension signals.
+2. Apply hard gates, including a maximum of three optional contacts per local day, at least two hours between optional contacts, and a calendar sync from the past 45 minutes. Missing, stale, or future-dated calendar syncs block proactive delivery.
+3. Rank actionable tasks using urgency, fit in the available window, and recently saved Thoughts explicitly linked to those tasks. Require at least five free minutes for a coaching check-in. An active Focus timer blocks optional contact. When there is no saved timer, a recently started task holds check-ins for its estimated duration, with the workspace's 25-minute default when there is no estimate. An unfinished routine near its saved local start time and recent workspace edits reduce the score. Save the score and its weighted breakdown.
 4. Apply the randomized product holdout.
-5. For a send candidate, optionally ask the bounded AI reviewer for a final approve/veto decision. The model cannot override a hard gate.
-6. Atomically claim the user row and enforce the configured cooldown with an absolute five-minute minimum before delivery.
-7. Use AI for concise wording, append deterministic response choices, persist the outbound message, and send through the active provider adapter.
+5. For a send candidate with AI review enabled, reserve a blocked snapshot before invoking the reviewer. The reviewer can veto eligibility, and duplicate evaluations of the opportunity reuse the existing snapshot.
+6. Claim the delivery under an account lock and enforce the shared daily cap and cooldown across coaching and cleanup check-ins. Compose the wording and append the deterministic response choices.
+7. Before committing the outbound submission, recheck the candidate under the account lock against the current task, calendar, workspace, consent, and optional-contact state. Use the durable outbound idempotency key to prevent duplicate provider submission.
 
-`INTERVENTION_SHADOW_MODE=true` or `AUTONOMOUS_SENDING_ENABLED=false` prevents proactive sends. `HYBRID_AI_REVIEW_ENABLED=false` removes the AI veto while preserving deterministic scoring and AI wording.
+Old-item reviews also recheck eligibility under the account lock before provider submission. A temporary hold keeps the existing review reservation so the next eligible evaluation can retry it. Reviews count against the shared cooldown and cap as soon as their provider submission starts.
+
+The global coaching switches require `INTERVENTION_SHADOW_MODE=false` and `AUTONOMOUS_SENDING_ENABLED=true`. An operator can allow an individual account through `PROACTIVE_CANARY_USER_IDS` while the global switches stay off. The user's Check-ins preference and eligibility gates apply in both cases. `HYBRID_AI_REVIEW_ENABLED=false` removes the AI veto while preserving deterministic scoring and AI wording.
+
+Recent edits use the stored update time, decay over 15 minutes, and use the latest qualifying record across workspace areas. Meal plans, food logs, and workout logs contribute only for their recorded local day. Changes to saved Thoughts, nutrition targets, and workout plans contribute recent activity as well. Task-linked Thoughts contribute a separate ranking signal that decays over 24 hours. The check-in snapshot records the weighted contributions. Meal contents, nutrient amounts, workout notes, and Thought bodies stay out of the check-in scoring payload and model review.
+
+Coaching texts and their start/snooze replies are attached to an open task. Standalone meal, nutrition, routine, fitness, or Thought coaching would require typed targets and their own follow-up behavior. Scheduled tasks created from those areas are eligible through the existing task path.
 
 ## Accountability state machine
 

@@ -7,7 +7,7 @@ import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { TempoDatabase } from "../client";
 import * as schema from "../schema";
-import { mutateWorkspace, readWorkspace } from "./workspace-repository";
+import { mutateWorkspace, readWorkspace, workspaceActionSchema, WorkspaceConflict } from "./workspace-repository";
 import { LifeAssistant } from "./life-assistant";
 import { WebReplySender, isWebMessage } from "./web-reply-repository";
 import { DrizzleConversationHistoryRepository } from "./conversation-history-repository";
@@ -16,6 +16,7 @@ import { executeTaskCommand } from "../../domain/task-service";
 import { DrizzleTaskRepository } from "./task-repository";
 import { DrizzleReminderRepository } from "./reminder-repository";
 import { DrizzleOutboundMessageRepository } from "./outbound-message-repository";
+import { CalendarAssistantIntegrations } from "../../adapters/calendar/calendar-assistant";
 import { SafeSmsSender } from "../../domain/outbound-messaging";
 import { createAssistantSimulator } from "../../../../scripts/lib/assistant-simulator";
 import type { CoachingCommand } from "../../adapters/llm/task-intent-parser";
@@ -32,6 +33,50 @@ describe("shared life workspace", () => {
   }, 30000);
   afterAll(async () => client.close());
   const recipe: LifeItem = { kind: "recipe", title: "Lemon rice", ingredients: "Rice\nLemon", instructions: "Cook rice, add lemon.", servings: 2, prepMinutes: 20, favorite: true };
+
+  it("restores a usable daily check-in cap after an assistant opt-out without changing valid limits or carrier status", async () => {
+    const [person, stoppedTexts] = await db.insert(schema.users).values([
+      { phoneE164: "+12025550718", onboardingState: "complete", proactiveOptIn: true, dailyInterventionCap: 2 },
+      { phoneE164: "+12025550719", status: "opted_out", dailyInterventionCap: 2, interventionCooldownMinutes: 240 },
+    ]).returning();
+    const readPreferences = async (userId: string) => (await db.select({
+      status: schema.users.status,
+      optedIn: schema.users.proactiveOptIn,
+      cap: schema.users.dailyInterventionCap,
+      cooldown: schema.users.interventionCooldownMinutes,
+    }).from(schema.users).where(eq(schema.users.id, userId)))[0];
+
+    await new CalendarAssistantIntegrations(db).setCheckins(person.id, false, 2);
+    expect(await readPreferences(person.id)).toMatchObject({ optedIn: false, cap: 0 });
+    await expect(mutateWorkspace(person.id, { action: "checkins", enabled: true }, db)).resolves.toEqual({ message: "Check-in preference saved." });
+    expect(await readPreferences(person.id)).toMatchObject({ optedIn: true, cap: 1 });
+    expect((await readWorkspace(person.id, db)).profile).toMatchObject({ proactiveOptIn: true, onboardingComplete: true, accountActive: true, dailyInterventionCap: 1 });
+
+    await mutateWorkspace(stoppedTexts.id, { action: "checkins", enabled: true }, db);
+    expect(await readPreferences(stoppedTexts.id)).toEqual({ status: "opted_out", optedIn: true, cap: 2, cooldown: 240 });
+    expect((await readWorkspace(stoppedTexts.id, db)).profile).toMatchObject({ proactiveOptIn: true, onboardingComplete: false, accountActive: false, dailyInterventionCap: 2 });
+    await mutateWorkspace(stoppedTexts.id, { action: "checkins", enabled: false }, db);
+    expect(await readPreferences(stoppedTexts.id)).toEqual({ status: "opted_out", optedIn: false, cap: 2, cooldown: 240 });
+  });
+
+  it("saves overnight quiet hours without granting proactive consent or overwriting another tab", async () => {
+    const [person] = await db.insert(schema.users).values({ phoneE164: "+12025550720", timezone: "America/Chicago", onboardingState: "quiet_hours" }).returning();
+    const original = { action: "quiet_hours" as const, start: "22:30", end: "07:15", expectedStart: null, expectedEnd: null };
+    await expect(mutateWorkspace(person.id, original, db)).resolves.toEqual({ message: "Quiet hours saved." });
+    await expect(mutateWorkspace(person.id, { ...original, start: "21:00" }, db)).rejects.toThrow(WorkspaceConflict);
+    await mutateWorkspace(person.id, { ...original, start: "23:00", expectedStart: "22:30:00", expectedEnd: "07:15" }, db);
+
+    const [saved] = await db.select().from(schema.users).where(eq(schema.users.id, person.id));
+    expect(saved).toMatchObject({ quietHoursStart: "23:00:00", quietHoursEnd: "07:15:00", timezone: "America/Chicago", onboardingState: "quiet_hours", proactiveOptIn: false });
+    expect(await db.select().from(schema.consentRecords).where(eq(schema.consentRecords.userId, person.id))).toHaveLength(0);
+    expect((await readWorkspace(other, db)).profile).toMatchObject({ quietHoursStart: null, quietHoursEnd: null });
+
+    expect(workspaceActionSchema.safeParse({ ...original, end: original.start }).success).toBe(false);
+    expect(workspaceActionSchema.safeParse({ ...original, start: "24:00" }).success).toBe(false);
+    expect(workspaceActionSchema.safeParse({ ...original, start: "7:00" }).success).toBe(false);
+    expect(workspaceActionSchema.safeParse({ ...original, start: "07:00:00" }).success).toBe(false);
+    expect(workspaceActionSchema.safeParse({ ...original, proactiveOptIn: true }).success).toBe(false);
+  });
 
   it("converts an owned thought once across new requests and assistant channels, preserving edits and removed state", async () => {
     const [person] = await db.insert(schema.users).values({ phoneE164: "+12025550715" }).returning();
@@ -582,5 +627,31 @@ describe("shared life workspace", () => {
     const history = await new DrizzleConversationHistoryRepository(db).getRecent({ conversationId: source.conversationId, beforeMessageId: followup[0].id, limit: 10 });
     expect(history.some(m => m.content === reply.body)).toBe(true);
     expect(history.find(m => m.content === reply.body)?.replyToMessageId).toBe(source.id);
+  });
+
+  it("keeps provider-accepted and completed replies visible ahead of the history limit", async () => {
+    const [person] = await db.insert(schema.users).values({ phoneE164: "+12025550721" }).returning();
+    await mutateWorkspace(person.id, { action: "chat", requestId: randomUUID(), text: "Can you help me get started?" }, db);
+    const [source] = await db.select().from(schema.conversationMessages).where(eq(schema.conversationMessages.userId, person.id));
+    const outbound = { userId: person.id, conversationId: source.conversationId, direction: "outbound", kind: "coach" } as const;
+    const later = (seconds: number) => new Date(source.createdAt.getTime() + seconds * 1000);
+    await db.insert(schema.conversationMessages).values([
+      { ...outbound, body: "Accepted by the provider", status: "queued", outboundState: "accepted", provider: "test", providerMessageSid: randomUUID(), createdAt: later(1) },
+      { ...outbound, body: "Legacy sent reply", status: "sent", createdAt: later(2) },
+      { ...outbound, body: "Delivered reply", status: "delivered", outboundState: "accepted", createdAt: later(3) },
+      { ...outbound, body: "Submission underway", status: "queued", outboundState: "submitting", provider: "test", providerMessageSid: randomUUID(), createdAt: later(4) },
+      { ...outbound, body: "Acceptance unknown", status: "failed", outboundState: "ambiguous", createdAt: later(5) },
+      { ...outbound, body: "Suppressed check-in", status: "cancelled", outboundState: "suppressed", createdAt: later(6) },
+      { ...outbound, body: "Accepted without evidence", status: "queued", outboundState: "accepted", createdAt: later(7) },
+      { ...outbound, body: "Provider could not deliver", status: "undelivered", outboundState: "accepted", provider: "test", providerMessageSid: randomUUID(), createdAt: later(8) },
+      ...Array.from({ length: 51 }, (_, index) => ({ ...outbound, body: "Reserved only", status: "queued" as const, outboundState: "reserved" as const, createdAt: later(10 + index) })),
+    ]);
+
+    expect((await readWorkspace(person.id, db)).messages.map(({ body, direction, status }) => ({ body, direction, status }))).toEqual([
+      { body: "Can you help me get started?", direction: "inbound", status: "received" },
+      { body: "Accepted by the provider", direction: "outbound", status: "queued" },
+      { body: "Legacy sent reply", direction: "outbound", status: "sent" },
+      { body: "Delivered reply", direction: "outbound", status: "delivered" },
+    ]);
   });
 });

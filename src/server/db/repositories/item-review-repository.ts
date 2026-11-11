@@ -1,9 +1,10 @@
 import { proactiveBlockReasons } from "../../domain/context-engine";
 import { createHash } from "node:crypto";
-import { and, asc, desc, eq, gt, inArray, isNotNull, lt, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 import { getDatabase, TempoDatabase } from "../client";
 import { conversationMessages, conversationStates, goals, itemReviews, lifeItems, reminders, tasks, users } from "../schema";
 import { DAY_MS, ItemReviewResponder, ReviewTarget, itemReviewMessage, reviewIsDue } from "../../domain/item-review";
+import { ReviewDeferred } from "../../domain/item-review-delivery";
 import { DrizzleContextEngineRepository } from "./context-engine-repository";
 import { executeTaskCommand } from "../../domain/task-service";
 import { executeGoalCommand } from "../../domain/goal-service";
@@ -40,7 +41,7 @@ export class DrizzleItemReviewRepository implements ItemReviewResponder {
   }
 
   private async eligible(userId: string, now: Date, excludeReviewId?: string) {
-    const signals = await new DrizzleContextEngineRepository(this.database).loadSignals(userId, now, excludeReviewId);
+    const signals = await new DrizzleContextEngineRepository(this.database).loadSignals(userId, now, { reviewId: excludeReviewId });
     if (!signals || proactiveBlockReasons(signals, now).length) return false;
     const [pending] = await this.database.select({ id: conversationStates.userId }).from(conversationStates).where(and(eq(conversationStates.userId, userId), isNotNull(conversationStates.pendingAction), gt(conversationStates.pendingActionExpiresAt, now))).limit(1);
     return !pending;
@@ -48,7 +49,7 @@ export class DrizzleItemReviewRepository implements ItemReviewResponder {
 
   async reserve(userId: string, now: Date): Promise<Review | null> {
     return this.database.transaction(async tx => {
-      const [user] = await tx.select({ id: users.id }).from(users).where(eq(users.id, userId)).for("update");
+      const [user] = await tx.select({ id: users.id }).from(users).where(eq(users.id, userId)).for("no key update");
       if (!user) return null;
       const db = tx as unknown as TempoDatabase, repo = new DrizzleItemReviewRepository(db);
       const [pending] = await tx.select().from(itemReviews).where(and(eq(itemReviews.userId, userId), eq(itemReviews.status, "reserved"))).limit(1);
@@ -76,13 +77,44 @@ export class DrizzleItemReviewRepository implements ItemReviewResponder {
     });
   }
 
-  /** Called again immediately before provider submission, under the worker fence. */
-  async ready(id: string, now: Date) {
-    const [review] = await this.database.select().from(itemReviews).where(eq(itemReviews.id, id)).limit(1);
-    if (!review || review.status !== "reserved") return null;
+  async ready(id: string, now: Date, submissionOwner?: string) {
+    const [row] = await this.database.select({
+      review: itemReviews,
+      outbound: { id: conversationMessages.id, state: conversationMessages.outboundState, submittedAt: conversationMessages.submissionStartedAt },
+    }).from(itemReviews).leftJoin(conversationMessages, and(
+      eq(conversationMessages.userId, itemReviews.userId),
+      eq(conversationMessages.idempotencyKey, `item-review:${id}`),
+      eq(conversationMessages.direction, "outbound"),
+    )).where(and(
+      eq(itemReviews.id, id), eq(itemReviews.status, "reserved"), submissionOwner ? eq(itemReviews.userId, submissionOwner) : undefined,
+    )).limit(1);
+    if (!row) return null;
+    const { review, outbound } = row;
+    if (outbound?.state === "accepted") {
+      await this.finish(review.id, outbound.id, outbound.submittedAt ?? now);
+      return null;
+    }
+    if (outbound && (outbound.state === "submitting" || outbound.state === "ambiguous" || outbound.state === null)) return null;
     const target = await this.target(review.userId, review.target.kind, review.target.id, now);
     if (!target || target.revision !== review.target.revision) {
-      await this.finish(id, null);
+      // The final submission gate handles suppression when it already holds the account lock.
+      if (!submissionOwner && outbound?.state === "reserved" && outbound.submittedAt === null) {
+        await this.database.transaction(async transaction => {
+          const [suppressed] = await transaction.update(conversationMessages).set({
+            status: "cancelled", outboundState: "suppressed", updatedAt: now,
+            providerErrorCode: "TEMPO_BLOCKED_REVIEW_TARGET_CHANGED",
+            providerErrorMessage: "The review target changed before submission.",
+          }).where(and(
+            eq(conversationMessages.id, outbound.id), eq(conversationMessages.userId, review.userId),
+            eq(conversationMessages.status, "queued"), eq(conversationMessages.outboundState, "reserved"),
+            isNull(conversationMessages.submissionStartedAt), isNull(conversationMessages.provider),
+            isNull(conversationMessages.submissionToken), isNull(conversationMessages.providerMessageSid),
+          )).returning({ id: conversationMessages.id });
+          if (suppressed) await new DrizzleItemReviewRepository(transaction as unknown as TempoDatabase).finish(id, null, now);
+        });
+      } else {
+        await this.finish(id, null, now);
+      }
       return null;
     }
     if (!await this.eligible(review.userId, now, id)) return null;
@@ -129,4 +161,17 @@ export class DrizzleItemReviewRepository implements ItemReviewResponder {
       return reply;
     });
   }
+}
+
+/** Called within the outbound submission transaction after it locks the account. */
+export function itemReviewSubmissionGate(reviewId: string, now = () => new Date()) {
+  return async (database: TempoDatabase, userId: string) => {
+    if (await new DrizzleItemReviewRepository(database).ready(reviewId, now(), userId)) return true;
+    const [review] = await database.select({ status: itemReviews.status }).from(itemReviews).where(and(
+      eq(itemReviews.id, reviewId), eq(itemReviews.userId, userId),
+    )).limit(1);
+    if (review?.status !== "reserved") return false;
+    // Leave the existing send key reserved when optional contact must wait.
+    throw new ReviewDeferred();
+  };
 }

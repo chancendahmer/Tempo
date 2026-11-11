@@ -116,6 +116,24 @@ describe("intervention, outcome, and memory loop", () => {
     expect(transport.sent).toHaveLength(1);
   });
 
+  it("keeps uncertain provider submissions in reconciliation before any draft recheck", async () => {
+    const repository = new DrizzleInterventionRepository(database);
+    const interventionId = await repository.plan({
+      snapshotId: await snapshot("delivery-uncertain"), userId, taskId,
+      style: "micro_start", decision: "send", now: new Date(),
+    });
+    const body = "Take the first two-minute step?";
+    await repository.markQueued(interventionId, body, "test", "test");
+    const outbound = new DrizzleOutboundMessageRepository(database);
+    const reservation = await outbound.reserve({
+      userId, body, kind: "coach", idempotencyKey: `intervention-sms:${interventionId}`, relatedInterventionId: interventionId,
+    });
+    expect(await outbound.beginSubmission(reservation.messageId, new Date())).toMatchObject({ status: "started" });
+    expect(await repository.reconcileDelivery(interventionId)).toEqual({ kind: "pending" });
+    await outbound.markFailed(reservation.messageId, new Error("Synthetic uncertain outcome"));
+    expect(await repository.reconcileDelivery(interventionId)).toEqual({ kind: "pending" });
+  });
+
   it("preserves a delivered callback that races intervention finalization", async () => {
     const repository = new DrizzleInterventionRepository(database);
     const interventionId = await repository.plan({

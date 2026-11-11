@@ -119,7 +119,7 @@ export class WebSessionService {
     ));
   }
 
-  async updateProfile(userId: string, input: { displayName: string; profileInstructions: string | null }, now = new Date()) {
+  async updateProfile(userId: string, input: { displayName: string | null; profileInstructions: string | null }, now = new Date()) {
     const [updated] = await this.database.update(users).set({
       displayName: input.displayName,
       profileInstructions: input.profileInstructions,

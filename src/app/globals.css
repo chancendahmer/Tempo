@@ -1173,6 +1173,9 @@ select {
   font-size: 13px;
 }
 
+.plan-price-label { flex-direction: column; align-items: flex-start; }
+.plan-price-label > span { font-size: 32px; line-height: 1.15; letter-spacing: -1px; }
+
 .pricing-card ul {
   margin: 0 0 34px;
   padding: 0;

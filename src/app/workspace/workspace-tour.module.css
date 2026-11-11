@@ -1,0 +1,119 @@
+.overlay {
+  --tour-ink: #203b34;
+  --tour-paper: #fffdf8;
+  --tour-line: #cfdbcb;
+  --tour-shade: rgb(15 31 29 / 57%);
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  color: var(--tour-ink);
+  background: transparent;
+}
+
+.overlay::backdrop { background: transparent; }
+.shade { position: absolute; inset: 0; background: var(--tour-shade); }
+.spotlight {
+  display: none;
+  position: absolute;
+  border: 2px solid #fffbef;
+  border-radius: 13px;
+  box-shadow: 0 0 0 2px #437660, 0 0 0 200vmax var(--tour-shade);
+}
+.overlay[data-spotlight="true"] .spotlight { display: block; }
+.overlay[data-spotlight="true"] .shade { display: none; }
+
+.bubble {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  width: min(398px, calc(100% - 24px));
+  background: var(--tour-paper);
+  border: 1px solid var(--tour-line);
+  border-radius: 21px;
+  box-shadow: 0 18px 48px rgb(15 38 29 / 26%);
+}
+.bubble[data-side]:not([data-side="center"])::before {
+  content: "";
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  background: var(--tour-paper);
+  transform: rotate(45deg);
+}
+.bubble[data-side="below"]::before { top: -9px; left: calc(var(--pointer) - 8px); border-top: 1px solid var(--tour-line); border-left: 1px solid var(--tour-line); }
+.bubble[data-side="above"]::before { bottom: -9px; left: calc(var(--pointer) - 8px); border-bottom: 1px solid var(--tour-line); border-right: 1px solid var(--tour-line); }
+.bubble[data-side="right"]::before { left: -9px; top: calc(var(--pointer) - 8px); border-bottom: 1px solid var(--tour-line); border-left: 1px solid var(--tour-line); }
+.bubble[data-side="left"]::before { right: -9px; top: calc(var(--pointer) - 8px); border-top: 1px solid var(--tour-line); border-right: 1px solid var(--tour-line); }
+
+.surface {
+  position: relative;
+  max-height: calc(100dvh - 26px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  border-radius: inherit;
+  padding: 17px 19px 14px;
+}
+.header { display: flex; align-items: center; gap: 10px; margin-bottom: 13px; }
+.mascot { display: grid; place-items: center; flex: none; width: 54px; height: 54px; border-radius: 50%; background: #e7efe2; }
+.guideLabel { display: grid; line-height: 1.35; }
+.guideLabel strong { font-size: 13px; font-weight: 750; }
+.guideLabel span { color: #50665c; font-size: 12px; }
+.close, .skip, .back, .next, .actionLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--tour-ink);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.close { width: 44px; margin: -8px -7px 0 auto; font-size: 20px; }
+.surface h2 { color: var(--tour-ink); font-size: clamp(19px, 4.6vw, 23px); line-height: 1.22; letter-spacing: -.45px; }
+.surface h2:focus { outline: none; }
+.surface p { margin-top: 7px; color: #40574f; font-size: 14px; line-height: 1.55; }
+.actionLink { text-decoration: underline; text-underline-offset: 3px; }
+.actions { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 4px; margin-top: 14px; padding-top: 9px; border-top: 1px solid #dce4d8; }
+.actions > div { display: flex; gap: 5px; margin-left: auto; }
+.skip, .back { padding-inline: 8px; }
+.next { padding-inline: 13px; background: #28594e; color: #fff; }
+.next:hover { background: #1c473e; }
+.close:hover, .skip:hover, .back:hover { background: #e9f0e7; }
+
+.entry {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 5px;
+  border: 0;
+  background: transparent;
+  color: #28594e;
+  font-size: 13px;
+  font-weight: 750;
+}
+.entry:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+@media (max-width: 380px), (max-height: 500px) {
+  .surface { padding: 13px 14px 10px; }
+  .header { margin-bottom: 8px; }
+  .mascot { width: 46px; height: 46px; }
+  .mascot img { max-width: 38px; }
+  .actions { margin-top: 10px; padding-top: 6px; }
+}
+
+@media (forced-colors: active) {
+  .spotlight { border-color: Highlight; }
+  .next { border: 1px solid ButtonText; }
+}
