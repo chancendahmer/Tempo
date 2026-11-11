@@ -15,12 +15,12 @@ export type HomeHero = {
 };
 const minutesOf = (clock: string) => { const [h, m] = clock.split(":").map(Number); return h * 60 + m; };
 const since = (now: number, then: number) => (now - then + 1440) % 1440;
-export function homeModel(data: Workspace, now: Date, calendarEvents: CalendarEvent[] = [], manualMode?: HomeMode) {
+export function homeModel(data: Workspace, now: Date, calendarEvents: CalendarEvent[] = [], manualMode?: HomeMode, focusNow = now) {
   const preferences = readHomePreferences(data.homePreferences);
-  const day = localDay(now, data.timezone);
+  const today = todayModel(data, now, calendarEvents);
+  const day = today.day;
   const clock = new Intl.DateTimeFormat("en-GB", { timeZone: data.timezone, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(now);
   const minute = minutesOf(clock);
-  const today = todayModel(data, now, calendarEvents);
   const formatTime = (at: string) => new Intl.DateTimeFormat(undefined, { timeZone: data.timezone, hour: "numeric", minute: "2-digit" }).format(new Date(at));
   const routines = data.items.filter(item => item.data.kind === "routine");
   const routineFor = (period: "morning" | "evening") => routines.filter(item => item.data.kind === "routine" && item.data.period === period).sort((a, b) => a.data.kind === "routine" && b.data.kind === "routine" ? since(minute, minutesOf(a.data.time)) - since(minute, minutesOf(b.data.time)) : 0)[0];
@@ -44,7 +44,10 @@ export function homeModel(data: Workspace, now: Date, calendarEvents: CalendarEv
   const photo = meal && recipePhotoFor(meal.data);
   const mealHero: HomeHero = { mode: "meal", label: `${mealSlot} plan`, title: meal?.data.title ?? "What sounds good today?", detail: meal?.data.kind === "meal" ? `${mealSlot} · Planned${meal.data.servings ? ` · ${meal.data.servings} ${meal.data.servings === 1 ? "serving" : "servings"}` : ""}` : "Pick a meal and keep the ingredients together.", action: meal ? "Open meal plan" : "Plan a meal", destination: "meals", image: photo?.image ?? "/images/home/meal.png", imageAlt: photo?.alt ?? "Meal planning ingredients; illustrative photo", meal };
   const activeTask = today.tasks.find(task => task.status === "in_progress");
-  const focus: HomeHero = { mode: "focus", label: today.focus || activeTask ? "Your focus" : ongoing ? "Happening now" : "One thing to start", title: today.focus?.title ?? activeTask?.title ?? ongoing?.title ?? today.nextTask?.title ?? "A little room to begin.", detail: today.focus ? today.focus.endsAt ? "Your saved timer is ready to continue." : "Paused. Continue when you're ready." : activeTask ? "Your task is in progress." : ongoing ? `Until ${formatTime(ongoing.end.dateTime!)}` : today.nextTask ? "Start small. You can take another step later." : "Add one task, or tell Tempo what's on your mind.", action: today.focus || activeTask ? "Continue focus" : ongoing ? "View calendar" : today.nextTask ? `Start ${taskPresentation(today.nextTask).focusMinutes} min` : "Add a task", destination: ongoing && !today.focus && !activeTask ? "calendar" : "tasks", image: "/images/home/focus.png", imageAlt: "", task: today.nextTask, ongoingFocus: !!(today.focus || activeTask) };
+  const focusState = today.focus ? today.focus.endsAt
+    ? Date.parse(today.focus.endsAt) > focusNow.getTime() ? "running" : "finished"
+    : today.focus.remaining > 0 ? "paused" : "finished" : null;
+  const focus: HomeHero = { mode: "focus", label: today.focus || activeTask ? "Your focus" : ongoing ? "Happening now" : "One thing to start", title: today.focus?.title ?? activeTask?.title ?? ongoing?.title ?? today.nextTask?.title ?? "A little room to begin.", detail: today.focus ? focusState === "running" ? "Timer running. One step at a time." : focusState === "finished" ? "Your timer is finished. Choose what comes next." : "Paused. Continue when you're ready." : activeTask ? "Your task is in progress." : ongoing ? `Until ${formatTime(ongoing.end.dateTime!)}` : today.nextTask ? "Start small. You can take another step later." : "Add one task, or tell Tempo what's on your mind.", action: today.focus || activeTask ? "Continue focus" : ongoing ? "View calendar" : today.nextTask ? `Start ${taskPresentation(today.nextTask).focusMinutes} min` : "Add a task", destination: ongoing && !today.focus && !activeTask ? "calendar" : "tasks", image: "/images/home/focus.png", imageAlt: "", task: today.nextTask, ongoingFocus: !!(today.focus || activeTask) };
   const choices: Record<HeroMode, HomeHero> = { morning: routineHero("morning", morning), evening: routineHero("evening", evening), workout, meal: mealHero, focus };
   const morningAt = minutesOf(preferences.morningTime ?? (morning?.data.kind === "routine" ? morning.data.time : "08:00"));
   const eveningAt = minutesOf(preferences.eveningTime ?? (evening?.data.kind === "routine" ? evening.data.time : "21:00"));
@@ -55,6 +58,5 @@ export function homeModel(data: Workspace, now: Date, calendarEvents: CalendarEv
   const automatic: HeroMode = today.focus || activeTask ? "focus" : ongoing ? (workoutEvent?.id === ongoing.id ? "workout" : "focus") : workoutEvent || workoutTask ? "workout" : eveningWindow && evening ? "evening" : morningWindow && morning ? "morning" : meal && (dinnerWindow || lunchWindow || breakfastWindow) ? "meal" : "focus";
   const requested = manualMode ?? preferences.pinned;
   const mode = requested === "auto" ? automatic : requested;
-  const tasks = [...today.tasks].sort((a, b) => Number(b.status === "in_progress") - Number(a.status === "in_progress") || Number(!!a.dueAt && localDay(new Date(a.dueAt), data.timezone) > day) - Number(!!b.dueAt && localDay(new Date(b.dueAt), data.timezone) > day) || (a.dueAt ? Date.parse(a.dueAt) : Infinity) - (b.dueAt ? Date.parse(b.dueAt) : Infinity));
-  return { day, minute, greeting: minute < 12 * 60 ? "Good morning" : minute < 18 * 60 ? "Good afternoon" : "Good evening", preferences, mode, automatic, hero: choices[mode], choices, tasks, calendar, today };
+  return { day, minute, greeting: minute < 12 * 60 ? "Good morning" : minute < 18 * 60 ? "Good afternoon" : "Good evening", preferences, mode, automatic, focusState, hero: choices[mode], choices, tasks: today.tasks, calendar, today };
 }

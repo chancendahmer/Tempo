@@ -5,8 +5,8 @@ import { todayModel } from "./today-model";
 import { previewWorkspace } from "./workspace-data";
 import { TodayView } from "./TodayView";
 
-function renderToday(data: ReturnType<typeof previewWorkspace>, now: Date) {
-  return renderToStaticMarkup(createElement(TodayView, { motion: false, setMotion: vi.fn(), data, now, saving: false, go: vi.fn(), onSetup: () => {}, editTask: vi.fn(), startTask: vi.fn(), completeTask: vi.fn(), checkStep: vi.fn(), startStep: vi.fn(), editRoutine: vi.fn(), ask: vi.fn(), onResumeFocus: vi.fn() }));
+function renderToday(data: ReturnType<typeof previewWorkspace>, now: Date, focusNow?: Date) {
+  return renderToStaticMarkup(createElement(TodayView, { motion: false, setMotion: vi.fn(), data, now, focusNow, saving: false, go: vi.fn(), onSetup: () => {}, editTask: vi.fn(), startTask: vi.fn(), completeTask: vi.fn(), checkStep: vi.fn(), startStep: vi.fn(), editRoutine: vi.fn(), ask: vi.fn(), onResumeFocus: vi.fn() }));
 }
 
 function fixture() {
@@ -24,6 +24,50 @@ function fixture() {
   return data;
 }
 describe("Today in the account timezone", () => {
+  it("shows today's task in the focus banner and collapsed checklist ahead of older deadlines", () => {
+    const data = fixture();
+    data.items = [];
+    const [task] = data.tasks;
+    data.tasks = [
+      { ...task, id: "oldest", title: "File October notes", dueAt: "2026-10-01T16:00:00Z" },
+      { ...task, id: "middle", title: "Send October invoice", dueAt: "2026-10-03T16:00:00Z" },
+      { ...task, id: "latest", title: "Book October appointment", dueAt: "2026-10-04T16:00:00Z" },
+      { ...task, id: "current", title: "Send the project update", dueAt: "2026-11-11T21:30:00Z" },
+    ];
+    const now = new Date("2026-11-11T20:00:00Z");
+    const html = renderToday(data, now);
+    expect(html.match(/<h2>([^<]+)<\/h2>/)?.[1]).toBe("Send the project update");
+    expect(Array.from(html.matchAll(/aria-label="Complete ([^"]+)"/g), match => match[1]))
+      .toEqual(["Send the project update", "Book October appointment", "Send October invoice"]);
+
+    data.tasks.pop();
+    expect(renderToday(data, now).match(/<h2>([^<]+)<\/h2>/)?.[1]).toBe("Book October appointment");
+  });
+
+  it("orders today's tasks by local due time, then overdue, undated, and future tasks across UTC midnight", () => {
+    const data = fixture();
+    const [task] = data.tasks;
+    const future = { ...task, id: "future", dueAt: "2026-11-12T05:00:00Z" };
+    data.tasks = [
+      { ...task, id: "later-future", dueAt: "2026-11-13T15:00:00Z" },
+      { ...task, id: "late-today", dueAt: "2026-11-12T04:59:00Z" },
+      { ...task, id: "overdue", dueAt: "2026-11-11T04:59:00Z" },
+      { ...task, id: "undated", dueAt: null },
+      future,
+      { ...task, id: "earlier-today", dueAt: "2026-11-11T22:00:00Z" },
+    ];
+    const now = new Date("2026-11-12T02:30:00Z");
+    const model = todayModel(data, now);
+    expect(model.day).toBe("2026-11-11");
+    expect(model.nextTask?.id).toBe("earlier-today");
+    expect(model.tasks.map(task => task.id)).toEqual(["earlier-today", "late-today", "overdue", "undated", "future", "later-future"]);
+
+    data.tasks = [future];
+    const futureOnly = todayModel(data, now);
+    expect(futureOnly.nextTask).toBeUndefined();
+    expect(futureOnly.tasks.map(task => task.id)).toEqual(["future"]);
+  });
+
   it("labels an earlier local due day as overdue in NOW and the task checklist", () => {
     const data = fixture();
     data.items = [];
@@ -58,7 +102,7 @@ describe("Today in the account timezone", () => {
     expect(focus).toContain("My current focused step</h2>");
     expect(focus).toContain("Paused. Continue when you&#x27;re ready.");
     expect(focus).toContain("Continue focus");
-    expect(focus).toContain("In progress");
+    expect(focus).toContain(">Paused</span>");
   });
   it("uses the morning window, then returns to tasks without promoting tomorrow's task", () => {
     const data = fixture();
@@ -133,15 +177,49 @@ describe("Today in the account timezone", () => {
     expect(html).not.toContain("Start 25 minutes");
     // The compact Home links into the routine editor; only the saved active focus can resume.
     expect(html).toContain("Continue focus");
-    expect(html).toMatch(/aria-label="Start [^"]+" disabled=""/);
+    expect(html).toMatch(/aria-label="Start [^"]+"[^>]*disabled=""/);
 
   });
   it("uses the persisted focus item ahead of another started task", () => {
     const data = fixture();
+    data.tasks[0].title = "Upcoming essay";
+    data.tasks[1].title = "Another started task";
     data.tasks[1].status = "in_progress";
     data.items.unshift({ id: "current-focus", version: 1, data: { kind: "focus", title: "The session actually running", taskId: data.tasks[0].id, remaining: 120, endsAt: null } });
     const now = new Date("2026-10-14T18:00:00Z");
-    expect(todayModel(data, now).nextTask?.id).toBe("tomorrow");
-    expect(renderToday(data, now)).toContain("The session actually running</h2>");
+    const model = todayModel(data, now);
+    expect(model.nextTask?.id).toBe("tomorrow");
+    expect(model.tasks.map(task => task.id)).toEqual(["tomorrow", "today", "undated"]);
+    const html = renderToday(data, now);
+    expect(html).toContain("The session actually running</h2>");
+    expect(html).toContain(">Paused</span>");
+    expect(html.match(/<button[^>]+aria-label="Continue Upcoming essay"[^>]*>/)?.[0]).not.toContain("disabled");
+    expect(html.match(/<button[^>]+aria-label="Start [^"]+ Another started task"[^>]*>/)?.[0]).toContain('aria-describedby="home-focus-help" disabled');
+    expect(html.match(/<button[^>]+aria-label="Customize icon and starting timer for Another started task"[^>]*>/)?.[0]).toContain("disabled");
+    const savedFocus = data.items[0].data;
+    if (savedFocus.kind !== "focus") throw new Error("Missing focus fixture");
+    savedFocus.endsAt = new Date(now.getTime() + 60_000).toISOString();
+    expect(renderToday(data, now)).toContain("Timer running. One step at a time.");
+    savedFocus.endsAt = new Date(now.getTime() - 1_000).toISOString();
+    expect(renderToday(data, now)).toContain(">Timer finished</span>");
+    expect(data.tasks[0].status).not.toBe("completed");
+    data.items.shift();
+    data.tasks[0].status = "in_progress";
+    expect(renderToday(data, now).match(/aria-label="Continue [^"]+"/g)).toHaveLength(1);
+  });
+
+  it("keeps Focus on the live clock when previewing a different time of day", () => {
+    const data = fixture();
+    const endsAt = "2026-10-14T18:01:00Z";
+    data.items.unshift({ id: "current-focus", version: 1, data: {
+      kind: "focus", title: data.tasks[0].title, taskId: data.tasks[0].id, remaining: 60, endsAt,
+    } });
+    const running = renderToday(data, new Date("2026-10-14T23:00:00Z"), new Date("2026-10-14T18:00:00Z"));
+    expect(running).toContain("Good evening");
+    expect(running).toContain("Timer running. One step at a time.");
+    const finished = renderToday(data, new Date("2026-10-14T12:00:00Z"), new Date(endsAt));
+    expect(finished).toContain("Good morning");
+    expect(finished).toContain("Your timer is finished. Choose what comes next.");
+    expect(finished).toContain(">Timer finished</span>");
   });
 });

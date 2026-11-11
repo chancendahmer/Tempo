@@ -62,13 +62,41 @@ function shiftDate(date: string, days: number): string {
   return shifted.toISOString().slice(0, 10);
 }
 
+function offsetMilliseconds(formatter: Intl.DateTimeFormat, instant: number): number {
+  const offset = formatter.formatToParts(instant).find(part => part.type === "timeZoneName")?.value;
+  if (offset === "GMT") return 0;
+  const parts = offset?.match(/^GMT([+-])(\d{2}):(\d{2})(?::(\d{2}))?$/);
+  if (!parts) throw new RangeError("Could not resolve the local date's time zone offset.");
+  const [, sign, hours, minutes, seconds = "0"] = parts;
+  return (sign === "-" ? -1 : 1) * (Number(hours) * 3600 + Number(minutes) * 60 + Number(seconds)) * 1000;
+}
+
+function localDayBoundary(utcMidnight: number, formatter: Intl.DateTimeFormat): Date {
+  let before = utcMidnight - 86_400_000;
+  let after = utcMidnight + 86_400_000;
+  const offsetAt = (instant: number) => offsetMilliseconds(formatter, instant);
+  const localTimeAt = (instant: number) => instant + offsetAt(instant);
+  const offsets = new Set([offsetAt(before), offsetAt(utcMidnight), offsetAt(after)]);
+  const midnights = [...offsets].map(offset => utcMidnight - offset).filter(instant => localTimeAt(instant) === utcMidnight);
+  // A rollback can repeat midnight or even briefly return to the previous date.
+  if (midnights.length) return new Date(Math.min(...midnights));
+
+  // With no exact midnight, find the forward transition into or past this date.
+  while (after - before > 1) {
+    const instant = before + Math.floor((after - before) / 2);
+    if (localTimeAt(instant) < utcMidnight) before = instant;
+    else after = instant;
+  }
+  return new Date(after);
+}
+
 export function rundownRange(request: RundownRequest, timezone: string) {
   rundownRequestSchema.parse(request);
-  const midnight = (date: string) => {
-    const [year, month, day] = date.split("-").map(Number);
-    return localDateTimeToUtc({ year, month, day, hour: 0, minute: 0, second: 0 }, timezone);
-  };
-  return { start: midnight(request.startDate), end: midnight(shiftDate(request.startDate, request.days)) };
+  const start = new Date(`${request.startDate}T00:00:00Z`);
+  const end = new Date(start);
+  end.setUTCDate(end.getUTCDate() + request.days);
+  const formatter = new Intl.DateTimeFormat("en-US", { timeZone: timezone, timeZoneName: "longOffset" });
+  return { start: localDayBoundary(start.getTime(), formatter), end: localDayBoundary(end.getTime(), formatter) };
 }
 
 /** A deliberately narrow shortcut also works when the model is unavailable. */

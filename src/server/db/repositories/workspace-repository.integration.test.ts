@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
 import { and, eq } from "drizzle-orm";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { TempoDatabase } from "../client";
 import * as schema from "../schema";
 import { mutateWorkspace, readWorkspace, workspaceActionSchema, WorkspaceConflict } from "./workspace-repository";
@@ -238,6 +238,72 @@ describe("shared life workspace", () => {
     expect(workspace.reminders).toHaveLength(200);
     expect(workspace.reminders[0].text).toBe("Upcoming reminder");
     expect(workspace).toMatchObject({ tasksTruncated: true, goalsTruncated: true, remindersTruncated: true });
+  });
+
+  it("keeps saved focus and tasks due on the account's local day ahead of an overdue backlog", async () => {
+    const [person, outsider] = await db.insert(schema.users).values([
+      { phoneE164: "+12025550722", timezone: "America/New_York" },
+      { phoneE164: "+12025550723", timezone: "America/New_York" },
+    ]).returning();
+    const [focused] = await db.insert(schema.tasks).values({ userId: person.id, title: "Saved focus", dueAt: new Date("2026-11-20T15:00:00Z") }).returning();
+    await db.insert(schema.lifeItems).values({ id: randomUUID(), userId: person.id, data: { kind: "focus", title: focused.title, taskId: focused.id, remaining: 120, endsAt: null } });
+    await db.insert(schema.tasks).values([
+      ...Array.from({ length: 205 }, (_, index) => ({ userId: person.id, title: `Old task ${index}`, dueAt: new Date(Date.UTC(2026, 9, 1, index)) })),
+      { userId: person.id, title: "Recently overdue", dueAt: new Date("2026-11-11T04:59:00Z") },
+      { userId: person.id, title: "Earlier today", dueAt: new Date("2026-11-11T20:00:00Z") },
+      { userId: person.id, title: "Today until local midnight", dueAt: new Date("2026-11-12T04:59:00Z") },
+      { userId: person.id, title: "Due at local midnight", dueAt: new Date("2026-11-12T05:00:00Z") },
+      { userId: person.id, title: "Started work", status: "in_progress", dueAt: new Date("2026-11-21T15:00:00Z") },
+      { userId: person.id, title: "Completed today", status: "completed", dueAt: new Date("2026-11-12T03:00:00Z") },
+      { userId: outsider.id, title: "Another account's task", dueAt: new Date("2026-11-12T03:00:00Z") },
+    ]);
+
+    vi.setSystemTime(new Date("2026-11-12T04:30:00Z"));
+    try {
+      const before = await readWorkspace(person.id, db, { diaryDate: "2026-10-01" });
+      expect(before.tasksTruncated).toBe(true);
+      expect(before.tasks).toHaveLength(200);
+      expect(before.tasks.slice(0, 6).map(({ title }) => title)).toEqual([
+        "Saved focus", "Started work", "Earlier today", "Today until local midnight", "Recently overdue", "Old task 204",
+      ]);
+      expect(before.tasks.some(({ title }) => title === "Another account's task" || title === "Completed today" || title === "Due at local midnight")).toBe(false);
+
+      vi.setSystemTime(new Date("2026-11-12T05:00:00Z"));
+      const after = await readWorkspace(person.id, db);
+      expect(after.tasks.slice(0, 5).map(({ title }) => title)).toEqual([
+        "Saved focus", "Started work", "Due at local midnight", "Today until local midnight", "Earlier today",
+      ]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it.each([
+    { phone: "+12025550724", zone: "+05:30", start: "2026-06-30T18:30:00Z", end: "2026-07-01T18:30:00Z" },
+    { phone: "+12025550725", zone: "-04:00", start: "2026-07-01T04:00:00Z", end: "2026-07-02T04:00:00Z" },
+    { phone: "+12025550726", zone: "+0530", start: "2026-06-30T18:30:00Z", end: "2026-07-01T18:30:00Z" },
+    { phone: "+12025550727", zone: "PST", start: "2026-07-01T07:00:00Z", end: "2026-07-02T07:00:00Z" },
+    { phone: "+12025550728", zone: "America/Santiago", start: "2026-09-06T04:00:00Z", end: "2026-09-07T03:00:00Z" },
+  ])("keeps account-local ordering with the saved time zone $zone", async ({ phone, zone, start, end }) => {
+    const [person] = await db.insert(schema.users).values({ phoneE164: phone, timezone: zone }).returning();
+    const startOfDay = new Date(start);
+    await db.insert(schema.tasks).values([
+      { userId: person.id, title: "Previous local day", dueAt: new Date(startOfDay.getTime() - 1) },
+      { userId: person.id, title: "Current local day", dueAt: startOfDay },
+      { userId: person.id, title: "No deadline" },
+      { userId: person.id, title: "Next local day", dueAt: new Date(end) },
+    ]);
+
+    vi.setSystemTime(new Date(startOfDay.getTime() + 60_000));
+    try {
+      const workspace = await readWorkspace(person.id, db);
+      expect(workspace.timezone).toBe(zone);
+      expect(workspace.tasks.map(({ title }) => title)).toEqual([
+        "Current local day", "Previous local day", "No deadline", "Next local day",
+      ]);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("projects saved reminder cadence, timezone and terminal history without leaking another account", async () => {

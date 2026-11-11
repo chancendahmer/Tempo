@@ -53,14 +53,60 @@ export const workspaceActionSchema = z.discriminatedUnion("action", [
 export type WorkspaceAction = z.infer<typeof workspaceActionSchema>;
 export class WorkspaceConflict extends Error {}
 
+function readWorkspaceTasks(database: TempoDatabase, userId: string, now: Date, timezone: string) {
+  const canonicalZone = new Intl.DateTimeFormat("en-US", { timeZone: timezone }).resolvedOptions().timeZone;
+  // Match Intl's named aliases and use ISO offset signs via PostgreSQL's interval overload.
+  const zone = /^[+-]/.test(canonicalZone) ? sql`${canonicalZone}::interval` : sql`${canonicalZone}::text`;
+  const dueDay = sql`(${tasks.dueAt} at time zone ${zone})::date`;
+  const today = sql`${localDay(now, timezone)}::date`;
+  const overdue = sql`${dueDay} < ${today}`;
+  // Match Home's task priority before taking the bounded workspace slice.
+  const priority = sql`case
+    when ${tasks.status} = 'completed' then 6
+    when ${tasks.id}::text = (${lifeItems.data}->>'taskId') then 0
+    when ${tasks.status} = 'in_progress' then 1
+    when ${dueDay} = ${today} then 2
+    when ${overdue} then 3
+    when ${tasks.dueAt} is null then 4
+    else 5
+  end`;
+  return database.select({ id: tasks.id, title: tasks.title, status: tasks.status, dueAt: tasks.dueAt, estimatedMinutes: tasks.estimatedMinutes, presentation: tasks.presentation, startedAt: tasks.startedAt, goalId: tasks.goalId })
+    .from(tasks)
+    // The unique focus index limits this join to one focus item per account.
+    .leftJoin(lifeItems, and(eq(lifeItems.userId, tasks.userId), sql`${lifeItems.data}->>'kind' = 'focus'`))
+    .where(and(eq(tasks.userId, userId), inArray(tasks.status, ["not_started", "in_progress", "completed"])))
+    .orderBy(
+      asc(priority),
+      desc(sql`case when ${tasks.status} = 'not_started' and ${overdue} then ${tasks.dueAt} end`),
+      asc(sql`case when ${tasks.status} <> 'completed' then ${tasks.dueAt} end`),
+      desc(tasks.updatedAt),
+      desc(tasks.id),
+    ).limit(201);
+}
+
 export async function readWorkspace(userId: string, database: TempoDatabase = getDatabase(), options: { diaryDate?: string } = {}) {
   const requestedDiaryDate = z.iso.date().optional().parse(options.diaryDate);
-  const accountToday = await refreshMealGroceries(database, userId);
+  const [accountToday, [profile]] = await Promise.all([
+    refreshMealGroceries(database, userId),
+    database.select({
+      displayName: users.displayName,
+      timezone: users.timezone,
+      proactiveOptIn: users.proactiveOptIn,
+      quietHoursStart: users.quietHoursStart,
+      quietHoursEnd: users.quietHoursEnd,
+      workspacePreferences: users.workspacePreferences,
+      onboardingState: users.onboardingState,
+      status: users.status,
+      pausedUntil: users.pausedUntil,
+      dailyInterventionCap: users.dailyInterventionCap,
+    }).from(users).where(eq(users.id, userId)).limit(1),
+  ]);
+  if (!profile) throw new WorkspaceConflict("Account unavailable.");
   const diaryDate = requestedDiaryDate ?? accountToday;
   const now = new Date();
-  const [board, allTasks, allGoals, life, messages, profileRows, memories, allReminders, activityStreak, setup] = await Promise.all([
+  const [board, allTasks, allGoals, life, messages, memories, allReminders, activityStreak, setup] = await Promise.all([
     readBoard(userId, now, database),
-    database.select({ id: tasks.id, title: tasks.title, status: tasks.status, dueAt: tasks.dueAt, estimatedMinutes: tasks.estimatedMinutes, presentation: tasks.presentation, startedAt: tasks.startedAt, goalId: tasks.goalId }).from(tasks).where(and(eq(tasks.userId, userId), inArray(tasks.status, ["not_started", "in_progress", "completed"]))).orderBy(asc(sql`case when ${tasks.status} = 'in_progress' then 0 when ${tasks.status} = 'not_started' then 1 else 2 end`), asc(sql`case when ${tasks.status} <> 'completed' then ${tasks.dueAt} end`), desc(tasks.updatedAt), desc(tasks.id)).limit(201),
+    readWorkspaceTasks(database, userId, now, profile.timezone),
     database.select({ id: goals.id, title: goals.title, description: goals.description, status: goals.status }).from(goals).where(and(eq(goals.userId, userId), inArray(goals.status, ["active", "completed"]))).orderBy(asc(sql`case when ${goals.status} = 'active' then 0 else 1 end`), desc(goals.updatedAt), desc(goals.id)).limit(101),
     readWorkspaceLifeItems(database, userId, diaryDate),
     database.select({ id: conversationMessages.id, body: conversationMessages.body, direction: conversationMessages.direction, status: conversationMessages.status, createdAt: conversationMessages.createdAt })
@@ -75,24 +121,11 @@ export async function readWorkspace(userId: string, database: TempoDatabase = ge
           )),
         ),
       )).orderBy(desc(conversationMessages.createdAt)).limit(50),
-    database.select({
-      displayName: users.displayName,
-      proactiveOptIn: users.proactiveOptIn,
-      quietHoursStart: users.quietHoursStart,
-      quietHoursEnd: users.quietHoursEnd,
-      workspacePreferences: users.workspacePreferences,
-      onboardingState: users.onboardingState,
-      status: users.status,
-      pausedUntil: users.pausedUntil,
-      dailyInterventionCap: users.dailyInterventionCap,
-    }).from(users).where(eq(users.id, userId)).limit(1),
     database.select({ id: memoryEntries.id, content: memoryEntries.content, category: memoryEntries.category }).from(memoryEntries).where(and(eq(memoryEntries.userId, userId), isNull(memoryEntries.deletedAt), or(isNull(memoryEntries.expiresAt), gt(memoryEntries.expiresAt, new Date())))).orderBy(desc(memoryEntries.createdAt)).limit(201),
     database.select({ id: reminders.id, text: reminders.text, remindAt: reminders.remindAt, timezone: reminders.timezone, recurrence: reminders.recurrence, status: reminders.status }).from(reminders).where(and(eq(reminders.userId, userId), inArray(reminders.status, ["scheduled", "sending", "sent", "failed", "cancelled", "completed"]))).orderBy(asc(sql`case when ${reminders.status} in ('scheduled','sending') then 0 else 1 end`), asc(sql`case when ${reminders.status} in ('scheduled','sending') then ${reminders.remindAt} end`), desc(reminders.remindAt), desc(reminders.id)).limit(201),
     readActivityStreak(userId, database),
     readGentleSetup(userId, database),
   ]);
-  const [profile] = profileRows;
-  if (!profile) throw new WorkspaceConflict("Account unavailable.");
   const thoughtTaskIds = life.items.flatMap(item => item.data.kind === "note" && item.data.taskId ? [item.data.taskId] : []);
   const thoughtTasks = thoughtTaskIds.length ? await database.select().from(tasks).where(and(eq(tasks.userId, userId), inArray(tasks.id, thoughtTaskIds))) : [];
   const linkedLifeItems: SavedLifeItem[] = life.items.map(item => {
@@ -102,7 +135,7 @@ export async function readWorkspace(userId: string, database: TempoDatabase = ge
     return { ...item, linkedTask: task ? { id: task.id, title: task.title, status: task.status, estimatedMinutes: task.estimatedMinutes, dueAt: task.dueAt?.toISOString() ?? null, startedAt: task.startedAt?.toISOString() ?? null, goalId: task.goalId, presentation: task.presentation } : null };
   });
   return {
-    ...board,
+    ...board, timezone: profile.timezone,
     tasks: allTasks.slice(0, 200), tasksTruncated: allTasks.length > 200,
     goals: allGoals.slice(0, 100), goalsTruncated: allGoals.length > 100,
     ...life, items: linkedLifeItems, messages: messages.reverse(),

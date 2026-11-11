@@ -18,11 +18,11 @@ type Step = {
 };
 
 const steps: Step[] = [
-  { section: "today", anchor: "spaces", title: "Find your spaces", body: "Spaces opens Planner for tasks and goals, Daily rhythm for routines, Food & fitness, and Brain dump for thoughts and memories. The Menu button gets you there from any page." },
-  { section: "today", anchor: "current", title: "See what’s next", body: "Home brings the next activity into view as your day changes. Use this button to pick up a task or routine, check your calendar, or open a meal or workout plan." },
+  { section: "today", anchor: "spaces", title: "Find your spaces", body: "Spaces opens Planner, Daily rhythm, Food & fitness, and Brain dump. On other pages, use the three-line navigation button beside Tempo to get back to these spaces." },
+  { section: "today", anchor: "current", title: "See what’s next", body: "In Automatic mode, this banner follows your day: your current timer comes first, then a routine, plan or task. After the tour, try its button—or choose a different task from Your to-do below." },
   { section: "today", anchor: "timer", title: "Start with a few minutes", body: "Use Start beside a task for a short focus timer. You can pause, add time, or finish when you’re ready. Continue brings you back to an active timer." },
   { section: "inbox", anchor: "capture", title: "Catch a thought", body: "Use Capture when an idea or loose end comes up. It saves to Thoughts, where you can turn it into a task or a goal when you’re ready." },
-  { section: "today", anchor: "ask", title: "Ask me for a hand", body: "Use this message box to add a task, adjust a plan, or ask for help getting started. You can also open Ask Tempo from Menu. With a verified account, your web and text conversations stay together." },
+  { section: "today", anchor: "ask", title: "Ask me for a hand", body: "Use this message box to add a task, adjust a plan, or ask for help getting started. You can also open Ask Tempo from the navigation button. With a verified account, your web and text conversations stay together." },
   { section: "settings", anchor: "connections", title: "Bring your calendar along", body: "Manage connections is where you can link Google Calendar to see events in Tempo. You can remove access later, and I’ll ask before making calendar changes." },
   { section: "settings", anchor: "checkins", title: "Choose your check-ins", body: "Text check-ins are optional. Choose here whether I can text you first when a check-in could help. Delivery depends on availability and follows your quiet hours. Change your choice anytime." },
 ];
