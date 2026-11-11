@@ -24,6 +24,50 @@ function fixture() {
   return data;
 }
 describe("Today in the account timezone", () => {
+  it("shows today's task in the focus banner and collapsed checklist ahead of older deadlines", () => {
+    const data = fixture();
+    data.items = [];
+    const [task] = data.tasks;
+    data.tasks = [
+      { ...task, id: "oldest", title: "File October notes", dueAt: "2026-10-01T16:00:00Z" },
+      { ...task, id: "middle", title: "Send October invoice", dueAt: "2026-10-03T16:00:00Z" },
+      { ...task, id: "latest", title: "Book October appointment", dueAt: "2026-10-04T16:00:00Z" },
+      { ...task, id: "current", title: "Send the project update", dueAt: "2026-11-11T21:30:00Z" },
+    ];
+    const now = new Date("2026-11-11T20:00:00Z");
+    const html = renderToday(data, now);
+    expect(html.match(/<h2>([^<]+)<\/h2>/)?.[1]).toBe("Send the project update");
+    expect(Array.from(html.matchAll(/aria-label="Complete ([^"]+)"/g), match => match[1]))
+      .toEqual(["Send the project update", "Book October appointment", "Send October invoice"]);
+
+    data.tasks.pop();
+    expect(renderToday(data, now).match(/<h2>([^<]+)<\/h2>/)?.[1]).toBe("Book October appointment");
+  });
+
+  it("orders today's tasks by local due time, then overdue, undated, and future tasks across UTC midnight", () => {
+    const data = fixture();
+    const [task] = data.tasks;
+    const future = { ...task, id: "future", dueAt: "2026-11-12T05:00:00Z" };
+    data.tasks = [
+      { ...task, id: "later-future", dueAt: "2026-11-13T15:00:00Z" },
+      { ...task, id: "late-today", dueAt: "2026-11-12T04:59:00Z" },
+      { ...task, id: "overdue", dueAt: "2026-11-11T04:59:00Z" },
+      { ...task, id: "undated", dueAt: null },
+      future,
+      { ...task, id: "earlier-today", dueAt: "2026-11-11T22:00:00Z" },
+    ];
+    const now = new Date("2026-11-12T02:30:00Z");
+    const model = todayModel(data, now);
+    expect(model.day).toBe("2026-11-11");
+    expect(model.nextTask?.id).toBe("earlier-today");
+    expect(model.tasks.map(task => task.id)).toEqual(["earlier-today", "late-today", "overdue", "undated", "future", "later-future"]);
+
+    data.tasks = [future];
+    const futureOnly = todayModel(data, now);
+    expect(futureOnly.nextTask).toBeUndefined();
+    expect(futureOnly.tasks.map(task => task.id)).toEqual(["future"]);
+  });
+
   it("labels an earlier local due day as overdue in NOW and the task checklist", () => {
     const data = fixture();
     data.items = [];
@@ -141,7 +185,9 @@ describe("Today in the account timezone", () => {
     data.tasks[1].status = "in_progress";
     data.items.unshift({ id: "current-focus", version: 1, data: { kind: "focus", title: "The session actually running", taskId: data.tasks[0].id, remaining: 120, endsAt: null } });
     const now = new Date("2026-10-14T18:00:00Z");
-    expect(todayModel(data, now).nextTask?.id).toBe("tomorrow");
+    const model = todayModel(data, now);
+    expect(model.nextTask?.id).toBe("tomorrow");
+    expect(model.tasks.map(task => task.id)).toEqual(["tomorrow", "today", "undated"]);
     expect(renderToday(data, now)).toContain("The session actually running</h2>");
   });
 });

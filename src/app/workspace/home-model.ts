@@ -17,10 +17,10 @@ const minutesOf = (clock: string) => { const [h, m] = clock.split(":").map(Numbe
 const since = (now: number, then: number) => (now - then + 1440) % 1440;
 export function homeModel(data: Workspace, now: Date, calendarEvents: CalendarEvent[] = [], manualMode?: HomeMode) {
   const preferences = readHomePreferences(data.homePreferences);
-  const day = localDay(now, data.timezone);
+  const today = todayModel(data, now, calendarEvents);
+  const day = today.day;
   const clock = new Intl.DateTimeFormat("en-GB", { timeZone: data.timezone, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(now);
   const minute = minutesOf(clock);
-  const today = todayModel(data, now, calendarEvents);
   const formatTime = (at: string) => new Intl.DateTimeFormat(undefined, { timeZone: data.timezone, hour: "numeric", minute: "2-digit" }).format(new Date(at));
   const routines = data.items.filter(item => item.data.kind === "routine");
   const routineFor = (period: "morning" | "evening") => routines.filter(item => item.data.kind === "routine" && item.data.period === period).sort((a, b) => a.data.kind === "routine" && b.data.kind === "routine" ? since(minute, minutesOf(a.data.time)) - since(minute, minutesOf(b.data.time)) : 0)[0];
@@ -55,6 +55,5 @@ export function homeModel(data: Workspace, now: Date, calendarEvents: CalendarEv
   const automatic: HeroMode = today.focus || activeTask ? "focus" : ongoing ? (workoutEvent?.id === ongoing.id ? "workout" : "focus") : workoutEvent || workoutTask ? "workout" : eveningWindow && evening ? "evening" : morningWindow && morning ? "morning" : meal && (dinnerWindow || lunchWindow || breakfastWindow) ? "meal" : "focus";
   const requested = manualMode ?? preferences.pinned;
   const mode = requested === "auto" ? automatic : requested;
-  const tasks = [...today.tasks].sort((a, b) => Number(b.status === "in_progress") - Number(a.status === "in_progress") || Number(!!a.dueAt && localDay(new Date(a.dueAt), data.timezone) > day) - Number(!!b.dueAt && localDay(new Date(b.dueAt), data.timezone) > day) || (a.dueAt ? Date.parse(a.dueAt) : Infinity) - (b.dueAt ? Date.parse(b.dueAt) : Infinity));
-  return { day, minute, greeting: minute < 12 * 60 ? "Good morning" : minute < 18 * 60 ? "Good afternoon" : "Good evening", preferences, mode, automatic, hero: choices[mode], choices, tasks, calendar, today };
+  return { day, minute, greeting: minute < 12 * 60 ? "Good morning" : minute < 18 * 60 ? "Good afternoon" : "Good evening", preferences, mode, automatic, hero: choices[mode], choices, tasks: today.tasks, calendar, today };
 }
