@@ -62,7 +62,8 @@ and proposed, unavailable paid tiers rather than a functioning checkout.
 - The signed-in dedicated demo account is verified, active, opted in, SMS setup
   complete, cap one per day, quiet 23:00–07:00 New York, and connected to a fresh
   Google Calendar. No consent was changed by this run.
-- No new paid model request or provider message has been made in this work yet.
+- Paid usage is recorded in the post-release addendum below; scripted/local
+  tests remain distinct from hosted model calls and actual SMS arrivals.
 - Independent local scores after that walkthrough: guide 9.0, Settings 9.5,
   contextual engine 8.5; mean 9.0. Hosted behavior remains unscored.
 - A subsequent independent audit found and verified two restart/history repairs:
@@ -99,8 +100,9 @@ and proposed, unavailable paid tiers rather than a functioning checkout.
 
 ## Release and rollback
 
-Do not merge or enable outreach until the final cleanup submission guard,
-independent review and full release checks pass. This change adds no migration.
+PR #29 has passed these checks and merged; see [hosted continuation](HOSTED-CONTINUATION.md)
+for the deployed build, demo-only canary, exact delivery evidence and newer work.
+The following requirements still apply to subsequent releases. This change adds no migration.
 Web and worker must deploy a matching commit. Verify a single dedicated opted-in
 demo canary before expanding delivery permission; do not create customer consent.
 Keep the approved aggregate AI operating limit at $10 per UTC day.
