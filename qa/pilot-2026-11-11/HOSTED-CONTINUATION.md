@@ -82,7 +82,11 @@ lint, typecheck, Next.js production build and operations build, exit 0. Both
 isolated PostgreSQL integration and recovery test databases were enabled.
 Evidence: `priority-final-check.log`. Interrupted checks are not counted as passes.
 A subsequent independent audit found a preview-only simulated-clock mismatch
-for timer labels. Its narrow correction requires a new final check before merge.
+for timer labels. Commit `f1a71d0` fixes it. The new full check passed with
+**179 files / 1,451 tests**, lint, typecheck and production/operations builds,
+exit 0, with both isolated PostgreSQL suites enabled. Evidence:
+`priority-release-final.log`. The lead separately verified an active countdown
+stays running when the sample clock jumps ahead to 9:30 PM.
 
 Fresh independent browser review scored **Home 9/10 and guide 9/10** at desktop
 and 390 × 844 on the real clock. Task creation feedback, timer ownership,
