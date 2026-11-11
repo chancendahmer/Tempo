@@ -51,7 +51,7 @@ export class DrizzleContextEngineRepository implements ContextEngineRepository {
     const contactAt = sql<Date>`coalesce(${interventions.sentAt}, ${interventions.queuedAt}, ${interventions.createdAt})`.mapWith(interventions.createdAt);
     const otherIntervention = exclusions.interventionId ? ne(interventions.id, exclusions.interventionId) : undefined;
     const contactSince = new Date(now.getTime() - Math.max(36 * 60, user.interventionCooldownMinutes) * 60_000);
-    const [latestConsent, openTasks, calendar, recentInterventions, pending, learningMemories, extensionSignals, latestInbound] = await Promise.all([
+    const [latestConsent, openTasks, calendar, recentInterventions, pending, learningMemories, extensionSignals, latestInbound, reviews] = await Promise.all([
       this.database.select({ status: consentRecords.status }).from(consentRecords)
         .where(eq(consentRecords.userId, userId)).orderBy(desc(consentRecords.createdAt), desc(consentRecords.id)).limit(1),
       this.database.select({
@@ -95,17 +95,12 @@ export class DrizzleContextEngineRepository implements ContextEngineRepository {
       this.database.select({ createdAt: conversationMessages.createdAt }).from(conversationMessages)
         .where(and(eq(conversationMessages.userId, userId), eq(conversationMessages.direction, "inbound")))
         .orderBy(desc(conversationMessages.createdAt)).limit(1),
+      this.loadReviewContacts(userId, contactSince, exclusions.reviewId),
     ]);
 
-    const reviews = await this.database.select().from(itemReviews).where(and(
-      eq(itemReviews.userId, userId),
-      inArray(itemReviews.status, ["reserved", "sent", "closed"]),
-      or(gte(itemReviews.createdAt, contactSince), gte(itemReviews.sentAt, contactSince)),
-      exclusions.reviewId ? ne(itemReviews.id, exclusions.reviewId) : undefined,
-    ));
     const contactStatuses = new Set(["queued", "sent", "delivered", "responded", "expired"]);
     const contactInterventions = recentInterventions.filter((item) => contactStatuses.has(item.status));
-    const contacts = [...contactInterventions, ...reviews.map(row => ({ at: row.sentAt ?? row.createdAt }))].sort((a, b) => b.at.getTime() - a.at.getTime());
+    const contacts = [...contactInterventions, ...reviews].sort((a, b) => b.at.getTime() - a.at.getTime());
     const lastIntervention = contacts[0]?.at;
     const local = localTime(now, user.timezone);
     const responseStats = user.responseStats as { byTimeBucket?: Record<string, number> };
@@ -136,7 +131,7 @@ export class DrizzleContextEngineRepository implements ContextEngineRepository {
       dailyInterventionCap: user.dailyInterventionCap,
       minutesSinceLastIntervention: lastIntervention ? Math.floor((now.getTime() - lastIntervention.getTime()) / 60_000) : null,
       interventionCooldownMinutes: user.interventionCooldownMinutes,
-      hasPendingResponse: pending.length > 0 || reviews.some(row => row.status !== "closed" && now.getTime() - (row.sentAt ?? row.createdAt).getTime() < 24 * 3_600_000),
+      hasPendingResponse: pending.length > 0 || reviews.some(row => row.status !== "closed" && now.getTime() - row.at.getTime() < 24 * 3_600_000),
       lastUserMessageAt: latestInbound[0]?.createdAt ?? null,
       responseRate: typeof bucketRate === "number" ? bucketRate : 0.5,
       coachingTone: user.coachingTone,
@@ -156,6 +151,22 @@ export class DrizzleContextEngineRepository implements ContextEngineRepository {
       signals.workspace = await this.loadWorkspaceContext(userId, local.date, now, openTasks);
     }
     return signals;
+  }
+
+  async loadReviewContacts(userId: string, since: Date, excludeReviewId?: string) {
+    // An older reservation counts at submission time as soon as provider I/O can begin.
+    const at = sql<Date>`coalesce(${itemReviews.sentAt}, ${conversationMessages.submissionStartedAt}, ${itemReviews.createdAt})`.mapWith(itemReviews.createdAt);
+    return this.database.select({ at, status: itemReviews.status }).from(itemReviews)
+      .leftJoin(conversationMessages, and(
+        eq(conversationMessages.userId, itemReviews.userId),
+        eq(conversationMessages.idempotencyKey, sql`'item-review:' || ${itemReviews.id}::text`),
+        inArray(conversationMessages.outboundState, ["submitting", "accepted", "ambiguous"]),
+      )).where(and(
+        eq(itemReviews.userId, userId),
+        inArray(itemReviews.status, ["reserved", "sent", "closed"]),
+        gte(at, since),
+        excludeReviewId ? ne(itemReviews.id, excludeReviewId) : undefined,
+      ));
   }
 
   async evaluateDelivery(userId: string, interventionId: string, now: Date) {

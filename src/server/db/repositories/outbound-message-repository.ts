@@ -97,7 +97,8 @@ export class DrizzleOutboundMessageRepository implements OutboundMessageReposito
       const [owner] = await transaction.select({ userId: users.id }).from(users)
         .innerJoin(conversationMessages, eq(conversationMessages.userId, users.id))
         .where(and(eq(conversationMessages.id, messageId), eq(conversationMessages.direction, "outbound")))
-        .for("update", { of: users });
+        // Optional gates may lock a task whose writer needs a user FK key-share.
+        .for(this.allowSubmission ? "no key update" : "update", { of: users });
       if (!owner) return { status: "not_reserved" };
       const database = transaction as unknown as TempoDatabase;
       const permission = await new DrizzleOutboundMessageRepository(database).getPermission(owner.userId);

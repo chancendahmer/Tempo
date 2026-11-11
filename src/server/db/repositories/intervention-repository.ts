@@ -1,5 +1,4 @@
 import { createHash } from "node:crypto";
-import { itemReviews } from "../schema";
 import { and, desc, eq, gt, inArray, isNull, lte, ne, or, sql } from "drizzle-orm";
 import { MessagingProvider } from "../../adapters/sms/sms-transport";
 import { InterventionOpportunityPlanner } from "../../domain/context-evaluation-service";
@@ -129,7 +128,7 @@ export class DrizzleInterventionRepository implements InterventionOpportunityPla
         inArray(interventions.status, ["queued", "sent", "delivered", "responded", "expired"]),
         gt(contactAt, contactSince),
       ));
-      const reviews = await transaction.select({ at: sql<Date>`coalesce(${itemReviews.sentAt}, ${itemReviews.createdAt})`.mapWith(itemReviews.createdAt) }).from(itemReviews).where(and(eq(itemReviews.userId, current.userId), inArray(itemReviews.status, ["reserved", "sent", "closed"]), or(gt(itemReviews.createdAt, contactSince), gt(itemReviews.sentAt, contactSince))));
+      const reviews = await new DrizzleContextEngineRepository(transaction as unknown as TempoDatabase).loadReviewContacts(current.userId, contactSince);
       contacts.push(...reviews);
       if (contacts.filter(({ at }) => at && localTime(at, user.timezone).date === today).length >= Math.min(3, user.dailyInterventionCap)) {
         return { claimed: false as const, reason: "daily_cap_reached" };

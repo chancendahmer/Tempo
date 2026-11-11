@@ -1,6 +1,6 @@
 import { inOwnedExecution, ownedService } from "../../domain/inbound-execution";
 import { withAiInvocationScope } from "../../domain/ai-invocation-scope";
-import { DrizzleItemReviewRepository } from "../../db/repositories/item-review-repository";
+import { DrizzleItemReviewRepository, itemReviewSubmissionGate } from "../../db/repositories/item-review-repository";
 import { DrizzleOutboundMessageRepository } from "../../db/repositories/outbound-message-repository";
 import { SafeSmsSender } from "../../domain/outbound-messaging";
 import { createMessagingTransport } from "../../adapters/sms/messaging-provider";
@@ -30,7 +30,19 @@ export async function registerEvaluateContextHandler(boss: PgBoss) {
         running = true;
         const env = getServerEnv();
         const shadowMode = !proactiveDeliveryEnabled(env, job.data.userId);
-        if (cleanupDeliveryEnabled(env, job.data.userId) && await deliverItemReview({ userId: job.data.userId, enabled: true, repository: new DrizzleItemReviewRepository(), sender: new SafeSmsSender(new DrizzleOutboundMessageRepository(), createMessagingTransport()), runOwned: ownership.run, signal: job.signal })) {
+        if (cleanupDeliveryEnabled(env, job.data.userId) && await deliverItemReview({
+          userId: job.data.userId,
+          enabled: true,
+          repository: new DrizzleItemReviewRepository(),
+          sender: {
+            send: (message, reviewId) => new SafeSmsSender(
+              new DrizzleOutboundMessageRepository(undefined, itemReviewSubmissionGate(reviewId)),
+              createMessagingTransport(),
+            ).send(message),
+          },
+          runOwned: ownership.run,
+          signal: job.signal,
+        })) {
           await actions.completeAndScheduleContextEvaluation(job.data.scheduledActionId, job.data.userId, new Date(Date.now() + EVALUATION_INTERVAL_MS));
           continue;
         }

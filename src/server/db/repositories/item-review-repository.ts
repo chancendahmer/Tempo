@@ -4,6 +4,7 @@ import { and, asc, desc, eq, gt, inArray, isNotNull, lt, or, sql } from "drizzle
 import { getDatabase, TempoDatabase } from "../client";
 import { conversationMessages, conversationStates, goals, itemReviews, lifeItems, reminders, tasks, users } from "../schema";
 import { DAY_MS, ItemReviewResponder, ReviewTarget, itemReviewMessage, reviewIsDue } from "../../domain/item-review";
+import { ReviewDeferred } from "../../domain/item-review-delivery";
 import { DrizzleContextEngineRepository } from "./context-engine-repository";
 import { executeTaskCommand } from "../../domain/task-service";
 import { executeGoalCommand } from "../../domain/goal-service";
@@ -48,7 +49,7 @@ export class DrizzleItemReviewRepository implements ItemReviewResponder {
 
   async reserve(userId: string, now: Date): Promise<Review | null> {
     return this.database.transaction(async tx => {
-      const [user] = await tx.select({ id: users.id }).from(users).where(eq(users.id, userId)).for("update");
+      const [user] = await tx.select({ id: users.id }).from(users).where(eq(users.id, userId)).for("no key update");
       if (!user) return null;
       const db = tx as unknown as TempoDatabase, repo = new DrizzleItemReviewRepository(db);
       const [pending] = await tx.select().from(itemReviews).where(and(eq(itemReviews.userId, userId), eq(itemReviews.status, "reserved"))).limit(1);
@@ -76,13 +77,26 @@ export class DrizzleItemReviewRepository implements ItemReviewResponder {
     });
   }
 
-  /** Called again immediately before provider submission, under the worker fence. */
-  async ready(id: string, now: Date) {
-    const [review] = await this.database.select().from(itemReviews).where(eq(itemReviews.id, id)).limit(1);
-    if (!review || review.status !== "reserved") return null;
+  async ready(id: string, now: Date, userId?: string) {
+    const [row] = await this.database.select({
+      review: itemReviews,
+      accepted: { id: conversationMessages.id, submittedAt: conversationMessages.submissionStartedAt },
+    }).from(itemReviews).leftJoin(conversationMessages, and(
+      eq(conversationMessages.userId, itemReviews.userId),
+      eq(conversationMessages.idempotencyKey, `item-review:${id}`),
+      eq(conversationMessages.outboundState, "accepted"),
+    )).where(and(
+      eq(itemReviews.id, id), eq(itemReviews.status, "reserved"), userId ? eq(itemReviews.userId, userId) : undefined,
+    )).limit(1);
+    if (!row) return null;
+    const { review, accepted } = row;
+    if (accepted) {
+      await this.finish(review.id, accepted.id, accepted.submittedAt ?? now);
+      return null;
+    }
     const target = await this.target(review.userId, review.target.kind, review.target.id, now);
     if (!target || target.revision !== review.target.revision) {
-      await this.finish(id, null);
+      await this.finish(id, null, now);
       return null;
     }
     if (!await this.eligible(review.userId, now, id)) return null;
@@ -129,4 +143,17 @@ export class DrizzleItemReviewRepository implements ItemReviewResponder {
       return reply;
     });
   }
+}
+
+/** Called within the outbound submission transaction after it locks the account. */
+export function itemReviewSubmissionGate(reviewId: string, now = () => new Date()) {
+  return async (database: TempoDatabase, userId: string) => {
+    if (await new DrizzleItemReviewRepository(database).ready(reviewId, now(), userId)) return true;
+    const [review] = await database.select({ status: itemReviews.status }).from(itemReviews).where(and(
+      eq(itemReviews.id, reviewId), eq(itemReviews.userId, userId),
+    )).limit(1);
+    if (review?.status !== "reserved") return false;
+    // Leave the existing send key reserved when optional contact must wait.
+    throw new ReviewDeferred();
+  };
 }
