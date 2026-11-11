@@ -12,9 +12,10 @@ Retry handling preserves uncertain sends and avoids stale composed prompts.
 Public pilot, pricing and integration claims are qualified to current behavior.
 
 Validation: focused independent tests and local authenticated/preview browser
-journeys passed. The final full check passed 1,424 tests across 179 files,
+journeys passed. The final full check passed 1,430 tests across 179 files,
 lint, typecheck and production build with real local PostgreSQL suites enabled.
-This includes the cleanup delivery fix. Hosted canary verification is still
+This includes cleanup restart recovery and filtering unsent messages before the
+workspace history limit. Hosted canary verification is still
 required before proactive rollout. No schema migration.
 
 Evidence, review limits, remaining product gaps and rollback:

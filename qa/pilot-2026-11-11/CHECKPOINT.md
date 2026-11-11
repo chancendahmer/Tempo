@@ -69,7 +69,8 @@ and proposed, unavailable paid tiers rather than a functioning checkout.
   `a6436fd` retires only a stale cleanup reservation proven never submitted,
   preserving uncertain/accepted attempts; `497b976` filters unsent coach rows
   before the workspace's 50-message limit. All six targeted regressions passed.
-  The full release check is rerunning on this combined code. The reviewer
+  The final combined release check passed 1,430 tests in 179 files, lint,
+  typecheck and production/operations builds, exit 0. The reviewer
   approves a bounded matching-code rollout with optional outreach off, not
   unrestricted customer activation.
 - The dedicated demo inbox was reauthenticated by the founder. A clearly named
