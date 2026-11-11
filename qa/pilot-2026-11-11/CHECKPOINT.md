@@ -45,8 +45,9 @@ and proposed, unavailable paid tiers rather than a functioning checkout.
   [Preview quiet hours](quiet-hours-preview.png).
 - The first full `npm run check` passed lint, typecheck, 1,417 tests in 179 files,
   and both production/operations builds. Local PostgreSQL concurrency, recovery,
-  receipts and retirement suites were enabled. A final full run is in progress
-  after the cleanup race fix (`340ad7b`); ignored logs retain both runs.
+  receipts and retirement suites were enabled. The final full run after the
+  cleanup race fix (`340ad7b`) passed 1,424 tests in 179 files, lint, typecheck,
+  and production/operations builds (exit 0). Ignored logs retain both runs.
 - The lead used normal one-time sign-in confirmation to enter the persisted,
   fictional QA Rowan account on local PostgreSQL. Quiet hours 21:45–07:15 saved
   and survived reload. Opt-in correctly reported pilot sending paused and was
@@ -64,6 +65,17 @@ and proposed, unavailable paid tiers rather than a functioning checkout.
 - No new paid model request or provider message has been made in this work yet.
 - Independent local scores after that walkthrough: guide 9.0, Settings 9.5,
   contextual engine 8.5; mean 9.0. Hosted behavior remains unscored.
+- A subsequent independent audit found and verified two restart/history repairs:
+  `a6436fd` retires only a stale cleanup reservation proven never submitted,
+  preserving uncertain/accepted attempts; `497b976` filters unsent coach rows
+  before the workspace's 50-message limit. All six targeted regressions passed.
+  The full release check is rerunning on this combined code. The reviewer
+  approves a bounded matching-code rollout with optional outreach off, not
+  unrestricted customer activation.
+- The dedicated demo inbox was reauthenticated by the founder. A clearly named
+  fictional task, `Tempo QA Nov 11: outline the demo handoff`, was saved through
+  the hosted To-do editor for 4:30 PM New York, estimated ten minutes. Remove
+  only that test task after the bounded canary. No old demo items were changed.
 
 ## Remaining advertised gaps
 
@@ -97,6 +109,10 @@ PostgreSQL records. For immediate outreach containment, clear canaries, keep
 shadow mode on, and turn autonomous/cleanup sending off on both roles and restart.
 Check actual platform inventory and fresh worker attestations; stale heartbeats
 alone do not prove an instance stopped. Never reset ambiguous sends to retry.
+
+Railway's service settings currently warn that legacy Config as Code files stop
+working on December 1, 2026. Plan a separate verified infrastructure-configuration
+migration before that date; this change does not alter deployment configuration.
 
 ## Spending continuity
 
