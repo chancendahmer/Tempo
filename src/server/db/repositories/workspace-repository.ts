@@ -53,6 +53,35 @@ export const workspaceActionSchema = z.discriminatedUnion("action", [
 export type WorkspaceAction = z.infer<typeof workspaceActionSchema>;
 export class WorkspaceConflict extends Error {}
 
+function readWorkspaceTasks(database: TempoDatabase, userId: string, now: Date) {
+  const dueDay = sql`(${tasks.dueAt} at time zone ${users.timezone})::date`;
+  const today = sql`(${now.toISOString()}::timestamptz at time zone ${users.timezone})::date`;
+  const overdue = sql`${dueDay} < ${today}`;
+  // Match Home's task priority before taking the bounded workspace slice.
+  const priority = sql`case
+    when ${tasks.status} = 'completed' then 6
+    when ${tasks.id}::text = (${lifeItems.data}->>'taskId') then 0
+    when ${tasks.status} = 'in_progress' then 1
+    when ${dueDay} = ${today} then 2
+    when ${overdue} then 3
+    when ${tasks.dueAt} is null then 4
+    else 5
+  end`;
+  return database.select({ id: tasks.id, title: tasks.title, status: tasks.status, dueAt: tasks.dueAt, estimatedMinutes: tasks.estimatedMinutes, presentation: tasks.presentation, startedAt: tasks.startedAt, goalId: tasks.goalId })
+    .from(tasks)
+    .innerJoin(users, eq(tasks.userId, users.id))
+    // The unique focus index limits this join to one focus item per account.
+    .leftJoin(lifeItems, and(eq(lifeItems.userId, tasks.userId), sql`${lifeItems.data}->>'kind' = 'focus'`))
+    .where(and(eq(tasks.userId, userId), inArray(tasks.status, ["not_started", "in_progress", "completed"])))
+    .orderBy(
+      asc(priority),
+      desc(sql`case when ${tasks.status} = 'not_started' and ${overdue} then ${tasks.dueAt} end`),
+      asc(sql`case when ${tasks.status} <> 'completed' then ${tasks.dueAt} end`),
+      desc(tasks.updatedAt),
+      desc(tasks.id),
+    ).limit(201);
+}
+
 export async function readWorkspace(userId: string, database: TempoDatabase = getDatabase(), options: { diaryDate?: string } = {}) {
   const requestedDiaryDate = z.iso.date().optional().parse(options.diaryDate);
   const accountToday = await refreshMealGroceries(database, userId);
@@ -60,7 +89,7 @@ export async function readWorkspace(userId: string, database: TempoDatabase = ge
   const now = new Date();
   const [board, allTasks, allGoals, life, messages, profileRows, memories, allReminders, activityStreak, setup] = await Promise.all([
     readBoard(userId, now, database),
-    database.select({ id: tasks.id, title: tasks.title, status: tasks.status, dueAt: tasks.dueAt, estimatedMinutes: tasks.estimatedMinutes, presentation: tasks.presentation, startedAt: tasks.startedAt, goalId: tasks.goalId }).from(tasks).where(and(eq(tasks.userId, userId), inArray(tasks.status, ["not_started", "in_progress", "completed"]))).orderBy(asc(sql`case when ${tasks.status} = 'in_progress' then 0 when ${tasks.status} = 'not_started' then 1 else 2 end`), asc(sql`case when ${tasks.status} <> 'completed' then ${tasks.dueAt} end`), desc(tasks.updatedAt), desc(tasks.id)).limit(201),
+    readWorkspaceTasks(database, userId, now),
     database.select({ id: goals.id, title: goals.title, description: goals.description, status: goals.status }).from(goals).where(and(eq(goals.userId, userId), inArray(goals.status, ["active", "completed"]))).orderBy(asc(sql`case when ${goals.status} = 'active' then 0 else 1 end`), desc(goals.updatedAt), desc(goals.id)).limit(101),
     readWorkspaceLifeItems(database, userId, diaryDate),
     database.select({ id: conversationMessages.id, body: conversationMessages.body, direction: conversationMessages.direction, status: conversationMessages.status, createdAt: conversationMessages.createdAt })
