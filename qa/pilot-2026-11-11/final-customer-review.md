@@ -2,6 +2,15 @@
 
 November 11, 2026 · Local fictional workspace preview · 1280 × 720 desktop and 390 × 844 phone viewports
 
+Reviewed code: `b6a394d` (review-only commit `19183d7`). Subsequent independent
+audit found a timer-label discrepancy when the preview sample clock differs
+from real time. Commit `f1a71d0` keeps saved timer state on the live clock. The
+lead independently started a 15-minute timer, switched Home to sample 9:30 PM
+while real time was 4:44 PM, and observed “Timer running,” “In progress,” and
+14:56 remaining together. Evidence: `private/local-preview-evening-live-timer.png`.
+The preview was reset afterward. This supplementary check does not extend the
+customer scores below to unreviewed account/provider workflows.
+
 | Area | Rating | What I could do |
 | --- | --- | --- |
 | Home | 9/10 | Save a task for later today, find it immediately, start and pause its timer, and resume the same session. The state and next action were clear on Home at both sizes. |
