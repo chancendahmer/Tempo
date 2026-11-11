@@ -1,5 +1,6 @@
 import { invokePaidMessage, AiBudgetDeniedError } from "./paid-invocation";
 import Anthropic from "@anthropic-ai/sdk";
+import { z } from "zod";
 import type { Tool } from "@anthropic-ai/sdk/resources/messages";
 import { requireEnv } from "../../config/env";
 import { InterventionDecisionReviewer } from "../../domain/context-evaluation-service";
@@ -18,13 +19,18 @@ const reviewTool: Tool = {
   },
 };
 
+const decisionSchema = z.object({
+  send: z.boolean(),
+  reason: z.string().trim().min(1).max(240),
+}).strict();
+
 export class AnthropicInterventionDecisionReviewer implements InterventionDecisionReviewer {
   private client: Anthropic | undefined;
 
   async review(input: Parameters<InterventionDecisionReviewer["review"]>[0]) {
-    const env = requireEnv(["ANTHROPIC_API_KEY", "ANTHROPIC_MODEL"]);
-    this.client ??= new Anthropic({ apiKey: env.ANTHROPIC_API_KEY!, timeout: 15_000, maxRetries: 0 });
     try {
+      const env = requireEnv(["ANTHROPIC_API_KEY", "ANTHROPIC_MODEL"]);
+      this.client ??= new Anthropic({ apiKey: env.ANTHROPIC_API_KEY!, timeout: 15_000, maxRetries: 0 });
       const response = await invokePaidMessage(this.client, {
         model: env.ANTHROPIC_MODEL!,
         max_tokens: 160,
@@ -54,17 +60,19 @@ export class AnthropicInterventionDecisionReviewer implements InterventionDecisi
         tools: [reviewTool],
         tool_choice: { type: "tool", name: reviewTool.name },
       }, "intervention_review");
-      const block = response.content.find((item) => item.type === "tool_use" && item.name === reviewTool.name);
-      if (!block || block.type !== "tool_use") throw new Error("AI intervention review returned no decision");
-      const value = block.input as { send?: unknown; reason?: unknown };
-      if (typeof value.send !== "boolean" || typeof value.reason !== "string") throw new Error("AI intervention review was invalid");
-      return { send: value.send, reason: value.reason.slice(0, 240), model: env.ANTHROPIC_MODEL! };
+      const calls = response.content.filter((item) => item.type === "tool_use");
+      const block = calls[0];
+      const parsed = block?.type === "tool_use" && block.name === reviewTool.name
+        ? decisionSchema.safeParse(block.input) : null;
+      if (response.stop_reason !== "tool_use" || calls.length !== 1 || !parsed?.success) {
+        return { send: false, reason: "ai_review_invalid_fail_closed", model: "deterministic-fallback" };
+      }
+      return { ...parsed.data, model: env.ANTHROPIC_MODEL! };
     } catch (error) {
       if (error instanceof AiBudgetDeniedError) return { send: false, reason: "ai_budget_denied", model: "deterministic-fallback" };
-      const margin = input.evaluation.score - input.policy.threshold;
       return {
-        send: margin >= 0.15,
-        reason: margin >= 0.15 ? "deterministic_high_confidence_fallback" : "ai_review_unavailable_fail_closed",
+        send: false,
+        reason: "ai_review_unavailable_fail_closed",
         model: "deterministic-fallback",
       };
     }

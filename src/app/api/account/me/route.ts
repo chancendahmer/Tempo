@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 const headers = { "Cache-Control": "private, no-store" };
 
 const profileSchema = z.object({
-  displayName: z.string().trim().min(1, "Add a name.").max(80),
+  displayName: z.string().trim().max(80),
   profileInstructions: z.string().trim().max(2_000).optional(),
   expectedCacheKey: z.string().max(64).optional(),
 });
@@ -38,7 +38,7 @@ export async function PUT(request: NextRequest) {
     // This is an optimistic ownership precondition, never an authentication credential.
     if (input.expectedCacheKey !== accountCacheKey(account.userId)) return NextResponse.json({ error: "Refresh your profile to confirm the signed-in account before saving. Your changes were not saved." }, { status: 409, headers });
     await new WebSessionService().updateProfile(account.userId, {
-      displayName: input.displayName,
+      displayName: input.displayName || null,
       profileInstructions: input.profileInstructions || null,
     });
     const updated = await new WebSessionService().findAccount(request.cookies.get(WEB_SESSION_COOKIE)?.value);

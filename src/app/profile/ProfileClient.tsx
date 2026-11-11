@@ -105,8 +105,8 @@ function ProfileEditor({ account, sessionKey, unavailable, retry, onSaved, inval
           <p>These instructions are added to Tempo’s private context for your conversations and proactive nudges.</p>
         </div>
         <label>
-          <span>What should Tempo call you?</span>
-          <input value={displayName} onChange={(event) => { setDisplayName(event.target.value); setMessage(""); }} maxLength={80} required placeholder="Your name" />
+          <span>What should Tempo call you? (optional)</span>
+          <input value={displayName} onChange={(event) => { setDisplayName(event.target.value); setMessage(""); }} maxLength={80} placeholder="Your name" />
         </label>
         <label>
           <span>Custom coaching instructions</span>
@@ -115,7 +115,7 @@ function ProfileEditor({ account, sessionKey, unavailable, retry, onSaved, inval
             onChange={(event) => { setInstructions(event.target.value); setMessage(""); }}
             maxLength={2_000}
             rows={8}
-            placeholder="Example: Be direct, keep messages short, and offer me two choices when I’m stuck. Don’t text before 8am."
+            placeholder="Example: Be direct, keep messages short, and offer me two choices when I’m stuck."
           />
           <small>{instructions.length}/2,000 characters</small>
         </label>

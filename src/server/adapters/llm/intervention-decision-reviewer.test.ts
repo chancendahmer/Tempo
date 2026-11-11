@@ -19,25 +19,53 @@ const policy = { id: "fixture-policy", ...DEFAULT_CONTEXT_POLICY, holdoutBasisPo
 const input: Parameters<InterventionDecisionReviewer["review"]>[0] = { now, signals, policy, evaluation: evaluateContext({ now, signals, policy, shadowMode: false }) };
 beforeEach(() => vi.clearAllMocks());
 
-it("vetoes budget denial even when the ordinary provider fallback would approve", async () => {
+it("vetoes budget denial even for a high scoring opportunity", async () => {
   create.mockRejectedValue(new AiBudgetDeniedError());
   expect(await new AnthropicInterventionDecisionReviewer().review({ ...input, evaluation: { ...input.evaluation, score: policy.threshold + 0.2 } }))
     .toMatchObject({ send: false, reason: "ai_budget_denied" });
 });
 
-it.each(["APIConnectionTimeoutError", "RateLimitError"])("preserves the deterministic failure policy after %s with bounded SDK work", async name => {
+it.each(["APIConnectionTimeoutError", "RateLimitError"])("skips optional outreach after %s regardless of score with bounded SDK work", async name => {
   create.mockRejectedValue(Object.assign(new Error("Synthetic unavailable provider"), { name }));
   const reviewer = new AnthropicInterventionDecisionReviewer();
   expect(await reviewer.review({ ...input, evaluation: { ...input.evaluation, score: policy.threshold + 0.1 } })).toMatchObject({ send: false, reason: "ai_review_unavailable_fail_closed", model: "deterministic-fallback" });
-  expect(await reviewer.review({ ...input, evaluation: { ...input.evaluation, score: policy.threshold + 0.2 } })).toMatchObject({ send: true, reason: "deterministic_high_confidence_fallback", model: "deterministic-fallback" });
+  expect(await reviewer.review({ ...input, evaluation: { ...input.evaluation, score: policy.threshold + 0.2 } })).toMatchObject({ send: false, reason: "ai_review_unavailable_fail_closed", model: "deterministic-fallback" });
   expect(construct).toHaveBeenCalledExactlyOnceWith({ apiKey: "test-only", timeout: 15_000, maxRetries: 0 });
   expect(create).toHaveBeenCalledTimes(2);
 });
 
 it("preserves an explicit model veto and treats invalid model decisions as failure", async () => {
-  create.mockResolvedValueOnce({ content: [{ type: "tool_use", name: "review_intervention", input: { send: false, reason: "Too weak" } }] })
-    .mockResolvedValueOnce({ content: [{ type: "tool_use", name: "review_intervention", input: { send: "true", reason: "Invalid" } }] });
+  create.mockResolvedValueOnce({ stop_reason: "tool_use", content: [{ type: "tool_use", name: "review_intervention", input: { send: false, reason: "Too weak" } }] })
+    .mockResolvedValueOnce({ stop_reason: "tool_use", content: [{ type: "tool_use", name: "review_intervention", input: { send: "true", reason: "Invalid" } }] });
   const reviewer = new AnthropicInterventionDecisionReviewer();
   expect(await reviewer.review(input)).toEqual({ send: false, reason: "Too weak", model: "fixture-model" });
-  expect(await reviewer.review({ ...input, evaluation: { ...input.evaluation, score: policy.threshold + 0.1 } })).toMatchObject({ send: false, reason: "ai_review_unavailable_fail_closed" });
+  expect(await reviewer.review({ ...input, evaluation: { ...input.evaluation, score: policy.threshold + 0.2 } })).toMatchObject({ send: false, reason: "ai_review_invalid_fail_closed" });
+});
+
+it("accepts one schema-valid review and trims the reason", async () => {
+  create.mockResolvedValue({ stop_reason: "tool_use", content: [{ type: "tool_use", name: "review_intervention", input: { send: true, reason: "  A concrete task fits this free window.  " } }] });
+  expect(await new AnthropicInterventionDecisionReviewer().review(input)).toEqual({ send: true, reason: "A concrete task fits this free window.", model: "fixture-model" });
+});
+
+it.each(["max_tokens", "refusal", "pause_turn", "end_turn", null])("vetoes approval in an incomplete or unexpected %s response", async stopReason => {
+  create.mockResolvedValue({ stop_reason: stopReason, content: [{ type: "tool_use", name: "review_intervention", input: { send: true, reason: "Okay" } }] });
+  expect(await new AnthropicInterventionDecisionReviewer().review(input)).toMatchObject({ send: false, reason: "ai_review_invalid_fail_closed" });
+});
+
+it.each([
+  null,
+  { send: true, reason: "" },
+  { send: true, reason: " ".repeat(4) },
+  { send: true, reason: "x".repeat(241) },
+  { send: true, reason: "Okay", bypassQuietHours: true },
+])("does not turn invalid tool arguments into permission to contact: %j", async value => {
+  create.mockResolvedValue({ stop_reason: "tool_use", content: [{ type: "tool_use", name: "review_intervention", input: value }] });
+  expect(await new AnthropicInterventionDecisionReviewer().review(input)).toMatchObject({ send: false, reason: "ai_review_invalid_fail_closed" });
+});
+
+it.each(["missing", "duplicate", "unknown"])("rejects %s review tools without choosing a convenient approval", async kind => {
+  const approval = { type: "tool_use", name: "review_intervention", input: { send: true, reason: "Okay" } };
+  const content = kind === "missing" ? [] : kind === "duplicate" ? [approval, { ...approval, input: { send: false, reason: "No" } }] : [approval, { ...approval, name: "unrecognized_tool" }];
+  create.mockResolvedValue({ stop_reason: "tool_use", content });
+  expect(await new AnthropicInterventionDecisionReviewer().review(input)).toMatchObject({ send: false, reason: "ai_review_invalid_fail_closed" });
 });

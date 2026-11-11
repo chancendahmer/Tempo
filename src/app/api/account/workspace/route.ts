@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { WebSessionService, accountCacheKey, WEB_SESSION_COOKIE, isTrustedMutationOrigin } from "@/server/security/web-session";
 import { getServerEnv } from "@/server/config/env";
+import { cleanupDeliveryEnabled, proactiveDeliveryEnabled } from "../../../../server/config/proactive-delivery";
+import { checkinAvailability } from "../../../../server/domain/checkin-availability";
 import { logger } from "@/server/observability/logger";
 import { mutateWorkspace, readWorkspace, workspaceActionSchema, WorkspaceConflict } from "@/server/db/repositories/workspace-repository";
 import { OperationalRepository } from "@/server/db/repositories/operational-repository";
@@ -19,7 +21,9 @@ async function handle(request: NextRequest, write: boolean) {
     if (!write) {
       const diaryDate = z.iso.date().optional().parse(request.nextUrl.searchParams.get("date") ?? undefined);
       const workspace = await readWorkspace(account.userId, undefined, { diaryDate });
-      return NextResponse.json({ ...workspace, cacheKey, profile: { ...workspace.profile, phoneLast4: account.phoneLast4 } }, { headers });
+      const env = getServerEnv();
+      const checkinStatus = checkinAvailability({ ...workspace.profile, calendar: workspace.calendar, deliveryEnabled: proactiveDeliveryEnabled(env, account.userId), cleanupEnabled: cleanupDeliveryEnabled(env, account.userId) });
+      return NextResponse.json({ ...workspace, cacheKey, profile: { ...workspace.profile, phoneLast4: account.phoneLast4, checkinStatus } }, { headers });
     }
     if (request.headers.get("x-tempo-account") !== cacheKey) return NextResponse.json({ error: "Your account changed. Reopen this form before saving.", code: "account_changed" }, { status: 409, headers });
     const limit = await new OperationalRepository().consumeRateLimit({ key: `workspace-write:${account.userId}`, limit: 30, windowMs: 60000 });

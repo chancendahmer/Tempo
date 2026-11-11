@@ -6,7 +6,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Tempo — The AI that pays attention",
   description:
-    "Tempo remembers your commitments, notices when the moment is right, and texts first to help you move.",
+    "Keep your tasks, routines and reminders together. Plan by text or in your Tempo dashboard.",
   icons: {
     icon: "/images/tempo-avatar.png",
     apple: "/images/tempo-icon-180.png",

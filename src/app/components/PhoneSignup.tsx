@@ -269,6 +269,7 @@ export function PhoneSignup() {
 
   return (
     <form className="signup-form" onSubmit={submit} noValidate>
+      <p className="signup-fine-print">Private pilot · new accounts need an invitation from the Tempo team. Use your invited number, or your existing account’s number to sign in.</p>
       <div className="signup-control">
         <div className="country-control">
           <span className={`fi fi-${country.flag}`} aria-hidden="true" />

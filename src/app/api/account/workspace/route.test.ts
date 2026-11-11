@@ -2,8 +2,8 @@ import { NextRequest } from "next/server";
 import { beforeEach, expect, it, vi } from "vitest";
 import { z } from "zod";
 
-const mocks = vi.hoisted(() => ({ account: vi.fn(), read: vi.fn(), mutate: vi.fn(), limit: vi.fn() }));
-vi.mock("@/server/config/env", () => ({ getServerEnv: () => ({ APP_BASE_URL: "https://tempo.test" }) }));
+const mocks = vi.hoisted(() => ({ account: vi.fn(), read: vi.fn(), mutate: vi.fn(), limit: vi.fn(), config: { APP_BASE_URL: "https://tempo.test", INTERVENTION_SHADOW_MODE: true, AUTONOMOUS_SENDING_ENABLED: false, PROACTIVE_CANARY_USER_IDS: [] as string[] } }));
+vi.mock("@/server/config/env", () => ({ getServerEnv: () => mocks.config }));
 vi.mock("@/server/security/web-session", () => ({
   WEB_SESSION_COOKIE: "tempo_session", accountCacheKey: (id: string) => `cache:${id}`,
   WebSessionService: class { findAccount = mocks.account; },
@@ -30,9 +30,18 @@ const request = (method: string, owner?: string, action = "save", origin = "http
 });
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.config.PROACTIVE_CANARY_USER_IDS = [];
   mocks.account.mockResolvedValue({ userId: "a", phoneVerified: true, phoneLast4: "1234" });
   mocks.read.mockResolvedValue({ profile: {}, messages: [] });
   mocks.limit.mockResolvedValue({ allowed: true }); mocks.mutate.mockResolvedValue({ message: "Saved" });
+});
+
+it("shows delivery availability for the authenticated account, not another account's canary permission", async () => {
+  mocks.config.PROACTIVE_CANARY_USER_IDS = ["a"];
+  mocks.read.mockResolvedValue({ profile: { proactiveOptIn: true, accountActive: true, onboardingComplete: true, dailyInterventionCap: 1 }, calendar: { status: "active", lastSyncedAt: new Date() }, messages: [] });
+  expect((await (await GET(request("GET"))).json()).profile.checkinStatus.state).toBe("eligible");
+  mocks.account.mockResolvedValue({ userId: "b", phoneVerified: true });
+  expect((await (await GET(request("GET"))).json()).profile.checkinStatus).toMatchObject({ state: "paused", title: "Preference saved · pilot sending paused" });
 });
 
 it("echoes only the verified session owner on reads and successful writes", async () => {
