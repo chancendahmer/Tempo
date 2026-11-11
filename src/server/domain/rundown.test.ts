@@ -24,6 +24,19 @@ describe("account rundown", () => {
     expect(() => rundownRange({ startDate: "2027-02-30", days: 1 }, context.timezone)).toThrow();
   });
 
+  it.each([
+    ["America/Santiago", "2026-09-05", "2026-09-05T04:00:00Z", "2026-09-06T04:00:00Z"],
+    ["America/Santiago", "2026-09-06", "2026-09-06T04:00:00Z", "2026-09-07T03:00:00Z"],
+    ["America/Havana", "2026-11-01", "2026-11-01T04:00:00Z", "2026-11-02T05:00:00Z"],
+    ["America/Goose_Bay", "2009-11-01", "2009-11-01T03:00:00Z", "2009-11-02T04:00:00Z"],
+    ["Asia/Kathmandu", "1986-01-01", "1985-12-31T18:30:00Z", "1986-01-01T18:15:00Z"],
+    ["Pacific/Apia", "2011-12-30", "2011-12-30T10:00:00Z", "2011-12-30T10:00:00Z"],
+    ["+05:45", "2026-09-06", "2026-09-05T18:15:00Z", "2026-09-06T18:15:00Z"],
+    ["-03:30", "2026-09-06", "2026-09-06T03:30:00Z", "2026-09-07T03:30:00Z"],
+  ])("uses the first instant of each local date in %s for %s", (timezone, startDate, start, end) => {
+    expect(rundownRange({ startDate, days: 1 }, timezone)).toEqual({ start: new Date(start), end: new Date(end) });
+  });
+
   it("resolves local dates and Monday-based weeks without consuming edit requests", () => {
     expect(parseRundownRequest("Show me my rundown for tomorrow", context.now, context.timezone)).toEqual({ startDate: "2027-03-15", days: 1 });
     expect(parseRundownRequest("What's my week look like?", context.now, context.timezone)).toEqual({ startDate: "2027-03-08", days: 7 });
@@ -45,6 +58,21 @@ describe("account rundown", () => {
     expect(goals.list).toHaveBeenCalledWith("owner", "active");
     expect(reminders.listForRundown).toHaveBeenCalledWith("owner", new Date("2027-03-14T05:00:00Z"), new Date("2027-03-15T04:00:00Z"));
     expect(integrations.agenda).toHaveBeenCalledWith("owner", "2027-03-14T05:00:00.000Z", "2027-03-15T04:00:00.000Z");
+  });
+
+  it("queries reminders and Calendar from the first valid instant of a day with no midnight", async () => {
+    const timezone = "America/Santiago";
+    const agenda = vi.fn(async () => JSON.stringify({ events: [] }));
+    const listForRundown = vi.fn(async () => []);
+    const tasks: TaskRecord[] = [
+      { id: "previous", title: "Previous local date", status: "not_started", goalId: null, estimatedMinutes: null, dueAt: new Date("2026-09-06T03:59:59Z") },
+      { id: "current", title: "First instant of today", status: "not_started", goalId: null, estimatedMinutes: null, dueAt: new Date("2026-09-06T04:00:00Z") },
+    ];
+    const reply = await buildRundown({ tasks: { list: async () => tasks }, goals: { list: async () => [] }, reminders: { listForRundown }, integrations: { agenda } },
+      { ...context, timezone, now: new Date("2026-09-06T15:00:00Z") }, { startDate: "2026-09-06", days: 1 });
+    expect(listForRundown).toHaveBeenCalledWith("owner", new Date("2026-09-06T04:00:00Z"), new Date("2026-09-07T03:00:00Z"));
+    expect(agenda).toHaveBeenCalledWith("owner", "2026-09-06T04:00:00.000Z", "2026-09-07T03:00:00.000Z");
+    expect(reply).toMatch(/Tasks due\n• [^\n]*First instant of today\n\nOverdue · still open\n• Previous local date/);
   });
 
   it("keeps available sections when calendar fails and reports incomplete data", async () => {
