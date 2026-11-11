@@ -47,10 +47,14 @@ Live Settings displays **Timing checks are active**, with saved quiet hours
 23:00–07:00 America/New_York and Google Calendar connected. The account has its
 existing one-contact-per-day limit. No new consent was created.
 
-At 20:49 UTC the normal evaluator chose randomized holdout. At 21:04:59 UTC a
-real model review of the old top-ranked task vetoed outreach (`ai_review_skip`).
-The corresponding message query showed no new outbound message. This proves
-review/veto operation, **not successful automatic SMS delivery**.
+At 20:49 UTC the normal evaluator chose randomized holdout. The 21:04:59 UTC
+model response failed strict validation and correctly failed closed
+(`ai_review_invalid_fail_closed`). This was not a valid semantic model veto.
+At 21:15:03 UTC a second real review returned a valid veto: the old task was
+several weeks overdue with insufficient current context. No new outbound
+message appeared in the ledger or recipient inbox. These are separate evidence
+of invalid-response containment and a semantic veto, **not successful automatic
+SMS delivery**.
 
 Private browser captures are under `private/`, excluded from Git. They include
 the live tutorial, Settings, and Railway deployment inventory. Do not publish
@@ -66,11 +70,32 @@ Branch `codex/current-task-priority`, based on the merged release:
 - `b4e93c1`: Home's banner and collapsed rows share one account-local ordering:
   current focus, started, today, most recently overdue, undated, future.
 
-The exact four-task backlog was reproduced before the fix. Independent local
-review ran 109 focused tests and approved the under-limit case, but found that
-the server's old ordering before a 200-row limit could still exclude today's
-work. That server repair and final release validation are pending. Do not call
-these two commits the deployed build yet.
+The exact four-task backlog was reproduced before the fix. Independent review
+found that the server's old ordering before a 200-row limit could exclude today's
+work. Commit `1958d22` applies ordering before that limit. Commit `bab6032`
+canonicalizes Intl timezone aliases and handles numeric offsets through the
+PostgreSQL interval overload, preserving the saved profile timezone. Commit
+`34f5533` corrects rundown bounds around skipped and repeated local midnights.
+
+The complete `npm run check` passed on `b6a394d`: **179 files / 1,450 tests**,
+lint, typecheck, Next.js production build and operations build, exit 0. Both
+isolated PostgreSQL integration and recovery test databases were enabled.
+Evidence: `priority-final-check.log`. Interrupted checks are not counted as passes.
+A subsequent independent audit found a preview-only simulated-clock mismatch
+for timer labels. Its narrow correction requires a new final check before merge.
+
+Fresh independent browser review scored **Home 9/10 and guide 9/10** at desktop
+and 390 × 844 on the real clock. Task creation feedback, timer ownership,
+pause/resume/expiry, toast placement and all eight preview tour steps passed.
+See `final-customer-review.md`. Two minor mobile findings remain: an absent
+wordmark referenced by one tour instruction and a narrow wrapping View To-do
+label. These scores cover those reviewed surfaces, not the entire product or SMS.
+
+No schema migration is added. Rollback requires restoring both web and worker
+to `943d560fcb6219b43ced8d6d37488c29656ea7b4`, preserving PostgreSQL. To contain
+optional outreach, clear the demo canary on both roles and retain shadow mode
+on, autonomous sending off and cleanup off. Do not remove outbound evidence.
+PR #30 is the release candidate; record its merge and hosted verification below.
 
 ## Spending
 
@@ -81,10 +106,11 @@ Previously confirmed test usage was $4.449248. This continuation observed:
 | Operation | UTC timestamp | Settled USD |
 | --- | --- | ---: |
 | Automatic task presentation | Nov 11 20:27:18 | 0.004446 |
-| Automatic intervention review, veto | Nov 11 21:04:59 | 0.005340 |
+| Automatic review, invalid response contained | Nov 11 21:04:59 | 0.005340 |
+| Automatic review, valid stale-task veto | Nov 11 21:15:03 | 0.004965 |
 
-New confirmed subtotal so far: $0.009786; cumulative known test usage:
-**$4.459034**. No unresolved historical charge was treated as free. The separate
+New confirmed subtotal so far: $0.014751; cumulative known test usage:
+**$4.463999**. No unresolved historical charge was treated as free. The separate
 ongoing enforced pilot allowance remains **$10 total per UTC day** across
 accounts. Query the ledger again before declaring final totals, since normal
 demo-canary evaluations can continue.
