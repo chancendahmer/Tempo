@@ -1,6 +1,6 @@
-import { and, desc, eq, gt, gte, inArray, isNull, lte, ne, or } from "drizzle-orm";
+import { and, desc, eq, gt, gte, inArray, isNotNull, isNull, lte, ne, or, sql } from "drizzle-orm";
 import { ContextEngineRepository } from "../../domain/context-evaluation-service";
-import { ContextPolicy, DEFAULT_CONTEXT_POLICY, contextSettingsSchema, contextWeightsSchema, localTime } from "../../domain/context-engine";
+import { ContextPolicy, ContextSignals, DEFAULT_CONTEXT_POLICY, LINKED_THOUGHT_WINDOW_MS, WORKSPACE_ACTIVITY_WINDOW_MS, WorkspaceContext, contextSettingsSchema, contextWeightsSchema, evaluateContext, localTime, proactiveBlockReasons } from "../../domain/context-engine";
 import { getDatabase, TempoDatabase } from "../client";
 import {
   calendarBusyWindows,
@@ -13,6 +13,7 @@ import {
   interventionPolicies,
   interventions,
   itemReviews,
+  lifeItems,
   memoryEntries,
   tasks,
   users,
@@ -44,47 +45,43 @@ export class DrizzleContextEngineRepository implements ContextEngineRepository {
     };
   }
 
-  async loadSignals(userId: string, now: Date, excludeReviewId?: string) {
+  async loadSignals(userId: string, now: Date, exclusions: { interventionId?: string; reviewId?: string } = {}) {
     const [user] = await this.database.select().from(users).where(eq(users.id, userId)).limit(1);
     if (!user) return null;
-    const [latestConsent, openTasks, currentBusy, nextBusy, recentInterventions, pending, learningMemories, calendarConnection, extensionSignals, latestInbound] = await Promise.all([
+    const contactAt = sql<Date>`coalesce(${interventions.sentAt}, ${interventions.queuedAt}, ${interventions.createdAt})`.mapWith(interventions.createdAt);
+    const otherIntervention = exclusions.interventionId ? ne(interventions.id, exclusions.interventionId) : undefined;
+    const contactSince = new Date(now.getTime() - Math.max(36 * 60, user.interventionCooldownMinutes) * 60_000);
+    const [latestConsent, openTasks, calendar, recentInterventions, pending, learningMemories, extensionSignals, latestInbound] = await Promise.all([
       this.database.select({ status: consentRecords.status }).from(consentRecords)
-        .where(eq(consentRecords.userId, userId)).orderBy(desc(consentRecords.createdAt)).limit(1),
+        .where(eq(consentRecords.userId, userId)).orderBy(desc(consentRecords.createdAt), desc(consentRecords.id)).limit(1),
       this.database.select({
         id: tasks.id, title: tasks.title, status: tasks.status, dueAt: tasks.dueAt,
         estimatedMinutes: tasks.estimatedMinutes, createdAt: tasks.createdAt,
       }).from(tasks).where(and(eq(tasks.userId, userId), inArray(tasks.status, ["not_started", "in_progress"]))),
-      this.database.select({ id: calendarBusyWindows.id }).from(calendarBusyWindows)
-        .where(and(eq(calendarBusyWindows.userId, userId), lte(calendarBusyWindows.startsAt, now), gt(calendarBusyWindows.endsAt, now))).limit(1),
-      this.database.select({ startsAt: calendarBusyWindows.startsAt, endsAt: calendarBusyWindows.endsAt }).from(calendarBusyWindows)
-        .where(and(eq(calendarBusyWindows.userId, userId), gt(calendarBusyWindows.startsAt, now)))
-        .orderBy(calendarBusyWindows.startsAt).limit(1),
+      this.loadCalendarContext(userId, now),
       this.database.select({
-        createdAt: interventions.createdAt,
+        at: contactAt,
         status: interventions.status,
         style: interventions.style,
         startedAt: interventionOutcomes.startedAt,
       }).from(interventions)
         .leftJoin(interventionOutcomes, eq(interventionOutcomes.interventionId, interventions.id))
-        .where(and(eq(interventions.userId, userId), gte(interventions.createdAt, new Date(now.getTime() - 36 * 3_600_000))))
-        .orderBy(desc(interventions.createdAt)),
+        .where(and(eq(interventions.userId, userId), gte(contactAt, contactSince), otherIntervention))
+        .orderBy(desc(contactAt)),
       this.database.select({ id: interventions.id }).from(interventions)
         .leftJoin(interventionOutcomes, eq(interventionOutcomes.interventionId, interventions.id))
         .where(and(
           eq(interventions.userId, userId),
           inArray(interventions.status, ["queued", "sent", "delivered"]),
-          gte(interventions.createdAt, new Date(now.getTime() - 24 * 3_600_000)),
+          gte(contactAt, new Date(now.getTime() - 24 * 3_600_000)),
           isNull(interventionOutcomes.id),
+          otherIntervention,
       )).limit(1),
       this.database.select({ content: memoryEntries.content }).from(memoryEntries).where(and(
         eq(memoryEntries.userId, userId),
         eq(memoryEntries.category, "intervention_learning"),
         isNull(memoryEntries.deletedAt),
       )).limit(10),
-      this.database.select({ lastSyncedAt: calendarConnections.lastSyncedAt }).from(calendarConnections).where(and(
-        eq(calendarConnections.userId, userId),
-        eq(calendarConnections.status, "active"),
-      )).limit(1),
       this.database.select({
         extensionKey: extensionSignalSnapshots.extensionKey,
         signalType: extensionSignalSnapshots.signalType,
@@ -92,6 +89,7 @@ export class DrizzleContextEngineRepository implements ContextEngineRepository {
         confidence: extensionSignalSnapshots.confidence,
       }).from(extensionSignalSnapshots).where(and(
         eq(extensionSignalSnapshots.userId, userId),
+        lte(extensionSignalSnapshots.observedAt, now),
         gt(extensionSignalSnapshots.validUntil, now),
       )),
       this.database.select({ createdAt: conversationMessages.createdAt }).from(conversationMessages)
@@ -99,24 +97,28 @@ export class DrizzleContextEngineRepository implements ContextEngineRepository {
         .orderBy(desc(conversationMessages.createdAt)).limit(1),
     ]);
 
-    const reviews = await this.database.select().from(itemReviews).where(and(eq(itemReviews.userId, userId), inArray(itemReviews.status, ["reserved", "sent", "closed"]), or(gte(itemReviews.createdAt, new Date(now.getTime() - 36 * 3_600_000)), gte(itemReviews.sentAt, new Date(now.getTime() - 36 * 3_600_000))), excludeReviewId ? ne(itemReviews.id, excludeReviewId) : undefined));
+    const reviews = await this.database.select().from(itemReviews).where(and(
+      eq(itemReviews.userId, userId),
+      inArray(itemReviews.status, ["reserved", "sent", "closed"]),
+      or(gte(itemReviews.createdAt, contactSince), gte(itemReviews.sentAt, contactSince)),
+      exclusions.reviewId ? ne(itemReviews.id, exclusions.reviewId) : undefined,
+    ));
     const contactStatuses = new Set(["queued", "sent", "delivered", "responded", "expired"]);
     const contactInterventions = recentInterventions.filter((item) => contactStatuses.has(item.status));
-    const contacts = [...contactInterventions, ...reviews.map(row => ({ createdAt: row.sentAt ?? row.createdAt }))].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-    const lastIntervention = contacts[0]?.createdAt;
+    const contacts = [...contactInterventions, ...reviews.map(row => ({ at: row.sentAt ?? row.createdAt }))].sort((a, b) => b.at.getTime() - a.at.getTime());
+    const lastIntervention = contacts[0]?.at;
     const local = localTime(now, user.timezone);
     const responseStats = user.responseStats as { byTimeBucket?: Record<string, number> };
     const bucketRate = responseStats.byTimeBucket?.[local.bucket];
-    const calendarAvailable = Boolean(
-      calendarConnection[0]?.lastSyncedAt &&
-      now.getTime() - calendarConnection[0].lastSyncedAt.getTime() <= 45 * 60_000,
-    );
-    const calendarBusy = calendarAvailable && currentBusy.length > 0;
+    const lastSyncedAt = calendar?.lastSyncedAt;
+    const syncAge = lastSyncedAt ? now.getTime() - lastSyncedAt.getTime() : Number.POSITIVE_INFINITY;
+    const calendarAvailable = syncAge >= 0 && syncAge <= 45 * 60_000;
+    const calendarBusy = calendarAvailable && Boolean(calendar?.currentBusyId);
     const freeMinutes = !calendarAvailable ? 0 : calendarBusy ? 0 : Math.max(0, Math.min(240,
-      nextBusy[0] ? Math.floor((nextBusy[0].startsAt.getTime() - now.getTime()) / 60_000) : 240,
+      calendar?.nextBusyStart ? Math.floor((calendar.nextBusyStart.getTime() - now.getTime()) / 60_000) : 240,
     ));
 
-    return {
+    const signals: ContextSignals = {
       userId,
       status: user.status,
       onboardingComplete: user.onboardingState === "complete",
@@ -129,8 +131,8 @@ export class DrizzleContextEngineRepository implements ContextEngineRepository {
       calendarBusy,
       calendarAvailable,
       freeMinutes,
-      nextFreeAt: calendarAvailable ? nextBusy[0]?.endsAt ?? null : null,
-      dailyInterventionCount: contacts.filter((item) => localTime(item.createdAt, user.timezone).date === local.date).length,
+      nextFreeAt: calendarAvailable ? calendar?.nextBusyEnd ?? null : null,
+      dailyInterventionCount: contacts.filter((item) => localTime(item.at, user.timezone).date === local.date).length,
       dailyInterventionCap: user.dailyInterventionCap,
       minutesSinceLastIntervention: lastIntervention ? Math.floor((now.getTime() - lastIntervention.getTime()) / 60_000) : null,
       interventionCooldownMinutes: user.interventionCooldownMinutes,
@@ -150,6 +152,79 @@ export class DrizzleContextEngineRepository implements ContextEngineRepository {
         ...task,
         status: task.status as "not_started" | "in_progress",
       })),
+    };
+    if (!proactiveBlockReasons(signals, now).length) {
+      signals.workspace = await this.loadWorkspaceContext(userId, local.date, now);
+    }
+    return signals;
+  }
+
+  async evaluateDelivery(userId: string, interventionId: string, now: Date) {
+    const [policy, signals] = await Promise.all([
+      this.getActivePolicy(),
+      this.loadSignals(userId, now, { interventionId }),
+    ]);
+    return signals && { signals, evaluation: evaluateContext({ signals, policy, now, shadowMode: false }) };
+  }
+
+  private async loadCalendarContext(userId: string, now: Date) {
+    const sameCalendar = and(
+      eq(calendarBusyWindows.connectionId, calendarConnections.id),
+      eq(calendarBusyWindows.userId, userId),
+    );
+    const currentBusy = this.database.select({ id: calendarBusyWindows.id }).from(calendarBusyWindows)
+      .where(and(sameCalendar, lte(calendarBusyWindows.startsAt, now), gt(calendarBusyWindows.endsAt, now))).limit(1).as("current_busy");
+    const nextBusy = this.database.select({ startsAt: calendarBusyWindows.startsAt, endsAt: calendarBusyWindows.endsAt }).from(calendarBusyWindows)
+      .where(and(sameCalendar, gt(calendarBusyWindows.startsAt, now)))
+      .orderBy(calendarBusyWindows.startsAt).limit(1).as("next_busy");
+    // Read freshness and windows in one statement so a refresh cannot mix sync generations.
+    const [calendar] = await this.database.select({
+      lastSyncedAt: calendarConnections.lastSyncedAt,
+      currentBusyId: currentBusy.id,
+      nextBusyStart: nextBusy.startsAt,
+      nextBusyEnd: nextBusy.endsAt,
+    }).from(calendarConnections).leftJoinLateral(currentBusy, sql`true`).leftJoinLateral(nextBusy, sql`true`).where(and(
+      eq(calendarConnections.userId, userId), eq(calendarConnections.status, "active"),
+    )).limit(1);
+    return calendar;
+  }
+
+  private async loadWorkspaceContext(userId: string, date: string, now: Date): Promise<WorkspaceContext> {
+    const kind = sql<string>`${lifeItems.data}->>'kind'`;
+    const day = sql<string>`${lifeItems.data}->>'date'`;
+    const taskId = sql<string | null>`${lifeItems.data}->>'taskId'`;
+    const activitySince = new Date(now.getTime() - WORKSPACE_ACTIVITY_WINDOW_MS);
+    const datedActivity = and(inArray(kind, ["meal", "food", "workout"]), eq(day, date));
+    const otherActivity = inArray(kind, ["note", "nutrition_target", "workout_plan"]);
+    const [plans, [activity], thoughts] = await Promise.all([
+      this.database.select({
+        kind,
+        endsAt: sql<string | null>`${lifeItems.data}->>'endsAt'`,
+        time: sql<string | null>`${lifeItems.data}->>'time'`,
+        steps: sql<WorkspaceContext["routines"][number]["steps"] | null>`${lifeItems.data}->'steps'`,
+      }).from(lifeItems).where(and(eq(lifeItems.userId, userId), inArray(kind, ["focus", "routine"]), lte(lifeItems.updatedAt, now))),
+      this.database.select({ updatedAt: lifeItems.updatedAt }).from(lifeItems).where(and(
+        eq(lifeItems.userId, userId), gt(lifeItems.updatedAt, activitySince), lte(lifeItems.updatedAt, now), or(datedActivity, otherActivity),
+      )).orderBy(desc(lifeItems.updatedAt)).limit(1),
+      this.database.select({ taskId, updatedAt: sql<Date>`max(${lifeItems.updatedAt})`.mapWith(lifeItems.updatedAt) }).from(lifeItems).where(and(
+        eq(lifeItems.userId, userId), eq(kind, "note"), isNotNull(taskId),
+        gt(lifeItems.updatedAt, new Date(now.getTime() - LINKED_THOUGHT_WINDOW_MS)), lte(lifeItems.updatedAt, now),
+      )).groupBy(taskId),
+    ]);
+    const focusEnd = plans.find(plan => plan.kind === "focus")?.endsAt;
+    const linkedThoughts = new Map<string, Date>();
+    for (const thought of thoughts) {
+      if (thought.taskId) linkedThoughts.set(thought.taskId, thought.updatedAt);
+    }
+    return {
+      focusUntil: focusEnd ? new Date(focusEnd) : null,
+      routines: plans.flatMap(plan => plan.kind === "routine" && plan.time && Array.isArray(plan.steps) ? [{
+        time: plan.time,
+        steps: plan.steps.filter(step => step && Number.isInteger(step.minutes) && step.minutes >= 1 && step.minutes <= 180)
+          .map(({ minutes, completedOn }) => ({ minutes, completedOn })),
+      }] : []),
+      latestActivityAt: activity?.updatedAt ?? null,
+      linkedThoughts,
     };
   }
 
@@ -172,5 +247,17 @@ export class DrizzleContextEngineRepository implements ContextEngineRepository {
       .where(eq(contextSnapshots.opportunityKey, input.evaluation.opportunityKey)).limit(1);
     if (!existing) throw new Error("Context opportunity idempotency conflict could not be resolved");
     return { id: existing.id, created: false };
+  }
+
+  async completeReview(snapshotId: string, userId: string, evaluation: Parameters<ContextEngineRepository["completeReview"]>[2]) {
+    const [updated] = await this.database.update(contextSnapshots).set({
+      decision: evaluation.decision,
+      reasonCodes: evaluation.reasonCodes,
+      inputs: evaluation.inputs,
+    }).where(and(
+      eq(contextSnapshots.id, snapshotId), eq(contextSnapshots.userId, userId),
+      eq(contextSnapshots.decision, "blocked"), sql`'ai_review_pending' = any(${contextSnapshots.reasonCodes})`,
+    )).returning({ id: contextSnapshots.id });
+    if (!updated) throw new Error("Intervention review has no pending snapshot");
   }
 }

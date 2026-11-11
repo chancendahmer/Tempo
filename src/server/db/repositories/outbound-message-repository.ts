@@ -11,7 +11,10 @@ import { ensureDirectConversation } from "./messaging-identity-repository";
 import { applyPendingDeliveryReceipt, lockDeliveryReceipt } from "./delivery-receipts";
 
 export class DrizzleOutboundMessageRepository implements OutboundMessageRepository {
-  constructor(private readonly database: TempoDatabase = getDatabase()) {}
+  constructor(
+    private readonly database: TempoDatabase = getDatabase(),
+    private readonly allowSubmission?: (database: TempoDatabase, userId: string) => Promise<boolean>,
+  ) {}
 
   async getPermission(userId: string) {
     const database = this.database;
@@ -96,18 +99,21 @@ export class DrizzleOutboundMessageRepository implements OutboundMessageReposito
         .where(and(eq(conversationMessages.id, messageId), eq(conversationMessages.direction, "outbound")))
         .for("update", { of: users });
       if (!owner) return { status: "not_reserved" };
-      const permission = await new DrizzleOutboundMessageRepository(transaction as unknown as TempoDatabase).getPermission(owner.userId);
+      const database = transaction as unknown as TempoDatabase;
+      const permission = await new DrizzleOutboundMessageRepository(database).getPermission(owner.userId);
       const gate = evaluateMessagingPermission(permission, now);
+      const blockedReason = !gate.allowed ? gate.reason
+        : this.allowSubmission && !await this.allowSubmission(database, owner.userId) ? "suppressed" : undefined;
       const reservation = and(eq(conversationMessages.id, messageId), eq(conversationMessages.outboundState, "reserved"));
-      if (!gate.allowed) {
+      if (blockedReason) {
         const rows = await transaction.update(conversationMessages).set({
           status: "cancelled",
           outboundState: "suppressed",
-          providerErrorCode: `TEMPO_BLOCKED_${gate.reason.toUpperCase()}`,
-          providerErrorMessage: `Outbound send blocked: ${gate.reason}`,
+          providerErrorCode: `TEMPO_BLOCKED_${blockedReason.toUpperCase()}`,
+          providerErrorMessage: `Outbound send blocked: ${blockedReason}`,
           updatedAt: now,
         }).where(reservation).returning({ id: conversationMessages.id });
-        return rows.length ? { status: "blocked", reason: gate.reason } : { status: "not_reserved" };
+        return rows.length ? { status: "blocked", reason: blockedReason } : { status: "not_reserved" };
       }
       const rows = await transaction.update(conversationMessages).set({
         outboundState: "submitting", submissionToken: randomUUID(), submissionStartedAt: now, updatedAt: now,

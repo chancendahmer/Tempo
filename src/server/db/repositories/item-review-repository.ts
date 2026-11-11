@@ -40,7 +40,7 @@ export class DrizzleItemReviewRepository implements ItemReviewResponder {
   }
 
   private async eligible(userId: string, now: Date, excludeReviewId?: string) {
-    const signals = await new DrizzleContextEngineRepository(this.database).loadSignals(userId, now, excludeReviewId);
+    const signals = await new DrizzleContextEngineRepository(this.database).loadSignals(userId, now, { reviewId: excludeReviewId });
     if (!signals || proactiveBlockReasons(signals, now).length) return false;
     const [pending] = await this.database.select({ id: conversationStates.userId }).from(conversationStates).where(and(eq(conversationStates.userId, userId), isNotNull(conversationStates.pendingAction), gt(conversationStates.pendingActionExpiresAt, now))).limit(1);
     return !pending;

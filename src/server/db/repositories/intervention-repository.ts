@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { itemReviews } from "../schema";
 import { and, desc, eq, gt, inArray, isNull, lte, ne, or, sql } from "drizzle-orm";
 import { MessagingProvider } from "../../adapters/sms/sms-transport";
@@ -5,6 +6,7 @@ import { InterventionOpportunityPlanner } from "../../domain/context-evaluation-
 import { localTime } from "../../domain/context-engine";
 import { getDatabase, TempoDatabase } from "../client";
 import { conversationMessages, interventionAccountability, interventionOutcomes, interventions, memoryEntries, scheduledActions, tasks, users } from "../schema";
+import { DrizzleContextEngineRepository } from "./context-engine-repository";
 
 export type InterventionDeliveryContext = {
   id: string;
@@ -19,7 +21,14 @@ export type InterventionDeliveryContext = {
   memories: string[];
   status: "candidate" | "queued";
   messageText: string | null;
+  draftVersion: string;
+  staleDraft: boolean;
 };
+
+function draftVersion(title: string, dueAt?: Date | null, estimatedMinutes?: number | null) {
+  const taskFingerprint = createHash("sha256").update(JSON.stringify([title, dueAt ?? null, estimatedMinutes ?? null])).digest("hex");
+  return `intervention-v1:${taskFingerprint}`;
+}
 
 export class DrizzleInterventionRepository implements InterventionOpportunityPlanner {
   constructor(private readonly database: TempoDatabase = getDatabase()) {}
@@ -66,6 +75,7 @@ export class DrizzleInterventionRepository implements InterventionOpportunityPla
       profileInstructions: users.profileInstructions,
       status: interventions.status,
       messageText: interventions.messageText,
+      promptVersion: interventions.promptVersion,
     }).from(interventions)
       .innerJoin(tasks, eq(tasks.id, interventions.taskId))
       .innerJoin(users, eq(users.id, interventions.userId))
@@ -83,10 +93,13 @@ export class DrizzleInterventionRepository implements InterventionOpportunityPla
       await this.database.update(memoryEntries).set({ lastReferencedAt: new Date(), updatedAt: new Date() })
         .where(inArray(memoryEntries.id, memories.map((memory) => memory.id)));
     }
+    const version = draftVersion(row.taskTitle, row.dueAt, row.estimatedMinutes);
     return {
       ...row,
       taskId: row.taskId,
       status: row.status as "candidate" | "queued",
+      draftVersion: version,
+      staleDraft: Boolean(row.messageText && row.promptVersion !== version),
       memories: [
         ...(row.profileInstructions ? [`User-authored coaching instructions: ${row.profileInstructions}`] : []),
         ...memories.map((memory) => memory.content),
@@ -100,7 +113,6 @@ export class DrizzleInterventionRepository implements InterventionOpportunityPla
         id: interventions.id,
         userId: interventions.userId,
         status: interventions.status,
-        configuredCooldown: users.interventionCooldownMinutes,
       }).from(interventions).innerJoin(users, eq(users.id, interventions.userId))
         .where(eq(interventions.id, interventionId)).limit(1);
       if (!current || !["candidate", "queued"].includes(current.status)) return { claimed: false as const, reason: "not_candidate" };
@@ -110,23 +122,20 @@ export class DrizzleInterventionRepository implements InterventionOpportunityPla
       if (!user?.proactiveOptIn) return { claimed: false as const, reason: "proactive_opt_in_missing" };
       const cooldownMinutes = Math.max(120, user.interventionCooldownMinutes);
       const today = localTime(now, user.timezone).date;
-      const contacts = await transaction.select({ at: interventions.queuedAt }).from(interventions).where(and(
+      const contactAt = sql<Date>`coalesce(${interventions.sentAt}, ${interventions.queuedAt}, ${interventions.createdAt})`.mapWith(interventions.createdAt);
+      const contactSince = new Date(now.getTime() - Math.max(48 * 60, cooldownMinutes) * 60_000);
+      const contacts = await transaction.select({ at: contactAt }).from(interventions).where(and(
         eq(interventions.userId, current.userId), ne(interventions.id, current.id),
         inArray(interventions.status, ["queued", "sent", "delivered", "responded", "expired"]),
-        gt(interventions.queuedAt, new Date(now.getTime() - 48 * 3_600_000)),
+        gt(contactAt, contactSince),
       ));
-      const reviews = await transaction.select({ at: sql<Date>`coalesce(${itemReviews.sentAt}, ${itemReviews.createdAt})`.mapWith(itemReviews.createdAt) }).from(itemReviews).where(and(eq(itemReviews.userId, current.userId), inArray(itemReviews.status, ["reserved", "sent", "closed"]), or(gt(itemReviews.createdAt, new Date(now.getTime() - 48 * 3_600_000)), gt(itemReviews.sentAt, new Date(now.getTime() - 48 * 3_600_000)))));
+      const reviews = await transaction.select({ at: sql<Date>`coalesce(${itemReviews.sentAt}, ${itemReviews.createdAt})`.mapWith(itemReviews.createdAt) }).from(itemReviews).where(and(eq(itemReviews.userId, current.userId), inArray(itemReviews.status, ["reserved", "sent", "closed"]), or(gt(itemReviews.createdAt, contactSince), gt(itemReviews.sentAt, contactSince))));
       contacts.push(...reviews);
       if (contacts.filter(({ at }) => at && localTime(at, user.timezone).date === today).length >= Math.min(3, user.dailyInterventionCap)) {
         return { claimed: false as const, reason: "daily_cap_reached" };
       }
-      const [recent] = await transaction.select({ id: interventions.id }).from(interventions).where(and(
-        eq(interventions.userId, current.userId),
-        ne(interventions.id, current.id),
-        inArray(interventions.status, ["queued", "sent", "delivered", "responded", "expired"]),
-        gt(interventions.createdAt, new Date(now.getTime() - cooldownMinutes * 60_000)),
-      )).orderBy(desc(interventions.createdAt)).limit(1);
-      if (recent || reviews.some(row => row.at > new Date(now.getTime() - cooldownMinutes * 60_000))) return { claimed: false as const, reason: "cooldown_active" };
+      const cooldownSince = new Date(now.getTime() - cooldownMinutes * 60_000);
+      if (contacts.some(({ at }) => at > cooldownSince)) return { claimed: false as const, reason: "cooldown_active" };
 
       await transaction.update(interventions).set({ status: "queued", queuedAt: now, updatedAt: now })
         .where(and(eq(interventions.id, current.id), inArray(interventions.status, ["candidate", "queued"])));
@@ -138,6 +147,18 @@ export class DrizzleInterventionRepository implements InterventionOpportunityPla
     await this.database.update(interventions).set({
       status: "queued", messageText: message, promptVersion, model, queuedAt: new Date(), updatedAt: new Date(),
     }).where(and(eq(interventions.id, interventionId), inArray(interventions.status, ["candidate", "queued"])));
+  }
+
+  /** The submission transaction holds the user lock and counts every other optional contact. */
+  async canSubmitDelivery(interventionId: string, userId: string, now: Date, composedVersion: string) {
+    const [current] = await this.database.select({ taskId: interventions.taskId }).from(interventions).where(and(
+      eq(interventions.id, interventionId), eq(interventions.userId, userId), eq(interventions.status, "queued"),
+    )).limit(1);
+    if (!current?.taskId) return false;
+    const result = await new DrizzleContextEngineRepository(this.database).evaluateDelivery(userId, interventionId, now);
+    const task = result?.evaluation.task;
+    return Boolean(result && result.evaluation.decision !== "blocked" && task?.id === current.taskId
+      && draftVersion(task.title, task.dueAt, task.estimatedMinutes) === composedVersion);
   }
 
   async startAccountability(interventionId: string, now = new Date()) {
@@ -242,6 +263,7 @@ export class DrizzleInterventionRepository implements InterventionOpportunityPla
         style: interventions.style,
         interventionStatus: interventions.status,
         messageStatus: conversationMessages.status,
+        outboundState: conversationMessages.outboundState,
         provider: conversationMessages.provider,
         providerMessageSid: conversationMessages.providerMessageSid,
       }).from(interventions)
@@ -270,6 +292,7 @@ export class DrizzleInterventionRepository implements InterventionOpportunityPla
         if (status) return { kind: "submitted" as const, userId, style: row.style };
         return null;
       }
+      if (row.outboundState === "submitting" || row.outboundState === "ambiguous") return { kind: "pending" as const };
       if (row.interventionStatus === "failed") return { kind: "terminal" as const, status: "failed" as const };
       if (row.messageStatus && ["cancelled", "failed", "undelivered"].includes(row.messageStatus)) {
         const status = row.messageStatus === "cancelled" ? "cancelled" : "failed";
