@@ -10,6 +10,7 @@ import { ConversationOrchestrator } from "../../domain/conversation-orchestrator
 import { currentAiInvocationScope } from "../../domain/ai-invocation-scope";
 import { SafeSmsSender } from "../../domain/outbound-messaging";
 import { MemoryService } from "../../domain/memory-service";
+import { OutcomeTracker } from "../../domain/outcome-tracker";
 import { TempoDatabase } from "../client";
 import { scopedDatabase } from "../database-scope";
 import * as schema from "../schema";
@@ -17,9 +18,13 @@ import {
   calendarBusyWindows,
   calendarConnections,
   consentRecords,
+  contextSnapshots,
   conversationMessages,
   goalEvents,
   goals,
+  interventionAccountability,
+  interventionOutcomes,
+  interventions,
   memoryEntries,
   reminders,
   scheduledActions,
@@ -31,6 +36,7 @@ import { DrizzleConversationRepository } from "./conversation-repository";
 import { DrizzleConversationHistoryRepository } from "./conversation-history-repository";
 import { DrizzleGoalRepository } from "./goal-repository";
 import { DrizzleMemoryRepository } from "./memory-repository";
+import { DrizzleOutcomeRepository } from "./outcome-repository";
 import { ensureDirectConversation } from "./messaging-identity-repository";
 import { DrizzleSchedulingRepository } from "./scheduling-repository";
 import { DrizzleOutboundMessageRepository } from "./outbound-message-repository";
@@ -74,7 +80,7 @@ describe("inbound conversation orchestration", () => {
     return { ...user, conversationId: identity.conversationId };
   }
 
-  function orchestrator(transport: TestSmsTransport, parser?: TaskIntentParser, integrations?: AssistantIntegrations) {
+  function orchestrator(transport: TestSmsTransport, parser?: TaskIntentParser, integrations?: AssistantIntegrations, outcomes?: OutcomeTracker) {
     return new ConversationOrchestrator(
       new DrizzleConversationRepository(database),
       new DrizzleTaskRepository(database),
@@ -85,7 +91,7 @@ describe("inbound conversation orchestration", () => {
         authorizer: parser?.authorizer ?? scriptedAuthorizer },
       new SafeSmsSender(new DrizzleOutboundMessageRepository(database), transport),
       () => new Date("2026-08-18T12:00:00Z"),
-      undefined,
+      outcomes,
       new MemoryService(new DrizzleMemoryRepository(database)),
       undefined,
       new DrizzleConversationHistoryRepository(database),
@@ -93,6 +99,47 @@ describe("inbound conversation orchestration", () => {
       integrations,
     );
   }
+
+  it.each([true, false])("routes a named task removal past pending feedback and through write authorization (allowed=%s)", async allowed => {
+    const user = await consentedUser(allowed ? "+12025550890" : "+12025550889", "complete");
+    const title = "Tempo QA Nov 11: outline the demo handoff";
+    const [target, neighbor] = await database.insert(tasks).values([
+      { userId: user.id, title },
+      { userId: user.id, title: "Keep my other task" },
+    ]).returning();
+    const at = new Date("2026-08-18T11:59:00Z");
+    const [snapshot] = await database.insert(contextSnapshots).values({
+      userId: user.id, taskId: target.id, decision: "send", capturedAt: at, inputs: {},
+    }).returning();
+    const [intervention] = await database.insert(interventions).values({
+      userId: user.id, taskId: target.id, contextSnapshotId: snapshot.id, style: "direct_nudge",
+      status: "sent", createdAt: at, sentAt: at, idempotencyKey: `reply-routing-fixture:${user.id}`,
+    }).returning();
+    await database.insert(interventionAccountability).values({ interventionId: intervention.id, lastPromptAt: at });
+    const body = `Delete the task titled "${title}". It was just a test and is no longer needed. Leave my other tasks unchanged.`;
+    const [message] = await database.insert(conversationMessages).values({
+      userId: user.id, conversationId: user.conversationId, direction: "inbound", kind: "user", status: "received", body,
+    }).returning();
+    const authorize = vi.fn(async () => allowed
+      ? { mode: "write" as const, commands: ["abandon_task" as const] }
+      : { mode: "read_only" as const, commands: [] });
+    const parse = vi.fn(async () => ({ kind: "command" as const, command: { type: "abandon_task" as const, taskQuery: title } }));
+    const transport = new TestSmsTransport(`REPLY-ROUTING-${allowed}`);
+    const outcomes = new OutcomeTracker(new DrizzleOutcomeRepository(database));
+    const coach = orchestrator(transport, { parse, authorizer: { authorize } }, undefined, outcomes);
+
+    expect(await coach.process(message.id)).toEqual({ processed: true });
+    expect(await coach.process(message.id)).toEqual({ processed: false });
+    expect(parse).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ message: body }));
+    expect(authorize).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ message: body }));
+    expect(transport.sent).toHaveLength(1);
+    expect(transport.sent[0].body).toContain(allowed ? `Removed from your active list: ${title}.` : "I haven’t changed anything.");
+    const [savedTarget] = await database.select().from(tasks).where(eq(tasks.id, target.id));
+    const [savedNeighbor] = await database.select().from(tasks).where(eq(tasks.id, neighbor.id));
+    expect(savedTarget.status).toBe(allowed ? "abandoned" : "not_started");
+    expect(savedNeighbor).toEqual(neighbor);
+    expect(await database.select().from(interventionOutcomes).where(eq(interventionOutcomes.interventionId, intervention.id))).toEqual([]);
+  });
 
   it.each([true, false])("enforces check-in consent at domain dispatch, even for a fabricated parser command (allowed=%s)", async allowed => {
     const user = await consentedUser(allowed ? "+12025550891" : "+12025550892", "complete");

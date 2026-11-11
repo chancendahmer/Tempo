@@ -46,15 +46,19 @@ export interface OutcomeRepository {
 export function classifyOutcomeReply(body: string, hasProgress: boolean):
   | { started: boolean; completed: boolean; helpful?: boolean }
   | null {
-  const normalized = body.trim().toLowerCase();
+  const normalized = body.trim().toLowerCase().replaceAll("’", "'").replace(/[.!]+$/, "").trimEnd();
+  // Only a complete feedback reply can finish the turn. Longer requests go
+  // through the ordinary typed intent and write authorization path.
   if (hasProgress) {
-    if (/\b(not helpful|wrong nudge|wrong time|didn'?t help|no)\b/.test(normalized)) return { started: false, completed: false, helpful: false };
-    if (/\b(helpful|helped|good nudge|yes|yeah|yep)\b/.test(normalized)) return { started: false, completed: false, helpful: true };
+    const feedback = normalized.replace(/^(?:it|that)(?: was)?\s+/, "");
+    if (/^(?:not helpful|wrong nudge|wrong time|didn'?t help|no)$/.test(feedback)) return { started: false, completed: false, helpful: false };
+    if (/^(?:helpful|helped|good nudge|yes|yeah|yep)$/.test(feedback)) return { started: false, completed: false, helpful: true };
     return null;
   }
-  if (/\b(done|finished|completed)\b/.test(normalized)) return { started: true, completed: true };
-  if (/\b(start|started|starting|working on it|doing it|yes|yeah|yep)\b/.test(normalized)) return { started: true, completed: false };
-  if (/\b(not yet|didn'?t start|couldn'?t|wrong time|no)\b/.test(normalized)) return { started: false, completed: false, helpful: false };
+  const progress = normalized.replace(/^i(?:'m| am| have)?\s+/, "");
+  if (/^(?:done|finished|completed)$/.test(progress)) return { started: true, completed: true };
+  if (/^(?:start|started|starting|working on it|doing it|yes|yeah|yep)$/.test(progress)) return { started: true, completed: false };
+  if (/^(?:not yet|didn'?t start|couldn'?t|wrong time|no)$/.test(progress)) return { started: false, completed: false, helpful: false };
   return null;
 }
 
