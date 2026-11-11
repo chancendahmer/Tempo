@@ -43,8 +43,17 @@ and proposed, unavailable paid tiers rather than a functioning checkout.
 - The lead traversed all eight desktop preview steps and verified returning focus
   and section. Native time controls saved 21:30–07:30 in the fictional preview.
   [Preview quiet hours](quiet-hours-preview.png).
-- Full `npm run check`, real local PostgreSQL opt-in suites and the production
-  build are in progress. `full-check.log` is local ignored evidence.
+- The first full `npm run check` passed lint, typecheck, 1,417 tests in 179 files,
+  and both production/operations builds. Local PostgreSQL concurrency, recovery,
+  receipts and retirement suites were enabled. A final full run is in progress
+  after the cleanup race fix (`340ad7b`); ignored logs retain both runs.
+- The lead used normal one-time sign-in confirmation to enter the persisted,
+  fictional QA Rowan account on local PostgreSQL. Quiet hours 21:45–07:15 saved
+  and survived reload. Opt-in correctly reported pilot sending paused and was
+  restored to off. All seven signed-in tour steps completed and restored Settings
+  with focus on Show me around. [Authenticated reload](quiet-hours-authenticated-reload.png)
+  and [last tour step](tour-authenticated-checkins.png). This development runtime
+  has no provider credentials or worker; it is not evidence of hosted delivery.
 - Production health and readiness were green before changes, with one matching
   worker and no pending ambiguous outbound messages. Existing acknowledged
   historical records remain intact. Optional outreach was still off, shadow on,
@@ -53,6 +62,8 @@ and proposed, unavailable paid tiers rather than a functioning checkout.
   complete, cap one per day, quiet 23:00–07:00 New York, and connected to a fresh
   Google Calendar. No consent was changed by this run.
 - No new paid model request or provider message has been made in this work yet.
+- Independent local scores after that walkthrough: guide 9.0, Settings 9.5,
+  contextual engine 8.5; mean 9.0. Hosted behavior remains unscored.
 
 ## Remaining advertised gaps
 
@@ -94,3 +105,8 @@ including a $3.021 unresolved historical call, $1 carrier hold and $9 hosted hol
 Previously known test usage was $4.449248. Do not erase holds to create headroom.
 The $10/day pilot operating authorization is separate. The current pricing
 snapshot expires November 22 at 00:00 UTC and needs revalidation before then.
+The runtime report before this change observed matching enforced settings on
+one web and one worker: $10 global/day, $10 account/day (the global cap is shared),
+100 global/60 account calls. November 11 settlement was $0.039396 across two calls
+with no outstanding attempts. The report's inventory caveat is retained; the
+platform must separately confirm there are no other active deployments.
