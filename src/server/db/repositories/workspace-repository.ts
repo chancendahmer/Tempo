@@ -1,5 +1,5 @@
 import { isDeepStrictEqual } from "node:util";
-import { and, asc, desc, eq, inArray, isNull, or, gt, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, isNull, or, gt, sql } from "drizzle-orm";
 import { z } from "zod";
 import { createHash, randomUUID } from "node:crypto";
 import { getDatabase, TempoDatabase } from "../client";
@@ -63,7 +63,18 @@ export async function readWorkspace(userId: string, database: TempoDatabase = ge
     database.select({ id: tasks.id, title: tasks.title, status: tasks.status, dueAt: tasks.dueAt, estimatedMinutes: tasks.estimatedMinutes, presentation: tasks.presentation, startedAt: tasks.startedAt, goalId: tasks.goalId }).from(tasks).where(and(eq(tasks.userId, userId), inArray(tasks.status, ["not_started", "in_progress", "completed"]))).orderBy(asc(sql`case when ${tasks.status} = 'in_progress' then 0 when ${tasks.status} = 'not_started' then 1 else 2 end`), asc(sql`case when ${tasks.status} <> 'completed' then ${tasks.dueAt} end`), desc(tasks.updatedAt), desc(tasks.id)).limit(201),
     database.select({ id: goals.id, title: goals.title, description: goals.description, status: goals.status }).from(goals).where(and(eq(goals.userId, userId), inArray(goals.status, ["active", "completed"]))).orderBy(asc(sql`case when ${goals.status} = 'active' then 0 else 1 end`), desc(goals.updatedAt), desc(goals.id)).limit(101),
     readWorkspaceLifeItems(database, userId, diaryDate),
-    database.select({ id: conversationMessages.id, body: conversationMessages.body, direction: conversationMessages.direction, status: conversationMessages.status, createdAt: conversationMessages.createdAt }).from(conversationMessages).where(and(eq(conversationMessages.userId, userId), inArray(conversationMessages.kind, ["user", "coach"]))).orderBy(desc(conversationMessages.createdAt)).limit(50),
+    database.select({ id: conversationMessages.id, body: conversationMessages.body, direction: conversationMessages.direction, status: conversationMessages.status, createdAt: conversationMessages.createdAt })
+      .from(conversationMessages).where(and(
+        eq(conversationMessages.userId, userId),
+        or(
+          and(eq(conversationMessages.kind, "user"), eq(conversationMessages.direction, "inbound")),
+          and(eq(conversationMessages.kind, "coach"), eq(conversationMessages.direction, "outbound"), or(
+            inArray(conversationMessages.status, ["sent", "delivered"]),
+            // Provider-accepted messages can remain queued while awaiting a delivery receipt.
+            and(eq(conversationMessages.status, "queued"), eq(conversationMessages.outboundState, "accepted"), isNotNull(conversationMessages.providerMessageSid)),
+          )),
+        ),
+      )).orderBy(desc(conversationMessages.createdAt)).limit(50),
     database.select({
       displayName: users.displayName,
       proactiveOptIn: users.proactiveOptIn,

@@ -628,4 +628,30 @@ describe("shared life workspace", () => {
     expect(history.some(m => m.content === reply.body)).toBe(true);
     expect(history.find(m => m.content === reply.body)?.replyToMessageId).toBe(source.id);
   });
+
+  it("keeps provider-accepted and completed replies visible ahead of the history limit", async () => {
+    const [person] = await db.insert(schema.users).values({ phoneE164: "+12025550721" }).returning();
+    await mutateWorkspace(person.id, { action: "chat", requestId: randomUUID(), text: "Can you help me get started?" }, db);
+    const [source] = await db.select().from(schema.conversationMessages).where(eq(schema.conversationMessages.userId, person.id));
+    const outbound = { userId: person.id, conversationId: source.conversationId, direction: "outbound", kind: "coach" } as const;
+    const later = (seconds: number) => new Date(source.createdAt.getTime() + seconds * 1000);
+    await db.insert(schema.conversationMessages).values([
+      { ...outbound, body: "Accepted by the provider", status: "queued", outboundState: "accepted", provider: "test", providerMessageSid: randomUUID(), createdAt: later(1) },
+      { ...outbound, body: "Legacy sent reply", status: "sent", createdAt: later(2) },
+      { ...outbound, body: "Delivered reply", status: "delivered", outboundState: "accepted", createdAt: later(3) },
+      { ...outbound, body: "Submission underway", status: "queued", outboundState: "submitting", provider: "test", providerMessageSid: randomUUID(), createdAt: later(4) },
+      { ...outbound, body: "Acceptance unknown", status: "failed", outboundState: "ambiguous", createdAt: later(5) },
+      { ...outbound, body: "Suppressed check-in", status: "cancelled", outboundState: "suppressed", createdAt: later(6) },
+      { ...outbound, body: "Accepted without evidence", status: "queued", outboundState: "accepted", createdAt: later(7) },
+      { ...outbound, body: "Provider could not deliver", status: "undelivered", outboundState: "accepted", provider: "test", providerMessageSid: randomUUID(), createdAt: later(8) },
+      ...Array.from({ length: 51 }, (_, index) => ({ ...outbound, body: "Reserved only", status: "queued" as const, outboundState: "reserved" as const, createdAt: later(10 + index) })),
+    ]);
+
+    expect((await readWorkspace(person.id, db)).messages.map(({ body, direction, status }) => ({ body, direction, status }))).toEqual([
+      { body: "Can you help me get started?", direction: "inbound", status: "received" },
+      { body: "Accepted by the provider", direction: "outbound", status: "queued" },
+      { body: "Legacy sent reply", direction: "outbound", status: "sent" },
+      { body: "Delivered reply", direction: "outbound", status: "delivered" },
+    ]);
+  });
 });
