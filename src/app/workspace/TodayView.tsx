@@ -17,7 +17,7 @@ import s from "./adaptive-home.module.css";
 
 type Task = Workspace["tasks"][number];
 type Props = {
-  preview?: boolean; data: Workspace; now: Date; saving: boolean;
+  preview?: boolean; data: Workspace; now: Date; focusNow?: Date; saving: boolean;
   go: (section: Section) => void; editTask: (task?: Task) => void;
   startTask: (task: Task) => void; completeTask: (task: Task) => void;
   checkStep: (item: SavedLifeItem, stepId: string) => void;
@@ -30,7 +30,7 @@ type Props = {
 };
 const icons = { work: FiFileText, shopping: FiShoppingCart, food: LuCarrot, fitness: LuDumbbell, home: FiHome, personal: FiUser };
 const modes = { morning: "Morning", focus: "Focus", meal: "Meal plan", workout: "Workout", evening: "Wind-down" };
-export function TodayView({ data, preview = false, now, saving, go, editTask, startTask, completeTask, startStep, editRoutine, onResumeFocus, saveHome, saveTaskStyle }: Props) {
+export function TodayView({ data, preview = false, now, focusNow, saving, go, editTask, startTask, completeTask, startStep, editRoutine, onResumeFocus, saveHome, saveTaskStyle }: Props) {
   const [manual, setManual] = useState<HomeMode>();
   const [expanded, setExpanded] = useState(false);
   const [settings, setSettings] = useState<HomePreferences | null>(null);
@@ -39,7 +39,7 @@ export function TodayView({ data, preview = false, now, saving, go, editTask, st
   const dialog = useRef<HTMLDialogElement>(null);
   const opener = useRef<HTMLElement | null>(null);
   const calendar = useCalendarEvents(data, localDay(now, data.timezone), preview);
-  const model = homeModel(data, now, calendar.events, manual);
+  const model = homeModel(data, now, calendar.events, manual, focusNow);
   const hero = model.hero;
   const hasFocus = !!(model.today.focus || model.tasks.some(task => task.status === "in_progress"));
   const focusTaskId = model.today.focus ? model.today.focus.taskId : model.tasks.find(task => task.status === "in_progress")?.id;

@@ -15,7 +15,7 @@ export type HomeHero = {
 };
 const minutesOf = (clock: string) => { const [h, m] = clock.split(":").map(Number); return h * 60 + m; };
 const since = (now: number, then: number) => (now - then + 1440) % 1440;
-export function homeModel(data: Workspace, now: Date, calendarEvents: CalendarEvent[] = [], manualMode?: HomeMode) {
+export function homeModel(data: Workspace, now: Date, calendarEvents: CalendarEvent[] = [], manualMode?: HomeMode, focusNow = now) {
   const preferences = readHomePreferences(data.homePreferences);
   const today = todayModel(data, now, calendarEvents);
   const day = today.day;
@@ -45,7 +45,7 @@ export function homeModel(data: Workspace, now: Date, calendarEvents: CalendarEv
   const mealHero: HomeHero = { mode: "meal", label: `${mealSlot} plan`, title: meal?.data.title ?? "What sounds good today?", detail: meal?.data.kind === "meal" ? `${mealSlot} · Planned${meal.data.servings ? ` · ${meal.data.servings} ${meal.data.servings === 1 ? "serving" : "servings"}` : ""}` : "Pick a meal and keep the ingredients together.", action: meal ? "Open meal plan" : "Plan a meal", destination: "meals", image: photo?.image ?? "/images/home/meal.png", imageAlt: photo?.alt ?? "Meal planning ingredients; illustrative photo", meal };
   const activeTask = today.tasks.find(task => task.status === "in_progress");
   const focusState = today.focus ? today.focus.endsAt
-    ? Date.parse(today.focus.endsAt) > now.getTime() ? "running" : "finished"
+    ? Date.parse(today.focus.endsAt) > focusNow.getTime() ? "running" : "finished"
     : today.focus.remaining > 0 ? "paused" : "finished" : null;
   const focus: HomeHero = { mode: "focus", label: today.focus || activeTask ? "Your focus" : ongoing ? "Happening now" : "One thing to start", title: today.focus?.title ?? activeTask?.title ?? ongoing?.title ?? today.nextTask?.title ?? "A little room to begin.", detail: today.focus ? focusState === "running" ? "Timer running. One step at a time." : focusState === "finished" ? "Your timer is finished. Choose what comes next." : "Paused. Continue when you're ready." : activeTask ? "Your task is in progress." : ongoing ? `Until ${formatTime(ongoing.end.dateTime!)}` : today.nextTask ? "Start small. You can take another step later." : "Add one task, or tell Tempo what's on your mind.", action: today.focus || activeTask ? "Continue focus" : ongoing ? "View calendar" : today.nextTask ? `Start ${taskPresentation(today.nextTask).focusMinutes} min` : "Add a task", destination: ongoing && !today.focus && !activeTask ? "calendar" : "tasks", image: "/images/home/focus.png", imageAlt: "", task: today.nextTask, ongoingFocus: !!(today.focus || activeTask) };
   const choices: Record<HeroMode, HomeHero> = { morning: routineHero("morning", morning), evening: routineHero("evening", evening), workout, meal: mealHero, focus };

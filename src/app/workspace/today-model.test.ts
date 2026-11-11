@@ -5,8 +5,8 @@ import { todayModel } from "./today-model";
 import { previewWorkspace } from "./workspace-data";
 import { TodayView } from "./TodayView";
 
-function renderToday(data: ReturnType<typeof previewWorkspace>, now: Date) {
-  return renderToStaticMarkup(createElement(TodayView, { motion: false, setMotion: vi.fn(), data, now, saving: false, go: vi.fn(), onSetup: () => {}, editTask: vi.fn(), startTask: vi.fn(), completeTask: vi.fn(), checkStep: vi.fn(), startStep: vi.fn(), editRoutine: vi.fn(), ask: vi.fn(), onResumeFocus: vi.fn() }));
+function renderToday(data: ReturnType<typeof previewWorkspace>, now: Date, focusNow?: Date) {
+  return renderToStaticMarkup(createElement(TodayView, { motion: false, setMotion: vi.fn(), data, now, focusNow, saving: false, go: vi.fn(), onSetup: () => {}, editTask: vi.fn(), startTask: vi.fn(), completeTask: vi.fn(), checkStep: vi.fn(), startStep: vi.fn(), editRoutine: vi.fn(), ask: vi.fn(), onResumeFocus: vi.fn() }));
 }
 
 function fixture() {
@@ -206,5 +206,20 @@ describe("Today in the account timezone", () => {
     data.items.shift();
     data.tasks[0].status = "in_progress";
     expect(renderToday(data, now).match(/aria-label="Continue [^"]+"/g)).toHaveLength(1);
+  });
+
+  it("keeps Focus on the live clock when previewing a different time of day", () => {
+    const data = fixture();
+    const endsAt = "2026-10-14T18:01:00Z";
+    data.items.unshift({ id: "current-focus", version: 1, data: {
+      kind: "focus", title: data.tasks[0].title, taskId: data.tasks[0].id, remaining: 60, endsAt,
+    } });
+    const running = renderToday(data, new Date("2026-10-14T23:00:00Z"), new Date("2026-10-14T18:00:00Z"));
+    expect(running).toContain("Good evening");
+    expect(running).toContain("Timer running. One step at a time.");
+    const finished = renderToday(data, new Date("2026-10-14T12:00:00Z"), new Date(endsAt));
+    expect(finished).toContain("Good morning");
+    expect(finished).toContain("Your timer is finished. Choose what comes next.");
+    expect(finished).toContain(">Timer finished</span>");
   });
 });
