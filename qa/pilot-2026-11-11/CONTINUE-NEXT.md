@@ -24,6 +24,15 @@ do not redeploy documentation alone. Start the next code branch from verified ma
 
 ## Highest-priority work
 
+**Newly found live defect takes precedence:** a pending proactive check-in
+consumed an explicit task deletion as negative feedback because `no` matched
+inside `no longer needed`. The first request did not mutate the task. The second
+request, after pending feedback cleared, correctly removed only that task and
+updated the open dashboard. Cleanup is complete. The branch
+`codex/proactive-reply-routing` contains the narrow whole-reply grammar fix and
+isolated pending-check-in regression work. Check its final validation/release
+status before starting another implementation. It is separate from 38c5ab7.
+
 1. Diagnose invalid intervention-review output. Three of five classified reviews
    through 21:55 UTC were invalid; two were valid vetoes. Numeric usage did not
    establish token truncation. Add a small structured diagnostic with allowlisted

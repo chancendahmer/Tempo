@@ -128,7 +128,46 @@ ranking repair and a conservative veto, not delivery. The lead then rescheduled
 only that fictional task to 5:20 PM New York through the Calendar task editor;
 the visible saved agenda confirmed the new time. Its next normal opportunity
 will distinguish a future-due review from the overdue case without bypassing
-any gates. Cleanup remains pending until that observation is recorded.
+any gates. The 22:00 recent-activity blocker consumed that task's 15-minute
+opportunity, so the next possible review was 22:15. The task was moved once more
+to 5:45 PM New York to keep that final future-due test meaningful.
+
+At **22:15:21 UTC**, the model approved the fresh task. The worker persisted an
+outbound coach row and the provider accepted it at **22:15:33 UTC**. The lead
+observed the actual message in the dedicated TextFree inbox at 5:15 PM. It
+suggested opening a document and writing the first header, with the standard
+start/snooze choices. This is one successful automatic task check-in with
+recipient observation, not proof of all proactive targets. The provider's
+`delivered_at` field remained null; do not claim a delivery webhook.
+
+The SMS cleanup test found a new routing defect: after that check-in, the exact
+request `Delete the task titled "Tempo QA Nov 11: outline the demo handoff".
+It was just a test and is no longer needed. Leave my other tasks unchanged.`
+was consumed as negative nudge feedback. Tempo replied that it would back off;
+the database confirmed the task remained `not_started`. This is a failed first
+attempt, not successful cleanup.
+
+A second explicit SMS, after that pending response had been cleared, removed
+only the named task. The open Home screen updated without reload, the three
+older tasks remained, and a subsequent reload retained that result. The owned
+database task is `abandoned`. Both SMS replies were observed in TextFree.
+All fictional task records created in this continuation are now cleaned up.
+Private captures: `production-automatic-checkin-received.png` and
+`production-sms-cleanup-workspace.png`.
+
+The routing defect is being repaired on **codex/proactive-reply-routing**.
+It must pass independent review and release validation separately; do not
+describe that fix as included in 38c5ab7. NEXT-PROACTIVE-SLICE.md also records
+the transient-slot issue and planned-time-versus-expiry distinction.
+
+Candidate `ed5290d` changes feedback matching to a complete standalone reply,
+preserving ordinary typed intent parsing and independent write authorization.
+The exact live text is covered with a pending check-in, authorized named-only
+removal, denial/no mutation, zero feedback records and replay safety. An
+independent agent approved the diff and ran 33 relevant tests; the author ran
+47 focused tests, lint/typecheck and 33 scripted scenarios with zero state-check
+issues. The latter are scripted code-path evidence, not live model responses.
+The full release check is running in `reply-routing-check.log`.
 
 ## Spending
 
@@ -142,21 +181,25 @@ Previously confirmed test usage was $4.449248. This continuation observed:
 | Automatic review, invalid response contained | Nov 11 21:04:59 | 0.005340 |
 | Automatic review, valid stale-task veto | Nov 11 21:15:03 | 0.004965 |
 
-New confirmed subtotal so far: $0.014751; cumulative known test usage:
-**$4.463999**. No unresolved historical charge was treated as free. The separate
+Final live query through the cleanup observed **11 settled calls totaling
+$0.170937** since 20:20 UTC, including the rows above. There were no unsettled
+attempts in that scoped query. Cumulative known test usage is **$4.620185**.
+Carrier charges are not included in that API ledger; keep the $1 carrier hold.
+No unresolved historical charge was treated as free. The separate
 ongoing enforced pilot allowance remains **$10 total per UTC day** across
 accounts. Query the ledger again before declaring final totals, since normal
 demo-canary evaluations can continue.
 
 ## Remaining verification
 
-1. Finish and independently review bounded server ordering, run final checks,
-   and release only a reviewed passing candidate.
-2. Observe the normal evaluator after that deployment. Record actual recipient
-   arrival separately from provider acceptance and database state; do not force
-   a send by bypassing gates or resetting contacts/holdouts.
-3. Remove only the task created for this run, then record the final ledger and
-   healthy matching web/worker versions.
+1. Independently review and validate the newly observed proactive-reply routing
+   fix. The ranking release, one automatic recipient arrival and task cleanup
+   are complete; that new fix is a separate candidate.
+2. Preserve the successful automatic-send evidence and the failed first delete
+   attempt as distinct outcomes. Do not reset caps or manufacture a new pending
+   check-in in production to claim a passing retest.
+3. Keep the live demo-only canary and $10/day aggregate limit. Broader rollout
+   remains gated on reliability and an attended customer journey.
 4. See CHECKPOINT.md for advertised gaps: task-led proactive coverage, separate
    web/SMS onboarding, hardware/wearables, Calendar scope, billing, hosted cohort
    evidence, backups/alerts and forthcoming Railway configuration migration.
