@@ -7,18 +7,18 @@ import { Reveal } from "../components/Reveal";
 
 export const metadata: Metadata = {
   title: "How Tempo works",
-  description: "See how Tempo remembers what matters, notices the right moment, and texts first with a manageable next step.",
+  description: "See how Tempo keeps tasks, routines, and reminders together by text and in your dashboard, with optional check-ins for eligible pilot accounts.",
 };
 
 const steps = [
-  { number: "01", icon: FiCheckCircle, title: "Remember what matters", body: "Tell Tempo what you want to follow through on. It keeps the commitment in context so you do not have to keep rebuilding the plan." },
-  { number: "02", icon: FiCalendar, title: "Notice the moment", body: "With your permission, Tempo understands the open windows around your calendar and tasks—without turning every free minute into an alert." },
-  { number: "03", icon: FiClock, title: "Choose when to help", body: "Tempo considers timing, urgency, and your past responses before deciding whether a message would actually be useful." },
-  { number: "04", icon: FiMessageCircle, title: "Text first", body: "You get one clear, manageable next step by text. No dashboard to remember, no blank chat box waiting for a prompt." },
+  { number: "01", icon: FiCheckCircle, title: "Capture what’s on your mind", body: "Text Tempo or use the dashboard to add a task, set up a routine, or save a thought. Both share one Tempo account." },
+  { number: "02", icon: FiCalendar, title: "Connect your calendar", body: "Connect Google Calendar to see your events in Tempo. Review proposed changes before Tempo edits your primary calendar." },
+  { number: "03", icon: FiClock, title: "Ask for a reminder", body: "Ask Tempo to remind you about a task, appointment, or routine. Tempo can text the reminders you schedule." },
+  { number: "04", icon: FiMessageCircle, title: "Choose optional check-ins", body: "Check-ins require your opt-in, completed text setup, and a current Google Calendar connection. The pilot team must also enable delivery for your account." },
 ];
 
 const examples = [
-  { label: "An open window", meta: "10:24 AM · Before your next meeting", message: "You’ve got 28 minutes free. Want to make the outline before your 11:00?", reply: "Start a blank doc with me" },
+  { label: "An open window", meta: "10:24 AM · Before your next meeting", message: "You’ve got 28 minutes free. Want to make the outline before your 11:00?", reply: "Help me get started" },
   { label: "A gentle reset", meta: "2:18 PM · After a stalled task", message: "The proposal is still open. Want to write one imperfect first sentence together?", reply: "Give me a starter" },
   { label: "Useful momentum", meta: "6:07 PM · Before dinner", message: "You planned a short walk today. Shoes on for five minutes, then decide?", reply: "Okay, five minutes" },
 ];
@@ -30,17 +30,17 @@ export default function HowItWorksPage() {
       <section className="inner-hero how-hero section-shell">
         <div className="inner-hero-copy">
           <p className="eyebrow">How Tempo works</p>
-          <h1>The right nudge, right when it matters.</h1>
-          <p className="inner-lede">Tempo turns the commitments already in your life into well-timed, manageable next steps—then reaches out first.</p>
+          <h1>A clear plan for the day ahead.</h1>
+          <p className="inner-lede">Capture what you need to do, set a reminder, or ask Tempo to help you find a manageable next step. Start by text or in your dashboard.</p>
           <div className="hero-actions">
             <Link className="black-button page-cta" href="/#early-access">Meet Tempo <FiArrowRight aria-hidden="true" /></Link>
             <a className="text-button" href="#flow">See the flow <FiArrowDown aria-hidden="true" /></a>
           </div>
         </div>
         <div className="how-hero-visual" aria-hidden="true">
-          <span className="visual-note note-one">Calendar clear until 11:00</span>
+          <span className="visual-note note-one">Today · Lab report</span>
           <Image src="/images/tempo-avatar.png" alt="" width={360} height={329} priority />
-          <span className="visual-note note-two">A useful moment to begin</span>
+          <span className="visual-note note-two">First step · Outline</span>
         </div>
       </section>
 
@@ -48,7 +48,7 @@ export default function HowItWorksPage() {
         <Reveal className="section-heading">
           <p className="eyebrow">A simple loop</p>
           <h2 id="flow-title">Less managing. More moving.</h2>
-          <p>Tempo does the remembering and timing in the background. You stay focused on the next thing that matters.</p>
+          <p>Keep your plans together and choose the kind of support you want.</p>
         </Reveal>
         <div className="steps-grid">
           {steps.map(({ number, icon: Icon, title, body }, index) => (
@@ -64,9 +64,9 @@ export default function HowItWorksPage() {
       <section className="examples-section" aria-labelledby="examples-title">
         <div className="section-shell">
           <Reveal className="section-heading light-heading">
-            <p className="eyebrow">What it feels like</p>
-            <h2 id="examples-title">Small messages. Real momentum.</h2>
-            <p>Every intervention is short, specific, and designed to make starting feel lighter.</p>
+            <p className="eyebrow">Optional check-ins</p>
+            <h2 id="examples-title">What a check-in can look like.</h2>
+            <p>These fictional examples show how a check-in might help you get started when delivery is enabled for your account.</p>
           </Reveal>
           <div className="examples-grid">
             {examples.map((example, index) => (
