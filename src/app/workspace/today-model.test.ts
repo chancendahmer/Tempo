@@ -196,6 +196,13 @@ describe("Today in the account timezone", () => {
     expect(html.match(/<button[^>]+aria-label="Continue Upcoming essay"[^>]*>/)?.[0]).not.toContain("disabled");
     expect(html.match(/<button[^>]+aria-label="Start [^"]+ Another started task"[^>]*>/)?.[0]).toContain('aria-describedby="home-focus-help" disabled');
     expect(html.match(/<button[^>]+aria-label="Customize icon and starting timer for Another started task"[^>]*>/)?.[0]).toContain("disabled");
+    const savedFocus = data.items[0].data;
+    if (savedFocus.kind !== "focus") throw new Error("Missing focus fixture");
+    savedFocus.endsAt = new Date(now.getTime() + 60_000).toISOString();
+    expect(renderToday(data, now)).toContain("Timer running. One step at a time.");
+    savedFocus.endsAt = new Date(now.getTime() - 1_000).toISOString();
+    expect(renderToday(data, now)).toContain(">Timer finished</span>");
+    expect(data.tasks[0].status).not.toBe("completed");
     data.items.shift();
     data.tasks[0].status = "in_progress";
     expect(renderToday(data, now).match(/aria-label="Continue [^"]+"/g)).toHaveLength(1);
