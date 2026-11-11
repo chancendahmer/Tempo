@@ -167,7 +167,12 @@ removal, denial/no mutation, zero feedback records and replay safety. An
 independent agent approved the diff and ran 33 relevant tests; the author ran
 47 focused tests, lint/typecheck and 33 scripted scenarios with zero state-check
 issues. The latter are scripted code-path evidence, not live model responses.
-The full release check is running in `reply-routing-check.log`.
+The full release check on `ed5290d` passed in `reply-routing-check.log`:
+**179 files / 1,458 tests**, lint, typecheck, production/operations builds,
+exit 0, with both isolated PostgreSQL suites enabled. No migration, configuration
+or provider change is included. The independent review approved the bounded fix.
+Hosted pending-check-in replay remains unverified; the already used daily contact
+cap will not be reset to manufacture another check-in for this test.
 
 ## Spending
 
