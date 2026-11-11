@@ -278,6 +278,34 @@ describe("shared life workspace", () => {
     }
   });
 
+  it.each([
+    { phone: "+12025550724", zone: "+05:30", start: "2026-06-30T18:30:00Z", end: "2026-07-01T18:30:00Z" },
+    { phone: "+12025550725", zone: "-04:00", start: "2026-07-01T04:00:00Z", end: "2026-07-02T04:00:00Z" },
+    { phone: "+12025550726", zone: "+0530", start: "2026-06-30T18:30:00Z", end: "2026-07-01T18:30:00Z" },
+    { phone: "+12025550727", zone: "PST", start: "2026-07-01T07:00:00Z", end: "2026-07-02T07:00:00Z" },
+    { phone: "+12025550728", zone: "America/Santiago", start: "2026-09-06T04:00:00Z", end: "2026-09-07T03:00:00Z" },
+  ])("keeps account-local ordering with the saved time zone $zone", async ({ phone, zone, start, end }) => {
+    const [person] = await db.insert(schema.users).values({ phoneE164: phone, timezone: zone }).returning();
+    const startOfDay = new Date(start);
+    await db.insert(schema.tasks).values([
+      { userId: person.id, title: "Previous local day", dueAt: new Date(startOfDay.getTime() - 1) },
+      { userId: person.id, title: "Current local day", dueAt: startOfDay },
+      { userId: person.id, title: "No deadline" },
+      { userId: person.id, title: "Next local day", dueAt: new Date(end) },
+    ]);
+
+    vi.setSystemTime(new Date(startOfDay.getTime() + 60_000));
+    try {
+      const workspace = await readWorkspace(person.id, db);
+      expect(workspace.timezone).toBe(zone);
+      expect(workspace.tasks.map(({ title }) => title)).toEqual([
+        "Current local day", "Previous local day", "No deadline", "Next local day",
+      ]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("projects saved reminder cadence, timezone and terminal history without leaking another account", async () => {
     const [person, outsider] = await db.insert(schema.users).values([{ phoneE164: "+12025550791", timezone: "UTC" }, { phoneE164: "+12025550792" }]).returning();
     const remindAt = new Date("2026-10-20T00:00:00Z");
