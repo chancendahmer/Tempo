@@ -1,66 +1,101 @@
 import { isValidElement, type ReactElement, type ReactNode } from "react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { WorkspaceTour } from "./WorkspaceTour";
+import { positionTour } from "./tour-position";
 
-const hooks = vi.hoisted(() => ({ index: 0, close: vi.fn(), showModal: vi.fn() }));
+const hooks = vi.hoisted(() => ({ index: 0 }));
 vi.mock("react", async original => ({
   ...await original<typeof import("react")>(),
-  useState: () => [hooks.index, (update: (value: number) => number) => { hooks.index = update(hooks.index); }],
-  useRef: () => ({ current: { close: hooks.close, showModal: hooks.showModal } }),
-  useEffect: (effect: () => void) => effect(),
+  useState: () => [hooks.index, (value: number) => { hooks.index = value; }],
+  useRef: () => ({ current: null }),
+  useId: () => "tour-id",
+  useLayoutEffect: () => undefined,
 }));
 
-type Button = ReactElement<{ children?: ReactNode; onClick: () => void; "aria-label"?: string }>;
-function button(node: ReactNode, label: string): Button | undefined {
-  if (Array.isArray(node)) return node.map(child => button(child, label)).find(Boolean);
+type Item = ReactElement<{ children?: ReactNode; onClick: () => void; "aria-label"?: string; href?: string }>;
+function find(node: ReactNode, match: (item: Item) => boolean): Item | undefined {
+  if (Array.isArray(node)) return node.map(child => find(child, match)).find(Boolean);
   if (!isValidElement(node)) return undefined;
-  const item = node as Button;
-  const text = Array.isArray(item.props.children) ? item.props.children[0] : item.props.children;
-  if (item.type === "button" && (item.props["aria-label"] === label || text === label)) return item;
-  return button(item.props.children, label);
+  const item = node as Item;
+  return match(item) ? item : find(item.props.children, match);
 }
 
-beforeEach(() => { hooks.index = 0; hooks.close.mockClear(); hooks.showModal.mockClear(); });
+function label(node: ReactNode, text: string) {
+  function hasText(content: ReactNode): boolean {
+    if (Array.isArray(content)) return content.some(hasText);
+    if (isValidElement(content)) return hasText((content as Item).props.children);
+    return typeof content === "string" && content.trim() === text;
+  }
+  return find(node, item => (item.type === "button" || item.type === "h2") && (item.props["aria-label"] === text || hasText(item.props.children)));
+}
 
-function fixture() {
-  const focus = vi.fn();
-  const opener = { isConnected: true, focus } as unknown as HTMLElement;
+beforeEach(() => { hooks.index = 0; });
+
+function fixture(preview = false, hasTasks = true) {
   const onClose = vi.fn();
-  const onGo = vi.fn();
-  const render = () => WorkspaceTour({ opener, onClose, onGo });
-  return { render, focus, onClose, onGo };
+  const onSection = vi.fn();
+  const render = () => WorkspaceTour({ preview, hasTasks, scope: { current: null }, onSection, onClose });
+  const click = (text: string) => label(render(), text)!.props.onClick();
+  return { render, click, onClose, onSection };
 }
 
-it("returns focus to the opener after all four steps are completed", () => {
-  const { render, focus, onClose, onGo } = fixture();
-  for (let step = 0; step < 3; step++) button(render(), "Next")!.props.onClick();
-  expect(hooks.close).not.toHaveBeenCalled();
-  button(render(), "Got it")!.props.onClick();
-  expect(hooks.close).toHaveBeenCalledOnce();
-  expect(focus).toHaveBeenCalledExactlyOnceWith({ preventScroll: true });
-  expect(hooks.close).toHaveBeenCalledBefore(focus);
-  expect(onClose).toHaveBeenCalledOnce();
-  expect(onGo).not.toHaveBeenCalled();
-});
-
-it.each(["Close tour", "Skip tour", "Escape"])("returns focus when dismissing through %s", label => {
-  const { render, focus, onClose } = fixture();
-  const dialog = render();
-  if (label === "Escape") {
-    const preventDefault = vi.fn();
-    dialog.props.onCancel({ preventDefault });
-    expect(preventDefault).toHaveBeenCalledOnce();
-  } else button(dialog, label)!.props.onClick();
-  expect(hooks.close).toHaveBeenCalledOnce();
-  expect(focus).toHaveBeenCalledExactlyOnceWith({ preventScroll: true });
-  expect(onClose).toHaveBeenCalledOnce();
-});
-
-it.each([["Go to Today", "today"], ["Open Planner", "tasks"]] as const)("lets %s focus its destination", (label, destination) => {
-  const { render, focus, onClose, onGo } = fixture();
-  if (destination === "tasks") button(render(), "Next")!.props.onClick();
-  button(render(), label)!.props.onClick();
-  expect(onGo).toHaveBeenCalledExactlyOnceWith(destination);
-  expect(focus).not.toHaveBeenCalled();
+it("visits the workspace sections in order and lets users go back", () => {
+  const { render, click, onClose, onSection } = fixture();
+  expect(label(render(), "Find your spaces")).toBeDefined();
+  for (let i = 0; i < 6; i++) click("Next");
+  expect(onSection.mock.calls.flat()).toEqual(["today", "today", "inbox", "today", "settings", "settings"]);
+  expect(label(render(), "Choose your check-ins")).toBeDefined();
+  click("Back");
+  expect(label(render(), "Bring your calendar along")).toBeDefined();
+  click("Next");
   expect(onClose).not.toHaveBeenCalled();
+  click("Open Settings");
+  expect(onClose).toHaveBeenCalledExactlyOnceWith("settings");
+});
+
+it("offers phone signup only in the preview and can finish without opening it", () => {
+  const { render, click, onClose } = fixture(true);
+  for (let i = 0; i < 7; i++) click("Next");
+  expect(label(render(), "Make it your workspace")).toBeDefined();
+  expect(find(render(), item => item.props.href === "/#early-access")).toBeDefined();
+  click("Done");
+  expect(onClose).toHaveBeenCalledExactlyOnceWith();
+});
+
+it("explains how to add a task in an empty workspace", () => {
+  const { render, click } = fixture(false, false);
+  click("Next");
+  click("Next");
+  expect(find(render(), item => item.type === "p")?.props.children).toContain("Add a task here");
+});
+
+it.each(["Close tour", "Skip tour", "Escape"])("dismisses through %s", text => {
+  const { render, click, onClose, onSection } = fixture();
+  if (text === "Escape") {
+    const preventDefault = vi.fn();
+    render().props.onCancel({ preventDefault });
+    expect(preventDefault).toHaveBeenCalledOnce();
+  } else click(text);
+  expect(onClose).toHaveBeenCalledExactlyOnceWith();
+  expect(onSection).not.toHaveBeenCalled();
+});
+
+it("places a bubble under a top control without covering it", () => {
+  const { highlight, panel } = positionTour({ top: 18, bottom: 58, left: 230, right: 334 }, { width: 398, height: 230 }, { width: 1280, height: 900 });
+  expect(panel.side).toBe("below");
+  expect(panel.top).toBeGreaterThan(highlight!.bottom);
+  expect(panel.left + panel.pointer).toBe(282);
+});
+
+it("keeps the bubble above a mobile composer near the bottom edge", () => {
+  const { highlight, panel } = positionTour({ top: 617, bottom: 674, left: 16, right: 344 }, { width: 336, height: 248 }, { width: 360, height: 690 });
+  expect(panel.side).toBe("above");
+  expect(panel.left).toBe(12);
+  expect(panel.top + 248).toBeLessThan(highlight!.top);
+});
+
+it("centers the guide when the target is unavailable", () => {
+  const { highlight, panel } = positionTour(null, { width: 336, height: 248 }, { width: 360, height: 690 });
+  expect(highlight).toBeNull();
+  expect(panel).toMatchObject({ side: "center", left: 12, top: 221 });
 });

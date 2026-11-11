@@ -25,6 +25,7 @@
 .note { color: #756b79; font-size: 12px; line-height: 1.6; margin: 18px 0 24px; }
 .actions, .actions > div { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .skip, .back { border: 0; background: transparent; color: #776a74; padding: 10px 4px; font-size: 13px !important; }
+.tourEntry { display: inline-flex; align-items: center; gap: 6px; border: 0; background: transparent; color: #28594e; padding: 0 4px; font-size: 13px !important; font-weight: 700 !important; text-decoration: underline; text-underline-offset: 3px; }
 .next { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 11px 17px; border: 0; border-radius: 11px; color: #fff; background: #a64d35; font-size: 13px !important; font-weight: 600 !important; }
 .next:hover { background: #8e3c28; }
 .error { color: #9c3525; font-size: 13px; line-height: 1.5; }

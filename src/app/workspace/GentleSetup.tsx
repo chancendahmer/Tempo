@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import { FiArrowRight, FiCheck, FiX } from "react-icons/fi";
 import type { GentleSetup as Setup, GentleSetupAction } from "@/server/domain/gentle-setup";
 import { WorkspaceAvatar } from "../components/WorkspaceAvatar";
@@ -14,7 +14,7 @@ const tones = [
   { value: "direct", label: "Keep it direct", detail: "Short, clear suggestions to get going." },
 ] as const;
 
-export function GentleSetup({ initial, onSave, onClose, progressOnly = false, preview = false }: { initial: Setup; onSave: (action: GentleSetupAction) => Promise<void>; onClose: () => void; progressOnly?: boolean; preview?: boolean }) {
+export function GentleSetup({ initial, onSave, onClose, onTour, suspended = false, progressOnly = false, preview = false }: { initial: Setup; onSave: (action: GentleSetupAction) => Promise<void>; onClose: () => void; onTour?: (opener: HTMLButtonElement) => void; suspended?: boolean; progressOnly?: boolean; preview?: boolean }) {
   const [step, setStep] = useState(progressOnly ? 2 : 0);
   const [name, setName] = useState(initial.displayName ?? "");
   const [tone, setTone] = useState(initial.coachingTone);
@@ -23,13 +23,18 @@ export function GentleSetup({ initial, onSave, onClose, progressOnly = false, pr
   const [error, setError] = useState("");
   const dialog = useRef<HTMLDialogElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
-  useEffect(() => {
+  useLayoutEffect(() => {
     const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const modal = dialog.current;
-    modal?.showModal();
     return () => { modal?.close(); if (opener?.isConnected) opener.focus({ preventScroll: true }); };
   }, []);
-  useEffect(() => { heading.current?.focus(); }, [step]);
+  useLayoutEffect(() => {
+    const modal = dialog.current;
+    if (!modal) return;
+    if (suspended) { modal.close(); return; }
+    if (!modal.open) modal.showModal();
+    heading.current?.focus({ preventScroll: true });
+  }, [step, suspended]);
 
   async function persist(action: GentleSetupAction) {
     if (saving) return;
@@ -58,6 +63,7 @@ export function GentleSetup({ initial, onSave, onClose, progressOnly = false, pr
       </fieldset>
       {step === 0 && <TimezoneSettings timezone={initial.timezone ?? "UTC"} timezoneConfirmedAt={initial.timezoneConfirmedAt} preview={preview} onSave={onSave} />}
       <p className={s.note}>{step === 0 ? "Your texts and this workspace share the same Tempo account. You’re in charge." : "You’re in charge. This setup won’t turn on text check-ins."}</p>
+      {step === 0 && onTour && <button type="button" className={s.tourEntry} disabled={saving} onClick={event => { dialog.current?.close(); onTour(event.currentTarget); }}>Take the workspace tour <FiArrowRight aria-hidden="true" /></button>}
       {error && <p role="alert" className={s.error}>{error}</p>}
       <footer className={s.actions}><button type="button" className={s.skip} disabled={saving} onClick={dismiss}>{progressOnly ? "Cancel" : "Skip for now"}</button><div>{step > 0 && !progressOnly && <button type="button" className={s.back} disabled={saving} onClick={() => setStep(value => value - 1)}>Back</button>}<button type="submit" className={s.next} disabled={saving}>{saving ? "Saving…" : step === 2 ? <>{progressOnly ? "Save display" : "Make it mine"} <FiCheck /></> : <>Continue <FiArrowRight /></>}</button></div></footer>
     </form>
