@@ -1,0 +1,86 @@
+# Tempo continuation after the November 11 release
+
+Read AGENTS.md, this file, HOSTED-CONTINUATION.md and the relevant local Next.js
+guide before editing. Verify Git and deployment state rather than assuming this
+checkpoint is current. Preserve unrelated original-checkout changes and output/.
+
+## Released baseline
+
+PR #29 released contextual task timing, delivery safeguards and a mascot-led
+tour. PR #30 released current-task priority, bounded server ordering, timezone
+corrections and clearer save/focus feedback. Production merge:
+`38c5ab701a49618e152141ca3c9ddc6b84178ae7`.
+
+The final code passed npm run check with 179 files / 1,451 tests, lint,
+typecheck, Next.js production build and operations build. Isolated PostgreSQL
+integration and recovery tests were enabled. Home and the guide each received
+9/10 in independent desktop/phone preview review. Those are scoped scores;
+the entire product and hosted proactive delivery do not inherit them.
+
+Use HOSTED-CONTINUATION.md for final provider observations, cleanup and spending.
+The last canary observation and cleanup may occur after this file was written.
+The local branch codex/current-task-priority contains post-merge evidence commits;
+do not redeploy documentation alone. Start the next code branch from verified main.
+
+## Highest-priority work
+
+1. Diagnose invalid intervention-review output. Three of five classified reviews
+   through 21:55 UTC were invalid; two were valid vetoes. Numeric usage did not
+   establish token truncation. Add a small structured diagnostic with allowlisted
+   stop reason, tool count, expected-tool match, schema-failure category and token
+   counts. Never log response content, tool arguments, prompts or private account
+   data. Preserve fail-closed behavior. Establish the actual cause before changing
+   the contract or increasing output limits. Test malformed/duplicate/overlong
+   responses and correct responses without live charges first.
+2. Distinguish planned task time from true expiry in typed review context. The
+   21:55 review incorrectly treated a 25-minute-late ordinary to-do as potentially
+   moot. Do not simply remove all stale-content checks. Cover a recently late
+   actionable task, a genuinely expired event, and an old task with no current
+   context. See NEXT-PROACTIVE-SLICE.md.
+3. Separate transient blocked observations from paid-review reservation identity.
+   A recent-activity hold at 22:00 occupied the task's 15-minute slot and prevented
+   a review at 22:05. Retain one paid attempt/holdout decision and at most one
+   provider submission per opportunity under retries and concurrency. Do not
+   create an expensive polling loop or reset live reservations to force delivery.
+4. After those reliability fixes, implement one independently eligible, explicitly
+   selected routine check-in, including an account with zero tasks. The current
+   cross-app signals influence task check-ins; meals, workouts and routines cannot
+   independently originate every advertised outreach type. The design note covers
+   typed targets, consent, occurrence identity, late-change checks and recovery.
+
+Use an implementation agent plus an independent reviewer with separate file
+ownership. Keep paid testing centrally accounted. Run nearest tests while editing,
+lint/typecheck, and the full release check before any merge. A review score never
+overrides ownership, persistence, delivery or consent failures.
+
+## Access, spending and safety
+
+- Dedicated demo phone ends 8736; Google demo account is
+  chancendahmer@axionsystems.us. TextFree and Tempo sessions were authenticated.
+  Ask the user to reauthenticate only if a current observation proves expiry;
+  never request codes, passwords or API keys in chat.
+- Existing test-run cap is $20, not a fresh allowance on resume. Retain unresolved
+  historical, carrier and hosted holds and reread the ledger before new paid calls.
+  The separate ongoing pilot allowance is $10 total per UTC day, enforced across
+  accounts. Do not increase budgets, subscriptions or infrastructure spending.
+- Live optional outreach is limited to the single dedicated demo canary. Both
+  roles retain global shadow mode on, autonomous sending off and cleanup off;
+  the canary enables both task coaching and old-item cleanup subject to account
+  consent and normal gates. Do not opt in other customers or widen the canary.
+- Preserve personal records and old demo items. Clean only the exact fictional
+  records created for a named test. Never reset uncertain outbound attempts.
+- Never read populated secret files. Use normal runtime credential loading and
+  sanitized connectivity checks. Local env and Railway env are separate.
+- Production web/worker must match. Verify platform removal before archiving
+  exact stale heartbeat evidence with the guarded manifest procedure. Rollback
+  reference for this release is 943d560 on both roles, preserving PostgreSQL.
+
+## Remaining product limits
+
+See CHECKPOINT.md for the capability list: web and SMS onboarding remain separate;
+hardware/background alarms, wearables, MyFitnessPal import, broader Calendar
+scope, paid billing and automatic weekly recap are not finished. Physical-camera
+and assistive-technology validation, a hosted customer week, retention/PITR and
+external operational alerts remain. Synthetic multi-account tests do not prove
+10–100-person production capacity. Revalidate the pricing snapshot before
+November 22 and migrate legacy Railway configuration before December 1.

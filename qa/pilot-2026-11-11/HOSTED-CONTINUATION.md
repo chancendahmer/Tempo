@@ -101,6 +101,35 @@ optional outreach, clear the demo canary on both roles and retain shadow mode
 on, autonomous sending off and cleanup off. Do not remove outbound evidence.
 PR #30 is the release candidate; record its merge and hosted verification below.
 
+## PR 30 release
+
+PR #30 merged November 11 at 21:51:49 UTC as
+`38c5ab701a49618e152141ca3c9ddc6b84178ae7`. The reviewed candidate head was
+`a6e6484`; its final code is `f1a71d0`, with subsequent evidence-only commits.
+Web deployment `5772919b-f79a-447d-8b73-7aa5c80f193c` was explicitly triggered;
+worker deployment `f0378937-869d-4f09-998c-bc150013b2c2` started automatically.
+Both deployed successfully. Railway confirmed the former web `e55c5ae8` and
+worker `7e0a21e2` Removed. The guarded CLI prepared, dry-ran and applied the
+exact two-record heartbeat archive, SHA-256
+`c84550516e4991cde63cd3e3be697d320ba70f1a00e07a4d032e76d06539272e`.
+Subsequent readiness was HTTP 200 with the matching 38c5ab7 worker, one fresh
+instance, zero stale/unknown instances, known demo-only policy, no problems,
+and zero pending outbound uncertainty. Historical acknowledged records remain.
+
+Authenticated production Home survived reload and displayed the new same-day
+task first, ahead of October backlog. Calendar refreshed from the connected
+Google primary calendar with zero events and the saved task in its day agenda.
+Private captures: `production-current-task-priority.png`,
+`railway-pr30-web-active.png`, `railway-pr30-worker-active.png`.
+
+At 21:55:17 UTC the new worker selected the correct fresh task (score 0.8291),
+but a valid model veto rejected it as 25 minutes overdue. This demonstrates
+ranking repair and a conservative veto, not delivery. The lead then rescheduled
+only that fictional task to 5:20 PM New York through the Calendar task editor;
+the visible saved agenda confirmed the new time. Its next normal opportunity
+will distinguish a future-due review from the overdue case without bypassing
+any gates. Cleanup remains pending until that observation is recorded.
+
 ## Spending
 
 Previous conservative run commitments remain $16.902717 against the approved
