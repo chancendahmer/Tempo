@@ -20,6 +20,8 @@ November 11, 2026 · Local workspace preview · 1280 × 720 and 390 × 844
 
 ## Remaining friction
 
+These observations apply to the preview build tested in the walkthrough.
+
 - After resuming and returning to Home, the countdown kept advancing and the row read **In progress**. The banner still said **Your saved timer is ready to continue**, and the explanation above the list offered to resume it. State-specific wording would make it clear that opening the timer is optional while it runs. [Running Home](private/local-fresh-review-running-home.png)
 - At the desktop size, the floating countdown covered part of the generic preview update message after I returned from the timer. The saved-task confirmation earlier in the flow was readable and actionable. [Overlapping message](private/local-fresh-review-running-home.png)
 - Step 5 refers to **Menu**, while step 1 describes the three-line navigation button. A consistent name would help someone find the icon from Home.
@@ -27,3 +29,5 @@ November 11, 2026 · Local workspace preview · 1280 × 720 and 390 × 844
 ## Scope
 
 The review used the local fictional preview. Account persistence, calendar linking, live model calls, and SMS were outside the review. Reload returned Home to its initial three rows and **Show 4 more** with the fictional task cleared. I restored the default viewport. Screenshot files are local and Git-ignored.
+
+The follow-up browser session was unavailable when I tried to recheck the subsequent timer wording, preview message placement, and guide copy changes. The ratings and screenshots above describe the build I interacted with.
