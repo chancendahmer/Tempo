@@ -102,7 +102,7 @@ describe("Today in the account timezone", () => {
     expect(focus).toContain("My current focused step</h2>");
     expect(focus).toContain("Paused. Continue when you&#x27;re ready.");
     expect(focus).toContain("Continue focus");
-    expect(focus).toContain("In progress");
+    expect(focus).toContain(">Paused</span>");
   });
   it("uses the morning window, then returns to tasks without promoting tomorrow's task", () => {
     const data = fixture();
@@ -177,17 +177,27 @@ describe("Today in the account timezone", () => {
     expect(html).not.toContain("Start 25 minutes");
     // The compact Home links into the routine editor; only the saved active focus can resume.
     expect(html).toContain("Continue focus");
-    expect(html).toMatch(/aria-label="Start [^"]+" disabled=""/);
+    expect(html).toMatch(/aria-label="Start [^"]+"[^>]*disabled=""/);
 
   });
   it("uses the persisted focus item ahead of another started task", () => {
     const data = fixture();
+    data.tasks[0].title = "Upcoming essay";
+    data.tasks[1].title = "Another started task";
     data.tasks[1].status = "in_progress";
     data.items.unshift({ id: "current-focus", version: 1, data: { kind: "focus", title: "The session actually running", taskId: data.tasks[0].id, remaining: 120, endsAt: null } });
     const now = new Date("2026-10-14T18:00:00Z");
     const model = todayModel(data, now);
     expect(model.nextTask?.id).toBe("tomorrow");
     expect(model.tasks.map(task => task.id)).toEqual(["tomorrow", "today", "undated"]);
-    expect(renderToday(data, now)).toContain("The session actually running</h2>");
+    const html = renderToday(data, now);
+    expect(html).toContain("The session actually running</h2>");
+    expect(html).toContain(">Paused</span>");
+    expect(html.match(/<button[^>]+aria-label="Continue Upcoming essay"[^>]*>/)?.[0]).not.toContain("disabled");
+    expect(html.match(/<button[^>]+aria-label="Start [^"]+ Another started task"[^>]*>/)?.[0]).toContain('aria-describedby="home-focus-help" disabled');
+    expect(html.match(/<button[^>]+aria-label="Customize icon and starting timer for Another started task"[^>]*>/)?.[0]).toContain("disabled");
+    data.items.shift();
+    data.tasks[0].status = "in_progress";
+    expect(renderToday(data, now).match(/aria-label="Continue [^"]+"/g)).toHaveLength(1);
   });
 });

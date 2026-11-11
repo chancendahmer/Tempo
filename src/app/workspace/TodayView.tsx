@@ -42,6 +42,7 @@ export function TodayView({ data, preview = false, now, saving, go, editTask, st
   const model = homeModel(data, now, calendar.events, manual);
   const hero = model.hero;
   const hasFocus = !!(model.today.focus || model.tasks.some(task => task.status === "in_progress"));
+  const focusTaskId = model.today.focus ? model.today.focus.taskId : model.tasks.find(task => task.status === "in_progress")?.id;
   const close = () => { dialog.current?.close(); setSettings(null); setStyleTask(null); setFormError(""); opener.current?.focus(); };
   useEffect(() => {
     if (settings || styleTask) {
@@ -82,13 +83,15 @@ export function TodayView({ data, preview = false, now, saving, go, editTask, st
     </section>
     <div className={s.columns}>
       <section className={s.todos} aria-labelledby="home-tasks"><div className={s.sectionHeading}><h2 id="home-tasks">Your to-do</h2><button className={s.pill} data-tour-anchor="add-task" onClick={() => editTask()} disabled={saving}><FiPlus />Add task</button></div>
+        {hasFocus && <p id="home-focus-help" className={s.notice}>One focus session at a time. <button onClick={onResumeFocus}>Open your timer</button> to resume or leave it before starting another task.</p>}
         {model.tasks.slice(0, expanded ? undefined : 3).map((task, index) => {
           const presentation = taskPresentation(task), Icon = icons[presentation.category];
-          const active = task.status === "in_progress";
+          const active = task.id === focusTaskId;
+          const paused = active && model.today.focus && !model.today.focus.endsAt;
           return <div className={s.task} key={task.id} data-active={active}>
             <button className={s.check} aria-label={`Complete ${task.title}`} disabled={saving} onClick={() => completeTask(task)}><FiCheck /></button>
-            <div className={s.taskBody}><button className={s.taskTitle} onClick={() => editTask(task)}>{task.title}</button><div className={s.taskMeta}><button data-category={presentation.category} aria-label={`Customize icon and starting timer for ${task.title}`} title={`${presentation.source === "ai" ? "AI suggestion" : presentation.source === "manual" ? "Your choice" : "Default suggestion"}: ${taskCategoryLabels[presentation.category]}, ${presentation.focusMinutes} minutes`} onClick={() => setStyleTask(task)} disabled={active}><Icon aria-hidden="true" /></button><span>{active ? "In progress" : task.dueAt ? `${localDay(new Date(task.dueAt), data.timezone) < model.day ? "Overdue · " : ""}${taskDueLabel(task.dueAt, data.timezone, true)}` : "Anytime"}</span></div></div>
-            <button className={s.start} data-tour-anchor={index === 0 ? "timer" : undefined} aria-label={`${active ? "Continue" : `Start ${presentation.focusMinutes} minute timer for`} ${task.title}`} disabled={saving || (hasFocus && !active)} onClick={() => active && onResumeFocus ? onResumeFocus() : startTask(task)}><FiPlay />{active ? "Continue" : `Start ${presentation.focusMinutes} min`}</button><button className={s.chevron} onClick={() => editTask(task)} aria-label={`Edit ${task.title}`}><FiChevronRight /></button>
+            <div className={s.taskBody}><button className={s.taskTitle} onClick={() => editTask(task)}>{task.title}</button><div className={s.taskMeta}><button data-category={presentation.category} aria-label={`Customize icon and starting timer for ${task.title}`} title={`${presentation.source === "ai" ? "AI suggestion" : presentation.source === "manual" ? "Your choice" : "Default suggestion"}: ${taskCategoryLabels[presentation.category]}, ${presentation.focusMinutes} minutes`} onClick={() => setStyleTask(task)} disabled={active || task.status === "in_progress"}><Icon aria-hidden="true" /></button><span>{paused ? "Paused" : active || task.status === "in_progress" ? "In progress" : task.dueAt ? `${localDay(new Date(task.dueAt), data.timezone) < model.day ? "Overdue · " : ""}${taskDueLabel(task.dueAt, data.timezone, true)}` : "Anytime"}</span></div></div>
+            <button className={s.start} data-tour-anchor={index === 0 ? "timer" : undefined} aria-label={`${active ? "Continue" : `Start ${presentation.focusMinutes} minute timer for`} ${task.title}`} aria-describedby={hasFocus && !active ? "home-focus-help" : undefined} disabled={saving || (hasFocus && !active)} onClick={() => active && onResumeFocus ? onResumeFocus() : startTask(task)}><FiPlay />{active ? "Continue" : `Start ${presentation.focusMinutes} min`}</button><button className={s.chevron} onClick={() => editTask(task)} aria-label={`Edit ${task.title}`}><FiChevronRight /></button>
           </div>;
         })}
         {!model.tasks.length && <div className={s.empty}><FiCheck /><h3>A little room to begin.</h3><p>Add one thing you’d like to get to. It doesn’t need a time.</p><button className={s.textButton} onClick={() => editTask()}>Add a task <FiPlus /></button></div>}

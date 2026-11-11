@@ -71,6 +71,7 @@ function WorkspaceView({ preview = false, owner, sessionKey, unavailable = false
   const [undo, setUndo] = useState<WorkspaceAction | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [taskSavedNotice, setTaskSavedNotice] = useState("");
   const [signOutFailed, setSignOutFailed] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editor, setEditor] = useState<Editor | null>(null);
@@ -413,6 +414,11 @@ function WorkspaceView({ preview = false, owner, sessionKey, unavailable = false
   };
   const taskAction = async (command: Extract<WorkspaceAction, { action: "task" }>["command"], focusMinutes?: number) => {
     const result = await act({ action: "task", requestId: crypto.randomUUID(), command, ...(focusMinutes !== undefined ? { focusMinutes } : {}) });
+    if (result && command.type === "create_task" && !command.sourceNoteId) {
+      const message = `Saved to To-do: ${command.title}.${preview ? " Preview only; resets on reload." : ""}`;
+      setNotice(message);
+      setTaskSavedNotice(message);
+    }
     if (result && command.type === "complete_task") {
       const title = data?.tasks.find(task => task.id === command.taskId)?.title ?? "Task";
       setNotice(`${title} completed.${preview ? " Preview only." : ""}`);
@@ -568,7 +574,7 @@ function WorkspaceView({ preview = false, owner, sessionKey, unavailable = false
       </header>}
       {preview && <div className={s.previewBanner}><span>Alex’s demo · fictional data · resets on reload · no messages sent</span>{section === "today" && <label className={c.previewClock}>Sample time <select aria-label="Preview Home time" value={previewTime} onChange={event => setPreviewTime(event.target.value)}><option value="live">Live clock</option><option value="08:10">8:10 AM</option><option value="13:00">1:00 PM</option><option value="15:05">3:05 PM · walk</option><option value="18:00">6:00 PM</option><option value="21:30">9:30 PM</option></select></label>}<button type="button" className={guide.entry} disabled={hidden || !data} onClick={event => { const opener = event.currentTarget; startTour(() => opener); }}><FiBookOpen aria-hidden="true" /> Take the tour</button><Link data-tour-anchor="signup" href="/#early-access">Get Tempo <FiArrowRight aria-hidden="true" /></Link></div>}
       {(error || unavailable) && data && <div className={s.foodNotice} role="alert">{error || "We couldn’t verify your account. Showing your last loaded view; reconnect before saving."} <button className={s.textButton} onClick={() => { void retryAccount?.(); void refresh(); }}>Try again</button></div>}
-      {visibleNotice && <div className={s.toast} role="status"><WorkspaceAvatar size={28} /><span>{visibleNotice}</span>{!hidden && !signOutFailed && undo && <button className={s.textButton} disabled={saving} onClick={() => void act(undo)}>Undo</button>}<button className={s.iconButton} aria-label="Dismiss message" onClick={() => { if (signOutFailed) setSignOutFailed(false); else setNotice(""); }}><FiX /></button></div>}
+      {visibleNotice && <div className={s.toast} role="status"><WorkspaceAvatar size={28} /><span>{visibleNotice}</span>{!hidden && !signOutFailed && notice === taskSavedNotice && section !== "tasks" && <button className={s.textButton} onClick={() => go("tasks")}>View To-do <FiArrowRight /></button>}{!hidden && !signOutFailed && undo && <button className={s.textButton} disabled={saving} onClick={() => void act(undo)}>Undo</button>}<button className={s.iconButton} aria-label="Dismiss message" onClick={() => { if (signOutFailed) setSignOutFailed(false); else setNotice(""); }}><FiX /></button></div>}
       {hidden ? <div className={s.gate}><FiMoon /><h1>A little privacy.</h1><button className={s.primary} onClick={() => setWorkspaceHidden(false)}>Show my workspace</button></div> : !data ? <div className={s.gate}><span className={s.gateIcon}><FiSun /></span><p className={s.eyebrow}>YOUR LIFE, A LITTLE LIGHTER</p><h1>Everything you need.<br />Room to breathe.</h1><p>{error || "Getting your space ready…"}</p><div className={s.row}><Link className={s.primary} href="/login">Log in to Tempo <FiArrowRight /></Link><Link className={s.secondary} href="/workspace/preview">Explore the workspace</Link></div>{error && <button className={s.textButton} onClick={() => void refresh()}>Try again</button>}</div> : <main className={c.content} id="workspace-content" aria-label={sections.find(([key]) => key === section)?.[1]} tabIndex={-1}>
         <WorkspaceSectionNav current={section} go={go} />
         <div key={section} className={c.page}>
