@@ -1,6 +1,6 @@
 # Novice walkthrough of Home prioritization and the guided tour
 
-| Area | Preview score | Rationale |
+| Area | Initial preview score | Rationale |
 | --- | --- | --- |
 | Home prioritization | 7/10 | Today’s task stayed above the old deadline and the timer made the chosen task easy to resume. The new task was hard to find after saving, and the paused state differed across Home. |
 | Guided tour | 8/10 | The guide pointed to real controls, showed progress, and let me go back, skip, finish, and replay. The Home step could better explain why a task appears first and give me a small action to try. |
@@ -30,3 +30,7 @@ One reviewer walked through the local fictional Alex preview on November 11, 202
 - **Teach one concrete first action on Home.** Step 2 highlights **Start 15 min**, but its copy lists tasks, routines, calendar, meals, and workouts without explaining why this particular task appears. Use this step to explain the chosen task and the first action in front of me. An invitation to try a sample timer, or a clear cue about where to do it after closing the guide, would make it easier to put the lesson into practice.
 - **Match the UI label when introducing navigation.** Step 1 says to use the **Menu** button. The UI shows an unlabeled hamburger icon and exposes it to assistive technology as **Open navigation**. Use the control’s actual name or describe the icon beside the Tempo logo.
 - **Check replay discoverability in the signed-in workspace.** Preview Settings had the persistent **Take the tour** strip above the page. Its Settings sections did not include a separate guide entry. The signed-in entry point was outside this walkthrough.
+
+## Follow-up after the UI changes
+
+The in-app browser became unavailable to the reviewer. Refreshing the previous tab, opening a fresh local preview, and resetting the browser session all returned a browser-unavailable error before the app loaded. The scores above cover the initial preview. The named save confirmation and **View to-do** action, revised paused row and timer guidance, protection of the existing focus session, and revised tour copy still need an independent walkthrough. No follow-up score or screenshot was recorded.
