@@ -249,7 +249,8 @@ describe("shadow context evaluation", () => {
   });
 
   it.each([
-    ["enabled", 0], ["opted_out", 1], ["quiet_hours", 2], ["focus", 3], ["calendar_busy", 4], ["another_contact", 5], ["task_changed", 6],
+    ["enabled", 0], ["opted_out", 1], ["quiet_hours", 2], ["focus", 3], ["calendar_busy", 4], ["another_contact", 5],
+    ["task_changed", 6], ["recent_task_start", 7], ["paused_saved_focus", 8],
   ] as const)("rechecks %s after composition before committing provider submission", async (scenario, suffix) => {
     const now = new Date("2026-08-18T14:00:00Z");
     const [user] = await database.insert(users).values({
@@ -309,13 +310,31 @@ describe("shadow context evaluation", () => {
         await database.update(tasks).set({ title: "A different task" }).where(eq(tasks.id, task.id));
         expect(await intervention.getDeliveryContext(id)).toMatchObject({ staleDraft: true });
         break;
+      case "recent_task_start":
+      case "paused_saved_focus": {
+        const exclusions = { interventionId: id };
+        for (const startedAt of [null, new Date(now.getTime() + 1), new Date(now.getTime() - 30 * 60_000)]) {
+          await database.update(tasks).set({ status: "in_progress", startedAt }).where(eq(tasks.id, task.id));
+          expect((await repository.loadSignals(user.id, now, exclusions))?.workspace?.focusUntil).toBeNull();
+        }
+        await database.update(tasks).set({ startedAt: new Date(now.getTime() - 5 * 60_000) }).where(eq(tasks.id, task.id));
+        expect((await repository.loadSignals(user.id, now, exclusions))?.workspace?.focusUntil).toEqual(new Date(now.getTime() + 25 * 60_000));
+        if (scenario === "paused_saved_focus") {
+          await database.insert(lifeItems).values({
+            id: randomUUID(), userId: user.id, updatedAt: now,
+            data: { kind: "focus", title: "Focus", taskId: task.id, remaining: 600, endsAt: null },
+          });
+          expect((await repository.loadSignals(user.id, now, exclusions))?.workspace?.focusUntil).toBeNull();
+        }
+        break;
+      }
     }
     const transport = new TestSmsTransport(`GATE-${suffix}`);
     const outbound = new DrizzleOutboundMessageRepository(database, (transaction, userId) =>
       new DrizzleInterventionRepository(transaction).canSubmitDelivery(id, userId, now, context.draftVersion));
     const sender = new SafeSmsSender(outbound, transport, () => now);
     const message = { userId: user.id, body, kind: "coach" as const, relatedInterventionId: id, idempotencyKey: `intervention-sms:${id}` };
-    if (scenario === "enabled") {
+    if (scenario === "enabled" || scenario === "paused_saved_focus") {
       expect(await sender.send(message)).toMatchObject({ sent: true });
       expect(await sender.send(message)).toMatchObject({ sent: false, reason: "duplicate" });
       expect(transport.sent).toHaveLength(1);

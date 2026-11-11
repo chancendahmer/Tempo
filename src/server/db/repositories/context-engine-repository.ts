@@ -56,7 +56,7 @@ export class DrizzleContextEngineRepository implements ContextEngineRepository {
         .where(eq(consentRecords.userId, userId)).orderBy(desc(consentRecords.createdAt), desc(consentRecords.id)).limit(1),
       this.database.select({
         id: tasks.id, title: tasks.title, status: tasks.status, dueAt: tasks.dueAt,
-        estimatedMinutes: tasks.estimatedMinutes, createdAt: tasks.createdAt,
+        estimatedMinutes: tasks.estimatedMinutes, createdAt: tasks.createdAt, startedAt: tasks.startedAt,
       }).from(tasks).where(and(eq(tasks.userId, userId), inArray(tasks.status, ["not_started", "in_progress"]))),
       this.loadCalendarContext(userId, now),
       this.database.select({
@@ -148,13 +148,12 @@ export class DrizzleContextEngineRepository implements ContextEngineRepository {
         memory.content.toLowerCase().startsWith("body doubling nudges have usually helped"),
       ),
       extensionSignals,
-      tasks: openTasks.map((task) => ({
-        ...task,
-        status: task.status as "not_started" | "in_progress",
+      tasks: openTasks.map(({ id, title, status, dueAt, estimatedMinutes, createdAt }) => ({
+        id, title, status: status as "not_started" | "in_progress", dueAt, estimatedMinutes, createdAt,
       })),
     };
     if (!proactiveBlockReasons(signals, now).length) {
-      signals.workspace = await this.loadWorkspaceContext(userId, local.date, now);
+      signals.workspace = await this.loadWorkspaceContext(userId, local.date, now, openTasks);
     }
     return signals;
   }
@@ -189,7 +188,12 @@ export class DrizzleContextEngineRepository implements ContextEngineRepository {
     return calendar;
   }
 
-  private async loadWorkspaceContext(userId: string, date: string, now: Date): Promise<WorkspaceContext> {
+  private async loadWorkspaceContext(
+    userId: string,
+    date: string,
+    now: Date,
+    openTasks: readonly Pick<typeof tasks.$inferSelect, "status" | "startedAt" | "estimatedMinutes">[],
+  ): Promise<WorkspaceContext> {
     const kind = sql<string>`${lifeItems.data}->>'kind'`;
     const day = sql<string>`${lifeItems.data}->>'date'`;
     const taskId = sql<string | null>`${lifeItems.data}->>'taskId'`;
@@ -211,13 +215,23 @@ export class DrizzleContextEngineRepository implements ContextEngineRepository {
         gt(lifeItems.updatedAt, new Date(now.getTime() - LINKED_THOUGHT_WINDOW_MS)), lte(lifeItems.updatedAt, now),
       )).groupBy(taskId),
     ]);
-    const focusEnd = plans.find(plan => plan.kind === "focus")?.endsAt;
+    const focus = plans.find(plan => plan.kind === "focus");
+    let focusUntil = focus?.endsAt ? new Date(focus.endsAt) : null;
+    // The workspace displays a timer for tasks started over text or chat.
+    // A saved timer, including a paused one, takes precedence over that fallback.
+    if (!focus) {
+      for (const task of openTasks) {
+        if (task.status !== "in_progress" || !task.startedAt || task.startedAt > now) continue;
+        const endsAt = new Date(task.startedAt.getTime() + (task.estimatedMinutes ?? 25) * 60_000);
+        if (endsAt > now && (!focusUntil || endsAt > focusUntil)) focusUntil = endsAt;
+      }
+    }
     const linkedThoughts = new Map<string, Date>();
     for (const thought of thoughts) {
       if (thought.taskId) linkedThoughts.set(thought.taskId, thought.updatedAt);
     }
     return {
-      focusUntil: focusEnd ? new Date(focusEnd) : null,
+      focusUntil,
       routines: plans.flatMap(plan => plan.kind === "routine" && plan.time && Array.isArray(plan.steps) ? [{
         time: plan.time,
         steps: plan.steps.filter(step => step && Number.isInteger(step.minutes) && step.minutes >= 1 && step.minutes <= 180)
