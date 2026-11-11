@@ -49,3 +49,11 @@ On November 11 at 22:00 UTC, the dedicated demo account's task evaluation record
 For the next implementation pass, keep deterministic blocks and shadow observations in the audit trail with their own identity. Once the task passes deterministic checks, atomically reserve the existing per-task bucket key before paid review or delivery planning. Keep holdout, review veto, and the outcome of a reserved attempt authoritative for that key. Preserve delivery-time revalidation and the outbound idempotency key across retries. [Snapshot persistence](../../src/server/db/repositories/context-engine-repository.ts) · [Submission boundary](../../src/server/db/repositories/outbound-message-repository.ts)
 
 In a provider-free test, record a conversation hold and verify zero paid attempts or sends. Let the hold clear within the same bucket and replay the eligible evaluation concurrently and after restart. Require one metered review reservation and at most one captured text if approved. In a separate case, revoke opt-in after approval and require zero provider submissions.
+
+## Distinguish a planning time from expiry
+
+At 21:55 UTC on November 11, the deployed scorer selected the current task, then a schema-valid review vetoed it because its saved time had passed by 25 minutes. The task editor saves a planning time. Expiry needs its own evidence, such as a person setting a hard cutoff or the end of a linked Calendar appointment. [Hosted continuation](HOSTED-CONTINUATION.md) · [Task editor](../../src/app/workspace/WorkspaceClient.tsx)
+
+In the next design pass, carry typed timing semantics, signed age relative to the saved time, and current actionability from saved records into eligibility and review. Treat existing task times as planning targets unless an authoritative record supplies an expiry. Keep a recently overdue open to-do eligible when it still has a useful next step. Preserve the reviewer veto and every existing eligibility and submission gate.
+
+Test a to-do 25 minutes past its planning time that still has a useful next step, an appointment whose recorded window has ended, and a weeks-old task with no current context. The first can reach review when the other gates pass. The latter cases should fail eligibility for their own recorded reasons.
