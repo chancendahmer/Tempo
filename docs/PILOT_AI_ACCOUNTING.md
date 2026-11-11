@@ -140,3 +140,31 @@ Preserve the ledger and additive schema through code rollback and reconcile
 outstanding attempts without replay.
 
 Evidence: `qa/pilot-2026-10-22/c1-budget-race.json`, `c1-independent-review.md`, `c1-attestation.md`, `c1-attestation-review.md`, `w2-reminder-clarity.md`, `w2-browser-review.md`, and the final integrated checkpoint recorded in that directory's README.
+
+## Released operating policy and final test observation
+
+As of November 11, 2026 at 00:12 UTC, both production roles run main
+`2ca6fc0b1938fd01b9a9a7f82d7feb6e6577b79a` with matching enforced v2 policy.
+The founder approved **$10 total AI usage per UTC day across all pilot accounts**.
+Both money caps are 10,000,000 microdollars; the global cap is shared rather than
+$10 per user. Physical-call limits are 100 global and 60 per account per UTC day.
+Outstanding earlier-day liabilities remain part of admission accounting.
+Primary Sonnet reservations require about $6.021 free headroom, so a request can
+be denied before actual daily spend reaches $10. SMS, hosting and subscriptions
+are outside this AI allowance. The operating allowance remains active after
+testing; it is distinct from the $20 aggregate test cap.
+
+The bounded hosted test window from November 10 22:30 UTC through the final
+observation settled 19 attempts for $0.567531, with zero outstanding in that
+slice. The 24-hour report includes one older call and is a different window.
+Known new test usage is **$4.449248** ($3.881717 local plus $0.567531 hosted).
+The central journal still conservatively commits **$16.902717**, including
+the $3.021 unresolved prior-call hold, $1 carrier hold and $9 hosted hold.
+The hosted settlements are covered by that hold, not added again as exposure.
+No uncertain hold was released; provider invoice reconciliation is unverified.
+Do not treat commitments as charges or charge subsequent pilot operation
+against this completed test window without identifying it separately.
+
+The dated pricing snapshot expires November 22 at 00:00 UTC and must be reviewed
+before that point; admission fails closed after expiry. For exact runtime and
+delivery evidence see the [release checkpoint](../qa/pilot-2026-11-10/RELEASE-CHECKPOINT.md).

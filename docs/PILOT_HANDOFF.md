@@ -1,20 +1,37 @@
 # Executable continuation brief: Tempo private pilot
 
-Updated November 10, 2026. This is a live engineering checkpoint, not release approval.
+Updated November 10, 2026 New York / November 11 UTC. This checkpoint records a controlled private-pilot release, not general availability.
 
-**Current continuation:** read `docs/PILOT_RUN_2026_11_10.md` and
-`qa/pilot-2026-11-10/release-audit-checklist.md` first. PR27 is merged as
-`2e62b62`, and both production services run that main revision with the approved
-enforced $10 aggregate UTC-day AI cap. A final real SMS found a five-hour error
-in a compound relative reminder; it was cancelled. The reviewed local fix is
-`a6db4fb` on `codex/tempo-relative-reminder-fix` in the same adaptive-home worktree.
-Full release checks and a new actual scheduled delivery are pending. Do not
-treat the historical unmerged/candidate-only statements below as current state.
+**Current continuation:** start with `qa/pilot-2026-11-10/RELEASE-CHECKPOINT.md`,
+then `docs/PILOT_RUN_2026_11_10.md`. PR27 and PR28 are merged; both production
+services run main `2ca6fc0b1938fd01b9a9a7f82d7feb6e6577b79a` with the approved
+enforced $10 aggregate UTC-day AI cap. The relative-reminder regression was
+fixed, independently reviewed, tested live from SMS and again from the final
+dashboard to SMS. Full check passed 1,366 tests, lint, typecheck and builds.
+Both service sources are back on main. Health/readiness are passing with one
+fresh matching worker and no stale or unknown worker instances. Checkpoint-only
+documentation is on `codex/pilot-nov10-handoff` in the adaptive-home worktree.
+Do not treat the historical unmerged/candidate-only statements below as current.
 The new run's testing cap is $20, with conservative committed exposure $16.902717
 including the $9 hosted hold, $3.021 unresolved prior-call hold and $1 carrier
 hold. No agent may spend independently or release uncertain holds by assumption.
 
-The sections below preserve the earlier October checkpoint for context.
+Measured new test usage through the final observation is $4.449248: $3.881717
+local settled plus $0.567531 hosted settled across 19 attempts since 22:30 UTC.
+The held allocations remain conservative commitments, not actual charges.
+The separate operating allowance remains active after testing. New invitations
+are closed pending the first named consenting cohort; proactive/cleanup sending
+is off. Next priorities are enrollment, an attended pilot week, scheduled backup
+and alert operations, and the dated pricing/configuration maintenance in the
+checkpoint. Preserve the original checkout's unrelated changes and `output/`.
+
+<details>
+<summary>Archived October checkpoint — historical context only, not executable instructions</summary>
+
+Everything inside this archived section describes the earlier October state.
+Its branch, spending, migration, release and next-step instructions are obsolete.
+Use only the current continuation and linked November release checkpoint above
+for operational decisions. Do not execute the historical prompt below.
 
 Current tested continuation: the commit containing this brief, based on **`49c3088`**,
 on `codex/tempo-adaptive-home`. It follows `188d0f8` (C1/W2), `fed7d5b`
@@ -308,3 +325,5 @@ Never label all 100 seats ready from preview scores or synthetic throughput.
 
 C1 migration 0033 likewise remains undeployed. Preserve its ledger during rollback;
 never roll back to unmetered code while AI-producing processes continue to run.
+
+</details>
