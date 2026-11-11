@@ -84,3 +84,19 @@ and assistive-technology validation, a hosted customer week, retention/PITR and
 external operational alerts remain. Synthetic multi-account tests do not prove
 10–100-person production capacity. Revalidate the pricing snapshot before
 November 22 and migrate legacy Railway configuration before December 1.
+
+## Short customer or investor walkthrough
+
+1. Open the real dedicated demo account and point out its visible identity. Use
+   the fictional preview only when explicitly labeled as a resettable design demo.
+2. Add one clearly named demonstration task for today. Reload and show that Home,
+   To-do and the Calendar day agenda agree about its title and planned time.
+3. Start its short Focus timer, pause, return Home and continue the same session.
+   Explain that finishing a timer and completing a task are separate actions.
+4. Replay Show me around to demonstrate the mascot, highlighted controls, Skip
+   and keyboard-friendly navigation. Show the independent check-in preference,
+   quiet hours and connected Google Calendar status in Settings.
+5. If showing texting, use only the controlled demo number. Verify both the reply
+   and the resulting saved dashboard state. Do not present an unsent AI decision
+   or a scripted transcript as automatic SMS delivery. Remove only the records
+   created for this demonstration afterward.
