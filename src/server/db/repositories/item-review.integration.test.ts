@@ -177,6 +177,36 @@ it("resumes one reservation after restart, sends once, and shares contact counts
   expect(await a.repo.reserve(a.user.id, now)).toBeNull();
 });
 
+it.each(["reserved", "submitting", "ambiguous", "rejected", "accepted"])("recovers a changed review target after restart with an outbound %s", async state => {
+  const a = await account();
+  const task = await staleTask(a.user.id);
+  const review = await a.repo.reserve(a.user.id, now);
+  if (!review) throw new Error("expected review reservation");
+  const ready = await a.repo.ready(review.id, now);
+  if (!ready) throw new Error("expected review to be ready");
+  const outbound = new DrizzleOutboundMessageRepository(db, itemReviewSubmissionGate(review.id, () => now));
+  const reservation = await outbound.reserve({
+    userId: a.user.id, body: ready.body, kind: "coach", idempotencyKey: `item-review:${review.id}`,
+  });
+  if (state !== "reserved") expect(await outbound.beginSubmission(reservation.messageId, now)).toMatchObject({ status: "started" });
+  if (state === "ambiguous") await outbound.markFailed(reservation.messageId, new Error("Uncertain provider acceptance"));
+  if (state === "rejected") await outbound.markFailed(reservation.messageId, { submissionOutcome: "not_accepted" });
+  if (state === "accepted") await outbound.markSubmitted(reservation.messageId, "test", "RECOVERED-STALE-REVIEW");
+  await db.update(s.tasks).set({ title: "Changed after reservation", updatedAt: now }).where(eq(s.tasks.id, task.id));
+
+  const transport = new TestSmsTransport("RESTART-STALE");
+  const sender = new SafeSmsSender(outbound, transport, () => now);
+  expect(await deliverItemReview({
+    userId: a.user.id, enabled: true, repository: new DrizzleItemReviewRepository(db), sender,
+    now: () => now, runOwned: async operation => operation(),
+  })).toBe(true);
+  expect(transport.sent).toHaveLength(0);
+  const [message] = await db.select().from(s.conversationMessages).where(eq(s.conversationMessages.id, reservation.messageId));
+  expect(message.outboundState).toBe(state === "reserved" ? "suppressed" : state === "rejected" ? "reserved" : state);
+  const [saved] = await db.select().from(s.itemReviews).where(eq(s.itemReviews.id, review.id));
+  expect(saved.status).toBe(state === "reserved" || state === "rejected" ? "cancelled" : state === "accepted" ? "sent" : "reserved");
+});
+
 it.each(["optout", "focus", "quiet", "cap", "stale-calendar", "target"])("blocks cleanup when %s changes after readiness but before submission", async scenario => {
   const a = await account();
   const task = await staleTask(a.user.id);

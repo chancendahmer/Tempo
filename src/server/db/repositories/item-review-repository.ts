@@ -1,6 +1,6 @@
 import { proactiveBlockReasons } from "../../domain/context-engine";
 import { createHash } from "node:crypto";
-import { and, asc, desc, eq, gt, inArray, isNotNull, lt, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 import { getDatabase, TempoDatabase } from "../client";
 import { conversationMessages, conversationStates, goals, itemReviews, lifeItems, reminders, tasks, users } from "../schema";
 import { DAY_MS, ItemReviewResponder, ReviewTarget, itemReviewMessage, reviewIsDue } from "../../domain/item-review";
@@ -77,26 +77,44 @@ export class DrizzleItemReviewRepository implements ItemReviewResponder {
     });
   }
 
-  async ready(id: string, now: Date, userId?: string) {
+  async ready(id: string, now: Date, submissionOwner?: string) {
     const [row] = await this.database.select({
       review: itemReviews,
-      accepted: { id: conversationMessages.id, submittedAt: conversationMessages.submissionStartedAt },
+      outbound: { id: conversationMessages.id, state: conversationMessages.outboundState, submittedAt: conversationMessages.submissionStartedAt },
     }).from(itemReviews).leftJoin(conversationMessages, and(
       eq(conversationMessages.userId, itemReviews.userId),
       eq(conversationMessages.idempotencyKey, `item-review:${id}`),
-      eq(conversationMessages.outboundState, "accepted"),
+      eq(conversationMessages.direction, "outbound"),
     )).where(and(
-      eq(itemReviews.id, id), eq(itemReviews.status, "reserved"), userId ? eq(itemReviews.userId, userId) : undefined,
+      eq(itemReviews.id, id), eq(itemReviews.status, "reserved"), submissionOwner ? eq(itemReviews.userId, submissionOwner) : undefined,
     )).limit(1);
     if (!row) return null;
-    const { review, accepted } = row;
-    if (accepted) {
-      await this.finish(review.id, accepted.id, accepted.submittedAt ?? now);
+    const { review, outbound } = row;
+    if (outbound?.state === "accepted") {
+      await this.finish(review.id, outbound.id, outbound.submittedAt ?? now);
       return null;
     }
+    if (outbound && (outbound.state === "submitting" || outbound.state === "ambiguous" || outbound.state === null)) return null;
     const target = await this.target(review.userId, review.target.kind, review.target.id, now);
     if (!target || target.revision !== review.target.revision) {
-      await this.finish(id, null, now);
+      // The final submission gate handles suppression when it already holds the account lock.
+      if (!submissionOwner && outbound?.state === "reserved" && outbound.submittedAt === null) {
+        await this.database.transaction(async transaction => {
+          const [suppressed] = await transaction.update(conversationMessages).set({
+            status: "cancelled", outboundState: "suppressed", updatedAt: now,
+            providerErrorCode: "TEMPO_BLOCKED_REVIEW_TARGET_CHANGED",
+            providerErrorMessage: "The review target changed before submission.",
+          }).where(and(
+            eq(conversationMessages.id, outbound.id), eq(conversationMessages.userId, review.userId),
+            eq(conversationMessages.status, "queued"), eq(conversationMessages.outboundState, "reserved"),
+            isNull(conversationMessages.submissionStartedAt), isNull(conversationMessages.provider),
+            isNull(conversationMessages.submissionToken), isNull(conversationMessages.providerMessageSid),
+          )).returning({ id: conversationMessages.id });
+          if (suppressed) await new DrizzleItemReviewRepository(transaction as unknown as TempoDatabase).finish(id, null, now);
+        });
+      } else {
+        await this.finish(id, null, now);
+      }
       return null;
     }
     if (!await this.eligible(review.userId, now, id)) return null;
