@@ -1,5 +1,25 @@
 # November 11 hosted continuation
 
+## Final checkpoint — 22:35 UTC
+
+PRs #29, #30 and #31 are merged and deployed. Both production roles run
+**cf7b62b6ce8c262982e8191e85e0eeacf4b27362**. Final readiness returned HTTP 200,
+one fresh matching worker, zero stale/unknown instances, one demo canary, no
+problems and zero pending outbound uncertainty. The final code passed 179 test
+files / 1,458 tests plus lint, typecheck and production/operations builds.
+
+One automatic task check-in was observed in the controlled recipient inbox.
+The failed first SMS deletion exposed a routing defect, repaired in PR #31.
+The second deletion cleaned the test task and updated the open dashboard.
+After PR #31 deployed, a read-only SMS returned exactly the same three remaining
+task names as the reloaded dashboard, omitting the abandoned test task. No
+hosted pending-check-in replay of the repair was manufactured; that narrow
+follow-up remains open. Home and guide review scores are 9/10 each, not a
+blanket score for every app or a 100-person rollout.
+
+The branch `codex/proactive-reply-routing` holds post-release evidence. Start
+the next implementation with CONTINUE-NEXT.md. Unrelated output/ is untouched.
+
 ## Released guide and context work
 
 PR #29 merged as `943d560fcb6219b43ced8d6d37488c29656ea7b4`.
@@ -155,9 +175,9 @@ All fictional task records created in this continuation are now cleaned up.
 Private captures: `production-automatic-checkin-received.png` and
 `production-sms-cleanup-workspace.png`.
 
-The routing defect is being repaired on **codex/proactive-reply-routing**.
-It must pass independent review and release validation separately; do not
-describe that fix as included in 38c5ab7. NEXT-PROACTIVE-SLICE.md also records
+The routing repair was developed on **codex/proactive-reply-routing** and
+released separately in cf7b62b after the checks below. It is not included in
+38c5ab7. NEXT-PROACTIVE-SLICE.md also records
 the transient-slot issue and planned-time-versus-expiry distinction.
 
 Candidate `ed5290d` changes feedback matching to a complete standalone reply,
@@ -174,10 +194,24 @@ or provider change is included. The independent review approved the bounded fix.
 Hosted pending-check-in replay remains unverified; the already used daily contact
 cap will not be reset to manufacture another check-in for this test.
 
+PR #31 merged at 22:27:45 UTC as
+`cf7b62b6ce8c262982e8191e85e0eeacf4b27362`, candidate head `425e4f7`.
+Web rollout `804b0fa5-6919-441f-baa5-a48bcfea7759` and worker rollout
+`9066cad6-4a45-43c7-9ec5-0cd9a7a846e4` became Active. Railway showed the preceding
+web `5772919b` and worker `f0378937` Removed. The exact guarded heartbeat
+manifest was prepared, dry-run and applied with SHA-256
+`deffe63d8c0fa92756e26ad837d827eb15cc61e1f6c95d0238cc4998c126e8b2`.
+Final readiness was clean on cf7b62b. Private captures:
+`railway-pr31-web-active.png`, `railway-pr31-worker-active.png`,
+`production-final-home.png`. Rollback for this narrow repair is 38c5ab7 on
+both roles; keep the database and current demo-only permission policy.
+
 ## Spending
 
-Previous conservative run commitments remain $16.902717 against the approved
+The prior conservative ledger recorded $16.902717 in commitments against the
 $20 testing cap; retain the historical unresolved and hosted/carrier holds.
+The small continuation charges were covered by the existing hosted reservation.
+Known settled usage is not a statement that all remaining authorization is free.
 Previously confirmed test usage was $4.449248. This continuation observed:
 
 | Operation | UTC timestamp | Settled USD |
@@ -186,9 +220,9 @@ Previously confirmed test usage was $4.449248. This continuation observed:
 | Automatic review, invalid response contained | Nov 11 21:04:59 | 0.005340 |
 | Automatic review, valid stale-task veto | Nov 11 21:15:03 | 0.004965 |
 
-Final live query through the cleanup observed **11 settled calls totaling
-$0.170937** since 20:20 UTC, including the rows above. There were no unsettled
-attempts in that scoped query. Cumulative known test usage is **$4.620185**.
+The final live query after the read-only SMS observed **13 settled calls totaling
+$0.297822** since 20:20 UTC, including the rows above. There were no unsettled
+attempts in that scoped query. Cumulative known test usage is **$4.747070**.
 Carrier charges are not included in that API ledger; keep the $1 carrier hold.
 No unresolved historical charge was treated as free. The separate
 ongoing enforced pilot allowance remains **$10 total per UTC day** across
@@ -197,9 +231,9 @@ demo-canary evaluations can continue.
 
 ## Remaining verification
 
-1. Independently review and validate the newly observed proactive-reply routing
-   fix. The ranking release, one automatic recipient arrival and task cleanup
-   are complete; that new fix is a separate candidate.
+1. Observe a legitimate future pending-check-in reply using the released routing
+   repair. Independent review, the full check, deployment, one automatic recipient
+   arrival, test-task cleanup and final current-state retrieval are complete.
 2. Preserve the successful automatic-send evidence and the failed first delete
    attempt as distinct outcomes. Do not reset caps or manufacture a new pending
    check-in in production to claim a passing retest.

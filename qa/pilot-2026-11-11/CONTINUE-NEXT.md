@@ -8,30 +8,35 @@ checkpoint is current. Preserve unrelated original-checkout changes and output/.
 
 PR #29 released contextual task timing, delivery safeguards and a mascot-led
 tour. PR #30 released current-task priority, bounded server ordering, timezone
-corrections and clearer save/focus feedback. Production merge:
-`38c5ab701a49618e152141ca3c9ddc6b84178ae7`.
+corrections and clearer save/focus feedback. PR #31 repaired explicit requests
+being consumed as short check-in feedback. Both roles run production merge
+`cf7b62b6ce8c262982e8191e85e0eeacf4b27362`; readiness was clean at 22:35 UTC.
 
-The final code passed npm run check with 179 files / 1,451 tests, lint,
+The final code passed npm run check with 179 files / 1,458 tests, lint,
 typecheck, Next.js production build and operations build. Isolated PostgreSQL
 integration and recovery tests were enabled. Home and the guide each received
 9/10 in independent desktop/phone preview review. Those are scoped scores;
 the entire product and hosted proactive delivery do not inherit them.
 
 Use HOSTED-CONTINUATION.md for final provider observations, cleanup and spending.
-The last canary observation and cleanup may occur after this file was written.
-The local branch codex/current-task-priority contains post-merge evidence commits;
+One automatic check-in arrived in TextFree. The test task is abandoned and gone
+from Home; a final read-only text returned the same three task names as the UI.
+The local branch codex/proactive-reply-routing contains post-merge evidence commits;
 do not redeploy documentation alone. Start the next code branch from verified main.
 
 ## Highest-priority work
 
-**Newly found live defect takes precedence:** a pending proactive check-in
+**Released repair requiring a future hosted replay:** a pending proactive check-in
 consumed an explicit task deletion as negative feedback because `no` matched
 inside `no longer needed`. The first request did not mutate the task. The second
 request, after pending feedback cleared, correctly removed only that task and
 updated the open dashboard. Cleanup is complete. The branch
 `codex/proactive-reply-routing` contains the narrow whole-reply grammar fix and
-isolated pending-check-in regression work. Check its final validation/release
-status before starting another implementation. It is separate from 38c5ab7.
+isolated pending-check-in regression work. PR #31 merged as `cf7b62b` after
+179 files / 1,458 tests, lint, typecheck and production/operations builds passed.
+HOSTED-CONTINUATION.md records the verified deployment. A hosted pending-check-in
+replay of the repair remains
+open; do not reset the demo's daily cap to manufacture it.
 
 1. Diagnose invalid intervention-review output. Three of five classified reviews
    through 21:55 UTC were invalid; two were valid vetoes. Numeric usage did not
@@ -70,6 +75,8 @@ overrides ownership, persistence, delivery or consent failures.
   never request codes, passwords or API keys in chat.
 - Existing test-run cap is $20, not a fresh allowance on resume. Retain unresolved
   historical, carrier and hosted holds and reread the ledger before new paid calls.
+  Latest known settled total is $4.747070, of which this continuation added
+  $0.297822 across 13 settled calls. This is not a full bill or released headroom.
   The separate ongoing pilot allowance is $10 total per UTC day, enforced across
   accounts. Do not increase budgets, subscriptions or infrastructure spending.
 - Live optional outreach is limited to the single dedicated demo canary. Both
