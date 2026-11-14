@@ -27,7 +27,7 @@ describe("Sendblue signup routing", () => {
     mocks.create.mockResolvedValue({ token: "pending-browser", expiresAt: new Date("2027-01-01") });
     mocks.signin.mockResolvedValue({ token: "pending-link", expiresAt: new Date("2027-01-01") });
   });
-  const request = () => new NextRequest("http://localhost/api/early-access", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ countryCode: "US", callingCode: "+1", areaCode: "415", subscriberNumber: "5550198", consent: true }) });
+  const request = () => new NextRequest("http://localhost/api/early-access", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ countryCode: "US", phoneNumber: "+1 (415) 555-0198", consent: true }) });
   it("returns the assigned shared line and requires inbound START without claiming a text was sent", async () => {
     mocks.prepare.mockResolvedValue({ phoneNumber: "+12025550111", verified: false, verificationMethod: "inbound" });
     const response = await POST(request());

@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { requireEnv } from "@/server/config/env";
 import { DrizzleConsentRepository } from "@/server/db/repositories/consent-repository";
-import { InvalidPhoneNumberError, phonePartsToE164 } from "@/server/domain/phone";
-import { hashAuditValue, recordWebConsent, webConsentInputSchema } from "@/server/domain/consent";
+import { InvalidPhoneNumberError } from "@/server/domain/phone";
+import { hashAuditValue, recordWebConsent, webConsentInputSchema, webConsentPhoneToE164 } from "@/server/domain/consent";
 import { logger } from "@/server/observability/logger";
 import { OperationalRepository } from "@/server/db/repositories/operational-repository";
 import { LinqOnboardingService } from "@/server/adapters/sms/linq-onboarding";
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
     }
     const body: unknown = await request.json();
     const parsedInput = webConsentInputSchema.parse(body);
-    const phoneE164 = phonePartsToE164(parsedInput);
+    const phoneE164 = webConsentPhoneToE164(parsedInput);
     if (!pilotAdmissionAllowed(env, phoneE164)
       && !await new PilotAdmissionRepository().isVerifiedExisting(phoneE164)) {
       return NextResponse.json({ error: "Tempo is currently invite-only. Use the phone number on your invitation, or ask your pilot organizer to add it before trying again." }, { status: 403 });

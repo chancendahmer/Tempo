@@ -4,6 +4,7 @@ import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { FiArrowRight, FiCheck, FiMessageCircle, FiUserPlus } from "react-icons/fi";
+import { signupPhoneToE164 } from "../../server/domain/phone";
 import { ACCOUNT_EVENT, useAccountStatus } from "./account-state";
 import { publishAccountChange } from "./account-change";
 
@@ -62,42 +63,15 @@ function parseStoredAssignment(value: string | null): OnboardingAssignment | nul
 }
 
 const countries = [
-  {
-    code: "US", flag: "us", callingCode: "+1", nationalLength: 10, areaMinLength: 3, areaMaxLength: 3,
-    areas: [
-      { code: "202", label: "Washington, DC", placeholder: "555-0198" }, { code: "212", label: "New York, NY", placeholder: "555-0198" },
-      { code: "305", label: "Miami, FL", placeholder: "555-0198" }, { code: "312", label: "Chicago, IL", placeholder: "555-0198" },
-      { code: "415", label: "San Francisco, CA", placeholder: "555-0198" }, { code: "617", label: "Boston, MA", placeholder: "555-0198" },
-      { code: "702", label: "Las Vegas, NV", placeholder: "555-0198" },
-    ],
-  },
-  {
-    code: "CA", flag: "ca", callingCode: "+1", nationalLength: 10, areaMinLength: 3, areaMaxLength: 3,
-    areas: [
-      { code: "416", label: "Toronto, ON", placeholder: "555-0142" }, { code: "514", label: "Montréal, QC", placeholder: "555-0142" },
-      { code: "604", label: "Vancouver, BC", placeholder: "555-0142" },
-    ],
-  },
-  {
-    code: "GB", flag: "gb", callingCode: "+44", nationalLength: 10, areaMinLength: 2, areaMaxLength: 4,
-    areas: [
-      { code: "20", label: "London", placeholder: "7946 0958" }, { code: "121", label: "Birmingham", placeholder: "555 0142" },
-      { code: "161", label: "Manchester", placeholder: "555 0142" },
-    ],
-  },
-  {
-    code: "AU", flag: "au", callingCode: "+61", nationalLength: 9, areaMinLength: 1, areaMaxLength: 1,
-    areas: [
-      { code: "2", label: "Sydney / Canberra", placeholder: "5550 1234" }, { code: "3", label: "Melbourne / Tasmania", placeholder: "5550 1234" },
-      { code: "7", label: "Brisbane / Queensland", placeholder: "5550 1234" },
-    ],
-  },
+  { code: "US", flag: "us", callingCode: "+1", name: "United States" },
+  { code: "CA", flag: "ca", callingCode: "+1", name: "Canada" },
+  { code: "GB", flag: "gb", callingCode: "+44", name: "United Kingdom" },
+  { code: "AU", flag: "au", callingCode: "+61", name: "Australia" },
 ];
 
 export function PhoneSignup() {
   const router = useRouter();
   const [countryCode, setCountryCode] = useState("US");
-  const [areaCode, setAreaCode] = useState("");
   const [phone, setPhone] = useState("");
   const [consented, setConsented] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -105,7 +79,7 @@ export function PhoneSignup() {
   const [abandoned, setAbandoned] = useState(false);
   const abandoning = useRef(false);
   const resetSession = useRef<string | null | undefined>(undefined);
-  const areaInput = useRef<HTMLInputElement>(null);
+  const phoneInput = useRef<HTMLInputElement>(null);
   const [error, setError] = useState("");
   const submittedState = useSyncExternalStore(subscribeToSubmittedState, getSubmittedState, () => null);
   const submitted = submittedState !== null;
@@ -115,7 +89,7 @@ export function PhoneSignup() {
     if (submitted && !abandoning.current && account?.phoneVerified) router.replace("/workspace");
   }, [submitted, abandoned, account?.phoneVerified, router]);
   useEffect(() => {
-    if (abandoned && !submitted && !resetting) areaInput.current?.focus();
+    if (abandoned && !submitted && !resetting) phoneInput.current?.focus();
   }, [abandoned, submitted, resetting]);
   const country = useMemo(
     () => countries.find((item) => item.code === countryCode) ?? countries[0],
@@ -136,7 +110,6 @@ export function PhoneSignup() {
     try {
       await resetPhoneSignup(resetSession.current);
       resetSession.current = undefined;
-      setAreaCode("");
       setPhone("");
       setConsented(false);
       if (destination === "login") router.push("/login");
@@ -150,14 +123,11 @@ export function PhoneSignup() {
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (submitting || resetting) return;
-    const digits = phone.replace(/\D/g, "");
-    if (areaCode.length < country.areaMinLength || areaCode.length > country.areaMaxLength) {
-      setError(`Enter a valid ${country.areaMinLength === country.areaMaxLength ? country.areaMinLength : `${country.areaMinLength}–${country.areaMaxLength}`}-digit area code.`);
-      return;
-    }
-    const subscriberLength = country.nationalLength - areaCode.length;
-    if (digits.length !== subscriberLength) {
-      setError(`Enter a ${subscriberLength}-digit phone number after the area code.`);
+    try {
+      signupPhoneToE164({ countryCode: country.code, phoneNumber: phone });
+    } catch {
+      setError("Enter your full phone number, including the area code.");
+      phoneInput.current?.focus();
       return;
     }
     if (!consented) {
@@ -174,9 +144,7 @@ export function PhoneSignup() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           countryCode: country.code,
-          callingCode: country.callingCode,
-          areaCode,
-          subscriberNumber: phone,
+          phoneNumber: phone,
           consent: true,
         }),
       });
@@ -282,15 +250,13 @@ export function PhoneSignup() {
             onChange={(event) => {
               const nextCountry = countries.find((item) => item.code === event.target.value) ?? countries[0];
               setCountryCode(nextCountry.code);
-              setAreaCode("");
-              setPhone("");
               setError("");
             }}
             aria-label="Country calling code"
           >
             {countries.map((item) => (
               <option key={item.code} value={item.code}>
-                {item.code}
+                {item.name} ({item.callingCode})
               </option>
             ))}
           </select>
@@ -298,35 +264,19 @@ export function PhoneSignup() {
         <span className="calling-code" aria-hidden="true">
           {country.callingCode}
         </span>
-        <div className="area-code-control">
-          <label className="sr-only" htmlFor="area-code">Area code</label>
-          <input
-            className="area-code-input"
-            ref={areaInput}
-            id="area-code"
-            inputMode="numeric"
-            autoComplete="tel-area-code"
-            maxLength={country.areaMaxLength}
-            placeholder="Area code"
-            value={areaCode}
-            onChange={(event) => {
-              setAreaCode(event.target.value.replace(/\D/g, "").slice(0, country.areaMaxLength));
-              setError("");
-            }}
-            aria-label="Area code"
-          />
-        </div>
         <label className="sr-only" htmlFor="phone">
           Phone number
         </label>
         <input
           id="phone"
           name="phone"
-          className="subscriber-number-input"
+          ref={phoneInput}
+          className="phone-number-input"
           type="tel"
           inputMode="tel"
-          autoComplete="tel-national"
-          placeholder={country.areas.find((area) => area.code === areaCode)?.placeholder ?? "Phone number"}
+          autoComplete="tel"
+          maxLength={40}
+          placeholder="Phone number"
           value={phone}
           aria-invalid={Boolean(error)}
           aria-describedby={error ? "phone-error" : "signup-note"}
