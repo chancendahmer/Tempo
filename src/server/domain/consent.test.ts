@@ -47,15 +47,19 @@ describe("web SMS consent", () => {
     await recordWebConsent(
       { grantWebConsent },
       {
-        countryCode: "US", callingCode: "+1", areaCode: "415",
-        subscriberNumber: "5550198", consent: true,
+        countryCode: "US", phoneNumber: "(415) 555-0198", consent: true,
       },
       { auditKey: "audit-secret", onboardingFlow: "user_first" },
     );
 
     expect(grantWebConsent).toHaveBeenCalledWith(expect.objectContaining({
+      phoneE164: "+14155550198",
       scheduleInitialMessages: false,
-      evidence: expect.objectContaining({ onboardingFlow: "user_first" }),
+      evidence: {
+        submittedCountry: "US",
+        submittedCallingCode: "+1",
+        onboardingFlow: "user_first",
+      },
     }));
   });
 

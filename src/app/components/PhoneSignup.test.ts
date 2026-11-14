@@ -28,6 +28,9 @@ describe("phone signup recovery", () => {
   it("requires explicit consent on the fresh number form", () => {
     const html = renderToStaticMarkup(createElement(PhoneSignup));
     expect(html).toContain('name="phone"');
+    expect(html.match(/type="tel"/g)).toHaveLength(1);
+    expect(html).toContain('autoComplete="tel"');
+    expect(html).not.toContain('id="area-code"');
     expect(html).toContain('type="checkbox"');
     expect(html).not.toContain('checked=""');
   });

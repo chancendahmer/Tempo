@@ -442,34 +442,6 @@ select {
   font-weight: 700;
 }
 
-.area-code-control {
-  position: relative;
-  flex: 0 0 auto;
-  min-width: 0;
-}
-
-.area-code-control .area-code-input {
-  width: 96px;
-  min-height: 44px;
-  padding: 0 9px;
-  border: 0;
-  border-left: 1px solid #d7dddb;
-  outline: 0;
-  color: var(--ink);
-  background: transparent;
-  font-weight: 700;
-  text-align: center;
-  font-size: 17px;
-  font-variant-numeric: tabular-nums;
-  flex: 0 0 96px;
-}
-
-.area-code-control .area-code-input::placeholder {
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: -0.2px;
-}
-
 .signup-control input {
   min-width: 0;
   flex: 1;
@@ -481,8 +453,10 @@ select {
   font-size: 20px;
 }
 
-.signup-control .subscriber-number-input {
+.signup-control .phone-number-input {
   min-width: 130px;
+  padding-left: 12px;
+  border-left: 1px solid #d7dddb;
   font-variant-numeric: tabular-nums;
 }
 
@@ -2147,24 +2121,10 @@ select {
     overflow: hidden;
   }
 
-  .area-code-control {
+  .signup-control .phone-number-input {
+    min-width: 0;
+    width: 100%;
     grid-column: 3;
-  }
-
-  .area-code-control .area-code-input {
-    width: 100%;
-    min-width: 0;
-    grid-column: auto;
-    border-top: 0;
-    border-left: 1px solid #d7dddb;
-  }
-
-  .signup-control .subscriber-number-input {
-    min-width: 0;
-    width: 100%;
-    grid-column: 1 / -1;
-    padding-inline: 7px;
-    border-top: 1px solid #e0e4e2;
   }
 
   .signup-button {
