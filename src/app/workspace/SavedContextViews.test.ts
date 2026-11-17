@@ -64,6 +64,23 @@ it("distinguishes overdue scheduled reminders from upcoming, sending and deliver
 });
 
 
+it("distinguishes the two fall-back hours in the compact reminder time", () => {
+  const data = previewWorkspace();
+  data.timezone = "America/New_York";
+  data.reminders = ["2026-11-01T05:30:00Z", "2026-11-01T06:30:00Z"].map((remindAt, index) => ({
+    id: `repeat-hour-${index}`, text: "Shift handover", remindAt, status: "scheduled",
+  }));
+  const html = renderToStaticMarkup(createElement(SavedContextViews, {
+    section: "reminders", data, saving: false, remove: vi.fn(), ask: vi.fn(),
+  }));
+  const display = new Intl.DateTimeFormat(undefined, {
+    timeZone: data.timezone, month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short",
+  });
+  const labels = data.reminders.map(item => display.format(new Date(item.remindAt)));
+  expect(labels[0]).not.toEqual(labels[1]);
+  for (const label of labels) expect(html).toContain(label);
+});
+
 it("shows saved recurrence in its own timezone and keeps cancelled/completed reminders as past history", () => {
   const data = previewWorkspace();
   data.timezone = "UTC";

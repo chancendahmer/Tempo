@@ -723,7 +723,6 @@
   .app { --mobile-nav-height:calc(63px + env(safe-area-inset-bottom,0px)); }
   .app[data-preview=true] { --mobile-preview-space:58px; }
   .app[data-focus-docked=true] { --mobile-focus-space:70px; }
-  .app:is([data-section=assistant],[data-section=calendar]) .pageHeading { display:none; }
   /* The sticky phone header already names the page. Keep its main heading for readers. */
   .app[data-section] .pageHeading {
     position:absolute; width:1px; height:1px; min-height:0; overflow:hidden;

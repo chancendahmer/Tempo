@@ -103,7 +103,8 @@ export function RoutineEditor({ item, initialPeriod, latestItem, saveError, time
   }, [draft.steps]);
 
   function changePeriod(period: RoutineDraft["period"]) {
-    if (!item && !choseTime.current && timeInput.current) timeInput.current.value = suggestedTime[period];
+    const input = timeInput.current;
+    if (!item && !choseTime.current && input?.value === suggestedTime[draft.period]) input.value = suggestedTime[period];
     setDraft(current => ({ ...current, period }));
   }
 
