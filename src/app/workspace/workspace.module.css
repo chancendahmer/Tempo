@@ -723,7 +723,7 @@
   .app { --mobile-nav-height:calc(63px + env(safe-area-inset-bottom,0px)); }
   .app[data-preview=true] { --mobile-preview-space:58px; }
   .app[data-focus-docked=true] { --mobile-focus-space:70px; }
-  .app[data-section=assistant] .pageHeading { display:none; }
+  .app:is([data-section=assistant],[data-section=calendar]) .pageHeading { display:none; }
   .app[data-chat-draft=true],.app[data-section=assistant]:has(textarea:focus) { --mobile-focus-space:0px; }
   .app[data-chat-draft=true] .focusDock,.app[data-section=assistant]:has(textarea:focus) .focusDock { display:none; }
   .focusDock { bottom:calc(var(--mobile-nav-height) + 10px); left:12px; right:12px; min-height:54px; padding:12px; }
