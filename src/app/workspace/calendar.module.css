@@ -113,6 +113,9 @@
   .weekStrip span { font-size:11px; }
   .entry { grid-template-columns:68px minmax(0,1fr); gap:10px; }
   .entryIcon { display:none; }
-  .entry .source { margin-top:0; }
+  .entry .source { display:inline-flex; align-items:center; gap:5px; margin-top:0; font-size:12px; }
+  .entry .source::before { content:""; width:7px; height:7px; border-radius:50%; background:currentColor; flex:none; }
+  .entry[data-kind] .entryBody { border-left:0; padding-left:0; }
+  .time { color:#4e4c58; font-weight:600; }
   .connectionHeading .textButton { margin-left:0; }
 }

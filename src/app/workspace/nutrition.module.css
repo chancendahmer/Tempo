@@ -20,3 +20,26 @@
 @media(max-width:1000px) { .summary { grid-template-columns:1fr; }.macro { padding:14px 18px; }.macro p>span { display:inline; }.macro small { margin-top:7px; } }
 @media(max-width:650px) { .week { gap:3px; }.days { gap:1px; }.days button { min-height:72px; padding-inline:0; }.days button>strong { width:29px; height:29px; }.days button>span { font-size:10px; }.week { display:grid; grid-template-columns:44px 1fr 44px; }.days { grid-column:1 / -1; grid-row:1; width:100%; }.days button { min-width:44px; }.week>button { width:44px; min-width:44px; padding:8px; grid-row:2; }.week>button:last-child { grid-column:3; }.calories { padding:18px; }.summaryLine { align-items:flex-start; }.calorieValue>strong { font-size:29px; }.calorieValue>span { display:block; margin-top:3px; }.remaining { max-width:115px; font-size:12px; }.macros { gap:7px; }.macro { padding:14px 10px; border-radius:16px; }.macro p>strong { font-size:16px; }.macro p>span { display:block; margin-top:4px; }.macro small { font-size:10px; line-height:1.5; }.meal { padding:16px; }.entry { padding-left:0; flex-wrap:wrap; }.entry>div:first-child { flex-basis:100%; }.entryActions { margin-left:auto; }.emptyMeal { margin-left:0; }.topbar>div { gap:6px; } }
 @media(max-width:650px) { .mealMacros { padding-left:0; gap:8px 12px; }.mealMacros>span { font-size:11px; } }
+
+.dateTools { display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
+.mobileWeekButton, .mobileTargets { display:none; }
+@media(max-width:650px) {
+  .topbar { gap:8px; }
+  .dateTools { width:100%; display:grid; grid-template-columns:44px minmax(0,1fr) auto 44px; align-items:center; gap:3px; }
+  .dateTools input { min-width:0; max-width:100%; width:100%; }
+  .tracker .mobileWeekButton, .tracker .mobileTargets {
+    display:inline-flex; align-items:center; justify-content:center;
+    border:0; background:transparent; color:#305b73; font:inherit; cursor:pointer;
+  }
+  .tracker .mobileWeekButton { border-radius:12px; font-size:19px; }
+  .tracker .mobileWeekButton:hover, .tracker .mobileTargets:hover { background:#e6f0f8; }
+  .dateTools .desktopTargets, .week>button { display:none; }
+  .week { display:block; }
+  .days { grid-template-columns:repeat(7,minmax(0,1fr)); }
+  .days button { min-width:0; min-height:56px; gap:2px; }
+  .days button>small { line-height:1; }
+  .summaryFoot { align-items:center; gap:4px 12px; }
+  .tracker .mobileTargets { min-height:44px; font-size:13px; font-weight:600; padding:4px 0; }
+  .summaryFoot small { flex-basis:100%; order:1; }
+  .summaryFoot details[open] { flex-basis:100%; }
+}

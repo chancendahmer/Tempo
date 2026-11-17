@@ -34,6 +34,6 @@ export function MobileWorkspaceNav({ current, expanded, go, openSpaces }: {
   }, []);
   return <nav className={s.nav} aria-label="Quick navigation" data-mobile-navigation data-keyboard-open={keyboardOpen}>
     {destinations.map(([section, label, Icon]) => <button key={section} type="button" aria-current={current === section ? "page" : undefined} onClick={() => go(section)}><Icon aria-hidden="true" /><span>{label}</span></button>)}
-    <button type="button" data-tour-anchor="spaces" aria-expanded={expanded} aria-controls="workspace-navigation" onClick={event => openSpaces(event.currentTarget)}><FiGrid aria-hidden="true" /><span>Spaces</span></button>
+    <button type="button" data-tour-anchor="spaces" aria-current={destinations.some(([section]) => section === current) ? undefined : "location"} aria-expanded={expanded} aria-controls="workspace-navigation" onClick={event => openSpaces(event.currentTarget)}><FiGrid aria-hidden="true" /><span>Spaces</span></button>
   </nav>;
 }

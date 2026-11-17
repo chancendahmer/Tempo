@@ -41,16 +41,17 @@
   .greeting>.pill { padding:10px; width:44px; flex-shrink:0; }
   .greeting>.pill>span { display:none; }
 
-  .hero { --hero-art-size:52px; min-height:0; border-radius:16px; background:#f5f1e8; }
+  .hero { --hero-art-size:clamp(55px, 18vw, 114px); min-height:0; border-radius:16px; background:#f5f1e8; isolation:isolate; }
   .hero[data-mode=meal] { background:#f7f0e5; }
   .hero[data-mode=workout] { background:#edf3f1; }
   .hero[data-mode=evening] { background:#f2eef5; }
   .hero[data-mode] .heroImage {
-    inset:14px 14px auto auto !important;
-    width:var(--hero-art-size) !important;
-    height:var(--hero-art-size) !important;
-    border-radius:10px;
-    object-position:right bottom;
+    inset:0 0 0 auto !important;
+    width:38% !important;
+    height:100% !important;
+    object-fit:cover;
+    object-position:85% center;
+    mask-image:linear-gradient(to right, transparent, #000 62%);
   }
   .heroControls, .heroShade, .heroActions .scheduleAction { display:none; }
   .heroContent { display:block; min-height:0; max-width:none; padding:14px; }

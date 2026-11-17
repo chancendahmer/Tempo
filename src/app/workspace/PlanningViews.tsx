@@ -10,10 +10,11 @@ type Task = Workspace["tasks"][number];
 type Goal = Workspace["goals"][number];
 type TaskView = "All" | "Today" | "Next 7 days" | "Done";
 
-export function TasksView({ data, today, saving, revealTaskId, edit, start, complete, reopen, remove }: {
+export function TasksView({ data, today, saving, revealTaskId, activeFocus, edit, start, complete, reopen, remove }: {
   data: Workspace; today: string; saving: boolean; edit: (task?: Task) => void;
   start: (task: Task) => void; complete: (task: Task) => void; reopen: (task: Task) => void; remove: (task: Task) => void;
   revealTaskId?: string;
+  activeFocus?: { taskId?: string | null } | null;
 }) {
   // Include undated tasks captured by text in the initial view.
   const [view, setView] = useState<TaskView>("All");
@@ -39,9 +40,9 @@ export function TasksView({ data, today, saving, revealTaskId, edit, start, comp
   return <div className={`${s.planning} ${s.taskSheet}`}>
     <div className={s.toolbar}>
       <div className={s.tabs} role="group" aria-label="To-do view">
-        {(["All", "Today", "Next 7 days", "Done"] as const).map(option => <button key={option} aria-pressed={view === option} onClick={() => setView(option)}>{option}</button>)}
+        {(["All", "Today", "Next 7 days", "Done"] as const).map(option => <button key={option} aria-label={option} aria-pressed={view === option} onClick={() => setView(option)}>{option === "Next 7 days" ? <span className={s.weekLabel}><span className={s.nextLabel}>Next </span>7 days</span> : option}</button>)}
       </div>
-      <button className={s.addButton} disabled={saving} onClick={() => edit()}><FiPlus aria-hidden="true" /> Add to-do</button>
+      <button className={s.addButton} aria-label="Add to-do" disabled={saving} onClick={() => edit()}><FiPlus aria-hidden="true" /><span>Add<span className={s.addNoun}> to-do</span></span></button>
     </div>
     {data.tasksTruncated && <p role="status">Showing up to 200 tasks, with active tasks first. Ask Tempo to find older completed items.</p>}
     <div className={s.listSummary} aria-live="polite">
@@ -51,17 +52,21 @@ export function TasksView({ data, today, saving, revealTaskId, edit, start, comp
     {groups.filter(group => group.tasks.length).map(group => <section className={s.taskGroup} data-tone={group.tone} key={group.label} aria-label={group.label}>
       <h2><span className={s.groupIcon} aria-hidden="true">{group.icon}</span>{group.label}<span className={s.groupCount}>{group.tasks.length}</span>{group.tone !== "done" && group.tasks.every(task => Boolean(task.estimatedMinutes)) && <span className={s.groupEstimate}><FiClock aria-hidden="true" />{group.tasks.reduce((sum, task) => sum + (task.estimatedMinutes ?? 0), 0)} min estimated</span>}</h2>
       <ul className={s.checklist}>
-        {group.tasks.map(task => <li className={`${s.task} ${task.status === "completed" ? s.finished : ""}`} key={task.id} id={task.id === revealTaskId ? `saved-task-${task.id}` : undefined} tabIndex={task.id === revealTaskId ? -1 : undefined}>
+        {group.tasks.map(task => {
+          const currentTimer = activeFocus?.taskId === task.id;
+          const focusLabel = currentTimer ? `Open timer for ${task.title}` : `Focus on ${task.title}`;
+          return <li className={`${s.task} ${task.status === "completed" ? s.finished : ""}`} key={task.id} id={task.id === revealTaskId ? `saved-task-${task.id}` : undefined} tabIndex={task.id === revealTaskId ? -1 : undefined}>
           <button className={s.checkbox} disabled={saving} aria-label={task.status === "completed" ? `Reopen ${task.title}` : `Complete ${task.title}`} onClick={() => task.status === "completed" ? reopen(task) : complete(task)}><span>{task.status === "completed" && <FiCheck aria-hidden="true" />}</span></button>
           <button className={s.taskTitle} disabled={saving} onClick={() => edit(task)} aria-label={`Edit ${task.title}`}>
             <strong>{task.title}</strong>
             <span>{task.dueAt ? taskDueLabel(task.dueAt, data.timezone, due(task) !== today) : "Choose a date when you need one"}{task.estimatedMinutes ? <><i aria-hidden="true" /><FiClock aria-hidden="true" />{task.estimatedMinutes} min</> : null}{task.goalId && <span className={s.goalContext}><FiTarget aria-hidden="true" />{data.goals.find(goal => goal.id === task.goalId)?.title ?? "Goal step"}</span>}</span>
           </button>
           <div className={s.taskActions}>
-            {!["completed", "abandoned"].includes(task.status) && <button className={s.focusButton} disabled={saving} onClick={() => start(task)} aria-label={`Focus on ${task.title}`}><FiPlay aria-hidden="true" /><span>Focus</span></button>}
+            {!["completed", "abandoned"].includes(task.status) && <button className={s.focusButton} disabled={saving || Boolean(activeFocus && !currentTimer)} onClick={() => start(task)} aria-label={focusLabel} title={focusLabel}>{currentTimer ? <FiClock aria-hidden="true" /> : <FiPlay aria-hidden="true" />}<span>{currentTimer ? "Open timer" : "Focus"}</span></button>}
             <button className={s.iconButton} disabled={saving} onClick={() => remove(task)} aria-label={`Remove ${task.title}`} title={`Remove ${task.title}`}><FiTrash2 aria-hidden="true" /></button>
           </div>
-        </li>)}
+        </li>;
+        })}
       </ul>
     </section>)}
     {!shown.length && <div className={s.clearState}>

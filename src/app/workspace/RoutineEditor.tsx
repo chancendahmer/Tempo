@@ -48,18 +48,21 @@ export function buildRoutineDraft(draft: RoutineDraft, item?: SavedLifeItem, new
   return lifeItemSchema.parse({ kind: "routine", title: draft.title.trim(), period: draft.period, time: draft.time, steps }) as Routine;
 }
 
-function initialDraft(item?: SavedLifeItem): RoutineDraft {
+const suggestedTime = { morning: "08:00", evening: "21:00" };
+
+function initialDraft(item?: SavedLifeItem, initialPeriod: RoutineDraft["period"] = "morning"): RoutineDraft {
   const value = item?.data.kind === "routine" ? item.data : undefined;
   return {
     title: value?.title ?? "",
-    period: value?.period ?? "morning",
-    time: value?.time ?? "08:00",
+    period: value?.period ?? initialPeriod,
+    time: value?.time ?? suggestedTime[initialPeriod],
     steps: value?.steps.map(step => ({ key: step.id, sourceId: step.id, title: step.title, minutes: String(step.minutes) })) ?? [{ key: "first-step", title: "", minutes: "2" }],
   };
 }
 
-export function RoutineEditor({ item, latestItem, saveError, timezone, saving, onSave, onClose, onReload }: {
+export function RoutineEditor({ item, initialPeriod, latestItem, saveError, timezone, saving, onSave, onClose, onReload }: {
   item?: SavedLifeItem;
+  initialPeriod?: RoutineDraft["period"];
   latestItem?: SavedLifeItem;
   saveError?: string;
   timezone: string;
@@ -68,12 +71,14 @@ export function RoutineEditor({ item, latestItem, saveError, timezone, saving, o
   onClose: () => void;
   onReload: (item: SavedLifeItem) => void;
 }) {
-  const [draft, setDraft] = useState(() => initialDraft(item));
+  const [draft, setDraft] = useState(() => initialDraft(item, initialPeriod));
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
   const submitting = useRef(false);
   const dialog = useRef<HTMLDialogElement>(null);
   const name = useRef<HTMLInputElement>(null);
+  const timeInput = useRef<HTMLInputElement>(null);
+  const choseTime = useRef(false);
   const errorMessage = useRef<HTMLParagraphElement>(null);
   const addedStep = useRef<string | null>(null);
   const nextKey = useRef(0);
@@ -96,6 +101,11 @@ export function RoutineEditor({ item, latestItem, saveError, timezone, saving, o
       addedStep.current = null;
     }
   }, [draft.steps]);
+
+  function changePeriod(period: RoutineDraft["period"]) {
+    if (!item && !choseTime.current && timeInput.current) timeInput.current.value = suggestedTime[period];
+    setDraft(current => ({ ...current, period }));
+  }
 
   function updateStep(key: string, change: { title?: string; minutes?: string }) {
     setDraft(current => ({ ...current, steps: current.steps.map(step => step.key === key ? { ...step, ...change } : step) }));
@@ -140,13 +150,13 @@ export function RoutineEditor({ item, latestItem, saveError, timezone, saving, o
         {conflict && <div className={s.error} role="alert"><p>{latestItem ? "This routine changed elsewhere. Your unsaved edits are still shown below." : "This routine was removed elsewhere. Your unsaved edits are still shown below; close the editor when you’re ready."}</p>{latestItem && <button type="button" className={s.cancelButton} disabled={busy} onClick={() => onReload(latestItem)}>Discard my edits and load latest</button>}</div>}
         {error && !conflict && <p ref={errorMessage} tabIndex={-1} className={s.error} role="alert">{saveError || error}</p>}
         <fieldset className={s.fields} disabled={busy}>
-          <label className={s.field} htmlFor={`${id}-name`}>Routine name<input ref={name} id={`${id}-name`} value={draft.title} onChange={event => { setDraft(current => ({ ...current, title: event.target.value })); setError(""); }} placeholder="Morning routine" maxLength={240} required autoComplete="off" /></label>
+          <label className={s.field} htmlFor={`${id}-name`}>Routine name<input ref={name} id={`${id}-name`} value={draft.title} onChange={event => { setDraft(current => ({ ...current, title: event.target.value })); setError(""); }} placeholder={draft.period === "morning" ? "Morning routine" : "Evening routine"} maxLength={240} required autoComplete="off" /></label>
           <div className={s.schedule}>
             <fieldset className={s.period}><legend>Time of day</legend>
-              <label data-selected={draft.period === "morning"}><input type="radio" name={`${id}-period`} checked={draft.period === "morning"} onChange={() => setDraft(current => ({ ...current, period: "morning" }))} /><FiSun aria-hidden="true" /> Morning</label>
-              <label data-selected={draft.period === "evening"}><input type="radio" name={`${id}-period`} checked={draft.period === "evening"} onChange={() => setDraft(current => ({ ...current, period: "evening" }))} /><FiMoon aria-hidden="true" /> Evening</label>
+              <label data-selected={draft.period === "morning"}><input type="radio" name={`${id}-period`} checked={draft.period === "morning"} onChange={() => changePeriod("morning")} /><FiSun aria-hidden="true" /> Morning</label>
+              <label data-selected={draft.period === "evening"}><input type="radio" name={`${id}-period`} checked={draft.period === "evening"} onChange={() => changePeriod("evening")} /><FiMoon aria-hidden="true" /> Evening</label>
             </fieldset>
-            <label className={s.field} htmlFor={`${id}-time`}>Start time<input id={`${id}-time`} name="time" type="time" defaultValue={draft.time} onChange={() => setError("")} required /><small>{timezone.replaceAll("_", " ")}</small></label>
+            <label className={s.field} htmlFor={`${id}-time`}>Start time<input id={`${id}-time`} name="time" ref={timeInput} type="time" defaultValue={draft.time} onChange={() => { choseTime.current = true; setError(""); }} required /><small>{timezone.replaceAll("_", " ")}</small></label>
           </div>
           <div className={s.stepsHeading}><div><h3>Your steps</h3><p>Small enough to begin. In the order that works for you.</p></div><span><FiClock aria-hidden="true" />{total} min total</span></div>
           <ol className={s.steps}>

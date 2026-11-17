@@ -76,7 +76,24 @@
 .reminderBody .savedText { margin: 10px 0; }
 .status { display: inline-block; padding: 5px 9px; border: 1px solid #c9d6eb; border-radius: 6px; background: #edf2fa; color: #365477; font-size: 12px; }
 .reminderDate { font-size: 13px; color: #52647b; }
+.compactReminderTime { display:none; }
 .reminderBody > small { display: block; font-size: 13px; line-height: 1.6; }
+@media(max-width:760px) {
+  .reminders { display:grid; grid-template-columns:auto minmax(0,1fr); align-items:start; gap:10px; }
+  .reminders>.heading { margin:0; }
+  .reminders>.heading>div { display:none; }
+  .reminders>.infoDisclosure { justify-self:end; }
+  .reminders>.infoDisclosure[open] { grid-column:1/-1; justify-self:stretch; }
+  .reminders>.searchRow, .reminders>.reminderList, .reminders>p { grid-column:1/-1; }
+  .reminders>.searchRow { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:8px; margin:0; }
+  .reminders .searchField input { font-size:16px; }
+  .reminders .reminderRow { gap:8px; padding:12px; }
+  .reminders .reminderRow>svg { width:26px; height:26px; padding:5px; border-radius:8px; background:#eff1f8; color:#4e6681; box-sizing:border-box; flex:none; }
+  .reminders .reminderBody .savedText { margin:6px 0; line-height:1.4; font-weight:600; }
+  .reminders .reminderDate { line-height:1.5; }
+  .reminderDate .fullReminderTime { display:none; }
+  .reminderDate .compactReminderTime { display:inline; }
+}
 .assistant { display: grid; min-width: 0; gap: 18px; max-width: 980px; margin-inline: auto; }
 .conversation { display: flex; flex-direction: column; height: clamp(380px, calc(100dvh - 290px), 760px); min-width: 0; border: 1px solid #dcd6ce; border-radius: 18px; background: #fffefb; overflow: hidden; }
 .chatHeader { display: flex; flex-shrink: 0; align-items: center; gap: 12px; padding: 16px 24px; border-bottom: 1px solid #e8e1d7; background: #fbf7ef; }
@@ -116,4 +133,41 @@
   .composer button { min-width:44px; min-height:44px; padding:10px; }
   .chatHint { padding:0 14px 10px; font-size:11px; line-height:1.4; }
   .reminderRow { padding: 16px; gap: 10px; }
+}
+
+.phoneRoutineTools, .settingsJump { display: none; }
+
+@media (max-width: 760px) {
+  .rhythm > .heading, .periodHeading,
+  .rhythm[data-phone-period="morning"] .period[data-period="evening"],
+  .rhythm[data-phone-period="evening"] .period[data-period="morning"] { display: none; }
+  .phoneRoutineTools { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px; margin: 0 0 14px; }
+  .periodSwitch { display: flex; gap: 2px; padding: 3px; border: 1px solid #d7cbbb; border-radius: 16px; background: #eee7db; }
+  .periodSwitch button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; padding: 0 12px; border: 0; border-radius: 12px; background: transparent; color: #655744; font: inherit; font-size: 14px; font-weight: 650; cursor: pointer; }
+  .periodSwitch button[aria-pressed="true"] { background: #fffdf8; color: #664619; box-shadow: 0 1px 4px #49391b20; }
+  .rhythm[data-phone-period="evening"] .periodSwitch button[aria-pressed="true"] { background: #f9f5ff; color: #5a486b; }
+  .phoneRoutineTools > button { min-height: 44px; padding-inline: 12px; }
+  .routine { border-radius: 16px; padding: 12px 16px; }
+  .routine h3 { margin: 4px 0 8px; }
+  .routine progress { margin: 10px 0 14px; }
+  .nextStep { padding: 12px 0; }
+  .nextStep strong { margin: 4px 0 10px; }
+  .step { padding: 6px 0; }
+  .brain .capture { display: none; }
+  .brain .searchRow, .memories .searchRow { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 6px; margin: 4px 0 10px; }
+  .brain .resultCount, .memories .resultCount { grid-column: 1 / -1; margin: 3px 0; }
+  .brain .searchField, .memories .searchField { width: 100%; }
+  .brain .searchRow input, .memories .searchRow input { font-size: 16px; }
+  .brain .note, .memories .memoryCard { padding: 14px; border: 1px solid #dcd3e5; border-radius: 16px; background: #fffefc; }
+  .brain .note + .note, .memories .memoryCard + .memoryCard { margin-top: 10px; }
+  .brain .note h3 { margin: 4px 0 0; font-size: 21px; line-height: 1.25; }
+  .brain .rowActions { border-top: 1px solid #eae3ef; margin-top: 6px; padding-top: 4px; gap: 6px 18px; }
+  .memories .heading { display: inline-flex; margin: 0 12px 10px 0; }
+  .memories .heading > div { display: none; }
+  .memories .infoDisclosure { display: inline-block; vertical-align: middle; }
+  .memories .infoDisclosure[open] { display: block; }
+  .memories .memoryCard .savedText { margin: 2px 0 6px; line-height: 1.5; }
+  .settingsJump { display: flex; align-items: center; gap: 12px; padding-bottom: 2px; font-size: 14px; font-weight: 600; color: #4d5555; }
+  .settingsJump select { flex: 1; width: 0; min-height: 44px; padding: 6px 10px; background: #fffefa; border: 1px solid #bdb5a9; border-radius: 10px; color: #302b38; font: inherit; font-size: 16px; }
+  .settingsTarget { scroll-margin-top: 78px; }
 }

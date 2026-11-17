@@ -237,7 +237,7 @@ export function PhoneSignup() {
 
   return (
     <form className="signup-form" onSubmit={submit} noValidate>
-      <p className="signup-fine-print">Private pilot · new accounts need an invitation from the Tempo team. Use your invited number, or your existing account’s number to sign in.</p>
+      <p className="signup-fine-print">Enter your invited phone number to join the private pilot or sign in.</p>
       <div className="signup-control">
         <div className="country-control">
           <span className={`fi fi-${country.flag}`} aria-hidden="true" />
@@ -285,7 +285,7 @@ export function PhoneSignup() {
             if (error) setError("");
           }}
         />
-        <button className="black-button signup-button" type="submit" disabled={submitting}>
+        <button className="black-button signup-button signup-inline-submit" type="submit" disabled={submitting}>
           {submitting ? "Joining…" : "Get started"}
         </button>
       </div>
@@ -304,6 +304,9 @@ export function PhoneSignup() {
           <a href="/privacy">Privacy Policy</a>.
         </span>
       </label>
+      <button className="black-button signup-button signup-mobile-submit" type="submit" disabled={submitting}>
+        {submitting ? "Joining…" : "Get started"}
+      </button>
       {error && (
         <p className="form-error" id="phone-error" role="alert">
           {error}

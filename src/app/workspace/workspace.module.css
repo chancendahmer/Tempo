@@ -724,6 +724,13 @@
   .app[data-preview=true] { --mobile-preview-space:58px; }
   .app[data-focus-docked=true] { --mobile-focus-space:70px; }
   .app:is([data-section=assistant],[data-section=calendar]) .pageHeading { display:none; }
+  /* The sticky phone header already names the page. Keep its main heading for readers. */
+  .app[data-section] .pageHeading {
+    position:absolute; width:1px; height:1px; min-height:0; overflow:hidden;
+    clip-path:inset(50%); padding:0; margin:0; border:0;
+  }
+  .app[data-section] .pageHeading p,.app[data-section] .pageHeading .sectionArt { display:none; }
+  .focusCenter>.eyebrow,.focusFoot { display:none; }
   .app[data-chat-draft=true],.app[data-section=assistant]:has(textarea:focus) { --mobile-focus-space:0px; }
   .app[data-chat-draft=true] .focusDock,.app[data-section=assistant]:has(textarea:focus) .focusDock { display:none; }
   .focusDock { bottom:calc(var(--mobile-nav-height) + 10px); left:12px; right:12px; min-height:54px; padding:12px; }
@@ -746,7 +753,10 @@
 .app[data-section=today]{--bg:#fbfcfa;--text:#172324;--soft:#60676c}
 
 .toast .viewSavedTask { display:none; white-space:nowrap; }
+.mobileRemoveTask { display:none; }
 @media (max-width:760px) {
+  .dialogActions { flex-wrap:wrap; }
+  .dialogActions .mobileRemoveTask { display:inline-flex; align-items:center; margin-right:auto; border:0; background:transparent; color:#963e32; font-size:13px; }
   .toast .viewSavedTask { display:inline-flex; }
   .toast .viewAllSavedTasks { display:none; }
 }

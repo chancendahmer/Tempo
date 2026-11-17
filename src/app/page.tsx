@@ -27,11 +27,11 @@ export default function Home() {
           <ProfileReminder />
           <PhoneSignup />
           <p className="signup-note" id="signup-note">
-            Your texts and dashboard share one account. Reply STOP anytime.
+            Your texts and dashboard share one account.
           </p>
           <div className="proof-row">
             <EarlyAccessCounter />
-            <span>Private pilot · invitation required</span>
+            <span className="pilot-caption">Private pilot · invitation required</span>
           </div>
 
         </div>

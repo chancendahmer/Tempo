@@ -10,6 +10,12 @@ const recipe = (id: string, length: number) => saved(id, { kind: "recipe", title
 const props = { date: "2026-10-15", today: "2026-10-15", setDate: () => {}, saving: false, edit: () => {}, plan: () => {}, actions: (item: SavedLifeItem) => createElement("span", null, `Edit ${item.id}`), save: async () => true, ask: () => {} };
 
 describe("meal and shopping views", () => {
+  it("keeps an explicitly selected future date in the meal week", () => {
+    const html = renderToStaticMarkup(createElement(FoodViews, { ...props, tab: "plan", date: "2026-10-30", items: [] }));
+    expect(html).toMatch(/aria-pressed="true" aria-label="Fri 2026-10-30, 0 meals planned"/);
+    expect(html).not.toContain(">Today</span>");
+  });
+
   it("prevents swapping in an oversized recipe while leaving a supported recipe available", () => {
     const html = renderToStaticMarkup(createElement(FoodViews, { ...props, tab: "plan", items: [meal, recipe("Long recipe", 4001), recipe("Supported recipe", 4000)] }));
     expect(html).toMatch(/<option[^>]*value="Long recipe"[^>]*disabled=""[^>]*>Long recipe · shorten ingredient list first<\/option>/);

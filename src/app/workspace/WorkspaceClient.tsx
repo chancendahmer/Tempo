@@ -22,6 +22,7 @@ import { PilotFeedback } from "./PilotFeedback";
 import type { GentleSetupAction } from "@/server/domain/gentle-setup";
 import { sections, groupForSection, WorkspaceSidebarNav, WorkspaceSectionNav, type Section } from "./WorkspaceNavigation";
 import { RoutineEditor } from "./RoutineEditor";
+import { todayModel } from "./today-model";
 import { WorkspaceMutationAttempts } from "./workspace-mutation-attempts";
 import { findNewTaskId } from "./task-save-confirmation";
 import { NutritionView } from "./NutritionView";
@@ -33,7 +34,7 @@ import { ChatMessage } from "./ChatMessage";
 import { SavedContextViews } from "./SavedContextViews";
 import { ThoughtsView } from "./ThoughtsView";
 import { WakeExperience } from "./WakeExperience";
-import { FormEvent, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { FormEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { FiArrowLeft, FiArrowRight, FiBookOpen, FiCalendar, FiCheck, FiCheckCircle, FiClock, FiEdit2, FiInbox, FiLogOut, FiMaximize, FiMenu, FiMessageCircle, FiMoon, FiPause, FiPlay, FiPlus, FiSend, FiChevronDown, FiChevronRight, FiSun, FiTrash2, FiX } from "react-icons/fi";
 import { groceriesForMeals, ingredientKey, shouldKeepMealGroceryChecked } from "@/server/domain/meal-groceries";
@@ -46,7 +47,7 @@ import rb from "./rhythm-brain.module.css";
 import guide from "./workspace-tour.module.css";
 
 type Field = { name: string; label: string; type?: string; value?: string | number; options?: string[]; required?: boolean; min?: number; max?: number; minLength?: number; maxLength?: number };
-type Editor = { title: string; subtitle: string; fields: Field[]; submitLabel?: string; submit: (values: Record<string, string>) => Promise<boolean> };
+type Editor = { title: string; subtitle: string; fields: Field[]; removeTask?: () => void; submitLabel?: string; submit: (values: Record<string, string>) => Promise<boolean> };
 type FocusData = Extract<LifeItem, { kind: "focus" }>;
 type TourSession = { section: TourSection; originalSection: Section; returnFocus: () => HTMLElement | null; scrollY: number };
 
@@ -80,7 +81,8 @@ function WorkspaceView({ preview = false, owner, sessionKey, unavailable = false
   const [signOutFailed, setSignOutFailed] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editor, setEditor] = useState<Editor | null>(null);
-  const [routineEditor, setRoutineEditor] = useState<{ item?: SavedLifeItem } | null>(null);
+  const [routineEditor, setRoutineEditor] = useState<{ item?: SavedLifeItem; period?: "morning" | "evening" } | null>(null);
+  const [chosenPeriod, setPhonePeriod] = useState<"morning" | "evening">();
   const routineEditorOpener = useRef<HTMLElement | null>(null);
   const [navigationOpen, setNavigationOpen] = useState(false);
   const [navigationGroup, setNavigationGroup] = useState<string>();
@@ -89,7 +91,11 @@ function WorkspaceView({ preview = false, owner, sessionKey, unavailable = false
   const openNavigation = (group?: string, opener?: HTMLElement) => { navigationDestination.current = false; navigationOpener.current = opener ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null); setNavigationGroup(group); setNavigationOpen(true); };
   const [now, setNow] = useState<Date | null>(null);
   const [previewTime, setPreviewTime] = useState("live");
-  const [selectedDate, setSelectedDate] = useState("");
+  const [mealDate, setMealDate] = useState("");
+  const [nutritionDate, setNutritionDate] = useState("");
+  const [fitnessDate, setFitnessDate] = useState("");
+  const selectedDate = section === "nutrition" ? nutritionDate : section === "movement" ? fitnessDate
+    : ["recipes", "meals", "groceries"].includes(section) ? mealDate : "";
   const [draft, setDraft] = useState("");
   const [focusHidden, setFocusHidden] = useState(false);
   const [hidden, setHidden] = useState(false);
@@ -219,8 +225,14 @@ function WorkspaceView({ preview = false, owner, sessionKey, unavailable = false
 
   const homeNow = now ? new Date(now) : null;
   if (preview && homeNow && previewTime !== "live") { const [hour, minute] = previewTime.split(":").map(Number); homeNow.setHours(hour, minute, 0, 0); }
+  const routineMinute = section === "routines" && homeNow ? Math.floor(homeNow.getTime() / 60_000) : null;
+  const phonePeriod = useMemo(() => {
+    if (chosenPeriod || !data || routineMinute === null) return chosenPeriod ?? "morning";
+    return todayModel(data, new Date(routineMinute * 60_000)).routine?.data.period ?? "morning";
+  }, [chosenPeriod, data, routineMinute]);
   const today = now ? localDay(now, data?.timezone ?? "UTC") : "";
   const date = selectedDate || today;
+  const diaryReady = preview || data?.diaryCoverage?.date === date;
   const nutritionIncomplete = data?.diaryCoverage?.date === date && data.diaryCoverage.food.truncated;
   const items = data?.items ?? [];
   const open = data?.tasks.filter(task => task.status !== "completed") ?? [];
@@ -482,10 +494,20 @@ function WorkspaceView({ preview = false, owner, sessionKey, unavailable = false
   };
   const goalAction = (command: Extract<WorkspaceAction, { action: "goal" }>["command"]) => act({ action: "goal", requestId: crypto.randomUUID(), command });
 
+  function confirmRemoveTask(task: Workspace["tasks"][number]) {
+    setNotice("");
+    setEditor({
+      title: `Remove ${task.title}?`,
+      subtitle: "This removes the task from your active list.",
+      fields: [],
+      submit: () => taskAction({ type: "abandon_task", taskId: task.id }),
+    });
+  }
+
   function taskEditor(task?: Workspace["tasks"][number], goalId?: string, draft?: { title: string; estimatedMinutes: number; sourceNoteId?: string }) {
     setNotice("");
     const goal = data?.goals.find(goal => goal.id === (task?.goalId ?? goalId));
-    setEditor({ title: task ? "Make this task work for you" : goal ? "One small step" : "One small thing", subtitle: `${goal ? `For your goal: ${goal.title}. ` : ""}A task time saves your plan. For a text reminder, ask Tempo separately.`, fields: [
+    setEditor({ removeTask: task ? () => confirmRemoveTask(task) : undefined, title: task ? "Edit task" : goal ? "Add a goal step" : "Add task", subtitle: `${goal ? `For your goal: ${goal.title}. ` : ""}A task time saves your plan. For a text reminder, ask Tempo separately.`, fields: [
       { name: "title", label: "What would you like to do?", value: task?.title ?? draft?.title, required: true, minLength: 3 },
       { name: "minutes", label: "Estimated total minutes (optional)", type: "number", value: task?.estimatedMinutes ?? draft?.estimatedMinutes ?? "", min: 1, max: 1440 },
       { name: "due", label: `Task time (optional; device timezone: ${Intl.DateTimeFormat().resolvedOptions().timeZone})`, type: "datetime-local", value: task?.dueAt ? new Date(new Date(task.dueAt).getTime() - new Date(task.dueAt).getTimezoneOffset() * 60000).toISOString().slice(0, 16) : "" },
@@ -504,11 +526,16 @@ function WorkspaceView({ preview = false, owner, sessionKey, unavailable = false
       return ok;
     } });
   }
+  function openRoutineEditor(item?: SavedLifeItem, period?: "morning" | "evening") {
+    setNotice("");
+    routineEditorOpener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setRoutineEditor({ item, period });
+  }
+
   function itemEditor(kind: LifeItem["kind"], item?: SavedLifeItem, meal = "Breakfast") {
     setNotice("");
     if (kind === "routine") {
-      routineEditorOpener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-      setRoutineEditor({ item });
+      openRoutineEditor(item);
       return;
     }
     const value = item?.data;
@@ -544,14 +571,18 @@ function WorkspaceView({ preview = false, owner, sessionKey, unavailable = false
       { name: "date", label: "Date", type: "date", value: date, required: true },
       { name: "meal", label: "Meal", options: ["Breakfast", "Lunch", "Dinner", "Snack"], value: "Dinner" },
       { name: "servings", label: "Servings", type: "number", value: recipe.servings, min: 1, max: 100, required: true },
-    ], submit: async values => { const ok = await saveItem(lifeItemSchema.parse({ kind: "meal", title: recipe.title, date: values.date, meal: values.meal, ingredients: recipe.ingredients, ingredientServings: recipe.servings, groceriesEnabled: true, servings: Number(values.servings) }), undefined, item.id); if (ok) { setSelectedDate(values.date); go("meals"); } return ok; } });
+    ], submit: async values => { const ok = await saveItem(lifeItemSchema.parse({ kind: "meal", title: recipe.title, date: values.date, meal: values.meal, ingredients: recipe.ingredients, ingredientServings: recipe.servings, groceriesEnabled: true, servings: Number(values.servings) }), undefined, item.id); if (ok) { setMealDate(values.date); go("meals"); } return ok; } });
   }
   function remove(item: SavedLifeItem) {
     setNotice("");
     setEditor({ title: `Remove “${item.data.title}”?`, subtitle: "This removes the saved item from your Tempo workspace.", fields: [], submit: () => act({ action: "delete", id: item.id, version: item.version }) });
   }
   async function startFocus(task: Workspace["tasks"][number]) {
-    if (focus) { setFocusHidden(false); setNotice("Finish or leave the current focus session before starting another."); return; }
+    if (focus) {
+      setFocusHidden(false);
+      if (focus.taskId !== task.id) setNotice("Finish or stop the current timer before starting another.");
+      return;
+    }
     if (await taskAction({ type: "start_task", taskId: task.id }, taskPresentation(task).focusMinutes)) setFocusHidden(false);
   }
   async function routineCheck(item: SavedLifeItem, id: string) {
@@ -619,7 +650,7 @@ function WorkspaceView({ preview = false, owner, sessionKey, unavailable = false
     </aside>
     {navigationOpen && <button tabIndex={-1} className={c.scrim} aria-label="Close navigation" onClick={() => setNavigationOpen(false)} />}
     <div ref={tourScope} className={c.main} data-focus-docked={!!(focus && focusHidden && !hidden)} inert={navigationOpen || undefined}>
-      {section === "today" ? <HomeHeader data={hidden ? null : data} preview={preview} saving={saving} hidden={hidden} menuRef={menuButton} openNavigation={() => openNavigation()} go={go} editTask={taskEditor} editGoal={goalEditor} openItem={item => { if (item.data.kind === "meal") { setSelectedDate(item.data.date); go("meals"); } else if (item.data.kind === "recipe") go("recipes"); else itemEditor(item.data.kind, item); }} ask={ask} signOut={() => void switchAccount()} togglePrivacy={togglePrivateContent} /> : <header className={c.topbar} data-tour-sticky-header>
+      {section === "today" ? <HomeHeader data={hidden ? null : data} preview={preview} saving={saving} hidden={hidden} menuRef={menuButton} openNavigation={() => openNavigation()} go={go} editTask={taskEditor} editGoal={goalEditor} openItem={item => { if (item.data.kind === "meal") { setMealDate(item.data.date); go("meals"); } else if (item.data.kind === "recipe") go("recipes"); else itemEditor(item.data.kind, item); }} ask={ask} signOut={() => void switchAccount()} togglePrivacy={togglePrivateContent} /> : <header className={c.topbar} data-tour-sticky-header>
         <div className={c.topbarStart}><button ref={menuButton} className={`${s.iconButton} ${c.menuButton}`} aria-label="Open navigation" aria-expanded={navigationOpen} aria-controls="workspace-navigation" onClick={() => openNavigation()}><FiMenu /><span>Menu</span></button><button type="button" className={c.topbarBrand} aria-label="Tempo home" onClick={() => go("today")}>Tempo</button><div className={c.breadcrumb}><span>{group ?? "Your workspace"}</span><FiChevronRight aria-hidden="true" /><strong>{sections.find(([key]) => key === section)?.[1]}</strong></div></div>
         <div className={c.topbarActions}>
           <button className={c.captureButton} data-tour-anchor="capture" aria-label="Capture a thought" onClick={() => itemEditor("note")} disabled={hidden || !data}><FiPlus /><span>Capture<span className={c.captureDetail}> a thought</span></span></button>
@@ -639,24 +670,31 @@ function WorkspaceView({ preview = false, owner, sessionKey, unavailable = false
         <WorkspaceSectionNav current={section} go={go} />
         <div key={section} className={c.page}>
         {section === "today" ? now && <TodayPages data={data} now={now} preview={preview} guided={Boolean(tour)} motion={journeyMotion} setMotion={setJourneyMotion} onSetup={() => { setProgressSetup(true); setSetupOpen(true); }}>
-          {now && <TodayView motion={journeyMotion} setMotion={setJourneyMotion} onSetup={() => setSetupOpen(true)} onResumeFocus={() => setFocusHidden(false)} preview={preview} data={data} now={homeNow ?? now} focusNow={now} saving={saving} saveHome={(preferences, expected) => act({ action: "home_preferences", preferences, expected })} saveTaskStyle={(task, category, focusMinutes) => act({ action: "task_presentation", taskId: task.id, expectedTitle: task.title, category, focusMinutes })} go={destination => { if (["meals", "movement"].includes(destination)) setSelectedDate(today); go(destination); }} editTask={taskEditor} startTask={task => void startFocus(task)} completeTask={task => void taskAction({ type: "complete_task", taskId: task.id })} checkStep={(item, id) => void routineCheck(item, id)} startStep={startRoutineStep} editRoutine={item => itemEditor("routine", item)} ask={ask} />}
+          {now && <TodayView motion={journeyMotion} setMotion={setJourneyMotion} onSetup={() => setSetupOpen(true)} onResumeFocus={() => setFocusHidden(false)} preview={preview} data={data} now={homeNow ?? now} focusNow={now} saving={saving} saveHome={(preferences, expected) => act({ action: "home_preferences", preferences, expected })} saveTaskStyle={(task, category, focusMinutes) => act({ action: "task_presentation", taskId: task.id, expectedTitle: task.title, category, focusMinutes })} go={destination => { if (destination === "meals") setMealDate(today); if (destination === "movement") setFitnessDate(today); go(destination); }} editTask={taskEditor} startTask={task => void startFocus(task)} completeTask={task => void taskAction({ type: "complete_task", taskId: task.id })} checkStep={(item, id) => void routineCheck(item, id)} startStep={startRoutineStep} editRoutine={item => itemEditor("routine", item)} ask={ask} />}
         </TodayPages> : <>
           <div className={s.pageHeading}><div><h1>{section === "nutrition" ? "Nutrition Tracker" : sections.find(([key]) => key === section)?.[1]}</h1><p>{({ tasks: "A clear next step, whenever you’re ready.", goals: "The bigger things you’re working toward.", calendar: "Your events, tasks, and reminders together.", routines: "A familiar start. An easier finish.", meals: "Decide once. Enjoy your week.", recipes: "Keep the meals you want to make again.", groceries: "One list for your next shop.", nutrition: "What you ate, all in one place.", movement: "Movement that fits your day.", memories: "What Tempo knows about you. You’re in control.", reminders: "See what’s coming. Clear what’s finished.", inbox: "A home for the things on your mind.", assistant: "Text naturally. Your plans stay connected.", wake: "Ease into your morning. Let the evening settle.", settings: "Choose what works for you." } as Record<string, string>)[section]}</p></div><SectionArt section={section} /></div>
-          {section === "tasks" && <TasksView key={taskToReveal ?? "tasks"} revealTaskId={taskToReveal} reopen={task => void taskAction({ type: "reopen_task", taskId: task.id })} remove={task => setEditor({ title: `Remove ${task.title}?`, subtitle: "This removes the task from your active list.", fields: [], submit: () => taskAction({ type: "abandon_task", taskId: task.id }) })} data={data} today={today} saving={saving} edit={taskEditor} start={task => void startFocus(task)} complete={task => void taskAction({ type: "complete_task", taskId: task.id })} />}
+          {section === "tasks" && <TasksView key={taskToReveal ?? "tasks"} revealTaskId={taskToReveal} reopen={task => void taskAction({ type: "reopen_task", taskId: task.id })} activeFocus={focus} remove={confirmRemoveTask} data={data} today={today} saving={saving} edit={taskEditor} start={task => void startFocus(task)} complete={task => void taskAction({ type: "complete_task", taskId: task.id })} />}
           {section === "goals" && <GoalsView remove={goal => setEditor({ title: `Remove ${goal.title}?`, subtitle: "Your linked tasks will stay on your list.", fields: [], submit: () => goalAction({ type: "abandon_goal", goalId: goal.id }) })} data={data} saving={saving} edit={goalEditor} addStep={id => taskEditor(undefined, id)} editStep={taskEditor} achieve={id => void goalAction({ type: "complete_goal", goalId: id })} />}
           {section === "calendar" && <CalendarView data={data} preview={preview} ask={ask} editTask={taskEditor} />}
-          {section === "routines" && <section className={rb.rhythm} aria-label="Daily routines">
+          {section === "routines" && <section className={rb.rhythm} aria-label="Daily routines" data-phone-period={phonePeriod}>
             <div className={rb.heading}><p>Check off each step as you go. Start fresh each day.</p><button className={s.primary} onClick={() => itemEditor("routine")}><FiPlus /> New routine</button></div>
-            <div className={rb.periods}>{(["morning", "evening"] as const).map(period => <section className={rb.period} data-period={period} key={period} aria-label={`${period} routines`}><div className={rb.periodHeading}>{period === "morning" ? <FiSun aria-hidden="true" /> : <FiMoon aria-hidden="true" />}<div><h2>{period === "morning" ? "Morning" : "Evening"}</h2><small>{period === "morning" ? "Find your beginning" : "Make room to wind down"}</small></div></div>{routines.filter(item => item.data.kind === "routine" && item.data.period === period).map(routineCard)}{!routines.some(item => item.data.kind === "routine" && item.data.period === period) && <div className={rb.periodEmpty}><p>{period === "morning" ? "A little support for the start of your day." : "A few familiar steps to close your day."}</p><button className={s.secondary} onClick={() => itemEditor("routine")}><FiPlus /> Build a routine</button></div>}</section>)}</div>
+            <div className={rb.phoneRoutineTools}>
+              <div role="group" aria-label="Choose routine period" className={rb.periodSwitch}>
+                <button type="button" aria-pressed={phonePeriod === "morning"} aria-controls="routine-morning" onClick={() => setPhonePeriod("morning")}><FiSun />Morning</button>
+                <button type="button" aria-pressed={phonePeriod === "evening"} aria-controls="routine-evening" onClick={() => setPhonePeriod("evening")}><FiMoon />Evening</button>
+              </div>
+              <button type="button" className={s.secondary} aria-label={`New ${phonePeriod} routine`} onClick={() => openRoutineEditor(undefined, phonePeriod)}><FiPlus />New</button>
+            </div>
+            <div className={rb.periods}>{(["morning", "evening"] as const).map(period => <section className={rb.period} id={`routine-${period}`} data-period={period} key={period} aria-label={`${period} routines`}><div className={rb.periodHeading}>{period === "morning" ? <FiSun aria-hidden="true" /> : <FiMoon aria-hidden="true" />}<div><h2>{period === "morning" ? "Morning" : "Evening"}</h2><small>{period === "morning" ? "Find your beginning" : "Make room to wind down"}</small></div></div>{routines.filter(item => item.data.kind === "routine" && item.data.period === period).map(routineCard)}{!routines.some(item => item.data.kind === "routine" && item.data.period === period) && <div className={rb.periodEmpty}><p>{period === "morning" ? "A little support for the start of your day." : "A few familiar steps to close your day."}</p><button className={s.secondary} onClick={() => openRoutineEditor(undefined, period)}><FiPlus /> Build a routine</button></div>}</section>)}</div>
             <div className={rb.info}><FiMessageCircle /><span>Want a reminder by text? Ask Tempo to help you set one.</span><button className={s.textButton} onClick={() => ask("Remind me every day at 8 am to start my morning routine.")}>Ask Tempo <FiArrowRight /></button></div>
           </section>}
 
-          {(["meals", "recipes", "groceries"] as Section[]).includes(section) && <FoodViews tab={mealTab} items={items} date={date} today={today} setDate={setSelectedDate} saving={saving} edit={itemEditor} plan={planRecipe} actions={itemActions} save={saveItem} ask={ask} />}
-          {(["nutrition", "movement"] as Section[]).includes(section) && !preview && selectedDate && data.diaryCoverage?.date !== selectedDate && <p role="status">Loading this day’s saved entries…</p>}
+          {(["meals", "recipes", "groceries"] as Section[]).includes(section) && <FoodViews tab={mealTab} items={items} date={date} today={today} setDate={setMealDate} saving={saving} edit={itemEditor} plan={planRecipe} actions={itemActions} save={saveItem} ask={ask} />}
+          {(["nutrition", "movement"] as Section[]).includes(section) && !diaryReady && <p role="status">Loading this day’s saved entries…</p>}
           {(["nutrition", "movement"] as Section[]).includes(section) && data.itemsTruncated && <p role="status">Your full history is saved. This view includes recent entries and the selected day. Select a date to see older entries.</p>}
           {section === "nutrition" && nutritionIncomplete && <p role="alert">This day has more entries than the display limit. Totals below are incomplete.</p>}
-          {section === "nutrition" && (preview || !selectedDate || data.diaryCoverage?.date === selectedDate) && <NutritionView items={items} date={date} today={today} setDate={setSelectedDate} saving={saving} preview={preview} incomplete={nutritionIncomplete} save={saveItem} remove={remove} />}
-          {section === "movement" && (preview || !selectedDate || data.diaryCoverage?.date === selectedDate) && <FitnessView save={saveItem} remove={remove} data={data} today={today} date={date} setDate={setSelectedDate} saving={saving} plan={draft => taskEditor(undefined, undefined, draft)} log={() => itemEditor("workout")} actions={itemActions} showTasks={() => go("tasks")} />}
+          {section === "nutrition" && diaryReady && <NutritionView items={items} date={date} today={today} setDate={setNutritionDate} saving={saving} preview={preview} incomplete={nutritionIncomplete} save={saveItem} remove={remove} />}
+          {section === "movement" && diaryReady && <FitnessView save={saveItem} remove={remove} data={data} today={today} date={date} setDate={setFitnessDate} saving={saving} plan={draft => taskEditor(undefined, undefined, draft)} log={() => itemEditor("workout")} actions={itemActions} showTasks={() => go("tasks")} />}
           {section === "inbox" && <ThoughtsView items={items} truncated={data.itemCoverage?.note?.truncated} saving={saving} edit={item => itemEditor("note", item)} remove={remove} toTask={item => taskEditor(undefined, undefined, { title: item.data.title, estimatedMinutes: 15, sourceNoteId: item.id })} openTask={openThoughtTask} toGoal={item => { if (item.data.kind === "note") goalEditor(undefined, item.data); }} />}
           {section === "assistant" && <div className={rb.assistant}>
             <article className={rb.conversation}><div className={rb.chatHeader}><WorkspaceAvatar size={38} /><div><strong>Tempo</strong><small>{preview ? "Scripted example · no AI calls" : "Your shared web & text conversation"}</small></div></div>
@@ -669,27 +707,43 @@ function WorkspaceView({ preview = false, owner, sessionKey, unavailable = false
           {(section === "memories" || section === "reminders") && <SavedContextViews key={section} section={section} data={data} saving={saving} ask={ask} remove={(action, title) => setEditor({ title: `${action.action === "forget_memory" ? "Remove" : "Cancel"} “${title}”?`, subtitle: action.action === "forget_memory" ? "This removes the saved fact. Conversation history stays unchanged." : "This cancels future texts from this reminder. Its saved history and messages already delivered stay.", fields: [], submitLabel: action.action === "forget_memory" ? "Remove memory" : "Cancel reminder", submit: () => act(action) })} />}
           {section === "wake" && <div className={rb.rhythm}><WakeExperience onRoutines={() => go("routines")} /></div>}
           {section === "settings" && <div className={s.twoColumns}>
+            <label className={rb.settingsJump}>
+              <span>Jump to</span>
+              <select aria-label="Jump to a setting" defaultValue="" onChange={event => {
+                const target = document.getElementById(event.currentTarget.value);
+                event.currentTarget.value = "";
+                target?.focus({ preventScroll: true });
+                target?.scrollIntoView({ block: "start" });
+              }}>
+                <option value="" disabled>Choose a setting</option>
+                <option value="pref-personal">Personalization &amp; time zone</option>
+                <option value="pref-text">Text check-ins &amp; quiet hours</option>
+                <option value="pref-audio">Whiteboard &amp; audio</option>
+                <option value="pref-connections">Connections</option>
+                <option value="pref-feedback">Feedback &amp; privacy</option>
+              </select>
+            </label>
             <article className={s.card}>
-              <WorkspaceAvatar size={46} /><h2>Make Tempo yours</h2><p>Your name, preferred coaching tone, and whether you see an activity streak.</p>
+              <WorkspaceAvatar size={46} /><h2 id="pref-personal" className={rb.settingsTarget} tabIndex={-1}>Make Tempo yours</h2><p>Your name, preferred coaching tone, and whether you see an activity streak.</p>
               <button className={s.secondary} onClick={() => setSetupOpen(true)}>Personalize Tempo <FiArrowRight /></button>
               <button ref={settingsGuideButton} className={s.textButton} onClick={() => startTour(() => settingsGuideButton.current)}>Show me around <FiBookOpen /></button>
               <TimezoneSettings timezone={data.timezone} timezoneConfirmedAt={data.setup?.timezoneConfirmedAt} preview={preview} onSave={saveSetup} />
             </article>
             <article className={s.card}>
-              <span className={`${s.tileIcon} ${s.sage}`}><FiMessageCircle /></span><h2>Text check-ins</h2>
+              <span className={`${s.tileIcon} ${s.sage}`}><FiMessageCircle /></span><h2 id="pref-text" className={rb.settingsTarget} tabIndex={-1}>Text check-ins</h2>
               <label className={s.toggleRow} data-tour-anchor="checkins"><span><strong>Proactive check-ins</strong><small>Optional · quiet hours respected</small></span><input type="checkbox" checked={data.profile.proactiveOptIn} disabled={saving} onChange={e => void act({ action: "checkins", enabled: e.target.checked })} /></label>
               <CheckinStatus status={data.profile.checkinStatus} preview={preview} />
               <QuietHoursSettings start={data.profile.quietHoursStart} end={data.profile.quietHoursEnd} timezone={data.timezone} preview={preview} onSave={async action => { if (!await act(action)) throw new Error("Could not save quiet hours. Please try again."); }} />
               <details className={s.inlineDetails}><summary>How check-ins are delivered</summary><p className={s.finePrint}>When available, check-ins can include reviews of overdue or untouched items. Tempo asks before removing anything. Check-ins may be limited or paused. If a message does not arrive, you can still see your saved plans here.</p></details>
               <Link className={s.secondary} href="/profile">Profile & coaching instructions <FiArrowRight /></Link>
             </article>
-            <article className={s.card}><span className={`${s.tileIcon} ${s.amber}`}><FiMaximize /></span><h2>Whiteboard & audio</h2><div className={s.settingButtons}><button className={s.secondary} onClick={async () => { try { if (document.fullscreenElement) await document.exitFullscreen(); else await document.documentElement.requestFullscreen(); } catch { setNotice("Use your browser’s full-screen control on this device."); } }}><FiMaximize /> Toggle full screen</button><button className={s.secondary} onClick={readBriefing}><FiSun /> Read my day aloud</button><button className={s.textButton} onClick={() => window.speechSynthesis?.cancel()}>Stop audio</button></div><small>Audio begins only when you ask. Scheduled spoken announcements are not enabled.</small></article>
+            <article className={s.card}><span className={`${s.tileIcon} ${s.amber}`}><FiMaximize /></span><h2 id="pref-audio" className={rb.settingsTarget} tabIndex={-1}>Whiteboard & audio</h2><div className={s.settingButtons}><button className={s.secondary} onClick={async () => { try { if (document.fullscreenElement) await document.exitFullscreen(); else await document.documentElement.requestFullscreen(); } catch { setNotice("Use your browser’s full-screen control on this device."); } }}><FiMaximize /> Toggle full screen</button><button className={s.secondary} onClick={readBriefing}><FiSun /> Read my day aloud</button><button className={s.textButton} onClick={() => window.speechSynthesis?.cancel()}>Stop audio</button></div><small>Audio begins only when you ask. Scheduled spoken announcements are not enabled.</small></article>
             <article className={s.card}>
-              <FiCalendar /><h2>Connections</h2><p>Google Calendar: {preview ? "sample connection" : data.calendar?.status === "active" ? "connected" : "not connected"}</p>
+              <FiCalendar /><h2 id="pref-connections" className={rb.settingsTarget} tabIndex={-1}>Connections</h2><p>Google Calendar: {preview ? "sample connection" : data.calendar?.status === "active" ? "connected" : "not connected"}</p>
               <Link className={s.secondary} href="/extensions" data-tour-anchor="connections">Manage connections <FiArrowRight /></Link>
               <details className={s.inlineDetails}><summary>Available integrations</summary><p>Food search and barcodes use Open Food Facts. MyFitnessPal, wearable, and health-app account imports are not connected.</p></details>
             </article>
-            <article className={s.card}><FiBookOpen /><h2>Feedback & privacy</h2><p>Help improve Tempo without attaching your private conversations.</p><button className={s.secondary} onClick={() => setFeedbackType("problem")}>Report a problem</button><button className={s.textButton} onClick={() => setFeedbackType("improvement")}>Suggest an improvement</button><details className={s.inlineDetails}><summary>What to keep here</summary><p>Everyday notes belong here. Keep passwords, medical records, and sensitive documents in a dedicated secure service.</p></details><button className={s.textButton} onClick={() => setWorkspaceHidden(true)}>Hide this workspace <FiMoon /></button></article>
+            <article className={s.card}><FiBookOpen /><h2 id="pref-feedback" className={rb.settingsTarget} tabIndex={-1}>Feedback & privacy</h2><p>Help improve Tempo without attaching your private conversations.</p><button className={s.secondary} onClick={() => setFeedbackType("problem")}>Report a problem</button><button className={s.textButton} onClick={() => setFeedbackType("improvement")}>Suggest an improvement</button><details className={s.inlineDetails}><summary>What to keep here</summary><p>Everyday notes belong here. Keep passwords, medical records, and sensitive documents in a dedicated secure service.</p></details><button className={s.textButton} onClick={() => setWorkspaceHidden(true)}>Hide this workspace <FiMoon /></button></article>
           </div>}
         </>}
         </div>
@@ -699,11 +753,15 @@ function WorkspaceView({ preview = false, owner, sessionKey, unavailable = false
       <MobileWorkspaceNav current={section} expanded={navigationOpen} go={go} openSpaces={opener => openNavigation(undefined, opener)} />
       {focus && focusHidden && !hidden && <button className={s.focusDock} onClick={() => setFocusHidden(false)}><FiPlay /><span>{focus.title}</span><strong>{Math.floor(remaining / 60)}:{String(remaining % 60).padStart(2, "0")}</strong><FiMaximize /></button>}
     </div>
-    <dialog onKeyDown={loopDialogTab} ref={focusDialog} className={s.focusDialog} onCancel={() => setFocusHidden(true)} aria-label="Current focus session">{focus && data && <div className={s.focusOverlay}><div className={s.focusTop}><span className={s.brand}><WorkspaceAvatar size={39} />Tempo</span><button className={s.secondary} onClick={() => setFocusHidden(true)}><FiArrowLeft /> Back to my day</button></div><div className={s.focusCenter}><p className={s.eyebrow}>{remaining ? "JUST THIS. JUST NOW." : "A MOMENT TO CHECK IN"}</p><h1>{focus.title}</h1><p>{remaining ? "The rest can wait. You’re in the right place." : "Time is up. Finished, or would a little more time help?"}</p><div className={s.timerRing}><span role="timer" aria-label={`${remainingMinutes} ${remainingMinutes === 1 ? "minute" : "minutes"} ${remainingSeconds} ${remainingSeconds === 1 ? "second" : "seconds"} remaining`}>{Math.floor(remaining / 60)}<i>:</i>{String(remaining % 60).padStart(2, "0")}</span><small>{focus.endsAt ? "one small step at a time" : "paused · take the time you need"}</small></div><div className={s.focusActions}><button className={s.secondary} disabled={saving} onClick={() => void saveItem({ ...focus, remaining, endsAt: focus.endsAt ? null : new Date(Date.now() + remaining * 1000).toISOString() }, focusItem)}>{focus.endsAt ? <FiPause /> : <FiPlay />}{focus.endsAt ? "Pause" : "Resume"}</button><button className={s.darkButton} disabled={saving} onClick={() => void finishFocus()}><FiCheck /> I’m done</button><button className={s.secondary} disabled={saving} onClick={() => void saveItem({ ...focus, remaining: remaining + 300, endsAt: new Date(Date.now() + (remaining + 300) * 1000).toISOString() }, focusItem)}>+ 5 minutes</button></div><button className={s.textButton} disabled={saving} onClick={() => void stopFocus()}>Stop for now</button><button className={s.textButton} onClick={() => { setFocusHidden(true); ask(`I’m working on "${focus.title}" and feeling stuck. Help me make the next step smaller.`); }}>Feeling stuck? Let’s make it smaller <FiArrowRight /></button></div><p className={s.focusFoot}>Your effort counts. Even when the plan changes.</p></div>}</dialog>
+    <dialog onKeyDown={loopDialogTab} ref={focusDialog} className={s.focusDialog} onCancel={() => setFocusHidden(true)} aria-label="Current focus session">{focus && data && <div className={s.focusOverlay}><div className={s.focusTop}><span className={s.brand}><WorkspaceAvatar size={39} />Tempo</span><button className={s.secondary} onClick={() => setFocusHidden(true)}><FiArrowLeft /> Back to my day</button></div><div className={s.focusCenter}><p className={s.eyebrow}>{remaining ? "JUST THIS. JUST NOW." : "A MOMENT TO CHECK IN"}</p><h1>{focus.title}</h1><p>{remaining ? "The rest can wait. You’re in the right place." : "Time is up. Finished, or would a little more time help?"}</p><div className={s.timerRing}><span role="timer" aria-label={`${remainingMinutes} ${remainingMinutes === 1 ? "minute" : "minutes"} ${remainingSeconds} ${remainingSeconds === 1 ? "second" : "seconds"} remaining`}>{Math.floor(remaining / 60)}<i>:</i>{String(remaining % 60).padStart(2, "0")}</span><small>{focus.endsAt ? "one small step at a time" : "paused · take the time you need"}</small></div><div className={s.focusActions}><button className={s.secondary} disabled={saving} onClick={() => void saveItem({ ...focus, remaining, endsAt: focus.endsAt ? null : new Date(Date.now() + remaining * 1000).toISOString() }, focusItem)}>{focus.endsAt ? <FiPause /> : <FiPlay />}{focus.endsAt ? "Pause" : "Resume"}</button><button className={s.darkButton} disabled={saving} onClick={() => void finishFocus()}><FiCheck /> I’m done</button><button className={s.secondary} disabled={saving} onClick={() => void saveItem({ ...focus, remaining: remaining + 300, endsAt: focus.endsAt ? new Date(Date.now() + (remaining + 300) * 1000).toISOString() : null }, focusItem)}>+ 5 minutes</button></div><button className={s.textButton} disabled={saving} onClick={() => void stopFocus()}>Stop for now</button><button className={s.textButton} onClick={() => { setFocusHidden(true); ask(`I’m working on "${focus.title}" and feeling stuck. Help me make the next step smaller.`); }}>Feeling stuck? Let’s make it smaller <FiArrowRight /></button></div><p className={s.focusFoot}>Your effort counts. Even when the plan changes.</p></div>}</dialog>
     {tour && <WorkspaceTour preview={preview} hasTasks={data?.tasks.some(task => !["completed", "abandoned"].includes(task.status)) ?? false} returnToSetup={setupOpen} scope={tourScope} onSection={section => setTour(current => current && { ...current, section })} onClose={closeTour} />}
     {feedbackType && data && <PilotFeedback owner={owner} unavailable={unavailable || Boolean(error)} initialType={feedbackType} initialSection={section} preview={preview} onClose={() => setFeedbackType(null)} />}
     {setupOpen && data && <GentleSetup progressOnly={progressSetup} preview={preview} suspended={Boolean(tour)} initial={{ ...(data.setup ?? { displayName: data.profile.displayName, coachingTone: "balanced", showStreak: true, setupStatus: "new" }), timezone: data.timezone }} onSave={saveSetup} onTour={!progressSetup && !preview && data.setup?.setupStatus === "new" ? opener => startTour(() => opener) : undefined} onClose={() => { setSetupOpen(false); setProgressSetup(false); }} />}
-    {routineEditor && <RoutineEditor key={`${routineEditor.item?.id ?? "new-routine"}-${routineEditor.item?.version ?? 0}`} item={routineEditor.item} latestItem={items.find(item => item.id === routineEditor.item?.id)} saveError={notice} onReload={item => { setNotice(""); setRoutineEditor({ item }); }} timezone={data?.timezone ?? "UTC"} saving={saving} onSave={saveItem} onClose={() => setRoutineEditor(null)} />}
-    <dialog onKeyDown={loopDialogTab} ref={dialog} className={s.dialog} aria-label={editor?.title ?? "Edit item"} onCancel={() => setEditor(null)} onClick={event => { if (event.target === event.currentTarget) setEditor(null); }}>{editor && <form onSubmit={async (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); const values = Object.fromEntries(new FormData(event.currentTarget).entries()) as Record<string, string>; try { if (await editor.submit(values)) setEditor(null); } catch { setNotice("Check the values and try again. Nothing was saved."); } }}><div className={s.between}><p className={s.eyebrow}>MAKE A LITTLE SPACE</p><button type="button" className={s.iconButton} aria-label="Close editor" onClick={() => setEditor(null)}><FiX /></button></div><h2>{editor.title}</h2><p>{editor.subtitle}</p><div className={s.formFields}>{editor.fields.map(field => <label key={field.name}><span>{field.label}</span>{field.options ? <select name={field.name} defaultValue={field.value}>{field.options.map(option => <option key={option}>{option}</option>)}</select> : field.type === "textarea" ? <textarea name={field.name} defaultValue={field.value} required={field.required} rows={5} minLength={field.minLength} maxLength={field.maxLength ?? 10000} /> : <input name={field.name} type={field.type ?? "text"} defaultValue={field.value} required={field.required} min={field.min} max={field.max} step={field.type === "number" ? "any" : undefined} minLength={field.minLength} maxLength={field.maxLength ?? 240} />}</label>)}</div>{notice && <p role="status">{notice}</p>}<div className={s.dialogActions}><button type="button" className={s.secondary} onClick={() => setEditor(null)}>Cancel</button><button type="submit" className={s.primary} disabled={saving}>{saving ? "Saving…" : editor.submitLabel ?? (editor.fields.length ? "Save" : "Remove")}<FiCheck /></button></div></form>}</dialog>
+    {routineEditor && <RoutineEditor key={`${routineEditor.item?.id ?? "new-routine"}-${routineEditor.item?.version ?? 0}`} item={routineEditor.item} initialPeriod={routineEditor.period} latestItem={items.find(item => item.id === routineEditor.item?.id)} saveError={notice} onReload={item => { setNotice(""); setRoutineEditor({ item }); }} timezone={data?.timezone ?? "UTC"} saving={saving} onSave={async (value, item) => {
+      const saved = await saveItem(value, item);
+      if (saved && value.kind === "routine") setPhonePeriod(value.period);
+      return saved;
+    }} onClose={() => setRoutineEditor(null)} />}
+    <dialog onKeyDown={loopDialogTab} ref={dialog} className={s.dialog} aria-label={editor?.title ?? "Edit item"} onCancel={() => setEditor(null)} onClick={event => { if (event.target === event.currentTarget) setEditor(null); }}>{editor && <form onSubmit={async (event: FormEvent<HTMLFormElement>) => { event.preventDefault(); const values = Object.fromEntries(new FormData(event.currentTarget).entries()) as Record<string, string>; try { if (await editor.submit(values)) setEditor(null); } catch { setNotice("Check the values and try again. Nothing was saved."); } }}><div className={s.between}><span aria-hidden="true" /><button type="button" className={s.iconButton} aria-label="Close editor" onClick={() => setEditor(null)}><FiX /></button></div><h2>{editor.title}</h2><p>{editor.subtitle}</p><div className={s.formFields}>{editor.fields.map(field => <label key={field.name}><span>{field.label}</span>{field.options ? <select name={field.name} defaultValue={field.value}>{field.options.map(option => <option key={option}>{option}</option>)}</select> : field.type === "textarea" ? <textarea name={field.name} defaultValue={field.value} required={field.required} rows={5} minLength={field.minLength} maxLength={field.maxLength ?? 10000} /> : <input name={field.name} type={field.type ?? "text"} defaultValue={field.value} required={field.required} min={field.min} max={field.max} step={field.type === "number" ? "any" : undefined} minLength={field.minLength} maxLength={field.maxLength ?? 240} />}</label>)}</div>{notice && <p role="status">{notice}</p>}<div className={s.dialogActions}>{editor.removeTask && <button type="button" className={s.mobileRemoveTask} disabled={saving} onClick={editor.removeTask}>Remove task</button>}<button type="button" className={s.secondary} onClick={() => setEditor(null)}>Cancel</button><button type="submit" className={s.primary} disabled={saving}>{saving ? "Saving…" : editor.submitLabel ?? (editor.fields.length ? "Save" : "Remove")}<FiCheck /></button></div></form>}</dialog>
   </div>;
 }

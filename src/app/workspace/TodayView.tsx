@@ -76,7 +76,7 @@ export function TodayView({ data, preview = false, now, focusNow, saving, go, ed
   return <div className={s.home}>
     <div className={s.greeting}><div><h1>{model.greeting}{data.profile.displayName ? `, ${data.profile.displayName.split(" ")[0]}` : ""}.</h1><p>{new Intl.DateTimeFormat(undefined, { timeZone: data.timezone, weekday: "long", month: "long", day: "numeric" }).format(now)}<span>·</span>{time(now)}</p></div><button className={s.pill} aria-label="Customize home" onClick={() => setSettings(model.preferences)}><FiSettings /> <span>Customize home</span></button></div>
     <section className={s.hero} data-mode={model.mode} aria-label="Your current activity">
-      <Image key={hero.image} className={s.heroImage} src={hero.image} alt={hero.imageAlt} fill sizes="(max-width: 760px) 72px, 1200px" priority />
+      <Image key={hero.image} className={s.heroImage} src={hero.image} alt={hero.imageAlt} fill sizes="(max-width: 760px) 640px, 1200px" priority />
       <div className={s.heroShade} />
       <div className={s.heroControls}>
         <label><span className={s.srOnly}>Home banner</span><select value={manual ?? model.preferences.pinned} onChange={event => setManual(event.target.value as HomeMode)}><option value="auto">Auto · {modes[model.automatic]}</option>{Object.entries(modes).map(([key, label]) => <option value={key} key={key}>{label}</option>)}</select></label>
