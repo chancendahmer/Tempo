@@ -10,9 +10,10 @@ type Task = Workspace["tasks"][number];
 type Goal = Workspace["goals"][number];
 type TaskView = "All" | "Today" | "Next 7 days" | "Done";
 
-export function TasksView({ data, today, saving, edit, start, complete, reopen, remove }: {
+export function TasksView({ data, today, saving, revealTaskId, edit, start, complete, reopen, remove }: {
   data: Workspace; today: string; saving: boolean; edit: (task?: Task) => void;
   start: (task: Task) => void; complete: (task: Task) => void; reopen: (task: Task) => void; remove: (task: Task) => void;
+  revealTaskId?: string;
 }) {
   // Include undated tasks captured by text in the initial view.
   const [view, setView] = useState<TaskView>("All");
@@ -50,7 +51,7 @@ export function TasksView({ data, today, saving, edit, start, complete, reopen, 
     {groups.filter(group => group.tasks.length).map(group => <section className={s.taskGroup} data-tone={group.tone} key={group.label} aria-label={group.label}>
       <h2><span className={s.groupIcon} aria-hidden="true">{group.icon}</span>{group.label}<span className={s.groupCount}>{group.tasks.length}</span>{group.tone !== "done" && group.tasks.every(task => Boolean(task.estimatedMinutes)) && <span className={s.groupEstimate}><FiClock aria-hidden="true" />{group.tasks.reduce((sum, task) => sum + (task.estimatedMinutes ?? 0), 0)} min estimated</span>}</h2>
       <ul className={s.checklist}>
-        {group.tasks.map(task => <li className={`${s.task} ${task.status === "completed" ? s.finished : ""}`} key={task.id}>
+        {group.tasks.map(task => <li className={`${s.task} ${task.status === "completed" ? s.finished : ""}`} key={task.id} id={task.id === revealTaskId ? `saved-task-${task.id}` : undefined} tabIndex={task.id === revealTaskId ? -1 : undefined}>
           <button className={s.checkbox} disabled={saving} aria-label={task.status === "completed" ? `Reopen ${task.title}` : `Complete ${task.title}`} onClick={() => task.status === "completed" ? reopen(task) : complete(task)}><span>{task.status === "completed" && <FiCheck aria-hidden="true" />}</span></button>
           <button className={s.taskTitle} disabled={saving} onClick={() => edit(task)} aria-label={`Edit ${task.title}`}>
             <strong>{task.title}</strong>

@@ -134,3 +134,8 @@
 @media(max-width:480px) { .mapAvatar { width:42px; } }
 
 .compactNav{margin-bottom:8px}.compactNav button{min-height:32px;padding-block:2px}
+@media(max-width:760px) {
+  .compactNav { margin-bottom:0; gap:8px; }
+  .compactNav button { min-width:44px; min-height:44px; padding-block:4px; }
+  .compactNav button span { display:none; }
+}

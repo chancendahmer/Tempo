@@ -55,6 +55,15 @@ describe("Today uses authenticated calendar details", () => {
     expect(html).not.toContain("Nothing else scheduled today");
     expect(todayModel(fixture(), new Date("2026-10-15T15:00:00Z"), [allDay]).events.some(event => event.id === allDay.id)).toBe(false);
   });
+  it("surfaces the next timed commitment before tasks when other events are already underway", () => {
+    const next = { id: "real-study-group", title: "Library study group", start: { dateTime: "2026-10-14T17:00:00Z" }, end: { dateTime: "2026-10-14T18:00:00Z" }, editable: true };
+    mocked.events = [allDay, next, meeting];
+    const aboveTasks = render().split('id="home-tasks"')[0];
+    const localStart = new Intl.DateTimeFormat(undefined, { timeZone: fixture().timezone, hour: "numeric", minute: "2-digit" }).format(new Date(next.start.dateTime));
+    expect(aboveTasks).toContain(`Up next · ${localStart}`);
+    expect(aboveTasks).toContain(next.title);
+    expect(aboveTasks).not.toContain(allDay.title);
+  });
   it("ends Happening now at the exact event end", () => {
     mocked.events = [meeting];
     const html = render(fixture(), new Date("2026-10-14T16:00:00Z"));

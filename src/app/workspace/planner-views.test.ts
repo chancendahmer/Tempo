@@ -11,7 +11,7 @@ vi.mock("./use-calendar-events", () => ({ useCalendarEvents: () => calendar }));
 const now = new Date("2026-10-19T15:00:00Z");
 const fixture = () => previewWorkspace(now);
 const renderCalendar = (data = fixture()) => renderToStaticMarkup(createElement(CalendarView, { data, preview: true, ask: vi.fn(), editTask: vi.fn() }));
-const renderTasks = (data = fixture()) => renderToStaticMarkup(createElement(TasksView, { data, today: "2026-10-19", saving: false, edit: vi.fn(), start: vi.fn(), complete: vi.fn(), reopen: vi.fn(), remove: vi.fn() }));
+const renderTasks = (data = fixture(), revealTaskId?: string) => renderToStaticMarkup(createElement(TasksView, { data, today: "2026-10-19", saving: false, revealTaskId, edit: vi.fn(), start: vi.fn(), complete: vi.fn(), reopen: vi.fn(), remove: vi.fn() }));
 
 afterEach(() => { vi.useRealTimers(); calendar.error = ""; });
 
@@ -28,6 +28,16 @@ describe("Planner context", () => {
     const data = fixture();
     data.tasks = [{ ...data.tasks[0], estimatedMinutes: 15 }, { ...data.tasks[0], id: "unknown", estimatedMinutes: null }];
     expect(renderTasks(data)).not.toContain("min estimated");
+  });
+
+  it("provides a focus target for the requested undated row in All", () => {
+    const data = fixture();
+    data.tasks = [{ ...data.tasks[0], id: "just-saved", dueAt: null, status: "not_started" }, ...data.tasks];
+    expect(renderTasks(data)).not.toContain('id="saved-task-just-saved"');
+    const html = renderTasks(data, "just-saved");
+    expect(html).toContain('id="saved-task-just-saved" tabindex="-1"');
+    expect(html).toContain('aria-pressed="true">All</button>');
+    expect(html).toContain("No date yet");
   });
 
   it("anchors the week on Monday and marks today independently from selection", () => {

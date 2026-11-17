@@ -41,6 +41,12 @@ export function TodayView({ data, preview = false, now, focusNow, saving, go, ed
   const calendar = useCalendarEvents(data, localDay(now, data.timezone), preview);
   const model = homeModel(data, now, calendar.events, manual, focusNow);
   const hero = model.hero;
+  const nowMs = now.getTime();
+  const nextEvent = model.calendar.find(event => event.start.dateTime && Date.parse(event.start.dateTime) >= nowMs)
+    ?? model.calendar.find(event => event.start.dateTime)
+    ?? model.calendar[0];
+  const nextEventStart = nextEvent?.start.dateTime;
+  const nextEventOngoing = nextEventStart && Date.parse(nextEventStart) <= nowMs && nextEvent.end.dateTime && Date.parse(nextEvent.end.dateTime) > nowMs;
   const hasFocus = !!(model.today.focus || model.tasks.some(task => task.status === "in_progress"));
   const focusTaskId = model.today.focus ? model.today.focus.taskId : model.tasks.find(task => task.status === "in_progress")?.id;
   const close = () => { dialog.current?.close(); setSettings(null); setStyleTask(null); setFormError(""); opener.current?.focus(); };
@@ -70,7 +76,7 @@ export function TodayView({ data, preview = false, now, focusNow, saving, go, ed
   return <div className={s.home}>
     <div className={s.greeting}><div><h1>{model.greeting}{data.profile.displayName ? `, ${data.profile.displayName.split(" ")[0]}` : ""}.</h1><p>{new Intl.DateTimeFormat(undefined, { timeZone: data.timezone, weekday: "long", month: "long", day: "numeric" }).format(now)}<span>·</span>{time(now)}</p></div><button className={s.pill} aria-label="Customize home" onClick={() => setSettings(model.preferences)}><FiSettings /> <span>Customize home</span></button></div>
     <section className={s.hero} data-mode={model.mode} aria-label="Your current activity">
-      <Image key={hero.image} className={s.heroImage} src={hero.image} alt={hero.imageAlt} fill sizes="(max-width: 760px) 100vw, 1200px" priority />
+      <Image key={hero.image} className={s.heroImage} src={hero.image} alt={hero.imageAlt} fill sizes="(max-width: 760px) 72px, 1200px" priority />
       <div className={s.heroShade} />
       <div className={s.heroControls}>
         <label><span className={s.srOnly}>Home banner</span><select value={manual ?? model.preferences.pinned} onChange={event => setManual(event.target.value as HomeMode)}><option value="auto">Auto · {modes[model.automatic]}</option>{Object.entries(modes).map(([key, label]) => <option value={key} key={key}>{label}</option>)}</select></label>
@@ -78,9 +84,20 @@ export function TodayView({ data, preview = false, now, focusNow, saving, go, ed
       </div>
       <div className={s.heroContent}><HeroIcon className={s.heroIcon} aria-hidden="true" /><div><p className={s.eyebrow}>{hero.label}</p><h2>{hero.title}</h2><p className={s.heroDetail}>{hero.detail}</p>
         {hero.total !== undefined && <div className={s.progress}><progress max={Math.max(1, hero.total)} value={hero.completed} aria-label="Routine progress" /><span>{hero.completed} of {hero.total} done</span></div>}
-        <div className={s.heroActions}><button className={s.primary} data-tour-anchor="current" disabled={saving} onClick={actOnHero}>{hero.action}<FiArrowRight /></button><button className={s.textButton} onClick={() => hero.routine ? editRoutine(hero.routine) : hero.mode === "meal" ? go("groceries") : hero.mode === "workout" ? go("movement") : setSettings(model.preferences)}>{hero.routine ? "Edit routine" : hero.mode === "meal" ? "Ingredients & groceries" : hero.mode === "workout" ? "Your fitness plans" : "Adjust your schedule"} <FiArrowRight /></button></div>
+        <div className={s.heroActions}>
+          <button className={s.primary} data-tour-anchor="current" disabled={saving} onClick={actOnHero}>{hero.action}<FiArrowRight /></button>
+          <button className={hero.routine || hero.mode === "meal" || hero.mode === "workout" ? s.textButton : `${s.textButton} ${s.scheduleAction}`} onClick={() => hero.routine ? editRoutine(hero.routine) : hero.mode === "meal" ? go("groceries") : hero.mode === "workout" ? go("movement") : setSettings(model.preferences)}>{hero.routine ? "Edit routine" : hero.mode === "meal" ? "Ingredients & groceries" : hero.mode === "workout" ? "Your fitness plans" : "Adjust your schedule"} <FiArrowRight /></button>
+        </div>
       </div></div>
     </section>
+    {nextEvent && <button className={s.nextEvent} onClick={() => go("calendar")}>
+      <span className={s.eventIcon}><FiCalendar aria-hidden="true" /></span>
+      <span className={s.nextEventText}>
+        <small>{nextEventOngoing ? "On your calendar now" : nextEventStart ? `Up next · ${time(nextEventStart)}` : "On your calendar · All day"}</small>
+        <strong>{nextEvent.title}</strong>
+      </span>
+      <FiChevronRight aria-hidden="true" />
+    </button>}
     <div className={s.columns}>
       <section className={s.todos} aria-labelledby="home-tasks"><div className={s.sectionHeading}><h2 id="home-tasks">Your to-do</h2><button className={s.pill} data-tour-anchor="add-task" onClick={() => editTask()} disabled={saving}><FiPlus />Add task</button></div>
         {hasFocus && <p id="home-focus-help" className={s.notice}>One focus session at a time. <button onClick={onResumeFocus}>Open your timer</button> to pause, resume or leave it before starting another task.</p>}
@@ -118,7 +135,24 @@ export function TodayView({ data, preview = false, now, focusNow, saving, go, ed
     <div className={s.homeFooter}><span>{model.preferences.pinned === "auto" ? manual && manual !== "auto" ? "Previewing this banner. Pin it to keep it." : "Your home changes with your day." : `${modes[model.preferences.pinned]} banner pinned. Your tasks and calendar stay current.`}</span><button className={s.textButton} onClick={() => setSettings(model.preferences)}>Make it yours <FiSettings /></button></div>
     <dialog ref={dialog} className={s.dialog} onKeyDown={loopDialogTab} onCancel={event => { event.preventDefault(); close(); }} aria-labelledby="home-dialog-title">
       <div className={s.sectionHeading}><h2 id="home-dialog-title">{styleTask ? "A starting point that fits." : "Your home, your rhythm."}</h2><button className={s.iconButton} aria-label="Close settings" onClick={close}><FiX /></button></div>
-      {settings && <form onSubmit={event => { event.preventDefault(); const form = new FormData(event.currentTarget); void persistHome({ morningTime: String(form.get("morningTime")) || null, dinnerTime: String(form.get("dinnerTime")), eveningTime: String(form.get("eveningTime")) || null, workoutLeadMinutes: Number(form.get("workoutLeadMinutes")), pinned: String(form.get("pinned")) as HomeMode }, settings); }}><p>Only the banner changes. Your to-do list and today’s calendar stay in place.</p><div className={s.formGrid}><label>Morning starts<input type="time" name="morningTime" defaultValue={settings.morningTime ?? ""} /></label><label>Dinner time<input type="time" name="dinnerTime" required defaultValue={settings.dinnerTime} /></label><label>Wind-down starts<input type="time" name="eveningTime" defaultValue={settings.eveningTime ?? ""} /></label><label>Show workout beforehand (minutes)<input type="number" name="workoutLeadMinutes" min="0" max="120" required defaultValue={settings.workoutLeadMinutes} /></label></div><p className={s.help}>Times use {data.timezone}. Leave morning or wind-down blank to follow your routine’s saved time. Workouts appear near scheduled fitness tasks or calendar events.</p><label>Banner mode<select name="pinned" defaultValue={settings.pinned}><option value="auto">Automatic · follow my day</option>{Object.entries(modes).map(([key, label]) => <option key={key} value={key}>{label} · pinned</option>)}</select></label><button className={s.primary} disabled={saving || !saveHome} type="submit">Save preferences <FiCheck /></button></form>}
+      {settings && <form onSubmit={event => { event.preventDefault(); const form = new FormData(event.currentTarget); void persistHome({ morningTime: String(form.get("morningTime")) || null, dinnerTime: String(form.get("dinnerTime")), eveningTime: String(form.get("eveningTime")) || null, workoutLeadMinutes: Number(form.get("workoutLeadMinutes")), pinned: String(form.get("pinned")) as HomeMode }, settings); }}>
+        <p>Only the banner changes. Your to-do list and today’s calendar stay in place.</p>
+        <div className={s.formGrid}>
+          <label>Morning starts<input type="time" name="morningTime" defaultValue={settings.morningTime ?? ""} /></label>
+          <label>Dinner time<input type="time" name="dinnerTime" required defaultValue={settings.dinnerTime} /></label>
+          <label>Wind-down starts<input type="time" name="eveningTime" defaultValue={settings.eveningTime ?? ""} /></label>
+          <label>Show workout beforehand (minutes)<input type="number" name="workoutLeadMinutes" min="0" max="120" required defaultValue={settings.workoutLeadMinutes} /></label>
+        </div>
+        <p className={s.help}>Times use {data.timezone}. Leave morning or wind-down blank to follow your routine’s saved time. Workouts appear near scheduled fitness tasks or calendar events.</p>
+        <label>Banner mode<select name="pinned" defaultValue={settings.pinned}><option value="auto">Automatic · follow my day</option>{Object.entries(modes).map(([key, label]) => <option key={key} value={key}>{label} · pinned</option>)}</select></label>
+        <button className={`${s.textButton} ${s.previewBanner}`} type="button" onClick={event => {
+          const form = event.currentTarget.form;
+          if (!form) return;
+          setManual(String(new FormData(form).get("pinned")) as HomeMode);
+          close();
+        }}>Preview banner without saving</button>
+        <button className={s.primary} disabled={saving || !saveHome} type="submit">Save preferences <FiCheck /></button>
+      </form>}
       {styleTask && <form key={styleTask.id} onSubmit={async event => { event.preventDefault(); const form = new FormData(event.currentTarget); if (saveTaskStyle && await saveTaskStyle(styleTask, String(form.get("category")) as TaskCategory, Number(form.get("minutes")))) close(); else setFormError("This task changed or couldn’t be saved. Refresh and try again."); }}><p>{styleTask.title}</p><label>Task category & icon<select name="category" defaultValue={taskPresentation(styleTask).category}>{Object.entries(taskCategoryLabels).map(([key, label]) => <option value={key} key={key}>{label}</option>)}</select></label><label>Starting timer (minutes)<input name="minutes" type="number" min="1" max="60" required defaultValue={taskPresentation(styleTask).focusMinutes} /></label><p className={s.help}>A short starting session, not a deadline or a promise about how long the whole task will take. The category sets the icon and helps Tempo choose activity suggestions on Home. Tempo can suggest a category and timer; your choice takes priority.</p><button className={s.primary} disabled={saving || !saveTaskStyle} type="submit">Save my choice <FiCheck /></button></form>}
       {formError && <p role="alert" className={s.notice}>{formError}</p>}
     </dialog>

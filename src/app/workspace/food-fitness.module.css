@@ -21,6 +21,101 @@
 .info { padding:14px 16px; background:#f6f2eb; border-radius:10px; font-size:13px; color:#665949; }
 .checkLabel { display:flex; align-items:center; gap:10px; font-size:14px; }
 .checkLabel input[type="checkbox"] { width:18px; height:18px; margin:0; }
+.foodBody, .foodFooter, .additionalNutrients { display:contents; }
+.mobileFoodInfo, .nutrientToggle { display:none; }
+
+@media (max-width:760px), (pointer:coarse) and (max-height:500px) {
+  .dialog.foodEditor[open] {
+    --food-gutter-left: max(16px, env(safe-area-inset-left));
+    --food-gutter-right: max(16px, env(safe-area-inset-right));
+    position:fixed;
+    inset:auto 0 var(--food-viewport-bottom, 0px);
+    display:flex;
+    flex-direction:column;
+    width:100%;
+    max-width:none;
+    height:100dvh;
+    height:min(100dvh, var(--food-viewport-height, 100dvh));
+    max-height:none;
+    margin:0;
+    padding:0;
+    border:0;
+    border-radius:0;
+    overflow:hidden;
+  }
+  .foodHeading, .foodBody, .foodFooter {
+    padding-left:var(--food-gutter-left);
+    padding-right:var(--food-gutter-right);
+  }
+  .foodHeading {
+    flex:none;
+    padding-top:max(6px, env(safe-area-inset-top));
+    padding-bottom:6px;
+    border-bottom:1px solid #e8e0d8;
+  }
+  .foodEditor .foodHeading h2 { margin:0; font-size:21px; }
+  .foodHeading p, .desktopFoodInfo { display:none; }
+  .mobileFoodInfo { display:inline; }
+  .foodEditor .form {
+    flex:1;
+    min-height:0;
+    grid-template-rows:minmax(0, 1fr) auto;
+    gap:0;
+    margin:0;
+  }
+  .foodBody {
+    display:block;
+    overflow:auto;
+    overscroll-behavior:contain;
+    scroll-padding-block:12px;
+    padding-block:12px 8px;
+  }
+  .foodEditor .foodBody .info {
+    margin:0 0 12px;
+    padding:9px 11px;
+    color:#665949;
+    font-size:13px;
+    line-height:1.45;
+  }
+  .foodEditor .fields { grid-template-columns:repeat(2, minmax(0, 1fr)); gap:10px; align-items:end; }
+  .foodEditor .fields label { gap:4px; }
+  .foodEditor .fields input, .foodEditor .fields select {
+    min-height:44px;
+    max-width:100%;
+    padding:8px 10px;
+    font-size:16px;
+  }
+  .foodEditor .fields input[type="date"] { display:block; text-align:left; }
+  .nutrientToggle {
+    grid-column:1 / -1;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:8px;
+    min-height:44px;
+    padding:8px 12px;
+    border:1px solid #e8e0d8;
+    border-radius:9px;
+    background:#f6f2eb;
+    color:#51495b;
+    font:inherit;
+    font-size:14px;
+    cursor:pointer;
+  }
+  .nutrientToggle[aria-expanded="true"] svg { transform:rotate(180deg); }
+  .nutrientToggle[aria-expanded="false"] + .additionalNutrients { display:none; }
+  .foodEditor .checkLabel { min-height:44px; margin-top:4px; }
+  .foodFooter {
+    display:block;
+    padding-top:8px;
+    padding-bottom:max(8px, env(safe-area-inset-bottom));
+    border-top:1px solid #e8e0d8;
+  }
+  .foodEditor .foodFooter .error { margin:0 0 8px; padding:8px 10px; color:#85420e; font-size:13px; }
+  .foodFooter .actions { display:grid; grid-template-columns:minmax(0, 1.6fr) minmax(0, 1fr); }
+  .foodFooter .actions button { justify-content:center; }
+  .foodEditor :is(button, input, select):focus-visible { outline:2px solid #246c95; outline-offset:2px; }
+}
 .programGrid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; margin-bottom:24px; }
 .programCard { --wash:#e8f1e7; --ink:#39654b; display:flex; flex-direction:column; gap:10px; padding:0 0 20px; border:1px solid #dcded7; border-radius:17px; overflow:hidden; background:#fff; color:#272333; text-align:left; cursor:pointer; font:inherit; }
 .programCard:nth-child(3n+2) { --wash:#f8eacb; --ink:#8b622a; }

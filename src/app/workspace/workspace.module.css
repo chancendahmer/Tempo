@@ -718,5 +718,35 @@
 
 @media (min-width:761px) { .toast { left:50%; max-width:min(680px,calc(100vw - 40px)); } }
 .toast[data-focus-docked="true"] { bottom:calc(110px + env(safe-area-inset-bottom, 0px)); }
+.previewShort { display:none; }
+@media (max-width:760px) {
+  .app { --mobile-nav-height:calc(63px + env(safe-area-inset-bottom,0px)); }
+  .app[data-preview=true] { --mobile-preview-space:58px; }
+  .app[data-focus-docked=true] { --mobile-focus-space:70px; }
+  .app[data-section=assistant] .pageHeading { display:none; }
+  .app[data-chat-draft=true],.app[data-section=assistant]:has(textarea:focus) { --mobile-focus-space:0px; }
+  .app[data-chat-draft=true] .focusDock,.app[data-section=assistant]:has(textarea:focus) .focusDock { display:none; }
+  .focusDock { bottom:calc(var(--mobile-nav-height) + 10px); left:12px; right:12px; min-height:54px; padding:12px; }
+  .toast { bottom:calc(var(--mobile-nav-height) + 12px); gap:8px; left:12px; right:12px; }
+  .toast[data-focus-docked="true"] { bottom:calc(var(--mobile-nav-height) + 80px); }
+  .toast span { min-width:0; overflow-wrap:anywhere; }
+  .toast button { flex-shrink:0; min-height:44px; }
+  .app:has([data-keyboard-open=true]) .focusDock { display:none; }
+  .app:has([data-keyboard-open=true]) .toast { bottom:12px; }
+  .previewBanner { font-size:11px!important; padding:6px 16px; gap:2px 12px; }
+  .previewBanner { flex-wrap:nowrap; }
+  .previewBanner .previewFull { display:none; }
+  .previewBanner .previewShort { display:inline; font-size:11px; }
+  .previewBanner a,.previewBanner>button { min-height:36px; }
+  .dialog { max-height:calc(100dvh - 24px); padding:18px; scroll-padding-bottom:90px; }
+  .dialogActions { position:sticky; bottom:-18px; margin-inline:-18px; margin-bottom:-18px; padding:12px 18px max(12px,env(safe-area-inset-bottom,0px)); background:#fffcf8; border-top:1px solid #dedbd4; z-index:2; }
+  .dialogActions>button { min-height:44px; }
+}
 
 .app[data-section=today]{--bg:#fbfcfa;--text:#172324;--soft:#60676c}
+
+.toast .viewSavedTask { display:none; white-space:nowrap; }
+@media (max-width:760px) {
+  .toast .viewSavedTask { display:inline-flex; }
+  .toast .viewAllSavedTasks { display:none; }
+}

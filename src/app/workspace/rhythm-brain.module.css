@@ -99,7 +99,7 @@
 .rhythm button:focus-visible, .brain button:focus-visible, .memories button:focus-visible, .reminders button:focus-visible, .assistant button:focus-visible, .assistant summary:focus-visible, .brain summary:focus-visible, .infoDisclosure summary:focus-visible, .composer textarea:focus-visible { outline: 3px solid #806292; outline-offset: 3px; }
 .rhythm button:disabled, .assistant button:disabled, .brain button:disabled, .memories button:disabled, .reminders button:disabled { cursor: not-allowed; opacity: .55; }
 @media (max-width: 760px) {
-  .conversation { height: clamp(360px, calc(100dvh - 340px), 660px); }
+  .conversation { height:max(280px,calc(100dvh - 174px - env(safe-area-inset-bottom,0px) - var(--mobile-preview-space,0px) - var(--mobile-focus-space,0px))); }
   .periods { grid-template-columns: minmax(0, 1fr); gap: 24px; }
   .routine { padding: 18px; }
   .note { padding: 16px 0 18px 16px; }
@@ -108,10 +108,12 @@
   .capture { flex-wrap: wrap; gap: 14px; }
   .capture > div { flex-basis: calc(100% - 55px); }
   .capture > button { width: 100%; }
-  .messages { padding: 18px; gap: 16px; }
+  .messages { min-height:0; padding:12px 14px; gap:12px; }
   .message { max-width: 96%; padding: 14px; }
-  .chatHeader { padding: 18px; }
-  .composer { margin-inline: 14px; gap: 8px; padding: 7px; }
-  .chatHint { padding-inline: 18px; }
+  .chatHeader { padding:12px 14px; }
+  .composer { margin-inline:10px; gap:6px; padding:5px; }
+  .composer textarea { min-height:66px; max-height:168px; resize:none; padding:6px; }
+  .composer button { min-width:44px; min-height:44px; padding:10px; }
+  .chatHint { padding:0 14px 10px; font-size:11px; line-height:1.4; }
   .reminderRow { padding: 16px; gap: 10px; }
 }

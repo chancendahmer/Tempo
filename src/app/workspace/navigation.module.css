@@ -53,6 +53,9 @@
   .tabs::-webkit-scrollbar { display:none; }
   .tabs button[aria-current=page]::after { bottom:0; }
   .tabs button { flex-shrink:0; min-height:48px; font-size:12px; gap:7px; }
+  .tabs[data-group=planner] { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:4px; }
+  .tabs[data-group=planner] button { justify-content:center; min-width:0; min-height:44px; font-size:12px; }
+  .tabs[data-group=planner] .icon { display:none; }
   .launcher { margin-top:24px; }
   .launcherHeading>span { display:none; }
   .launcherGrid { gap:9px; }

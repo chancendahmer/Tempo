@@ -32,6 +32,7 @@
 .planning .checklist { margin: 0; padding: 0; list-style: none; }
 .planning .task { display: flex; align-items: center; gap: 12px; padding: 11px 0; min-height: 79px; border-bottom: 1px solid #ece7de; }
 .planning .task:last-child { border-bottom-color: var(--line); }
+.planning .task[tabindex]:focus { outline: 2px solid #6653a0; outline-offset: 2px; border-radius: 6px; }
 .planning .checkbox { width: 44px; min-height: 44px; display: grid; place-items: center; border: 0; padding: 6px; background: none; flex-shrink: 0; }
 .planning .checkbox > span { display: grid; place-items: center; width: 24px; height: 24px; border: 1.5px solid #8c8594; border-radius: 6px; color: white; font-size: 17px; }
 .planning .checkbox:hover:not(:disabled) > span { border-color: var(--accent); background: var(--tint); }
@@ -102,7 +103,11 @@
 
 @media (min-width: 1600px) { .planning .goalGrid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 760px) {
-  .planning.taskSheet { padding: 16px 14px 4px; }
+  .planning.taskSheet { padding: 12px 12px 4px; }
+  .planning.taskSheet .toolbar { gap: 8px; margin-bottom: 8px; }
+  .planning.taskSheet .tabs button { min-width: 44px; justify-content: center; }
+  .planning .taskGroup { margin-bottom: 20px; }
+  .planning .taskGroup h2 { flex-wrap: wrap; gap: 6px; }
   .planning .goalGrid { grid-template-columns: 1fr; }
   .planning .toolbar { gap: 12px; }
   .planning .tabs { gap: 0; }
@@ -118,9 +123,10 @@
   .planning .goalBody h2 { font-size: 27px; }
 }
 @media (max-width: 420px) {
-  .planning .task { flex-wrap: wrap; }
-  .planning .taskTitle { flex-basis: calc(100% - 60px); }
-  .planning .taskActions { width: 100%; justify-content: flex-end; padding-top: 2px; }
+  .planning .task { display: grid; grid-template-columns: 44px minmax(0, 1fr); align-items: start; gap: 4px 7px; }
+  .planning .taskActions { grid-column: 2; gap: 6px; }
+  .planning .task.finished { grid-template-columns: 44px minmax(0, 1fr) 44px; }
+  .planning .finished .taskActions { grid-column: 3; }
   .planning .focusButton > span { display: inline; }
   .planning .unscheduled { flex-wrap: wrap; }
   .planning .listSummary > span:last-child { display: none; }

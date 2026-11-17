@@ -98,3 +98,16 @@
 .footer[data-home=true]{display:none}
 @media(max-width:760px){.previewClock{display:none}}
 .everywhereComposer[data-home=true]>img{width:44px;height:44px;object-fit:contain}
+
+/* Phone navigation is separate from the desktop shell; web chat is opt-in. */
+@media (max-width:760px) {
+  .main { padding-bottom:calc(74px + env(safe-area-inset-bottom,0px)); }
+  .main[data-focus-docked=true] { padding-bottom:calc(148px + env(safe-area-inset-bottom,0px)); }
+  .everywhereComposer,.footer { display:none; }
+  .topbar .menuButton { display:none; }
+  .topbar { min-height:62px; }
+  .breadcrumb { font-size:15px; }
+  .topbarBrand { display:none; }
+  .captureButton { border-radius:99px; padding-inline:12px; }
+  .sidebar { padding-bottom:max(12px,env(safe-area-inset-bottom,0px)); }
+}

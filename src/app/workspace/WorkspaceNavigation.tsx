@@ -111,7 +111,7 @@ export function WorkspaceSectionNav({ current, go }: { current: Section; go: (se
   }, [current]);
   const group = groupForSection(current);
   if (!group) return null;
-  return <nav ref={tabs} className={s.tabs} aria-label={`${group.label} sections`}>
+  return <nav ref={tabs} className={s.tabs} data-group={group.id} aria-label={`${group.label} sections`}>
     {group.sections.map(key => <Destination key={key} destination={key} current={current} go={go} />)}
   </nav>;
 }
