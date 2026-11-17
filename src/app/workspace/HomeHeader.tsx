@@ -15,7 +15,9 @@ export function HomeHeader({ data, preview, saving, hidden, menuRef, openNavigat
 }) {
   const [open, setOpen] = useState<"spaces" | "search" | null>(null);
   const [query, setQuery] = useState("");
+  const [mobileSearch, setMobileSearch] = useState(false);
   const header = useRef<HTMLElement>(null);
+  const searchToggle = useRef<HTMLButtonElement>(null);
   const spacesButton = useRef<HTMLButtonElement>(null), searchInput = useRef<HTMLInputElement>(null);
   useEffect(() => {
     if (!open) return;
@@ -23,26 +25,29 @@ export function HomeHeader({ data, preview, saving, hidden, menuRef, openNavigat
     const key = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setOpen(null);
-        (open === "spaces" ? spacesButton.current : searchInput.current)?.focus();
+        if (mobileSearch) { setMobileSearch(false); searchToggle.current?.focus(); }
+        else (open === "spaces" ? spacesButton.current : searchInput.current)?.focus();
       }
     };
     document.addEventListener("pointerdown", outside); document.addEventListener("keydown", key);
     return () => { document.removeEventListener("pointerdown", outside); document.removeEventListener("keydown", key); };
-  }, [open]);
+  }, [open, mobileSearch]);
+  useEffect(() => { if (mobileSearch) searchInput.current?.focus(); }, [mobileSearch]);
   const navigate = (section: Section) => { setOpen(null); go(section); };
   const matches = query.trim().length < 2 || !data ? [] : [
     ...data.tasks.filter(task => !["completed", "abandoned"].includes(task.status)).map(task => ({ id: task.id, title: task.title, kind: "To-do", action: () => editTask(task) })),
     ...data.goals.filter(goal => goal.status === "active").map(goal => ({ id: goal.id, title: goal.title, kind: "Goal", action: () => editGoal(goal) })),
     ...data.items.filter(item => ["note", "meal", "recipe", "routine"].includes(item.data.kind)).map(item => ({ id: item.id, title: item.data.title, kind: item.data.kind === "note" ? "Thought" : item.data.kind === "meal" ? `${item.data.meal} · ${item.data.date}` : item.data.kind, action: () => openItem(item) })),
   ].filter(item => item.title.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())).slice(0, 6);
-  return <header ref={header} className={s.header} onBlur={event => { if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget)) setOpen(null); }}>
+  return <header ref={header} className={s.header} data-tour-sticky-header onBlur={event => { if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget)) setOpen(null); }}>
     <button ref={menuRef} className={s.menu} aria-label="Open navigation" aria-controls="workspace-navigation" onClick={openNavigation}><FiMenu /></button>
     <button className={s.brand} onClick={() => navigate("today")}>Tempo</button>
     <button className={s.homeButton} aria-current="page" onClick={() => navigate("today")}><FiHome />Home</button>
     <div className={s.spaces}><button ref={spacesButton} className={s.pill} data-tour-anchor="spaces" aria-expanded={open === "spaces"} aria-controls="home-spaces" onClick={() => setOpen(open === "spaces" ? null : "spaces")}><FiGrid />Spaces <FiChevronDown /></button>
       {open === "spaces" && <nav id="home-spaces" className={s.spacesPanel} aria-label="Your spaces">{navigationGroups.map(group => <section key={group.id}><h2>{group.label}</h2>{group.sections.map(key => { const [, label, Icon, tone] = sections.find(([id]) => id === key)!; return <button key={key} onClick={() => navigate(key)}><Icon data-tone={tone} /><span>{label}</span><FiArrowRight /></button>; })}</section>)}</nav>}
     </div>
-    <div className={s.search}><FiSearch /><input ref={searchInput} aria-label="Search your workspace" placeholder="Search tasks, notes, meals, or ask Tempo…" value={hidden ? "" : query} onFocus={() => setOpen("search")} onChange={event => { setQuery(event.target.value); setOpen("search"); }} onKeyDown={event => { if (event.key === "ArrowDown") { event.preventDefault(); header.current?.querySelector<HTMLButtonElement>("#home-search-results button")?.focus(); } if (event.key === "Enter") { event.preventDefault(); if (query.trim()) { setOpen(null); ask(query.trim()); } } }} disabled={!data} />
+    <button ref={searchToggle} type="button" className={s.searchToggle} aria-label={mobileSearch ? "Close search" : "Search workspace"} aria-expanded={mobileSearch} aria-controls="workspace-search" onClick={() => { setMobileSearch(!mobileSearch); setOpen(mobileSearch ? null : "search"); }}>{mobileSearch ? <FiX /> : <FiSearch />}</button>
+    <div id="workspace-search" className={s.search} data-mobile-open={mobileSearch}><FiSearch /><input ref={searchInput} aria-label="Search your workspace" placeholder="Search tasks, notes, meals, or ask Tempo…" value={hidden ? "" : query} onFocus={() => setOpen("search")} onChange={event => { setQuery(event.target.value); setOpen("search"); }} onKeyDown={event => { if (event.key === "ArrowDown") { event.preventDefault(); header.current?.querySelector<HTMLButtonElement>("#home-search-results button")?.focus(); } if (event.key === "Enter") { event.preventDefault(); if (query.trim()) { setOpen(null); ask(query.trim()); } } }} disabled={!data} />
       {!hidden && query && <button className={s.clear} aria-label="Clear search" onClick={() => { setQuery(""); searchInput.current?.focus(); }}><FiX /></button>}
       {!hidden && open === "search" && query.trim().length >= 2 && <div className={s.results} id="home-search-results"><p>In your workspace</p>{matches.map(match => <button key={match.id} onClick={() => { setOpen(null); match.action(); }}><span>{match.title}<small>{match.kind}</small></span><FiArrowRight /></button>)}{!matches.length && <p>No matching saved items.</p>}<button onClick={() => { setOpen(null); ask(query.trim()); }}><span>Ask Tempo about “{query.trim()}”<small>Review your message before sending</small></span><FiArrowRight /></button></div>}
     </div>

@@ -27,6 +27,8 @@
 .weekStrip button:focus-visible { outline-offset:-4px; }
 .agenda { padding:22px 30px 8px; }
 .agendaHeader { display:flex; justify-content:space-between; gap:18px; align-items:center; margin-bottom:18px; }
+.agendaActions { display:contents; }
+.compactDate, .mobilePlan { display:none; }
 .kicker { display:block; margin-bottom:6px; color:var(--calendar-ink); font-size:13px; font-weight:700; letter-spacing:1px; text-transform:uppercase; }
 .calendar .agendaHeader h2 { margin:0; font:500 clamp(22px,2vw,29px)/1.3 Georgia,serif; letter-spacing:-.5px; }
 .calendar .agendaHeader p { margin:8px 0 0; color:#6a6571; font-size:13px; line-height:1.6; }
@@ -77,29 +79,43 @@
 .connection details { margin-top:8px; }
 .connection summary { min-height:44px; padding:13px 0; font-size:13px; color:var(--calendar-ink); }
 @media (max-width:760px) {
-  .toolbar { gap:12px; margin-bottom:16px; }
-  .dateControls { gap:2px; }
-  .dateInput { padding:8px; font-size:13px!important; }
-  .weekStrip { padding:7px 8px 0; }
-  .weekStrip button { min-height:75px; }
-  .weekStrip strong { font-size:21px; }
-  .agenda { padding:21px 16px 4px; }
-  .agendaHeader { gap:10px; align-items:flex-start; }
-  .calendar .agendaHeader h2 { font-size:23px; }
-  .entry { grid-template-columns:78px 17px minmax(0,1fr); gap:10px; padding:18px 0; }
+  .toolbar { margin-bottom:8px; }
+  .toolbar>.primary { display:none; }
+  .dateControls { display:grid; grid-template-columns:44px minmax(0, 1fr) 44px auto; gap:4px; width:100%; }
+  .dateControls .textButton { min-width:44px; padding-inline:6px; }
+  .dateInput { min-width:0; width:100%; padding:6px 8px; font-size:16px!important; }
+  .weekStrip { padding:0 2px; }
+  .weekStrip button { min-height:54px; gap:2px; padding:5px 1px 3px; }
+  .weekStrip strong { font-size:18px; line-height:1.1; }
+  .agenda { padding:12px 14px 4px; }
+  .agendaHeader { gap:8px; margin-bottom:8px; }
+  .agendaHeader>div:first-child { min-width:0; }
+  .agendaActions { display:flex; align-items:center; gap:2px; }
+  .agendaActions .mobilePlan { display:inline-flex; min-height:44px; gap:4px; padding:7px 8px; }
+  .agendaActions .mobilePlan svg { flex-shrink:0; }
+  .kicker, .fullDate { display:none; }
+  .compactDate { display:inline; }
+  .calendar .agendaHeader h2 { font-size:22px; }
+  .calendar .agendaHeader p { margin-top:3px; font-size:12px; line-height:1.4; overflow-wrap:anywhere; }
+  .agendaSummary { gap:4px 12px; padding-bottom:9px; }
+  .notice { padding:9px 10px; margin-bottom:10px; }
+  .entry { grid-template-columns:78px 17px minmax(0,1fr); gap:10px; padding:13px 0; }
   .entryIcon { width:17px; height:17px; }
   .time { font-size:12px; }
   .calendar .entryBody h3, .entryBody>strong { font-size:16px; }
+  .source { margin-bottom:3px; }
+  .empty { padding:22px 10px; }
   .connection { padding:16px; }
   .connectionHeading { flex-wrap:wrap; gap:6px 10px; }
   .connectionHeading .textButton { flex-basis:100%; margin-left:27px; justify-content:flex-start; }
 }
 @media (max-width:420px) {
-  .toolbar>.primary { width:100%; }
-  .dateControls { width:100%; justify-content:space-between; }
   .weekStrip span { font-size:11px; }
   .entry { grid-template-columns:68px minmax(0,1fr); gap:10px; }
   .entryIcon { display:none; }
-  .entry .source { margin-top:0; }
+  .entry .source { display:inline-flex; align-items:center; gap:5px; margin-top:0; font-size:12px; }
+  .entry .source::before { content:""; width:7px; height:7px; border-radius:50%; background:currentColor; flex:none; }
+  .entry[data-kind] .entryBody { border-left:0; padding-left:0; }
+  .time { color:#4e4c58; font-weight:600; }
   .connectionHeading .textButton { margin-left:0; }
 }

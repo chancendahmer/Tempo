@@ -94,7 +94,6 @@ function ProfileEditor({ account, sessionKey, unavailable, retry, onSaved, inval
         <p>Phone ending in {account.phoneLast4}</p>
         <div className="profile-status"><FiCheck /> Phone connected</div>
         <Link href="/extensions">Manage extensions <FiArrowRight /></Link>
-        <Link href="/board">Open room board <FiArrowRight /></Link>
         <Link href="/workspace">Open my workspace <FiArrowRight /></Link>
       </aside>
       <form className="profile-form" onSubmit={save}>

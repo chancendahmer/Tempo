@@ -35,7 +35,11 @@ export function JourneyView({ data, now, preview, onBack, onSetup, motion, setMo
       <header className={s.heading}>
         <span className={s.eyebrow}>{preview ? "SAMPLE JOURNEY · YOUR LIFE. YOUR PACE." : "YOUR LIFE. YOUR PACE."}</span>
         <h1 id="journey-title">Your world,<br />one day at a time.</h1>
-        <p>Little things count. So do fresh starts.</p>
+        <p className={showProgress ? s.desktopIntro : undefined}>Little things count. So do fresh starts.</p>
+        {showProgress && <div className={s.mobileProgress}>
+          <span><FiAward aria-hidden="true" />Level {progress.level}</span>
+          <span><FiStar aria-hidden="true" />{activity.currentDays}-day streak</span>
+        </div>}
       </header>
       <div className={s.world}>
         <div className={s.worldTools}><button className={s.motion} onClick={() => setMotion(!motion)} aria-pressed={!motion} title="Animation choice lasts while this workspace is open. Device reduced-motion settings are always respected.">{motion ? <FiPause /> : <FiPlay />}{motion ? "Pause animations" : "Enable animations"}</button></div>

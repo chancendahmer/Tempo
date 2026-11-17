@@ -40,6 +40,7 @@
 .launcherGrid small { display:block; color:#71695f; font-size:11px; margin-top:5px; line-height:1.5; }
 .launcherIcon { width:22px; height:22px; stroke-width:1.6; flex-shrink:0; color:var(--nav-ink,#6a6259); }
 .rail button:focus-visible,.tabs button:focus-visible,.launcher button:focus-visible { outline:3px solid #386b91; outline-offset:3px; }
+.shortLabel { display:none; }
 @media (prefers-reduced-motion:no-preference) {
   .rail button,.tabs button,.launcher button { transition:background-color 140ms ease,color 140ms ease,border-color 140ms ease,box-shadow 140ms ease; }
   .rail .chevron { transition:transform 150ms ease; }
@@ -48,11 +49,24 @@
 }
 @media (max-width:1100px) { .launcherGrid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 @media (max-width:760px) {
-  .rail { margin-top:28px; gap:22px; }
+  .rail { flex:0 1 auto; margin-top:12px; gap:12px; padding-bottom:12px; }
+  .shortcuts { grid-template-columns:1fr 1fr; gap:8px; }
+  .shortcuts button { justify-content:center; border-color:#e2ded6; background:#fffdfa; }
+  .groupLabel { padding:5px 10px 1px; }
+  .groupButton .icon { width:32px; height:32px; border-radius:10px; color:var(--nav-ink); background:var(--nav-tint); }
+  .rail .groupButton { padding:6px 10px; min-height:48px; }
   .tabs { flex-wrap:nowrap; overflow-x:auto; overflow-y:hidden; overscroll-behavior-x:contain; scrollbar-width:none; gap:18px; padding:6px 4px; margin-bottom:8px; }
   .tabs::-webkit-scrollbar { display:none; }
   .tabs button[aria-current=page]::after { bottom:0; }
   .tabs button { flex-shrink:0; min-height:48px; font-size:12px; gap:7px; }
+  .tabs[data-group=planner] { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:4px; }
+  .tabs[data-group=planner] button { justify-content:center; min-width:0; min-height:44px; font-size:12px; }
+  .tabs[data-group=planner] .icon { display:none; }
+  .tabs[data-group=food] { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:0; padding:0 0 3px; margin-bottom:18px; }
+  .tabs[data-group=food] button { flex-direction:column; justify-content:center; gap:4px; min-width:0; min-height:52px; padding:5px 0; font-size:clamp(10px,2.8vw,13px); }
+  .tabs[data-group=food] .icon { width:20px; height:20px; }
+  .tabs[data-group=food] .fullLabel { display:none; }
+  .tabs[data-group=food] .shortLabel { display:inline; }
   .launcher { margin-top:24px; }
   .launcherHeading>span { display:none; }
   .launcherGrid { gap:9px; }

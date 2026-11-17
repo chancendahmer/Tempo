@@ -19,6 +19,9 @@ export function CalendarView({ data, preview, ask, editTask }: { data: Workspace
   const tasks = data.tasks.filter(task => task.status !== "abandoned" && task.dueAt && localDay(new Date(task.dueAt), data.timezone) === day);
   const reminders = data.reminders.filter(r => localDay(new Date(r.remindAt), data.timezone) === day);
   const dateLabel = (value: string) => new Intl.DateTimeFormat(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric", timeZone: "UTC" }).format(new Date(`${value}T12:00:00Z`));
+  const agendaDate = dateLabel(day);
+  const compactDate = new Intl.DateTimeFormat(undefined, { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" }).format(new Date(`${day}T12:00:00Z`));
+  const plan = () => ask(`Help me schedule an event on ${day}.`);
   const agenda = [
     ...dayEvents.map(event => ({
       id: `event-${event.id}`, at: event.start.dateTime ? Date.parse(event.start.dateTime) : -Infinity,
@@ -49,12 +52,18 @@ export function CalendarView({ data, preview, ask, editTask }: { data: Workspace
   return <div className={s.calendar}>
     <div className={s.toolbar}>
       <div className={s.dateControls}><button className={s.iconButton} aria-label="Previous day" onClick={() => move(-1)}><FiChevronLeft aria-hidden="true" /></button><input className={s.dateInput} type="date" aria-label="Calendar date" value={day} onChange={e => { if (e.target.value) setDay(e.target.value); }} /><button className={s.iconButton} aria-label="Next day" onClick={() => move(1)}><FiChevronRight aria-hidden="true" /></button><button className={s.textButton} onClick={() => setDay(localDay(new Date(), data.timezone))}>Today</button></div>
-      <button className={s.primary} onClick={() => ask(`Help me schedule an event on ${day}.`)}><FiPlus aria-hidden="true" /> Plan with Tempo</button>
+      <button className={s.primary} onClick={plan}><FiPlus aria-hidden="true" /> Plan with Tempo</button>
     </div>
     <div className={s.sheet}>
       <div className={s.weekStrip} role="group" aria-label="Choose a day">{days.map(d => <button key={d.date} aria-label={dateLabel(d.date)} aria-current={d.date === today ? "date" : undefined} aria-pressed={d.date === day} onClick={() => setDay(d.date)}><span>{d.weekday}</span><strong>{d.number}</strong><i aria-hidden="true" /></button>)}</div>
       <section className={s.agenda} aria-labelledby="calendar-agenda-heading">
-        <header className={s.agendaHeader}><div><span className={s.kicker}>Day agenda</span><h2 id="calendar-agenda-heading">{dateLabel(day)}</h2><p>{data.timezone} · {preview ? "Sample calendar" : disconnected ? "Tasks and reminders" : "Google primary calendar"}</p></div>{!disconnected && <button className={s.iconButton} aria-label={preview ? "Refresh sample calendar" : "Refresh Google Calendar"} disabled={loading} onClick={() => setRefresh(n => n + 1)}><FiRefreshCw aria-hidden="true" /></button>}</header>
+        <header className={s.agendaHeader}>
+          <div><span className={s.kicker}>Day agenda</span><h2 id="calendar-agenda-heading" aria-label={agendaDate}><span className={s.fullDate}>{agendaDate}</span><span className={s.compactDate}>{compactDate}</span></h2><p>{data.timezone} · {preview ? "Sample calendar" : disconnected ? "Tasks and reminders" : "Google primary calendar"}</p></div>
+          <div className={s.agendaActions}>
+            <button className={`${s.primary} ${s.mobilePlan}`} aria-label="Plan with Tempo" onClick={plan}><FiPlus aria-hidden="true" /> Plan</button>
+            {!disconnected && <button className={s.iconButton} aria-label={preview ? "Refresh sample calendar" : "Refresh Google Calendar"} disabled={loading} onClick={() => setRefresh(n => n + 1)}><FiRefreshCw aria-hidden="true" /></button>}
+          </div>
+        </header>
         {agenda.length > 0 && <div className={s.agendaSummary} aria-label="Items on this day">
           <span><FiCalendar aria-hidden="true" />{loading ? "Events refreshing" : error ? "Events unavailable" : `${dayEvents.length} ${dayEvents.length === 1 ? "event" : "events"}`}</span>
           <span><FiCheckSquare aria-hidden="true" />{tasks.length} {tasks.length === 1 ? "to-do" : "to-dos"}</span>
@@ -65,7 +74,7 @@ export function CalendarView({ data, preview, ask, editTask }: { data: Workspace
         {error && <div role="alert" className={`${s.notice} ${s.errorNotice}`}><strong>Calendar events couldn’t refresh</strong><p>{reconnect ? "Reconnect Google Calendar to see current events." : error} Your saved tasks and reminders are still shown below.</p>{reconnect ? <Link href="/extensions">Reconnect Google Calendar</Link> : <button className={s.textButton} disabled={loading} onClick={() => setRefresh(n => n + 1)}><FiRefreshCw aria-hidden="true" />Try again</button>}</div>}
         {truncated && <p className={s.notice}>Google returned more events than this view can display. Open Google Calendar for the full schedule.</p>}
         <div className={s.entries}>{agenda.map(entry => <div key={entry.id}>{entry.content}</div>)}</div>
-        {!loading && !error && !agenda.length && <div className={s.empty}><FiCalendar aria-hidden="true" /><h3>A little room to breathe</h3><p>{disconnected ? "No tasks or reminders on this day." : "No calendar events, tasks, or reminders on this day."}</p><button className={s.textButton} onClick={() => ask(`Help me schedule an event on ${day}.`)}>Plan something small <FiArrowRight aria-hidden="true" /></button></div>}
+        {!loading && !error && !agenda.length && <div className={s.empty}><FiCalendar aria-hidden="true" /><h3>A little room to breathe</h3><p>{disconnected ? "No tasks or reminders on this day." : "No calendar events, tasks, or reminders on this day."}</p><button className={s.textButton} onClick={plan}>Plan something small <FiArrowRight aria-hidden="true" /></button></div>}
       </section>
       <footer className={s.connection}>
         <div className={s.connectionHeading}><FiCalendar aria-hidden="true" /><h3>Your Google Calendar</h3><Link className={s.textButton} href="/extensions">{data.calendar?.status === "requires_reauth" ? "Reconnect Google Calendar" : "Manage connection"} <FiArrowRight aria-hidden="true" /></Link></div>

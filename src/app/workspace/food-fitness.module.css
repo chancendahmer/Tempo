@@ -21,6 +21,101 @@
 .info { padding:14px 16px; background:#f6f2eb; border-radius:10px; font-size:13px; color:#665949; }
 .checkLabel { display:flex; align-items:center; gap:10px; font-size:14px; }
 .checkLabel input[type="checkbox"] { width:18px; height:18px; margin:0; }
+.foodBody, .foodFooter, .additionalNutrients { display:contents; }
+.mobileFoodInfo, .nutrientToggle { display:none; }
+
+@media (max-width:760px), (pointer:coarse) and (max-height:500px) {
+  .dialog.foodEditor[open] {
+    --food-gutter-left: max(16px, env(safe-area-inset-left));
+    --food-gutter-right: max(16px, env(safe-area-inset-right));
+    position:fixed;
+    inset:auto 0 var(--food-viewport-bottom, 0px);
+    display:flex;
+    flex-direction:column;
+    width:100%;
+    max-width:none;
+    height:100dvh;
+    height:min(100dvh, var(--food-viewport-height, 100dvh));
+    max-height:none;
+    margin:0;
+    padding:0;
+    border:0;
+    border-radius:0;
+    overflow:hidden;
+  }
+  .foodHeading, .foodBody, .foodFooter {
+    padding-left:var(--food-gutter-left);
+    padding-right:var(--food-gutter-right);
+  }
+  .foodHeading {
+    flex:none;
+    padding-top:max(6px, env(safe-area-inset-top));
+    padding-bottom:6px;
+    border-bottom:1px solid #e8e0d8;
+  }
+  .foodEditor .foodHeading h2 { margin:0; font-size:21px; }
+  .foodHeading p, .desktopFoodInfo { display:none; }
+  .mobileFoodInfo { display:inline; }
+  .foodEditor .form {
+    flex:1;
+    min-height:0;
+    grid-template-rows:minmax(0, 1fr) auto;
+    gap:0;
+    margin:0;
+  }
+  .foodBody {
+    display:block;
+    overflow:auto;
+    overscroll-behavior:contain;
+    scroll-padding-block:12px;
+    padding-block:12px 8px;
+  }
+  .foodEditor .foodBody .info {
+    margin:0 0 12px;
+    padding:9px 11px;
+    color:#665949;
+    font-size:13px;
+    line-height:1.45;
+  }
+  .foodEditor .fields { grid-template-columns:repeat(2, minmax(0, 1fr)); gap:10px; align-items:end; }
+  .foodEditor .fields label { gap:4px; }
+  .foodEditor .fields input, .foodEditor .fields select {
+    min-height:44px;
+    max-width:100%;
+    padding:8px 10px;
+    font-size:16px;
+  }
+  .foodEditor .fields input[type="date"] { display:block; text-align:left; }
+  .nutrientToggle {
+    grid-column:1 / -1;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:8px;
+    min-height:44px;
+    padding:8px 12px;
+    border:1px solid #e8e0d8;
+    border-radius:9px;
+    background:#f6f2eb;
+    color:#51495b;
+    font:inherit;
+    font-size:14px;
+    cursor:pointer;
+  }
+  .nutrientToggle[aria-expanded="true"] svg { transform:rotate(180deg); }
+  .nutrientToggle[aria-expanded="false"] + .additionalNutrients { display:none; }
+  .foodEditor .checkLabel { min-height:44px; margin-top:4px; }
+  .foodFooter {
+    display:block;
+    padding-top:8px;
+    padding-bottom:max(8px, env(safe-area-inset-bottom));
+    border-top:1px solid #e8e0d8;
+  }
+  .foodEditor .foodFooter .error { margin:0 0 8px; padding:8px 10px; color:#85420e; font-size:13px; }
+  .foodFooter .actions { display:grid; grid-template-columns:minmax(0, 1.6fr) minmax(0, 1fr); }
+  .foodFooter .actions button { justify-content:center; }
+  .foodEditor :is(button, input, select):focus-visible { outline:2px solid #246c95; outline-offset:2px; }
+}
 .programGrid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; margin-bottom:24px; }
 .programCard { --wash:#e8f1e7; --ink:#39654b; display:flex; flex-direction:column; gap:10px; padding:0 0 20px; border:1px solid #dcded7; border-radius:17px; overflow:hidden; background:#fff; color:#272333; text-align:left; cursor:pointer; font:inherit; }
 .programCard:nth-child(3n+2) { --wash:#f8eacb; --ink:#8b622a; }
@@ -34,6 +129,11 @@
 .programMeta { display:flex; flex-wrap:wrap; gap:8px; margin:16px 0; }
 .programMeta span { padding:6px 10px; background:#f0ede5; color:#665b4b; border-radius:7px; font-size:12px; }
 .savedPlans { display:grid; gap:12px; margin:0 0 28px; }
+@media (max-width:760px) {
+  .programPanel[data-has-saved-plans=false] > :first-child,
+  .programPanel[data-has-saved-plans=false] > .savedPlans { display:none; }
+  .programPanel[data-has-saved-plans=false] > .templateLibrary { border-top:0; padding-top:0; }
+}
 .savedPlan { border:1px solid #cdded5; background:#f3f8f3; border-radius:14px; padding:18px; }
 .savedPlan h3 { margin-bottom:8px; }
 .savedPlan select { max-width:100%; border:1px solid #cdded5; padding:10px; border-radius:8px; background:#fff; font:inherit; font-size:13px; }
@@ -87,7 +187,7 @@
 .foodPage button:focus-visible,.foodPage input:focus-visible,.foodPage select:focus-visible,.fitnessPage button:focus-visible,.fitnessPage select:focus-visible { outline:3px solid #246c95; outline-offset:3px; }
 @media(max-width:1000px) { .recipeLibrary { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 @media(max-width:600px) { .recipeLibrary { grid-template-columns:1fr; }.mealWeek { gap:5px; }.mealWeek>button { min-width:44px; padding-inline:3px; }.mealWeek>button>strong { font-size:18px; }.mealWeek>button>small { font-size:9px; } }
-.shoppingLayout { display:grid; grid-template-columns:minmax(0,1.4fr) minmax(250px,.9fr); gap:18px; align-items:start; }.shoppingLayout>article { min-width:0; padding:22px; }.shoppingLayout>article:nth-child(2) { background:#fafdff; }.shoppingLayout h2 { font-size:20px; }.shoppingLayout>article>details { margin-top:18px; padding-top:15px; border-top:1px solid #d4e4ef; font-size:12px; }
+.shoppingLayout { display:grid; grid-template-columns:minmax(0,1.4fr) minmax(250px,.9fr); gap:18px; align-items:start; }.shoppingLayout>article { min-width:0; padding:22px; }.shoppingLayout>article:last-of-type { background:#fafdff; }.shoppingLayout h2 { font-size:20px; }.shoppingLayout>article>details { margin-top:18px; padding-top:15px; border-top:1px solid #d4e4ef; font-size:12px; }
 .mealPlanGrid { align-items:start; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }.mealPlanGrid>article { min-width:0; padding:20px; }.mealPlanGrid>article>p:first-child { font-size:12px; color:#246c95; margin-bottom:16px; }.mealPlanGrid>article>div { border-bottom:1px solid #e4edf4; padding-bottom:16px; margin-bottom:16px; }.mealPlanGrid>article>div h3 { font-size:20px; line-height:1.4; }.mealPlanGrid label { color:#567185; font-size:12px; }.mealPlanGrid select { border:1px solid #d4e4ef; background:#fff; color:#17374d; border-radius:10px; padding:8px; max-width:100%; margin-top:6px; }.mealPlanGrid>article>button { margin-top:12px; }
 .movementSummary { display:grid; grid-template-columns:minmax(0,1.3fr) minmax(0,1fr); gap:14px; margin-bottom:26px; }.movementSummary>div,.movementSummary>button { display:flex; flex-direction:column; align-items:flex-start; gap:8px; background:white; color:#17374d; border:1px solid #d4e4ef; border-radius:20px; padding:22px; font:inherit; text-align:left; }.movementSummary>div { position:relative; }.movementSummary>div>span:first-child { position:absolute; top:22px; right:22px; background:#e7f4f5; color:#2d858d; border-radius:12px; padding:10px; }.movementSummary strong { font-size:30px; font-weight:650; letter-spacing:-.6px; }.movementSummary strong small { font-size:15px; letter-spacing:0; }.movementSummary span { font-size:12px; color:#567185; }.movementSummary>button { cursor:pointer; justify-content:center; background:#edf6fb; }.movementSummary>button>svg { color:#246c95; }.movementSummary>button strong { font-size:18px; letter-spacing:0; }.movementSummary>button strong small { font-size:16px; color:#17374d; }.movementSummary>button:hover { background:#e1eff8; }
 .fitnessPage .savedPlan { padding:20px; }.fitnessPage .savedPlan select { border-color:#d4e4ef; color:#17374d; }.fitnessPage .empty { background:#f6fbfe; border-color:#c9dfea; color:#567185; }.sessionWorkspace { border:1px solid #d4e4ef; border-radius:22px; overflow:hidden; background:white; margin-bottom:28px; }.sessionWorkspace>div { min-width:0; }.sessionWorkspace>div:first-child { background:#edf6fb; }.sessionWorkspace p { font-size:13px; line-height:1.7; }.sessionWorkspace h2 { font-size:24px; }.sessionWorkspace .programMeta span { background:white; color:#446a80; border:1px solid #d4e4ef; }.templateLibrary { margin-top:28px; padding-top:22px; border-top:1px solid #d4e4ef; }.templateLibrary h2 { font-size:20px; }.templateLibrary .programGrid { gap:12px; }.templateLibrary .programCard { border-color:#d4e4ef; border-radius:18px; color:#17374d; }.templateLibrary .programCard>strong { font-size:16px; }.templateLibrary .programCard[aria-pressed="true"] { outline-color:#246c95; }.templateLibrary .programCard>small { font-size:12px; }.templateLibrary .programCard>svg { height:95px; }.fitnessPage .exerciseDetails { color:#567185; }
@@ -107,3 +207,76 @@
 .mealPlanGrid .mealItem select{display:block;width:100%;min-height:44px;margin:4px 0 8px}
 .mealPlanGrid>article>button{margin-top:0;min-height:44px}
 @media(max-width:600px){.mealPlanGrid .mealItem figure img{height:170px}}
+
+/* Switches expose the two distinct jobs in each workspace without a long phone scroll. */
+.phoneSwitch, .phoneBack { display:none; }
+
+@media (max-width:760px) {
+  .phoneSwitch {
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:3px;
+    margin:0 0 14px;
+    padding:3px;
+    border:1px solid #c8dce8;
+    border-radius:15px;
+    background:#e6eff6;
+  }
+  .phoneSwitch button, .phoneBack {
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    min-height:44px;
+    padding:8px 10px;
+    border:1px solid transparent;
+    border-radius:11px;
+    font:inherit;
+    font-weight:600;
+    font-size:14px;
+    color:#435e70;
+    background:transparent;
+    cursor:pointer;
+  }
+  .phoneSwitch [aria-pressed="true"] {
+    background:white;
+    border-color:#bfd3df;
+    color:#173e57;
+    box-shadow:0 1px 3px #28496116;
+  }
+  .phoneSwitch button:focus-visible, .phoneBack:focus-visible {
+    outline:2px solid #246c95;
+    outline-offset:1px;
+  }
+  .phoneBack { margin:-12px 0 0; }
+  .shoppingLayout .phoneSwitch { margin-bottom:0; }
+  .shoppingLayout[data-shopping-view="list"] > article:last-of-type,
+  .shoppingLayout[data-shopping-view="pantry"] > article:first-of-type,
+  .fitnessPage[data-fitness-view="activity"] .programPanel,
+  .fitnessPage[data-fitness-view="programs"] .activityPanel { display:none; }
+  .fitnessPage .sessionWorkspace h2, .templateLibrary h2 { scroll-margin-top:75px; }
+  .fitnessPage .movementSummary { gap:8px; margin-bottom:16px; }
+  .fitnessPage .movementSummary > button {
+    flex-direction:row;
+    align-items:center;
+    justify-content:flex-start;
+    flex-wrap:wrap;
+    padding:10px 14px;
+  }
+  .activityPanel .historyHeading { margin-top:16px; }
+  .foodPage .mealWeek { grid-template-columns:repeat(7,minmax(0,1fr)); gap:3px; }
+  .foodPage .mealWeek > button { min-height:64px; min-width:0; padding:5px 1px; gap:1px; }
+  .foodPage .mealWeek > button > small { line-height:1.25; min-height:0; }
+  .foodPage .mealWeek > button > small span { display:none; }
+  .recipeLibrary figure img { max-height:155px; }
+}
+
+@media (max-width:760px) and (prefers-reduced-motion:no-preference) {
+  .shoppingLayout > article, .activityPanel, .programPanel {
+    animation:panelEnter 130ms ease-out;
+  }
+}
+@keyframes panelEnter {
+  from { opacity:.7; transform:translateY(2px); }
+  to { opacity:1; transform:translateY(0); }
+}

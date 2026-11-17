@@ -127,3 +127,29 @@
   .sessionContent progress { margin: 8px 0; }
 }
 @media (prefers-reduced-motion: reduce) { .chevron { transition: none; } }
+
+@media (max-width: 760px) {
+  .root { gap: 16px; }
+  .choices { gap: 8px; border: 0; }
+  .choice { min-height: 48px; padding: 8px 10px; flex-wrap: nowrap; gap: 6px; border: 1px solid #dfd5c7; border-radius: 12px; }
+  .choice[aria-pressed="true"] { border-color: var(--wake-accent); background: #fffdfa; }
+  .choiceCopy { flex: 1; }
+  .choiceCopy > span, .selection { display: none; }
+  .modeIcon { width: 32px; height: 32px; font-size: 18px; }
+  .choiceCopy strong { font-size: 15px; }
+  .controls { padding: 16px; border-radius: 18px; }
+  .sessionIntro { display: block; margin: -16px -16px 16px; padding: 22px 85px 18px 16px; border-radius: 18px 18px 0 0; position: relative; overflow: hidden; isolation: isolate; background: linear-gradient(160deg, #fff8dc, #f5e0c0 88%); }
+  .root[data-mode="sunset"] .sessionIntro { background: linear-gradient(150deg, #eee9f4, #e4d5de 72%, #e5ceb6); }
+  .sessionIntro h2 { font-size: 24px; }
+  .sessionIntro .eyebrow { display: none; }
+  .miniSun, .miniMoon { display: block; position: absolute; right: 16px; top: 50%; transform: translateY(-50%); width: 42px; height: 42px; margin: 0; z-index: -1; }
+  .miniSun { background: #e3a447; box-shadow: 0 0 0 7px #f6cf8e, 0 0 0 14px #f8dca9; }
+  .miniMoon { background: #89769e; box-shadow: 12px -8px 0 0 #e4d7e7 inset; }
+  .duration { width: 100%; }
+  .duration select { font-size: 16px; }
+  .startRow { gap: 12px; }
+  .actions { display: grid; width: 100%; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .actions button { padding-inline: 6px; gap: 4px; line-height: 1.25; }
+  .settings { margin-top: 14px; }
+  .settings > summary { min-height: 48px; padding-top: 5px; }
+}

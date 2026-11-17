@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 
 export function EarlyAccessCounter() {
   const [target, setTarget] = useState(0);
-  const [count, setCount] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -25,34 +24,14 @@ export function EarlyAccessCounter() {
     };
   }, []);
 
-  useEffect(() => {
-    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reduceMotion) {
-      const frame = window.requestAnimationFrame(() => setCount(target));
-      return () => window.cancelAnimationFrame(frame);
-    }
-
-    const startedAt = performance.now();
-    const initial = count;
-    let frame = 0;
-    const animate = (now: number) => {
-      const progress = Math.min((now - startedAt) / 900, 1);
-      const eased = 1 - Math.pow(1 - progress, 3);
-      setCount(Math.round(initial + (target - initial) * eased));
-      if (progress < 1) frame = window.requestAnimationFrame(animate);
-    };
-    frame = window.requestAnimationFrame(animate);
-    return () => window.cancelAnimationFrame(frame);
-    // The animation deliberately restarts only when the server-backed target changes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [target]);
+  if (!target) return null;
 
   return (
     <div
       className="interest-counter"
       aria-label={`${target} ${target === 1 ? "person has" : "people have"} joined Tempo early access`}
     >
-      <span className="counter-number" aria-hidden="true">{count}</span>
+      <span className="counter-number" aria-hidden="true">{target}</span>
       <span className="counter-caption" aria-hidden="true">early<br />members</span>
     </div>
   );

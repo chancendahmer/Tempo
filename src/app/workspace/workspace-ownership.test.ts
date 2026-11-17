@@ -70,7 +70,7 @@ it("clears a malformed 401 before attempting JSON and invalidates the account lo
 });
 
 it("never reconciles account B's snapshot into account A's mounted workspace", async () => {
-  const body = { cacheKey: "cache:b", messages: [] };
+  const body = { cacheKey: "cache:b", messages: [], tasks: [] };
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json(body)));
   await mountedRefresh()();
   expect(hooks.setters[0]).toHaveBeenCalledExactlyOnceWith(null);
@@ -78,7 +78,7 @@ it("never reconciles account B's snapshot into account A's mounted workspace", a
 });
 
 it("retains same-owner state on 503 and accepts only an owned successful snapshot", async () => {
-  const body = { cacheKey: "cache:a", messages: [] };
+  const body = { cacheKey: "cache:a", messages: [], tasks: [] };
   vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce(Response.json({ error: "Unavailable" }, { status: 503 })).mockResolvedValueOnce(Response.json(body)));
   const refresh = mountedRefresh();
   await refresh(); expect(hooks.setters[0]).not.toHaveBeenCalled();
@@ -88,11 +88,11 @@ it("retains same-owner state on 503 and accepts only an owned successful snapsho
 
 it("ignores an obsolete body even when a later request has already reconciled", async () => {
   let finishBody!: (body: unknown) => void;
-  const current = { cacheKey: "cache:a", messages: [] };
+  const current = { cacheKey: "cache:a", messages: [], tasks: [] };
   vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce({ ok: true, status: 200, json: () => new Promise(resolve => { finishBody = resolve; }) }).mockResolvedValueOnce(Response.json(current)));
   const refresh = mountedRefresh();
   const obsolete = refresh(); await Promise.resolve();
-  await refresh(); finishBody({ cacheKey: "cache:b", messages: [] }); await obsolete;
+  await refresh(); finishBody({ cacheKey: "cache:b", messages: [], tasks: [] }); await obsolete;
   expect(hooks.setters[0]).toHaveBeenCalledExactlyOnceWith(current);
   expect(window.dispatchEvent).not.toHaveBeenCalled();
 });

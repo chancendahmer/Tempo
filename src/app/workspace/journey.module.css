@@ -134,3 +134,13 @@
 @media(max-width:480px) { .mapAvatar { width:42px; } }
 
 .compactNav{margin-bottom:8px}.compactNav button{min-height:32px;padding-block:2px}
+.mobileProgress { display:none; }
+@media(max-width:760px) {
+  .heading .desktopIntro, .heading>.eyebrow { display:none; }
+  .heading .mobileProgress { display:flex; align-items:center; flex-wrap:wrap; gap:7px; margin-top:10px; }
+  .mobileProgress span { display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:99px; background:#f1eee4; color:#544d38; font-size:12px; font-weight:650; }
+  .mobileProgress svg { color:#896328; }
+  .compactNav { margin-bottom:0; gap:8px; }
+  .compactNav button { min-width:44px; min-height:44px; padding-block:4px; }
+  .compactNav button span { display:none; }
+}

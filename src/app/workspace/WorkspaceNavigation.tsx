@@ -24,10 +24,12 @@ export function groupForSection(section: Section) {
   return navigationGroups.find(group => group.sections.includes(section));
 }
 
-function Destination({ destination, current, go }: { destination: Section; current: Section; go: (section: Section) => void }) {
+function Destination({ destination, current, go, compactLabel }: { destination: Section; current: Section; go: (section: Section) => void; compactLabel?: string }) {
   const [key, label, Icon, tone] = sections.find(([key]) => key === destination)!;
-  return <button type="button" data-tone={tone} aria-current={current === key ? "page" : undefined} onClick={() => go(key)}>
-    <span className={s.icon} aria-hidden="true"><Icon /></span><span>{label}</span>
+  return <button type="button" data-tone={tone} aria-label={label} aria-current={current === key ? "page" : undefined} onClick={() => go(key)}>
+    <span className={s.icon} aria-hidden="true"><Icon /></span>
+    <span className={compactLabel ? s.fullLabel : undefined}>{label}</span>
+    {compactLabel && <span className={s.shortLabel}>{compactLabel}</span>}
   </button>;
 }
 
@@ -111,7 +113,7 @@ export function WorkspaceSectionNav({ current, go }: { current: Section; go: (se
   }, [current]);
   const group = groupForSection(current);
   if (!group) return null;
-  return <nav ref={tabs} className={s.tabs} aria-label={`${group.label} sections`}>
-    {group.sections.map(key => <Destination key={key} destination={key} current={current} go={go} />)}
+  return <nav ref={tabs} className={s.tabs} data-group={group.id} aria-label={`${group.label} sections`}>
+    {group.sections.map(key => <Destination key={key} destination={key} current={current} go={go} compactLabel={key === "nutrition" ? "Nutrition" : undefined} />)}
   </nav>;
 }

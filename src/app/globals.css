@@ -392,6 +392,12 @@ select {
   width: min(720px, 100%);
   margin: 0 auto;
 }
+.signup-form .signup-mobile-submit { display:none; }
+@media (max-width:760px) {
+  .signup-form .signup-inline-submit, .proof-row .pilot-caption { display:none; }
+  .signup-form .signup-mobile-submit { display:block; width:100%; margin-top:12px; }
+  .proof-row:not(:has(.interest-counter)) { display:none; }
+}
 
 .signup-control {
   min-height: 82px;

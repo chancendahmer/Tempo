@@ -8,3 +8,15 @@
 .account button:focus-visible,.account a:focus-visible{outline:3px solid #52857c;outline-offset:4px}
 .profilePanel{max-width:calc(100vw - 28px);overflow-wrap:anywhere}
 .profilePanel button,.profilePanel a{min-height:44px;cursor:pointer}
+.searchToggle { display:none; }
+@media (max-width:760px) {
+  .header { min-height:64px; padding:8px 16px; gap:10px; }
+  .header .menu,.header .spaces { display:none; }
+  .brand { min-height:44px; }
+  .searchToggle { display:grid; place-items:center; width:44px; height:44px; flex:none; padding:10px; border:1px solid #e1e4dd; border-radius:50%; color:#465e55; background:transparent; }
+  .searchToggle svg { width:20px; height:20px; }
+  .search { display:none; }
+  .search[data-mobile-open=true] { display:flex; height:46px; }
+  .search>input,.search>input::placeholder { font-size:16px; }
+  .clear { min-width:44px; min-height:44px; }
+}
